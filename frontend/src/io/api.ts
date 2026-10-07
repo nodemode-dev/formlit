@@ -10,7 +10,9 @@ async function failure(r: Response): Promise<EngineError> {
   try {
     detail = await r.json();
     const d = (detail as { detail?: unknown }).detail;
-    if (typeof d === 'string') message = d;
+    const e = (detail as { error?: unknown }).error;
+    if (typeof e === 'string') message = e;
+    else if (typeof d === 'string') message = d;
     else if (d && typeof d === 'object' && 'message' in (d as object)) message = String((d as { message: unknown }).message);
   } catch {
     message = `${r.status} ${r.statusText}`;

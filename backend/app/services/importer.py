@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,8 +25,9 @@ def quick_hash(path: Path) -> str:
     return h.hexdigest()
 
 
-def walk(paths: list[str], recursive: bool = True, limit: int = 200_000) -> list[Path]:
+def walk(paths: list[str], recursive: bool = True, limit: int = 200_000, budget: float | None = None) -> list[Path]:
     out: list[Path] = []
+    deadline = time.monotonic() + budget if budget else None
     for raw in paths:
         p = Path(raw).expanduser()
         if p.is_file():
@@ -36,6 +38,8 @@ def walk(paths: list[str], recursive: bool = True, limit: int = 200_000) -> list
             continue
         if recursive:
             for root, dirs, files in os.walk(p):
+                if deadline is not None and time.monotonic() > deadline:
+                    return out
                 dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
                 for name in sorted(files):
                     fp = Path(root) / name
@@ -56,11 +60,12 @@ def walk(paths: list[str], recursive: bool = True, limit: int = 200_000) -> list
     return unique
 
 
-def scan(paths: list[str], recursive: bool = True) -> dict:
+def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
     cat = catalog_mod.get()
-    files = walk(paths, recursive)
+    files = walk(paths, recursive, limit, budget=6.0)
     known_paths = {(r["path"], r["file_name"]) for r in cat.rows("SELECT f.path, p.file_name FROM photos p JOIN folders f ON f.id=p.folder_id")}
-    hashes = {r["content_hash"] for r in cat.rows("SELECT content_hash FROM photos WHERE content_hash != ''")}
+    known_sizes = {(r["file_name"].lower(), r["file_size"]) for r in cat.rows("SELECT file_name, file_size FROM photos")}
+    hashes = {r["content_hash"] for r in cat.rows("SELECT content_hash FROM photos WHERE content_hash != ''")} if len(files) <= 400 else set()
     out = []
     for p in files:
         try:
@@ -68,14 +73,14 @@ def scan(paths: list[str], recursive: bool = True) -> dict:
         except OSError:
             continue
         in_catalog = (str(p.parent), p.name) in known_paths
-        dup = in_catalog
+        dup = in_catalog or (p.name.lower(), st.st_size) in known_sizes
         if not dup and hashes:
             try:
                 dup = quick_hash(p) in hashes
             except OSError:
                 dup = False
         out.append({"path": str(p), "name": p.name, "size": st.st_size, "mtime": st.st_mtime, "kind": decode.kind_of(p), "duplicate": dup, "inCatalog": in_catalog})
-    return {"files": out, "count": len(out), "duplicates": sum(1 for f in out if f["duplicate"])}
+    return {"files": out, "count": len(out), "duplicates": sum(1 for f in out if f["duplicate"]), "truncated": len(files) >= limit}
 
 
 def _meta_from(info: dict, preset: dict | None) -> dict:

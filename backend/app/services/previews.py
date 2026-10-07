@@ -160,9 +160,9 @@ def render_rgb8(pid: int, long: int, settings: dict | None = None) -> np.ndarray
     if row is None:
         raise FileNotFoundError(f"No photo with id {pid}")
     dev = settings if settings is not None else loads(row["develop"], {})
-    src_long = PREVIEW if long <= PREVIEW else None
-    img, info = source(pid, src_long, full=src_long is None)
-    out = render.render(img, info, dev, max_long=long, photo_id=pid)
+    full = not long or long > PREVIEW
+    img, info = source(pid, None if full else PREVIEW, full=full)
+    out = render.render(img, info, dev, max_long=long or None, photo_id=pid, src_long=max(img.shape[:2]) if full else None)
     return render.to_u8(out)
 
 
@@ -172,9 +172,9 @@ def rendered(pid: int, size: str) -> Path:
     out = thumb_path(pid, rev, size)
     if out.is_file():
         return out
-    long = THUMB if size == "t" else PREVIEW
+    long = {"t": THUMB, "p": PREVIEW}.get(size, 0)
     rgb8 = render_rgb8(pid, long)
-    write_atomic(out, encode_jpeg(rgb8, 82 if size == "t" else 88))
+    write_atomic(out, encode_jpeg(rgb8, {"t": 82, "p": 88}.get(size, 92)))
     for old in cache_dir(pid).glob(f"{pid}-*-{size}.jpg"):
         if old != out:
             try:

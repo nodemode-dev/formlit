@@ -39,6 +39,17 @@ def preview(pid: int, rev: int | None = None, wait: float = 0.0) -> Any:
     return _missing(pid) if path is None else _file(path, final, rev is not None)
 
 
+@router.get("/{pid}/full")
+def full(pid: int, rev: int | None = None, wait: float = 60.0) -> Any:
+    try:
+        path = previews.request(pid, "f", foreground=True).result(timeout=min(max(wait, 0.1), 300.0))
+    except FileNotFoundError:
+        return _missing(pid)
+    except TimeoutError:
+        return JSONResponse({"ok": False, "error": "Still building the 1:1 preview"}, status_code=202)
+    return _file(path, True, rev is not None)
+
+
 @router.get("/{pid}/original")
 def original(pid: int) -> Any:
     path = catalog_mod.get().photo_path(pid)

@@ -69,8 +69,8 @@ def get_photo(id: int | None = None) -> dict:
 
 
 @command("library.scan", "Scan for Photos", {"paths": {"type": "array"}, "recursive": {"type": "boolean"}}, mutates=False)
-def scan(paths: list[str], recursive: bool = True) -> dict:
-    return importer.scan(paths, recursive)
+def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
+    return importer.scan(paths, recursive, max(1, min(int(limit), 200_000)))
 
 
 @command("library.import", "Import Photos", {"paths": {"type": "array"}, "mode": {"type": "string", "enum": ["add", "copy", "move"]}, "destination": {"type": "string"}})

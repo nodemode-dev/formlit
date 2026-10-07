@@ -6,6 +6,9 @@ import { revealApp, setClass, setDisabled, setTitle } from './ui/dom';
 import { anyDialogOpen } from './ui/dialogs';
 import { toast } from './ui/toast';
 import { api, errorText, type Api } from './io/api';
+import { events } from './io/events';
+import { registerPhotoActions } from './modules/shared/actions';
+import { openPreferences } from './ui/preferences';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
 
@@ -53,6 +56,12 @@ export class App implements Ctx {
 
   start(): void {
     for (const m of modules()) this.shell.addModuleTab(m.id, m.label, m.icon, `${m.label} (${this.keyText(m)})`);
+    registerPhotoActions(this);
+    this.engineStatus();
+    for (const m of modules()) {
+      m.mount(this, this.shell.hostsFor(m.id));
+      this.mounted.add(m.id);
+    }
     this.buildMenus();
     document.addEventListener('keydown', (e) => this.onKey(e));
     document.addEventListener('click', (e) => {
@@ -80,6 +89,26 @@ export class App implements Ctx {
     m.activate?.();
     try { localStorage.setItem(MODULE_KEY, id); } catch { this.syncButtons(); }
     this.syncButtons();
+  }
+
+  private engineStatus(): void {
+    const running = new Map<number, () => void>();
+    events.on('task', (e) => {
+      const id = Number(e.id);
+      const state = String(e.state);
+      if (state === 'running') {
+        if (!running.has(id)) running.set(id, this.shell.busy(String(e.label ?? 'Working')));
+        const done = Number(e.done ?? 0), total = Number(e.total ?? 0);
+        this.shell.setHint(total ? `${String(e.label ?? '')} · ${done} of ${total}` : String(e.label ?? ''));
+        return;
+      }
+      running.get(id)?.();
+      running.delete(id);
+      this.shell.setHint(state === 'failed' ? `${String(e.label ?? 'Task')} failed: ${String(e.error ?? '')}` : '');
+      if (state === 'failed') toast(`${String(e.label ?? 'Task')} failed: ${String(e.error ?? '')}`, 'error');
+    });
+    events.onStatus = (on) => this.shell.setGpu(on ? '' : 'Engine offline · reconnecting');
+    events.start();
   }
 
   private keyText(m: LitModule): string {
@@ -126,6 +155,7 @@ export class App implements Ctx {
       { id: 'app.screen', label: 'Full Screen', keys: ['Shift+F'], run: () => s.cycleScreen(), checked: () => s.app.classList.contains('is-screen-full') },
       { id: 'app.lights', label: 'Lights Out', keys: ['L'], run: () => s.cycleLights() },
       { id: 'app.about', label: 'About formlit', run: () => toast(`formlit ${VERSION} · photo library and raw developer`) },
+      { id: 'app.preferences', label: 'Preferences...', keys: ['Mod+,'], run: () => openPreferences(this) },
     );
     for (const [i, m] of modules().entries()) {
       add({ id: `module.${m.id}`, label: m.label, keys: [m.key], run: () => this.toModule(m.id), checked: () => this.current === m.id });
@@ -136,10 +166,17 @@ export class App implements Ctx {
   private buildMenus(): void {
     const has = (id: string) => !!this.commands.get(id);
     const pick = (items: Array<string | '-'>) => items.filter((i) => i === '-' || has(i));
+    const tidy = (items: Array<string | '-'>) => pick(items).filter((x, i, a) => !(x === '-' && (i === 0 || a[i - 1] === '-' || i === a.length - 1)));
     const defs = this.menus.length ? this.menus : [
-      { label: 'File', items: () => pick(['app.about']) },
-      { label: 'View', items: () => pick(['view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.toggleToolbar', '-', 'app.lights', 'app.screen']) },
+      { label: 'File', items: () => tidy(['library.import', 'library.export', 'library.exportPrevious', 'library.exportPreset', '-', 'library.editIn', '-', 'preset.importFiles', 'library.newCatalog', 'library.openCatalog', '-', 'app.preferences', 'app.about']) },
+      { label: 'Edit', items: () => tidy(['edit.undo', 'edit.redo', '-', 'edit.selectAll', 'edit.selectNone', 'edit.invertSelection', 'edit.selectPicks', 'edit.deselectUnflagged', '-', 'view.find']) },
+      { label: 'Library', items: () => tidy(['lib.colNew', 'lib.colNewSmart', 'lib.colNewSet', '-', 'view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.findMissing', 'library.buildPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
+      { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },
+      { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename']) },
+      { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.matchExposure', 'develop.autoBw']) },
+      { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
       { label: 'Window', items: () => pick(modules().map((m) => `module.${m.id}`)) },
+      { label: 'Help', items: () => tidy(['app.shortcuts', 'app.agents', 'app.about']) },
     ];
     new MenuBar(this.shell.menubar, this.commands, defs);
   }

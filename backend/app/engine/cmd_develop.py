@@ -78,9 +78,23 @@ def set_values(ids: Any = None, values: dict | None = None, delta: bool = False,
     with c.change(name) as ch:
         for pid in pids:
             dev, _ = current(pid)
+            if any(k in ("wb.temp", "wb.tint") for k in values):
+                dev = seed_wb(pid, dev)
             store(ch, pid, _apply_values(dev, values, delta), name)
     after(pids)
     return {"ids": pids}
+
+
+def seed_wb(pid: int, dev: dict) -> dict:
+    wb = dev.get("wb") or {}
+    if wb.get("mode", "asShot") == "custom":
+        return dev
+    from app.develop.render import effective_wb
+    img, info = previews.source(pid)
+    t, ti = effective_wb(img, info, dev, pid)
+    out = copy.deepcopy(dev)
+    out["wb"] = {"mode": "custom", "temp": round(t), "tint": round(ti)}
+    return out
 
 
 def deep_patch(dev: dict, patch: dict) -> dict:
