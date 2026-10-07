@@ -14,6 +14,7 @@ import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
+import { catalog } from './state/catalog';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
 
@@ -81,7 +82,8 @@ export class App implements Ctx {
     try { const saved = localStorage.getItem(MODULE_KEY); if (saved && moduleById(saved)) first = saved; } catch { first = modules()[0]?.id ?? ''; }
     if (first) this.toModule(first);
     this.syncButtons();
-    void document.fonts.ready.then(() => revealApp());
+    const tree = new Promise<void>((done) => { const off = catalog.listen(() => { off(); done(); }); window.setTimeout(done, 2500); });
+    void Promise.all([document.fonts.ready, tree]).then(() => revealApp());
   }
 
   toModule(id: string): void {

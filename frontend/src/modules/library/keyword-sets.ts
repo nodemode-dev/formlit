@@ -1,7 +1,7 @@
 import type { Ctx } from '../../app';
 import { library } from '../../state/library';
 import { askForm } from '../../ui/askform';
-import { el, escapeHtml, setValue } from '../../ui/dom';
+import { el, escapeHtml, setDisabled, setText, setValue } from '../../ui/dom';
 import { toast } from '../../ui/toast';
 
 const BUILTIN: Record<string, string[]> = {
@@ -23,7 +23,7 @@ export function rememberKeywords(kws: string[]): void {
 }
 
 export class KeywordSets {
-  readonly root = el('<div class="fl-kwset"><div class="fl-kwset-head"><select class="cv-select" aria-label="Keyword set"></select><button class="cv-btn fl-btn-sm" type="button" data-edit>Edit...</button></div><div class="fl-kwset-grid"></div></div>');
+  readonly root = el(`<div class="fl-kwset"><div class="fl-kwset-head"><select class="cv-select" aria-label="Keyword set"></select><button class="cv-btn fl-btn-sm" type="button" data-edit>Edit...</button></div><div class="fl-kwset-grid">${Array.from({ length: 9 }, (_, i) => `<button class="fl-kwset-btn" type="button" data-i="${i}" title="Alt+${i + 1}" disabled></button>`).join('')}</div></div>`);
   private readonly select = this.root.querySelector('select') as HTMLSelectElement;
   private readonly grid = this.root.querySelector('.fl-kwset-grid') as HTMLElement;
   private user: Record<string, string[]> = {};
@@ -31,6 +31,7 @@ export class KeywordSets {
 
   constructor(private readonly ctx: Ctx) {
     try { this.current = localStorage.getItem(SET_KEY) || 'Recent Keywords'; } catch { this.current = 'Recent Keywords'; }
+    this.render();
     void ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => { this.user = (p.keywordSets as Record<string, string[]>) ?? {}; this.render(); }, () => this.render());
     this.select.addEventListener('change', () => { this.current = this.select.value; try { localStorage.setItem(SET_KEY, this.current); } catch { this.render(); } this.render(); });
     this.grid.addEventListener('click', (e) => {
@@ -54,8 +55,7 @@ export class KeywordSets {
     if (this.select.dataset.key !== opts) { this.select.dataset.key = opts; this.select.innerHTML = opts; }
     setValue(this.select, this.current);
     const words = this.words();
-    const html = Array.from({ length: 9 }, (_, i) => `<button class="fl-kwset-btn" type="button" data-i="${i}" title="Alt+${i + 1}"${words[i] ? '' : ' disabled'}>${escapeHtml(words[i] ?? '')}</button>`).join('');
-    if (this.grid.dataset.key !== html) { this.grid.dataset.key = html; this.grid.innerHTML = html; }
+    this.grid.querySelectorAll<HTMLButtonElement>('.fl-kwset-btn').forEach((b, i) => { setText(b, words[i] ?? ''); setDisabled(b, !words[i]); });
   }
 
   private async apply(i: number): Promise<void> {

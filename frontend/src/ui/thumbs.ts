@@ -1,6 +1,6 @@
 import { api } from '../io/api';
 import type { Photo } from '../state/library';
-import { el, q, setClass, setHtml, setStyleVar, setText, setTitle } from './dom';
+import { el, q, setClass, setHidden, setHtml, setStyleVar, setText, setTitle } from './dom';
 import { icon } from './icons';
 
 const bumps = new Map<string, number>();
@@ -37,18 +37,7 @@ export function loadInto(img: HTMLImageElement, url: string): Promise<boolean> {
   });
 }
 
-const FLAG_ICON: Record<number, string> = { 1: 'flagPickFill', [-1]: 'flagRejectFill' };
-
-export function badgesHtml(p: Photo, compact = false): string {
-  const parts: string[] = [];
-  if (p.f) parts.push(`<span class="fl-b-flag fl-b-flag-${p.f > 0 ? 'pick' : 'reject'}">${icon(FLAG_ICON[p.f] ?? 'flagPick', 12)}</span>`);
-  if (p.r > 0) parts.push(`<span class="fl-b-stars" aria-label="${p.r} stars">${'<i></i>'.repeat(p.r)}</span>`);
-  parts.push('<span class="fl-b-gap"></span>');
-  if (p.e && !compact) parts.push(`<span class="fl-b-edit" title="Edited">${icon('modDevelop', 11)}</span>`);
-  if (p.miss) parts.push(`<span class="fl-b-miss" title="Original missing">${icon('warning', 12)}</span>`);
-  if (p.dur) parts.push(`<span class="fl-b-dur">${Math.floor(p.dur / 60)}:${String(Math.round(p.dur % 60)).padStart(2, '0')}</span>`);
-  return parts.join('');
-}
+const BADGES = `<span class="fl-b-flag fl-b-flag-pick" hidden>${icon('flagPickFill', 12)}</span><span class="fl-b-flag fl-b-flag-reject" hidden>${icon('flagRejectFill', 12)}</span><span class="fl-b-stars" hidden>${'<i></i>'.repeat(5)}</span><span class="fl-b-gap"></span><span class="fl-b-edit" title="Edited" hidden>${icon('modDevelop', 11)}</span><span class="fl-b-miss" title="Original missing" hidden>${icon('warning', 12)}</span><span class="fl-b-dur" hidden></span>`;
 
 export class ThumbCell {
   readonly root: HTMLElement;
@@ -59,7 +48,7 @@ export class ThumbCell {
   id = -1;
 
   constructor(cls: string, withName: boolean) {
-    this.root = el(`<div class="fl-cell ${cls}" role="gridcell"><div class="fl-cell-frame"><img class="fl-cell-img" alt="" draggable="false"></div><span class="fl-cell-stack" hidden></span><span class="fl-cell-vc" hidden></span>${withName ? '<span class="fl-cell-name"></span>' : '<span class="fl-cell-name" hidden></span>'}<div class="fl-badges"></div></div>`);
+    this.root = el(`<div class="fl-cell ${cls}" role="gridcell"><div class="fl-cell-frame"><img class="fl-cell-img" alt="" draggable="false"></div><span class="fl-cell-stack" hidden></span><span class="fl-cell-vc" hidden></span>${withName ? '<span class="fl-cell-name"></span>' : '<span class="fl-cell-name" hidden></span>'}<div class="fl-badges">${BADGES}</div></div>`);
     this.img = q<HTMLImageElement>(this.root, 'img');
     this.badges = q(this.root, '.fl-badges');
     this.name = q(this.root, '.fl-cell-name');
@@ -78,7 +67,16 @@ export class ThumbCell {
     }
     setStyleVar(this.root, '--fl-aspect', String(p.a || 1.5));
     void loadInto(this.img, thumbUrl(p));
-    setHtml(this.badges, badgesHtml(p, compact), `${p.f}|${p.r}|${p.e}|${p.miss ?? 0}|${p.dur ?? 0}|${compact ? 1 : 0}`);
+    const [pick, reject, stars, , edit, miss, dur] = Array.from(this.badges.children) as HTMLElement[];
+    setHidden(pick, p.f <= 0);
+    setHidden(reject, p.f >= 0);
+    setHidden(stars, !(p.r > 0));
+    setStyleVar(stars, '--fl-r', String(p.r));
+    setTitle(stars, `${p.r} stars`);
+    setHidden(edit, !p.e || compact);
+    setHidden(miss, !p.miss);
+    setHidden(dur, !p.dur);
+    if (p.dur) setText(dur, `${Math.floor(p.dur / 60)}:${String(Math.round(p.dur % 60)).padStart(2, '0')}`);
     setText(this.name, p.cn ? `${p.file} · ${p.cn}` : p.file);
     this.root.dataset.label = p.l || '';
     setClass(this.root, 'is-reject', p.f < 0);

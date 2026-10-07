@@ -44,8 +44,9 @@
 .fl-b-flag { display: inline-flex; }
 .fl-b-flag-pick { color: var(--fl-pick); }
 .fl-b-flag-reject { color: var(--fl-reject); }
-.fl-b-stars { display: inline-flex; gap: 1px; }
-.fl-b-stars i { width: 7px; height: 7px; background: var(--fl-star); clip-path: polygon(50% 0, 62% 35%, 100% 38%, 70% 60%, 80% 100%, 50% 78%, 20% 100%, 30% 60%, 0 38%, 38% 35%); }
+.fl-b-stars { display: inline-flex; flex: none; gap: 1px; width: calc(var(--fl-r, 0) * 8px - 1px); overflow: hidden; }
+.fl-badges [hidden] { display: none; }
+.fl-b-stars i { flex: none; width: 7px; height: 7px; background: var(--fl-star); clip-path: polygon(50% 0, 62% 35%, 100% 38%, 70% 60%, 80% 100%, 50% 78%, 20% 100%, 30% 60%, 0 38%, 38% 35%); }
 .fl-b-edit { display: inline-flex; color: var(--text-muted); }
 .fl-b-miss { display: inline-flex; color: var(--warn); }
 .fl-b-dur { padding: 0 4px; border-radius: 3px; background: var(--surface-0); color: var(--text-secondary); font-variant-numeric: tabular-nums; }

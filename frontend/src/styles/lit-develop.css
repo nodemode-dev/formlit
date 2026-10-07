@@ -50,9 +50,11 @@
 .fl-dv { position: absolute; inset: 0; overflow: hidden; background: var(--canvas-bg); touch-action: none; }
 .is-proof .fl-dv { background: var(--fl-paper); }
 .is-proof .fl-dv::after { content: 'Proof Preview'; position: absolute; top: 10px; right: 14px; color: var(--fl-neutral-grey); font-size: var(--fs-12); pointer-events: none; }
-.fl-proof-opts { display: inline-flex; align-items: center; gap: 4px; }
+.fl-proof-opts { position: absolute; top: 6px; left: 12px; z-index: var(--z-raised); display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--glass-bg); }
 .fl-proof-opts[hidden] { display: none; }
-.fl-proof-profile { width: 150px; }
+.fl-proof-profile { width: 190px; }
+.fl-proof-opts [hidden] { display: none; }
+.fl-proof-paper { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; color: var(--text-secondary); white-space: nowrap; }
 .fl-dv.is-zoomed { cursor: grab; }
 .fl-dv.is-panning { cursor: grabbing; }
 .fl-dv-box, .fl-dv-before { position: absolute; left: var(--x, 0); top: var(--y, 0); width: var(--w, 0); height: var(--h, 0); }

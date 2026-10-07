@@ -51,6 +51,7 @@ html, body { height: 100%; }
 .fl-module:hover { color: var(--text-primary); }
 .fl-module.is-active { border-color: var(--line-3); background: var(--surface-raised); color: var(--text-primary); font-weight: 500; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px var(--accent-wash); }
 .fl-module.is-active .icon { color: var(--accent-color); }
+.cv-icon-btn.is-on { background: var(--accent-soft); color: var(--accent-color); }
 @media (max-width: 1540px) { .fl-module:not(.is-active) .fl-module-label { display: none; } .fl-module:not(.is-active) { padding: 0 8px; } }
 .fl-title-tools { display: flex; align-items: center; gap: 6px; }
 
