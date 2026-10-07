@@ -16,7 +16,8 @@ PRINT_DEFAULTS: dict = {
     "identity": {"on": False, "text": "", "size": 18, "x": 0.5, "y": 0.035, "color": "#333333"},
     "pageNumbers": False, "pageInfo": False, "cropMarks": False,
     "caption": {"on": False, "field": "title", "size": 9, "custom": ""},
-    "job": {"output": "pdf", "ppi": 300, "sharpen": {"on": True, "for": "matte", "amount": "standard"}, "space": "srgb", "printer": "", "copies": 1, "quality": 92},
+    "job": {"output": "pdf", "ppi": 300, "sharpen": {"on": True, "for": "matte", "amount": "standard"}, "space": "srgb", "printer": "", "copies": 1, "quality": 92,
+            "bits": "16", "profile": "", "intent": "perceptual", "adjust": {"on": False, "brightness": 0, "contrast": 0}},
 }
 PRINT_TEMPLATES = [
     {"id": "fine-art", "name": "Fine Art Mat", "settings": {"margins": [1.0, 1.0, 1.0, 1.75], "identity": {"on": True, "text": "", "size": 14, "x": 0.5, "y": 0.93}}},

@@ -81,3 +81,45 @@ def soft_proof(out: np.ndarray, path: str, intent: str = "perceptual", paper: bo
         proofed = proofed.copy()
         proofed[outside] = np.array([1.0, 0.1, 0.55], np.float32)
     return proofed
+
+
+LUT_N = 33
+
+
+@lru_cache(maxsize=8)
+def _lut(path: str, intent: str, bpc: bool) -> np.ndarray:
+    v = np.round(np.linspace(0, 255, LUT_N)).astype(np.uint8)
+    r, g, b = np.meshgrid(v, v, v, indexing="ij")
+    grid = np.stack([r, g, b], axis=-1).reshape(LUT_N * LUT_N, LUT_N, 3)
+    dst = ImageCms.getOpenProfile(path)
+    if dst.profile.xcolor_space.strip() != "RGB":
+        raise ValueError("Choose an RGB printer profile; CMYK profiles are for prepress, not desktop printers")
+    flags = ImageCms.Flags.BLACKPOINTCOMPENSATION if bpc else ImageCms.Flags.NONE
+    t = ImageCms.buildTransform(ImageCms.createProfile("sRGB"), dst, "RGB", "RGB", renderingIntent=INTENTS.get(intent, ImageCms.Intent.PERCEPTUAL), flags=flags)
+    out = np.asarray(ImageCms.applyTransform(Image.fromarray(grid, "RGB"), t), np.float32) / 255.0
+    return out.reshape(LUT_N, LUT_N, LUT_N, 3)
+
+
+def to_printer(img: np.ndarray, path: str, intent: str = "perceptual", bpc: bool = True) -> np.ndarray:
+    lut = _lut(path, intent, bpc)
+    n = LUT_N - 1
+    out = np.empty(img.shape, np.float32)
+    for y0 in range(0, img.shape[0], 256):
+        x = np.clip(img[y0:y0 + 256], 0.0, 1.0) * n
+        i = np.minimum(np.floor(x).astype(np.int32), n - 1)
+        f = (x - i).astype(np.float32)
+        r, g, b = i[..., 0], i[..., 1], i[..., 2]
+        fr, fg, fb = f[..., 0:1], f[..., 1:2], f[..., 2:3]
+        c00 = lut[r, g, b] * (1 - fr) + lut[r + 1, g, b] * fr
+        c01 = lut[r, g, b + 1] * (1 - fr) + lut[r + 1, g, b + 1] * fr
+        c10 = lut[r, g + 1, b] * (1 - fr) + lut[r + 1, g + 1, b] * fr
+        c11 = lut[r, g + 1, b + 1] * (1 - fr) + lut[r + 1, g + 1, b + 1] * fr
+        out[y0:y0 + 256] = (c00 * (1 - fb) + c01 * fb) * (1 - fg) + (c10 * (1 - fb) + c11 * fb) * fg
+    return out
+
+
+def icc_bytes(path: str) -> bytes:
+    try:
+        return Path(path).read_bytes()
+    except OSError:
+        return b""

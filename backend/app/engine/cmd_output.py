@@ -226,16 +226,16 @@ def print_printers() -> dict:
 
 
 @command("print.run", "Print", {"settings": {"type": "object"}, "ids": {"type": "array"}, "collection": {"type": "integer"},
-                                "output": {"type": "string", "enum": ["pdf", "jpeg", "printer"]}, "path": {"type": "string"}, "name": {"type": "string"}, "wait": {"type": "boolean"}})
+                                "output": {"type": "string", "enum": ["pdf", "jpeg", "tiff", "printer"]}, "path": {"type": "string"}, "name": {"type": "string"}, "wait": {"type": "boolean"}})
 def print_run(settings: dict | None = None, ids: Any = None, collection: int | None = None, output: str | None = None, path: str | None = None,
               name: str = "Print", wait: bool = False) -> dict:
     lay = print_layout(settings, ids, collection)
     out = output or (lay["settings"].get("job") or {}).get("output", "pdf")
 
     def job(progress):
-        if out == "jpeg":
+        if out in ("jpeg", "tiff"):
             folder = Path(path).expanduser() if path else rename.unique(_out_dir("Print") / rename.safe(name))
-            files = pages.write_jpegs(lay, folder, rename.safe(name), progress)
+            files = (pages.write_tiffs if out == "tiff" else pages.write_jpegs)(lay, folder, rename.safe(name), progress)
             return {"paths": [str(f) for f in files], "folder": str(folder)}
         pdf = _out_path("Print", name, "pdf", path if out == "pdf" else None)
         pages.write_pdf(lay, pdf, progress)

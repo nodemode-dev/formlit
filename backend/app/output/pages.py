@@ -48,7 +48,35 @@ def caption(pid: int | None, field: str, custom: str = "") -> str:
     return str(meta.get(field) or "")
 
 
-def cell_image(pid: int, cell: dict, ppi: float, space: str, sharpen: dict) -> tuple[np.ndarray, tuple[float, float, float, float]] | None:
+def print_adjust(arr: np.ndarray, job: dict) -> np.ndarray:
+    adj = job.get("adjust") or {}
+    if not adj.get("on"):
+        return arr
+    b = max(-100.0, min(100.0, float(adj.get("brightness", 0)))) / 100.0
+    c = max(-100.0, min(100.0, float(adj.get("contrast", 0)))) / 100.0
+    x = np.clip(arr, 0.0, 1.0)
+    if b:
+        x = np.power(x, 2.0 ** (-b * 0.6))
+    if c:
+        x = np.clip(x - c * 0.08 * np.sin(2.0 * np.pi * x), 0.0, 1.0)
+    return x.astype(np.float32)
+
+
+def managed(job: dict) -> str:
+    prof = str(job.get("profile") or "")
+    return prof if prof and Path(prof).is_file() else ""
+
+
+def finish_print(arr: np.ndarray, job: dict) -> np.ndarray:
+    arr = print_adjust(arr, job)
+    prof = managed(job)
+    if prof:
+        from app.output import icc
+        arr = icc.to_printer(arr, prof, str(job.get("intent", "perceptual")), bool(job.get("bpc", True)))
+    return arr
+
+
+def cell_image(pid: int, cell: dict, ppi: float, space: str, sharpen: dict, job: dict | None = None) -> tuple[np.ndarray, tuple[float, float, float, float]] | None:
     img = cell.get("img")
     if not img:
         return None
@@ -57,10 +85,12 @@ def cell_image(pid: int, cell: dict, ppi: float, space: str, sharpen: dict) -> t
     w_px, h_px = max(2, round(w_px * k)), max(2, round(h_px * k))
     rot = bool(cell.get("rot"))
     size = {"resize": True, "mode": "wh", "w": h_px if rot else w_px, "h": w_px if rot else h_px, "noEnlarge": False}
-    out = export.render_photo(int(pid), size, space)
+    job = job or {}
+    out = export.render_photo(int(pid), size, "srgb" if managed(job) else space)
     if rot:
         out = np.ascontiguousarray(np.rot90(out, -1))
     out = export.sharpen(out, sharpen, int(ppi))
+    out = finish_print(out, job)
     H, W = out.shape[:2]
     x0, y0 = max(cell["x"], img["x"]), max(cell["y"], img["y"])
     x1, y1 = min(cell["x"] + cell["w"], img["x"] + img["w"]), min(cell["y"] + cell["h"], img["y"] + img["h"])
@@ -130,7 +160,7 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
         for cell in page["cells"]:
             if cell.get("photo") is None:
                 continue
-            got = cell_image(int(cell["photo"]), cell, ppi, space, sharpen)
+            got = cell_image(int(cell["photo"]), cell, ppi, space, sharpen, job)
             if got is None:
                 continue
             arr, (x, y, w, h) = got
@@ -168,7 +198,7 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
     return path
 
 
-def raster(layout: dict, page: dict, ppi: float | None = None) -> np.ndarray:
+def raster(layout: dict, page: dict, ppi: float | None = None, bits: int = 8) -> np.ndarray:
     s = layout["settings"]
     job = s.get("job") or {}
     ppi = float(ppi or job.get("ppi", 300))
@@ -181,7 +211,7 @@ def raster(layout: dict, page: dict, ppi: float | None = None) -> np.ndarray:
     for cell in page["cells"]:
         if cell.get("photo") is None:
             continue
-        got = cell_image(int(cell["photo"]), cell, ppi, job.get("space", "srgb"), job.get("sharpen") or {})
+        got = cell_image(int(cell["photo"]), cell, ppi, job.get("space", "srgb"), job.get("sharpen") or {}, job)
         if got is None:
             continue
         arr, (x, y, w, h) = got
@@ -198,25 +228,56 @@ def raster(layout: dict, page: dict, ppi: float | None = None) -> np.ndarray:
             canvas[Y1 - sp:Y1, X0:X1] = col
             canvas[Y0:Y1, X0:X0 + sp] = col
             canvas[Y0:Y1, X1 - sp:X1] = col
-    im = Image.fromarray(to_u8(canvas), "RGB")
-    draw = ImageDraw.Draw(im)
+    ink = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(ink)
     for t in _overlays(page, layout, s, len(layout["pages"])):
         font = ImageFont.load_default(size=max(6, round(t["size"] / 72 * ppi)))
         X, Y = t["x"] * ppi, t["y"] * ppi
-        draw.text((X, Y), t["text"], font=font, fill=_hex(t["color"]), anchor="ms" if t["align"] == "center" else "ls")
-    return np.asarray(im)
+        draw.text((X, Y), t["text"], font=font, fill=(*_hex(t["color"]), 255), anchor="ms" if t["align"] == "center" else "ls")
+    layer = np.asarray(ink, np.float32) / 255.0
+    a = layer[..., 3:4]
+    if np.any(a > 0):
+        canvas = canvas * (1.0 - a) + layer[..., :3] * a
+    if bits == 16:
+        return (np.clip(canvas, 0.0, 1.0) * 65535.0 + 0.5).astype(np.uint16)
+    return to_u8(canvas)
 
 
 def write_jpegs(layout: dict, folder: Path, stem: str, progress: Callable[..., Any] | None = None) -> list[Path]:
     folder.mkdir(parents=True, exist_ok=True)
     out = []
     total = len(layout["pages"])
-    q = int((layout["settings"].get("job") or {}).get("quality", 92))
-    ppi = int((layout["settings"].get("job") or {}).get("ppi", 300))
+    job = layout["settings"].get("job") or {}
+    q = int(job.get("quality", 92))
+    ppi = int(job.get("ppi", 300))
+    prof = managed(job)
+    icc_data = Path(prof).read_bytes() if prof else None
     for i, page in enumerate(layout["pages"]):
         arr = raster(layout, page)
         p = folder / f"{stem}-{i + 1:02d}.jpg"
-        Image.fromarray(arr, "RGB").save(p, "JPEG", quality=q, dpi=(ppi, ppi))
+        extra = {"icc_profile": icc_data} if icc_data else {}
+        Image.fromarray(arr, "RGB").save(p, "JPEG", quality=q, dpi=(ppi, ppi), **extra)
+        out.append(p)
+        if progress is not None:
+            progress(i + 1, total, f"Page {i + 1} of {total}")
+    return out
+
+
+def write_tiffs(layout: dict, folder: Path, stem: str, progress: Callable[..., Any] | None = None) -> list[Path]:
+    import tifffile
+    folder.mkdir(parents=True, exist_ok=True)
+    out = []
+    total = len(layout["pages"])
+    job = layout["settings"].get("job") or {}
+    ppi = int(job.get("ppi", 300))
+    bits = 16 if int(job.get("bits", 16)) == 16 else 8
+    prof = managed(job)
+    icc_data = Path(prof).read_bytes() if prof else None
+    for i, page in enumerate(layout["pages"]):
+        arr = raster(layout, page, bits=bits)
+        p = folder / f"{stem}-{i + 1:02d}.tif"
+        tags = [(34675, "B", len(icc_data), icc_data, False)] if icc_data else []
+        tifffile.imwrite(str(p), arr, photometric="rgb", compression="zlib", resolution=(ppi, ppi), resolutionunit="INCH", software="formlit", extratags=tags)
         out.append(p)
         if progress is not None:
             progress(i + 1, total, f"Page {i + 1} of {total}")

@@ -27,6 +27,7 @@ class PrintModule extends OutputModule {
   private readonly next = el<HTMLButtonElement>(`<button class="cv-icon-btn" type="button" aria-label="Next Page">${icon('chevronRight', 16)}</button>`);
   private readonly cellsBox = el('<div class="fl-pkg"></div>');
   private printers: Array<{ name: string; default: boolean }> = [];
+  private profiles: Array<{ name: string; path: string; space: string }> = [];
   private seq = 0;
 
   protected buildToolbar(bar: HTMLElement): void {
@@ -94,15 +95,24 @@ class PrintModule extends OutputModule {
       { path: 'caption.size', label: 'Font size', kind: 'range', min: 5, max: 24, unit: ' pt', show: () => !!this.get('caption.on') },
     ]);
     this.formPanel(right, 'job', 'Print Job', [
-      { path: 'job.output', label: 'Print to', kind: 'seg', options: [['printer', 'Printer'], ['pdf', 'PDF'], ['jpeg', 'JPEG']] },
+      { path: 'job.output', label: 'Print to', kind: 'seg', options: [['printer', 'Printer'], ['pdf', 'PDF'], ['jpeg', 'JPEG'], ['tiff', 'TIFF']] },
+      { path: 'job.bits', label: 'Bit depth', kind: 'seg', options: [['8', '8 bit'], ['16', '16 bit']], show: () => this.get('job.output') === 'tiff' },
       { path: 'job.printer', label: 'Printer', kind: 'select', options: () => [['', 'System default'], ...this.printers.map((p) => [p.name, p.default ? `${p.name} (default)` : p.name] as [string, string])], show: () => this.get('job.output') === 'printer' },
       { path: 'job.copies', label: 'Copies', kind: 'number', min: 1, max: 99, show: () => this.get('job.output') === 'printer' },
       { path: 'job.ppi', label: 'Resolution', kind: 'number', min: 72, max: 720, step: 10, unit: 'ppi' },
       { path: 'job.sharpen.on', label: 'Print sharpening', kind: 'check' },
       { path: 'job.sharpen.amount', label: 'Amount', kind: 'select', options: [['low', 'Low'], ['standard', 'Standard'], ['high', 'High']], show: () => !!this.get('job.sharpen.on') },
       { path: 'job.sharpen.for', label: 'Media type', kind: 'select', options: [['matte', 'Matte'], ['glossy', 'Glossy']], show: () => !!this.get('job.sharpen.on') },
-      { path: 'job.space', label: 'Color', kind: 'select', options: [['srgb', 'sRGB'], ['adobergb', 'Adobe RGB (1998)'], ['p3', 'Display P3']] },
-      { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100, show: () => this.get('job.output') !== 'printer' },
+      { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100, show: () => this.get('job.output') === 'jpeg' || this.get('job.output') === 'pdf' },
+    ]);
+    this.formPanel(right, 'color', 'Color Management', [
+      { path: 'job.profile', label: 'Profile', kind: 'select', options: () => [['', 'Managed by Printer'], ...this.profiles.map((p) => [p.path, p.name] as [string, string])] },
+      { path: 'job.space', label: 'Color space', kind: 'select', options: [['srgb', 'sRGB'], ['adobergb', 'Adobe RGB (1998)'], ['p3', 'Display P3']], show: () => !this.get('job.profile') },
+      { path: 'job.intent', label: 'Intent', kind: 'seg', options: [['perceptual', 'Perceptual'], ['relative', 'Relative']], show: () => !!this.get('job.profile') },
+      { path: '', label: 'formlit converts to the printer profile. Turn colour management off in the printer dialog so the colours are not converted twice.', kind: 'note', show: () => !!this.get('job.profile') && this.get('job.output') === 'printer' },
+      { path: 'job.adjust.on', label: 'Print Adjustment', kind: 'check' },
+      { path: 'job.adjust.brightness', label: 'Brightness', kind: 'range', min: -100, max: 100, show: () => !!this.get('job.adjust.on') },
+      { path: 'job.adjust.contrast', label: 'Contrast', kind: 'range', min: -100, max: 100, show: () => !!this.get('job.adjust.on') },
     ]);
   }
 
@@ -117,6 +127,7 @@ class PrintModule extends OutputModule {
 
   protected onOptions(): void {
     void this.ctx.api.cmd<{ printers: Array<{ name: string; default: boolean }> }>('print.printers').then((r) => { this.printers = r.printers; this.syncForms(); }, () => undefined);
+    void this.ctx.api.cmd<{ profiles: Array<{ name: string; path: string; space: string }> }>('develop.proofProfiles').then((r) => { this.profiles = r.profiles.filter((p) => p.space === 'RGB'); this.syncForms(); }, () => undefined);
   }
 
   protected async refresh(): Promise<void> {
