@@ -57,6 +57,7 @@ export class DevelopPanels {
     const clipL = el(`<button class="fl-clip fl-clip-l" type="button" data-cmd="develop.clipping" title="Show Clipping (J)">${icon('clipShadows', 12)}</button>`);
     const clipR = el(`<button class="fl-clip fl-clip-r" type="button" data-cmd="develop.clipping" title="Show Clipping (J)">${icon('clipHighlights', 12)}</button>`);
     this.histogram.root.append(clipL, clipR);
+    this.histDrag();
     this.histInfo = el('<div class="fl-hist-info"></div>');
     pHist.body.append(this.histogram.root, this.histInfo, toolstrip);
 
@@ -259,6 +260,55 @@ export class DevelopPanels {
     if (preset?.temp) { wb.temp = preset.temp; wb.tint = preset.tint; }
     develop.patch('wb', mode === 'asShot' ? null : wb, 'end', `White Balance: ${preset?.label ?? mode}`);
     void develop.refreshInfo();
+  }
+
+  private histDrag(): void {
+    const regions: Array<[number, number, string, string]> = [[0, 0.07, 'light.blacks', 'Blacks'], [0.07, 0.3, 'light.shadows', 'Shadows'], [0.3, 0.7, 'light.exposure', 'Exposure'], [0.7, 0.93, 'light.highlights', 'Highlights'], [0.93, 1.0001, 'light.whites', 'Whites']];
+    const root = this.histogram.root;
+    const band = el('<div class="fl-hist-band" hidden></div>');
+    const tag = el('<div class="fl-hist-tag" hidden></div>');
+    root.append(band, tag);
+    let drag: { x0: number; v0: number; cid: string; label: string } | null = null;
+    const at = (e: PointerEvent): [number, number, string, string] => {
+      const r = root.getBoundingClientRect();
+      const f = Math.min(0.9999, Math.max(0, (e.clientX - r.left) / Math.max(1, r.width)));
+      return regions.find(([a, b]) => f >= a && f < b) ?? regions[2];
+    };
+    const show = (reg: [number, number, string, string] | null) => {
+      setHidden(band, !reg);
+      setHidden(tag, !reg);
+      if (!reg) return;
+      band.style.left = `${reg[0] * 100}%`;
+      band.style.width = `${(Math.min(1, reg[1]) - reg[0]) * 100}%`;
+      const spec = develop.specs.get(reg[2]);
+      const v = develop.value(reg[2]);
+      setText(tag, `${reg[3]} ${spec ? (v > 0 ? '+' : '') + v.toFixed(spec.decimals) : ''}`);
+    };
+    root.addEventListener('pointermove', (e) => {
+      if ((e.target as HTMLElement).closest('.fl-clip')) { show(null); return; }
+      if (!drag) { show(at(e)); return; }
+      const spec = develop.specs.get(drag.cid);
+      if (!spec) return;
+      const r = root.getBoundingClientRect();
+      const raw = drag.v0 + ((e.clientX - drag.x0) / Math.max(1, r.width)) * (spec.max - spec.min) * 0.5;
+      const v = Math.min(spec.max, Math.max(spec.min, Math.round(raw / spec.step) * spec.step));
+      develop.patch(drag.cid, Number(v.toFixed(spec.decimals)), 'drag', drag.label);
+      setText(tag, `${drag.label} ${v > 0 ? '+' : ''}${v.toFixed(spec.decimals)}`);
+    });
+    root.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || develop.id === null || (e.target as HTMLElement).closest('.fl-clip')) return;
+      const reg = at(e);
+      drag = { x0: e.clientX, v0: develop.value(reg[2]), cid: reg[2], label: reg[3] };
+      root.setPointerCapture(e.pointerId);
+      show(reg);
+    });
+    root.addEventListener('pointerup', () => {
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      develop.patch(d.cid, develop.value(d.cid), 'end', d.label);
+    });
+    root.addEventListener('pointerleave', () => { if (!drag) show(null); });
   }
 
   private async upright(mode: string): Promise<void> {

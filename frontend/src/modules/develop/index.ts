@@ -202,7 +202,7 @@ class DevelopModule {
 <button class="cv-icon-btn" type="button" data-cmd="develop.wbPicker" aria-label="White Balance Selector (W)">${icon('eyeDropper', 16)}</button>
 <span class="fl-tb-sep"></span>
 <button class="cv-icon-btn" type="button" data-cmd="develop.softProof" aria-label="Soft Proofing (S)">${icon('softProof', 16)}</button>
-<span class="fl-proof-opts" hidden><select class="cv-select fl-proof-profile" aria-label="Proof profile"><option value="srgb|screen">sRGB (web)</option><option value="p3|screen">Display P3</option><option value="adobergb|screen">Adobe RGB (1998)</option><option value="adobergb|matte">Print, matte paper</option><option value="adobergb|glossy">Print, glossy paper</option></select><button class="cv-icon-btn" type="button" data-cmd="develop.gamutWarning" aria-label="Destination Gamut Warning (Shift+S)">${icon('warning', 15)}</button><select class="cv-select fl-proof-intent" aria-label="Rendering intent" hidden><option value="perceptual">Perceptual</option><option value="relative">Relative</option><option value="saturation">Saturation</option><option value="absolute">Absolute</option></select><label class="fl-check-sm fl-proof-paper" hidden><input type="checkbox"> Paper and Ink</label></span>
+<span class="fl-proof-opts" hidden><select class="cv-select fl-proof-profile" aria-label="Proof profile"><option value="srgb|screen">sRGB (web)</option><option value="p3|screen">Display P3</option><option value="adobergb|screen">Adobe RGB (1998)</option><option value="adobergb|matte">Print, matte paper</option><option value="adobergb|glossy">Print, glossy paper</option></select><button class="cv-icon-btn" type="button" data-cmd="develop.gamutWarning" aria-label="Destination Gamut Warning (Shift+S)">${icon('warning', 15)}</button><select class="cv-select fl-proof-intent" aria-label="Rendering intent" hidden><option value="perceptual">Perceptual</option><option value="relative">Relative</option><option value="saturation">Saturation</option><option value="absolute">Absolute</option></select><label class="fl-check-sm fl-proof-paper" hidden><input type="checkbox"> Paper and Ink</label><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.proofCopy">Create Proof Copy</button></span>
 <span class="fl-tb-spacer"></span>
 <span class="fl-tb-label fl-tb-zoom"></span>
 <div class="cv-seg fl-seg-sm fl-tb-zooms"><button type="button" data-z="fit">Fit</button><button type="button" data-z="fill">Fill</button><button type="button" data-z="1">1:1</button><button type="button" data-z="2">2:1</button></div>
@@ -293,6 +293,15 @@ class DevelopModule {
       { id: 'develop.tool.masks', label: 'Masking', keys: ['Shift+W'], run: tool('masks'), checked: () => this.toolId === 'masks' },
       { id: 'develop.wbPicker', label: 'White Balance Selector', keys: ['W'], run: tool('wb'), checked: () => this.toolId === 'wb' },
       { id: 'develop.pointColor', label: 'Point Color', run: tool('point'), checked: () => this.toolId === 'point' },
+      { id: 'develop.proofCopy', label: 'Create Proof Copy', run: async () => {
+        const id = develop.id;
+        if (id === null) return;
+        await develop.flush();
+        try {
+          const r = await this.ctx.api.cmd<{ ids: number[] }>('photo.virtualCopy', { ids: [id], name: 'Proof' });
+          if (r.ids[0] !== undefined) { await library.refresh(); library.setActive(r.ids[0]); toast('Proof copy created; edit it for this output'); }
+        } catch (err) { this.ctx.fail(err); }
+      } },
       { id: 'develop.fringePicker', label: 'Fringe Color Selector', run: tool('fringe'), checked: () => this.toolId === 'fringe' },
       { id: 'develop.tool.guided', label: 'Guided Upright', keys: ['Shift+T'], run: tool('guided'), checked: () => this.toolId === 'guided' },
       { id: 'develop.profileBrowser', label: 'Profile Browser...', run: () => openProfileBrowser(this.ctx) },

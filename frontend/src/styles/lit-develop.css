@@ -42,7 +42,10 @@
 .fl-tool-title { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--text-primary); font-size: var(--fs-12); font-weight: 600; }
 .fl-tool-title .icon { color: var(--accent-color); }
 .fl-wb-read { margin: 4px 0; font-size: var(--fs-11); }
-.fl-dev-hist { height: 110px; }
+.fl-dev-hist { height: 110px; cursor: ew-resize; touch-action: none; }
+.fl-hist-band { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text-primary) 7%, transparent); pointer-events: none; }
+.fl-hist-band[hidden], .fl-hist-tag[hidden] { display: none; }
+.fl-hist-tag { position: absolute; left: 50%; bottom: 4px; padding: 1px 6px; border-radius: 4px; background: var(--glass-bg); color: var(--text-secondary); font-size: var(--fs-10); font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
 .fl-clip { position: absolute; top: 4px; display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-1); color: var(--text-muted); cursor: pointer; }
 .fl-clip-l { left: 4px; }
 .fl-clip-r { right: 4px; }

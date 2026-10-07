@@ -274,8 +274,8 @@ def rotate(ids: Any = None, turns: int = 1) -> dict:
     return {"ids": pids}
 
 
-@command("photo.virtualCopy", "Create Virtual Copy", {"ids": {"type": "array"}})
-def virtual_copy(ids: Any = None) -> dict:
+@command("photo.virtualCopy", "Create Virtual Copy", {"ids": {"type": "array"}, "name": {"type": "string"}})
+def virtual_copy(ids: Any = None, name: str = "") -> dict:
     pids = _ids(ids)
     c = cat()
     made = []
@@ -287,7 +287,7 @@ def virtual_copy(ids: Any = None) -> dict:
             master = int(r["master_id"] or r["id"])
             n = int(c.db.execute("SELECT COUNT(*) FROM photos WHERE master_id=?", (master,)).fetchone()[0]) + 1
             row = {k: r[k] for k in r.keys() if k not in ("id",)}
-            row.update(master_id=master, copy_name=f"Copy {n}", import_time=now_iso())
+            row.update(master_id=master, copy_name=f"{name} {n}" if name else f"Copy {n}", import_time=now_iso())
             stack = r["stack_id"]
             if not stack:
                 stack = ch.insert("stacks", collapsed=0)
