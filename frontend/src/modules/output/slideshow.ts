@@ -1,6 +1,7 @@
 import { api } from '../../io/api';
 import { library } from '../../state/library';
 import { el, setClass, setDisabled, setStyleVar, setText } from '../../ui/dom';
+import { folderOf, pickFolder } from '../../ui/folder-picker';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { registerModule } from '../registry';
@@ -80,7 +81,7 @@ class Player {
 
   private seconds(): number {
     const page = this.lay?.pages[this.i] as SlidePage | undefined;
-    if (!page?.clip) return this.opts.duration;
+    if (!page?.clip) return page?.seconds ?? this.opts.duration;
     const v = this.front.root.querySelector<HTMLVideoElement>('video.fl-pcell-video');
     return Math.max(0.2, page.clip.len - (v && v.currentTime > page.clip.start ? v.currentTime - page.clip.start : 0));
   }
@@ -221,7 +222,7 @@ class SlideshowModule extends OutputModule {
       { path: 'ending.on', label: 'Ending screen', kind: 'check' },
       { path: 'ending.text', label: 'Ending text', kind: 'text', show: () => !!this.get('ending.on') },
     ]);
-    this.formPanel(right, 'playback', 'Playback', [
+    const playback = this.formPanel(right, 'playback', 'Playback', [
       { path: 'duration', label: 'Slide length', kind: 'range', min: 1, max: 20, step: 0.5, unit: ' s' },
       { path: 'fade', label: 'Crossfade', kind: 'range', min: 0, max: 4, step: 0.1, unit: ' s' },
       { path: 'panZoom', label: 'Pan and zoom', kind: 'range', min: 0, max: 1, step: 0.05 },
@@ -231,6 +232,11 @@ class SlideshowModule extends OutputModule {
       { path: 'music.fit', label: 'Fit to music', kind: 'check', show: () => !!this.get('music.path') },
       { path: 'music.balance', label: 'Audio balance', kind: 'range', min: 0, max: 100, step: 1, unit: '% music' },
     ]);
+    const addMusic = el<HTMLButtonElement>('<button class="cv-btn fl-btn-sm" type="button">Add Music from Folder...</button>');
+    const row = el('<div class="fl-row fl-row-end"></div>');
+    row.appendChild(addMusic);
+    playback.body.appendChild(row);
+    addMusic.addEventListener('click', () => void this.addMusic());
     this.formPanel(right, 'video', 'Video Export', [
       { path: '', label: 'Video export writes H.264 MP4 with your music and the sound of video clips, mixed by Audio balance.', kind: 'note', show: () => !!this.options?.ffmpeg },
       { path: '', label: 'Video export needs ffmpeg on this computer. PDF export works without it.', kind: 'note', show: () => !this.options?.ffmpeg },
@@ -255,6 +261,19 @@ class SlideshowModule extends OutputModule {
     if (combo === 'ArrowRight') { this.go(this.slide + 1); return true; }
     if (combo === 'ArrowLeft') { this.go(this.slide - 1); return true; }
     return e.defaultPrevented;
+  }
+
+  private async addMusic(): Promise<void> {
+    const have = String(this.get('music.path') ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const folder = await pickFolder('Add Music', 'Choose a folder; its audio files (MP3, M4A, AAC, WAV, FLAC, OGG, AIFF) are added in name order, up to ten tracks in all.', have.length ? folderOf(have[have.length - 1]) : '', 'Add Music');
+    if (!folder) return;
+    try {
+      const r = await this.ctx.api.cmd<{ tracks: Array<{ path: string }> }>('slideshow.musicIn', { folder });
+      if (!r.tracks.length) { toast('That folder has no audio files'); return; }
+      const next = [...have, ...r.tracks.map((t) => t.path).filter((p) => !have.includes(p))].slice(0, 10);
+      this.set('music.path', next.join('\n'));
+      toast(`${next.length} music track${next.length === 1 ? '' : 's'}`);
+    } catch (err) { this.ctx.fail(err); }
   }
 
   private async impromptu(): Promise<void> {
@@ -302,7 +321,7 @@ class SlideshowModule extends OutputModule {
     setText(this.label2, n ? `Slide ${this.slide + 1} of ${n}` : 'No slides');
     setDisabled(this.prev, this.slide <= 0);
     setDisabled(this.next, this.slide >= n - 1);
-    const secs = n * Number(this.get('duration') ?? 4);
+    const secs = (lay.pages as SlidePage[]).reduce((t, p) => t + (p.seconds ?? Number(this.get('duration') ?? 4)), 0);
     setText(this.status, `${n} slides · ${Math.floor(secs / 60)}:${String(Math.round(secs % 60)).padStart(2, '0')}`);
   }
 

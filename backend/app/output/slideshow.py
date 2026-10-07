@@ -50,6 +50,26 @@ def tracks(s: dict) -> list[str]:
     return out[:10]
 
 
+def still_seconds(page_list: list[dict], s: dict, music: list[str]) -> float:
+    duration, fade = float(s["duration"]), float(s["fade"])
+    stills = sum(1 for p in page_list if not p.get("seconds"))
+    if not music or not (s.get("music") or {}).get("fit") or not stills:
+        return duration
+    total = sum(_probe_seconds(m) for m in music)
+    if total <= 0:
+        return duration
+    clip_secs = sum(float(p["seconds"]) for p in page_list if p.get("seconds"))
+    return max(fade + 0.5, (total - clip_secs + fade * (len(page_list) - 1)) / stills)
+
+
+def music_in(folder: str) -> list[dict]:
+    p = Path(folder).expanduser()
+    if not p.is_dir():
+        raise RuntimeError(f"Not a folder: {folder}")
+    files = sorted((f for f in p.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXTS), key=lambda f: f.name.lower())
+    return [{"path": str(f), "name": f.name, "seconds": round(_probe_seconds(str(f)), 2)} for f in files[:50]]
+
+
 def gains(s: dict) -> tuple[float, float]:
     b = max(0.0, min(100.0, float((s.get("music") or {}).get("balance", 50))))
     return min(1.0, (100.0 - b) / 50.0), min(1.0, b / 50.0)
@@ -267,13 +287,7 @@ def write_video(ids: list[int], aspects: dict[int, float], settings: dict, path:
     if n == 0:
         raise RuntimeError("The slideshow has no slides")
     music = tracks(s)
-    duration, fade = float(s["duration"]), float(s["fade"])
-    clip_secs = sum(float(p["seconds"]) for p in lay["pages"] if p.get("seconds"))
-    stills = sum(1 for p in lay["pages"] if not p.get("seconds"))
-    if music and (s.get("music") or {}).get("fit") and stills:
-        total = sum(_probe_seconds(m) for m in music)
-        if total > 0:
-            duration = max(fade + 0.5, (total - clip_secs + fade * (n - 1)) / stills)
+    duration, fade = still_seconds(lay["pages"], s, music), float(s["fade"])
     lens = [max(2, round(float(p.get("seconds") or duration) * fps)) for p in lay["pages"]]
     F = max(0, round(fade * fps))
     xf = [min(F, lens[i] // 2, lens[i + 1] // 2) for i in range(n - 1)] + [min(F, lens[-1] // 2)]

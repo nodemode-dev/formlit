@@ -381,9 +381,22 @@ def slideshow_layout(ids: Any = None, collection: int | None = None, settings: d
     s = slideshow.merged(settings)
     lay = _with_overlays(slideshow.page_layout(pids, _aspects(pids), s, for_pdf=False, clip_info=slideshow.clips(pids)))
     lay["slideshow"] = s
-    lay["tracks"] = slideshow.tracks(s)
+    music = slideshow.tracks(s)
+    if music and (s.get("music") or {}).get("fit"):
+        still = round(slideshow.still_seconds(lay["pages"], s, music), 3)
+        for page in lay["pages"]:
+            page.setdefault("seconds", still)
+    lay["tracks"] = music
     lay["gains"] = dict(zip(("video", "music"), slideshow.gains(s)))
     return lay
+
+
+@command("slideshow.musicIn", "Music in Folder", {"folder": {"type": "string"}}, mutates=False)
+def slideshow_music_in(folder: str) -> dict:
+    try:
+        return {"tracks": slideshow.music_in(folder)}
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
 
 
 @command("slideshow.export", "Export Slideshow", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"},
