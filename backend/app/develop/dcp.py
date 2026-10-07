@@ -11,6 +11,7 @@ TAGS = {50936: "name", 50937: "hsmDims", 50938: "hsm1", 50939: "hsm2", 50940: "t
 LIGHT_K = {1: 5500.0, 2: 4150.0, 3: 2850.0, 4: 5500.0, 9: 5500.0, 10: 6500.0, 11: 7500.0, 12: 6400.0, 13: 5000.0, 14: 4150.0, 15: 3450.0,
            16: 2925.0, 17: 2850.0, 18: 5500.0, 19: 6500.0, 20: 5500.0, 21: 6500.0, 22: 7500.0, 23: 5000.0, 24: 3200.0}
 SENSOR_EV = 0.35
+MID_GREY = 0.18
 
 
 def read(path: Path) -> dict:
@@ -227,12 +228,23 @@ def apply_linear(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tupl
     return apply_look(apply_camera(lin, prof, info, wb), prof, ev)
 
 
-def tone_knots(prof: dict) -> list | None:
+def baseline_gain(pts: np.ndarray, camera_tone) -> float:
+    if not camera_tone:
+        return 1.0
+    k = np.asarray(camera_tone, np.float64)
+    if k.ndim != 2 or k.shape[1] != 2 or not (k[0, 1] < MID_GREY < k[-1, 1]) or not (pts[0, 1] < MID_GREY < pts[-1, 1]):
+        return 1.0
+    seen = float(np.interp(MID_GREY, k[:, 1], k[:, 0])) * 2.0 ** -SENSOR_EV
+    wanted = float(np.interp(MID_GREY, np.maximum.accumulate(pts[:, 1]), pts[:, 0]))
+    return float(np.clip(wanted / max(seen, 1e-9), 0.25, 4.0))
+
+
+def tone_knots(prof: dict, camera_tone=None) -> list | None:
     curve = prof.get("toneCurve")
     if not curve or len(curve) < 4:
         return None
     pts = np.asarray(curve, np.float64).reshape(-1, 2)
     xs = np.geomspace(0.0007, 1.2, 32)
-    ys = np.interp(xs * 2.0 ** -SENSOR_EV, pts[:, 0], pts[:, 1])
+    ys = np.interp(xs * 2.0 ** -SENSOR_EV * baseline_gain(pts, camera_tone), pts[:, 0], pts[:, 1])
     ys = np.minimum(np.maximum.accumulate(ys), 0.999)
     return [[float(x), float(y)] for x, y in zip(xs, ys)]
