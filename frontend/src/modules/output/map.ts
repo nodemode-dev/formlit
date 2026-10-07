@@ -11,9 +11,16 @@ import { registerModule, type LitModule, type ModuleHosts } from '../registry';
 
 interface Loc { id: number; name: string; lat: number; lon: number; radius: number; private: boolean; count: number }
 const TILE = 256;
-const STYLES: Record<string, { label: string; url: (z: number, x: number, y: number) => string; attr: string; max: number }> = {
-  road: { label: 'Road', url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, attr: '© OpenStreetMap contributors', max: 19 },
+const OSM = (z: number, x: number, y: number) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+const S2 = (z: number, x: number, y: number) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/${z}/${y}/${x}.jpg`;
+const S2_ATTR = 'Sentinel-2 cloudless 2016 by EOX IT Services GmbH (CC BY 4.0, contains modified Copernicus Sentinel data 2016)';
+const STYLES: Record<string, { label: string; url: (z: number, x: number, y: number) => string; attr: string; max: number; overlay?: (z: number, x: number, y: number) => string; cls?: string }> = {
+  hybrid: { label: 'Hybrid', url: S2, overlay: OSM, attr: `${S2_ATTR} · roads © OpenStreetMap contributors`, max: 15 },
+  road: { label: 'Road Map', url: OSM, attr: '© OpenStreetMap contributors', max: 19 },
+  satellite: { label: 'Satellite', url: S2, attr: S2_ATTR, max: 15 },
   topo: { label: 'Terrain', url: (z, x, y) => `https://${'abc'[(x + y) % 3]}.tile.opentopomap.org/${z}/${x}/${y}.png`, attr: '© OpenStreetMap contributors, SRTM · style © OpenTopoMap (CC-BY-SA)', max: 17 },
+  light: { label: 'Light', url: OSM, attr: '© OpenStreetMap contributors', max: 19, cls: 'is-light' },
+  dark: { label: 'Dark', url: OSM, attr: '© OpenStreetMap contributors', max: 19, cls: 'is-dark' },
 };
 const VIEW_KEY = 'formlit_map_view';
 
@@ -26,7 +33,7 @@ function lonOf(x: number, z: number): number { return (x / (TILE * 2 ** z)) * 36
 function latOf(y: number, z: number): number { const n = Math.PI - (2 * Math.PI * y) / (TILE * 2 ** z); return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); }
 
 class TileMap {
-  readonly root = el('<div class="fl-map"><div class="fl-map-tiles"></div><svg class="fl-map-track" aria-hidden="true"><polyline/></svg><div class="fl-map-locs"></div><div class="fl-map-marks"></div><div class="fl-map-attr"></div><div class="fl-map-zoom"><button class="cv-icon-btn" type="button" data-z="1" aria-label="Zoom In"></button><button class="cv-icon-btn" type="button" data-z="-1" aria-label="Zoom Out"></button></div></div>');
+  readonly root = el('<div class="fl-map"><div class="fl-map-tiles"></div><div class="fl-map-overlay"></div><svg class="fl-map-track" aria-hidden="true"><polyline/></svg><div class="fl-map-locs"></div><div class="fl-map-marks"></div><div class="fl-map-attr"></div><div class="fl-map-zoom"><button class="cv-icon-btn" type="button" data-z="1" aria-label="Zoom In"></button><button class="cv-icon-btn" type="button" data-z="-1" aria-label="Zoom Out"></button></div></div>');
   private readonly tiles = q(this.root, '.fl-map-tiles');
   private readonly ghost = el('<div class="fl-map-ghost"></div>');
   private lastKey = '';
@@ -181,6 +188,24 @@ class TileMap {
       if (t) (node as HTMLElement).style.transform = `translate(${Math.round(t.x)}px, ${Math.round(t.y)}px)`;
     }
     settle();
+    setClass(this.root, 'is-light', st.cls === 'is-light');
+    setClass(this.root, 'is-dark', st.cls === 'is-dark');
+    const over = q(this.root, '.fl-map-overlay');
+    const ov = st.overlay;
+    patchList(over, ov ? want : [], {
+      key: (t) => `o/${t.k}`,
+      create: (t) => {
+        const i = el<HTMLImageElement>('<img class="fl-tile" alt="" draggable="false" decoding="async">');
+        i.addEventListener('load', () => setClass(i, 'is-in', true));
+        i.src = (ov as (z: number, x: number, y: number) => string)(z, t.tx, t.ty);
+        return i;
+      },
+      update: () => undefined,
+    });
+    for (const [i, node] of Array.from(over.children).entries()) {
+      const t = want[i];
+      if (t) (node as HTMLElement).style.transform = `translate(${Math.round(t.x)}px, ${Math.round(t.y)}px)`;
+    }
     setText(q(this.root, '.fl-map-attr'), st.attr);
     const cell = 46;
     const groups = new Map<string, { ids: number[]; x: number; y: number; first: number }>();
@@ -247,6 +272,17 @@ class MapModule implements LitModule {
   private readonly coord = el('<div class="fl-form"></div>');
   private readonly trackInfo = el('<p class="cv-note">Load a GPX track log, then tag the photos taken along it.</p>');
   private readonly status = el('<span class="fl-tb-label fl-out-status"></span>');
+  private readonly search = el(`<div class="fl-map-search">${icon('search', 14)}<input class="cv-input" type="search" placeholder="Search Map" spellcheck="false" aria-label="Search Map"><div class="fl-map-results" hidden></div></div>`);
+  private locFilter = '';
+  private lfTimer = 0;
+
+  private setLocFilter(mode: string): void {
+    this.locFilter = mode;
+    for (const b of Array.from(document.querySelectorAll<HTMLElement>('.fl-map-lf [data-lf]'))) setClass(b, 'is-on', b.dataset.lf === mode && !!mode);
+    const W = this.map.root.clientWidth, H = this.map.root.clientHeight;
+    const [la0, lo0] = this.map.toLatLon(0, H), [la1, lo1] = this.map.toLatLon(W, 0);
+    library.setFilter({ hasGps: mode === 'tagged' ? true : mode === 'untagged' ? false : undefined, gpsBox: mode === 'visible' ? [la0, lo0, la1, lo1] : undefined });
+  }
 
   mount(ctx: Ctx, hosts: ModuleHosts): void {
     this.ctx = ctx;
@@ -261,7 +297,10 @@ class MapModule implements LitModule {
       library.setActive(ids[0]);
     };
     this.map.onDrop = (lat, lon, ids) => void ctx.api.cmd('photo.setGps', { ids, lat: Number(lat.toFixed(7)), lon: Number(lon.toFixed(7)) }).then(() => toast(`Placed ${ids.length} ${ids.length === 1 ? 'photo' : 'photos'} on the map`), (e) => ctx.fail(e));
-    this.map.onMove = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ lat: this.map.lat, lon: this.map.lon, z: this.map.z, style: this.map.style })); } catch { return; } };
+    this.map.onMove = () => {
+      if (this.locFilter === 'visible') { window.clearTimeout(this.lfTimer); this.lfTimer = window.setTimeout(() => this.setLocFilter('visible'), 250); }
+      try { localStorage.setItem(VIEW_KEY, JSON.stringify({ lat: this.map.lat, lon: this.map.lon, z: this.map.z, style: this.map.style })); } catch { return; }
+    };
     this.toolbar();
     this.panels();
     library.listen('list', () => this.sync());
@@ -296,20 +335,54 @@ class MapModule implements LitModule {
   }
 
   private toolbar(): void {
-    const bar = el(`<div class="fl-tb fl-out-tb"><span class="fl-tb-label">Map style</span><select class="cv-select" aria-label="Map style">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select><span class="fl-tb-sep"></span><span class="fl-tb-label">Select</span><div class="cv-seg fl-seg-sm"><button type="button" data-sel="tagged">Tagged</button><button type="button" data-sel="untagged">Untagged</button><button type="button" data-sel="visible">Visible on Map</button></div><span class="fl-tb-sep"></span><button class="cv-btn fl-btn-sm" type="button" data-fit>Fit Photos</button><span class="fl-tb-spacer"></span></div>`);
+    const bar = el(`<div class="fl-tb fl-out-tb"><span class="fl-tb-label">Map style</span><select class="cv-select" aria-label="Map style">${Object.entries(STYLES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select><span class="fl-tb-sep"></span><span class="fl-tb-label">Location Filter</span><div class="cv-seg fl-seg-sm fl-map-lf"><button type="button" data-lf="visible" title="Show only the photos visible on the map">Visible</button><button type="button" data-lf="tagged">Tagged</button><button type="button" data-lf="untagged">Untagged</button><button type="button" data-lf="">None</button></div><span class="fl-tb-sep"></span><select class="cv-select fl-map-select" aria-label="Select photos"><option value="">Select...</option><option value="tagged">Select Tagged</option><option value="untagged">Select Untagged</option><option value="visible">Select Visible on Map</option></select><button class="cv-btn fl-btn-sm" type="button" data-fit>Fit Photos</button><span class="fl-tb-spacer"></span></div>`);
     bar.appendChild(this.status);
     const sel = q<HTMLSelectElement>(bar, 'select');
     sel.value = this.map.style;
-    sel.addEventListener('change', () => { this.map.style = sel.value; this.map.schedule(); this.map.onMove?.(); });
+    sel.addEventListener('change', () => { this.map.style = sel.value; this.map.z = Math.min(this.map.z, STYLES[sel.value].max); this.map.schedule(); this.map.onMove?.(); });
+    this.hosts.stage.querySelector('.fl-map-stage')?.appendChild(this.search);
+    const input = q<HTMLInputElement>(this.search, 'input');
+    const results = q(this.search, '.fl-map-results');
+    let found: Array<{ name: string; lat: number; lon: number; bbox: number[] | null }> = [];
+    const go = (r: { lat: number; lon: number; bbox: number[] | null }) => {
+      if (r.bbox) this.map.fit([{ lat: r.bbox[0], lon: r.bbox[2] }, { lat: r.bbox[1], lon: r.bbox[3] }]);
+      else { this.map.lat = r.lat; this.map.lon = r.lon; this.map.z = Math.max(this.map.z, 14); this.map.schedule(); }
+      this.map.onMove?.();
+      setHidden(results, true);
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { setHidden(results, true); input.blur(); return; }
+      if (e.key !== 'Enter' || !input.value.trim()) return;
+      e.preventDefault();
+      setClass(this.search, 'is-busy', true);
+      void this.ctx.api.cmd<{ results: typeof found }>('gps.search', { query: input.value }).then((r) => {
+        found = r.results;
+        if (found.length === 1) { go(found[0]); return; }
+        patchList(results, found.map((x, i) => ({ ...x, i })), {
+          key: (x) => `${x.i}|${x.name}`,
+          create: (x) => { const b = el(`<button class="fl-map-result" type="button" data-i="${x.i}"></button>`); setText(b, x.name); return b; },
+          update: (b, x) => { b.dataset.i = String(x.i); setText(b, x.name); },
+        });
+        setHidden(results, !found.length);
+        if (!found.length) toast('No places found');
+      }, (err) => this.ctx.fail(err)).finally(() => setClass(this.search, 'is-busy', false));
+    });
+    results.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-i]'); if (b) go(found[Number(b.dataset.i)]); });
     bar.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
-      const b = t.closest<HTMLElement>('[data-sel]');
-      if (b) {
-        const mode = b.dataset.sel;
-        const W = this.map.root.clientWidth, H = this.map.root.clientHeight;
-        const [la0, lo0] = this.map.toLatLon(0, H), [la1, lo1] = this.map.toLatLon(W, 0);
-        library.selectWhere((p: Photo) => mode === 'tagged' ? !!p.gps : mode === 'untagged' ? !p.gps : !!p.gps && p.gps[0] >= la0 && p.gps[0] <= la1 && p.gps[1] >= lo0 && p.gps[1] <= lo1);
-      } else if (t.closest('[data-fit]')) this.map.fit(this.points());
+      const lf = t.closest<HTMLElement>('[data-lf]');
+      if (lf) { this.setLocFilter(lf.dataset.lf ?? ''); return; }
+      if (t.closest('[data-fit]')) this.map.fit(this.points());
+    });
+    const pick = q<HTMLSelectElement>(bar, '.fl-map-select');
+    pick.addEventListener('change', () => {
+      const mode = pick.value;
+      pick.value = '';
+      pick.blur();
+      if (!mode) return;
+      const W = this.map.root.clientWidth, H = this.map.root.clientHeight;
+      const [la0, lo0] = this.map.toLatLon(0, H), [la1, lo1] = this.map.toLatLon(W, 0);
+      library.selectWhere((p: Photo) => mode === 'tagged' ? !!p.gps : mode === 'untagged' ? !p.gps : !!p.gps && p.gps[0] >= la0 && p.gps[0] <= la1 && p.gps[1] >= lo0 && p.gps[1] <= lo1);
     });
     this.hosts.toolbar.appendChild(bar);
   }

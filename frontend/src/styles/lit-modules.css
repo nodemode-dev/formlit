@@ -107,7 +107,19 @@
 .fl-map { position: absolute; inset: 0; overflow: hidden; background: var(--fl-map-ground); cursor: grab; touch-action: none; user-select: none; }
 .fl-map.is-dragging { cursor: grabbing; }
 .fl-map.is-drop { box-shadow: inset 0 0 0 3px var(--accent-color); }
-.fl-map-tiles, .fl-map-ghost, .fl-map-marks, .fl-map-locs { position: absolute; inset: 0; }
+.fl-map-tiles, .fl-map-ghost, .fl-map-marks, .fl-map-locs, .fl-map-overlay { position: absolute; inset: 0; }
+.fl-map-overlay { opacity: 0.8; mix-blend-mode: multiply; pointer-events: none; }
+.fl-map-select { width: auto; }
+.fl-map-overlay .fl-tile.is-in { filter: contrast(1.3) saturate(1.2); }
+.fl-map.is-light .fl-map-tiles .fl-tile, .fl-map.is-light .fl-map-ghost .fl-tile { filter: grayscale(1) brightness(1.08) contrast(0.86); }
+.fl-map.is-dark .fl-map-tiles .fl-tile, .fl-map.is-dark .fl-map-ghost .fl-tile { filter: grayscale(1) invert(1) brightness(0.86) contrast(0.92); }
+.fl-map-search { position: absolute; top: 12px; left: 12px; z-index: var(--z-fl-stage-overlay); display: flex; align-items: center; gap: 6px; width: 300px; height: 32px; padding: 0 4px 0 10px; border: 1px solid var(--glass-border); border-radius: 9px; background: var(--glass-bg); color: var(--text-muted); }
+.fl-map-search .cv-input { flex: 1; min-width: 0; height: 26px; border: 0; background: transparent; }
+.fl-map-search.is-busy .icon { color: var(--accent-color); }
+.fl-map-results { position: absolute; top: 36px; left: 0; right: 0; display: flex; flex-direction: column; max-height: 280px; padding: 4px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 9px; background: var(--glass-bg); }
+.fl-map-results[hidden] { display: none; }
+.fl-map-result { padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-11); text-align: left; cursor: pointer; }
+.fl-map-result:hover { background: var(--surface-2); color: var(--text-primary); }
 .fl-tile { position: absolute; left: 0; top: 0; width: 256px; height: 256px; opacity: 0; transition: opacity 0.18s; transform-origin: 0 0; will-change: transform; }
 .fl-tile.is-in { opacity: 1; }
 .fl-map-ghost .fl-tile { opacity: 1; transition: none; }

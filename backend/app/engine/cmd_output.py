@@ -1,6 +1,7 @@
 import bisect
 import json
 import os
+import re
 import shutil
 import sys
 import xml.etree.ElementTree as ET
@@ -409,6 +410,39 @@ def photo_set_gps(ids: Any = None, lat: float | None = None, lon: float | None =
         for pid in pids:
             ch.update("photos", pid, gps_lat=lat, gps_lon=lon, gps_alt=alt)
     return {"ids": pids, "lat": lat, "lon": lon}
+
+
+_search_last = [0.0]
+
+
+@command("gps.search", "Search the Map", {"query": {"type": "string", "description": "a place name or address"}, "limit": {"type": "integer"}}, mutates=False)
+def gps_search(query: str, limit: int = 6) -> dict:
+    import time as _time
+    import httpx
+    from app import __version__
+    q = (query or "").strip()
+    if not q:
+        return {"results": []}
+    m = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$", q)
+    if m and -90 <= float(m.group(1)) <= 90 and -180 <= float(m.group(2)) <= 180:
+        return {"results": [{"name": f"{float(m.group(1)):.6f}, {float(m.group(2)):.6f}", "lat": float(m.group(1)), "lon": float(m.group(2)), "bbox": None}]}
+    wait = 1.05 - (_time.time() - _search_last[0])
+    if wait > 0:
+        _time.sleep(wait)
+    _search_last[0] = _time.time()
+    try:
+        with httpx.Client(headers={"User-Agent": f"formlit/{__version__} (desktop photo library; map search)", "Accept-Language": "en"}, timeout=15) as client:
+            resp = client.get("https://nominatim.openstreetmap.org/search", params={"q": q, "format": "jsonv2", "limit": max(1, min(10, int(limit)))})
+    except httpx.HTTPError as e:
+        raise CommandError(f"Map search is unavailable: {e}") from e
+    if resp.status_code != 200:
+        raise CommandError(f"Map search failed ({resp.status_code})")
+    out = []
+    for r in resp.json() or []:
+        bb = r.get("boundingbox")
+        out.append({"name": r.get("display_name", ""), "lat": float(r["lat"]), "lon": float(r["lon"]), "kind": r.get("type", ""),
+                    "bbox": [float(bb[0]), float(bb[1]), float(bb[2]), float(bb[3])] if bb and len(bb) == 4 else None})
+    return {"results": out, "attribution": "Data from OpenStreetMap contributors, ODbL 1.0"}
 
 
 @command("gps.lookupAddress", "Look Up Addresses", {"ids": {"type": "array"}, "overwrite": {"type": "boolean"}, "wait": {"type": "boolean"}})

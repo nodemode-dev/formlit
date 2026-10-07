@@ -42,6 +42,8 @@ export interface Filter {
   keywords?: number[];
   dates?: string[];
   meta?: Record<string, Array<string | number>>;
+  hasGps?: boolean;
+  gpsBox?: number[];
 }
 export interface Sort { by: string; desc: boolean }
 

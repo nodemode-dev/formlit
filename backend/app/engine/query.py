@@ -376,6 +376,15 @@ def filter_clause(flt: dict, args: list) -> str:
         parts.append(compile_rules(flt["rules"], args))
     if flt.get("meta"):
         parts.append(meta_clause(flt["meta"], args))
+    if flt.get("hasGps") is not None:
+        parts.append("p.gps_lat IS NOT NULL" if flt["hasGps"] else "p.gps_lat IS NULL")
+    box = flt.get("gpsBox")
+    if isinstance(box, (list, tuple)) and len(box) == 4:
+        la0, lo0, la1, lo1 = (float(v) for v in box)
+        args.extend([min(la0, la1), max(la0, la1)])
+        lon_sql = "p.gps_lon BETWEEN ? AND ?" if lo0 <= lo1 else "(p.gps_lon >= ? OR p.gps_lon <= ?)"
+        args.extend([lo0, lo1])
+        parts.append(f"(p.gps_lat BETWEEN ? AND ? AND {lon_sql})")
     return " AND ".join(parts) if parts else "1"
 
 
