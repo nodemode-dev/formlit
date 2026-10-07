@@ -163,6 +163,11 @@ def _xmp_packet(data: bytes) -> str | None:
 
 
 def embedded_xmp(path: Path) -> str | None:
+    if path.suffix.lower() in (".tif", ".tiff", ".dng"):
+        from app.services import xmpembed
+        found = xmpembed.read_tiff(path)
+        if found:
+            return _xmp_packet(found.encode("utf-8")) or found
     try:
         with open(path, "rb") as f:
             data = f.read(4 * 1024 * 1024)

@@ -23,6 +23,7 @@ export interface Photo {
   sn?: number;
   sc?: number;
   miss?: number;
+  xs?: number;
   dur?: number;
   gps?: [number, number];
 }

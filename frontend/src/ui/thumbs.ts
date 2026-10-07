@@ -37,7 +37,7 @@ export function loadInto(img: HTMLImageElement, url: string): Promise<boolean> {
   });
 }
 
-const BADGES = `<span class="fl-b-flag fl-b-flag-pick" hidden>${icon('flagPickFill', 12)}</span><span class="fl-b-flag fl-b-flag-reject" hidden>${icon('flagRejectFill', 12)}</span><span class="fl-b-stars" hidden>${'<i></i>'.repeat(5)}</span><span class="fl-b-gap"></span><span class="fl-b-edit" title="Edited" hidden>${icon('modDevelop', 11)}</span><span class="fl-b-miss" title="Original missing" hidden>${icon('warning', 12)}</span><span class="fl-b-dur" hidden></span>`;
+const BADGES = `<span class="fl-b-flag fl-b-flag-pick" hidden>${icon('flagPickFill', 12)}</span><span class="fl-b-flag fl-b-flag-reject" hidden>${icon('flagRejectFill', 12)}</span><span class="fl-b-stars" hidden>${'<i></i>'.repeat(5)}</span><span class="fl-b-gap"></span><span class="fl-b-edit" title="Edited" hidden>${icon('modDevelop', 11)}</span><span class="fl-b-miss" title="Original missing" hidden>${icon('warning', 12)}</span><span class="fl-b-dur" hidden></span><span class="fl-b-xmp" data-xmp="save" title="Metadata changed in the catalog: click to save it to the file" hidden>${icon('save', 11)}</span><span class="fl-b-xmp fl-b-xmp-conflict" data-xmp="conflict" title="The file's metadata changed outside formlit: click to choose" hidden>${icon('warning', 11)}</span>`;
 
 export class ThumbCell {
   readonly root: HTMLElement;
@@ -67,7 +67,9 @@ export class ThumbCell {
     }
     setStyleVar(this.root, '--fl-aspect', String(p.a || 1.5));
     void loadInto(this.img, thumbUrl(p));
-    const [pick, reject, stars, , edit, miss, dur] = Array.from(this.badges.children) as HTMLElement[];
+    const [pick, reject, stars, , edit, miss, dur, xmpSave, xmpConflict] = Array.from(this.badges.children) as HTMLElement[];
+    setHidden(xmpSave, p.xs !== 1 || compact);
+    setHidden(xmpConflict, p.xs !== 2 || compact);
     setHidden(pick, p.f <= 0);
     setHidden(reject, p.f >= 0);
     setHidden(stars, !(p.r > 0));

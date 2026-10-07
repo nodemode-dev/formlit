@@ -48,7 +48,9 @@ CREATE TABLE IF NOT EXISTS photos(
   stack_pos INTEGER NOT NULL DEFAULT 0,
   missing INTEGER NOT NULL DEFAULT 0,
   smart_preview INTEGER NOT NULL DEFAULT 0,
-  duration REAL
+  duration REAL,
+  xmp_state INTEGER NOT NULL DEFAULT 0,
+  xmp_time REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS photos_folder ON photos(folder_id);
 CREATE INDEX IF NOT EXISTS photos_capture ON photos(capture_time);
@@ -195,6 +197,10 @@ class Catalog:
         self.db.execute("PRAGMA synchronous=NORMAL")
         self.db.execute("PRAGMA foreign_keys=OFF")
         self.db.executescript(SCHEMA)
+        have = {r["name"] for r in self.db.execute("PRAGMA table_info(photos)").fetchall()}
+        for col, decl in (("xmp_state", "INTEGER NOT NULL DEFAULT 0"), ("xmp_time", "REAL NOT NULL DEFAULT 0")):
+            if col not in have:
+                self.db.execute(f"ALTER TABLE photos ADD COLUMN {col} {decl}")
         self.revision = 0
         self.undo_stack: list[Change] = []
         self.redo_stack: list[Change] = []

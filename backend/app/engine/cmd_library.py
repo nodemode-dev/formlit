@@ -506,25 +506,24 @@ def find_missing() -> dict:
 
 @command("photo.saveMetadata", "Save Metadata to File", {"ids": {"type": "array"}}, mutates=False)
 def save_metadata(ids: Any = None) -> dict:
+    from app.services import xmpwrite
     pids = _ids(ids)
-    c = cat()
-    written = []
+    written, where = [], {}
     for pid in pids:
-        d = records.detail(c, pid)
-        if d is None or d.get("masterId"):
-            continue
-        rec = {"rating": d["r"], "label": d["l"], "meta": d["meta"], "keywords": d["keywords"], "captureTime": d["captureTime"],
-               "develop": json.dumps(d["develop"], separators=(",", ":")) if d["develop"] else ""}
         try:
-            metadata.write_sidecar(Path(d["path"]), rec)
-            written.append(pid)
+            w = xmpwrite.write(pid)
         except OSError as exc:
-            raise CommandError(f"Could not write the XMP sidecar of {d['fileName']}: {exc}")
-    if written:
-        with c.change("Save Metadata", undoable=False) as ch:
-            for pid in written:
-                ch.update("photos", pid, sidecars=["xmp"])
-    return {"ids": written}
+            raise CommandError(f"Could not write the metadata of photo {pid}: {exc}")
+        if w:
+            written.append(pid)
+            where[w] = where.get(w, 0) + 1
+    return {"ids": written, "into": where}
+
+
+@command("library.checkMetadata", "Check Metadata Files", {"ids": {"type": "array"}})
+def check_metadata(ids: Any = None) -> dict:
+    from app.services import xmpwrite
+    return xmpwrite.check(_ids(ids) if ids is not None else None)
 
 
 @command("photo.readMetadata", "Read Metadata from File", {"ids": {"type": "array"}})
@@ -551,6 +550,19 @@ def read_metadata(ids: Any = None) -> dict:
                 kid = c.keyword_id(ch, kw)
                 if not c.db.execute("SELECT 1 FROM photo_keywords WHERE photo_id=? AND keyword_id=?", (pid, kid)).fetchone():
                     ch.insert("photo_keywords", photo_id=pid, keyword_id=kid)
+            dev = None
+            if x.get("develop"):
+                dev = records.loads(x["develop"], None)
+            elif x.get("crs"):
+                from app.services import xmp_presets
+                dev = xmp_presets.from_crs(x["crs"])
+            if isinstance(dev, dict):
+                from app.engine.cmd_develop import store
+                store(ch, pid, dev, "Read Metadata from File")
+    from app.engine.cmd_develop import after
+    from app.services import xmpwrite
+    after(pids)
+    xmpwrite.synced(pids)
     return {"ids": pids}
 
 

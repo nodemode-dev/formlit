@@ -42,8 +42,9 @@ async def start() -> None:
     load_commands()
     _restore_catalog()
     catalog_mod.get()
-    from app.services import watch
+    from app.services import watch, xmpwrite
     watch.restart()
+    xmpwrite.start()
     threading.Thread(target=_warm, name="formlit-kernel", daemon=True).start()
 
 

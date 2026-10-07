@@ -13,6 +13,8 @@ class Preferences extends Dialog {
   private readonly engine = el('<div class="fl-prefs-engine"></div>');
   private readonly agents = el('<pre class="fl-code"></pre>');
   private readonly models = el('<div class="fl-models"></div>');
+  private readonly autoXmp = el('<label class="fl-check"><input type="checkbox"> Automatically write changes into XMP</label>');
+  private readonly intoFiles = el('<label class="fl-check"><input type="checkbox"> Write metadata into JPEG, TIFF and DNG files instead of sidecars</label>');
 
   constructor(private readonly ctx: Ctx) {
     super('Preferences', 620);
@@ -22,6 +24,11 @@ class Preferences extends Dialog {
     this.field('Theme', themeRow);
     this.field('Accent', this.accent);
     this.field('Accent strength', this.intensity);
+    this.body.appendChild(el('<div class="fl-sub">Metadata</div>'));
+    this.body.append(this.autoXmp, this.intoFiles);
+    for (const [box, key] of [[this.autoXmp, 'autoWriteXmp'], [this.intoFiles, 'xmpIntoFiles']] as Array<[HTMLElement, string]>) {
+      q<HTMLInputElement>(box, 'input').addEventListener('change', (e) => void this.ctx.api.cmd('prefs.set', { values: { [key]: (e.target as HTMLInputElement).checked } }).catch((err) => this.ctx.fail(err)));
+    }
     this.body.appendChild(el('<div class="fl-sub">Engine</div>'));
     this.body.appendChild(this.engine);
     this.body.appendChild(el('<div class="fl-sub">AI Models</div>'));
@@ -55,6 +62,10 @@ class Preferences extends Dialog {
   async show(): Promise<void> {
     this.sync();
     this.open();
+    void this.ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => {
+      q<HTMLInputElement>(this.autoXmp, 'input').checked = !!p.autoWriteXmp;
+      q<HTMLInputElement>(this.intoFiles, 'input').checked = p.xmpIntoFiles !== false;
+    }, () => undefined);
     try {
       const caps = await this.ctx.api.get<Caps>('/api/capabilities');
       const yes = (b: boolean) => (b ? 'available' : 'not installed');

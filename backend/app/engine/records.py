@@ -6,7 +6,7 @@ from app.engine.catalog import Catalog
 
 SUMMARY_SQL = ("SELECT p.id, p.file_name, p.kind, p.format, p.width, p.height, p.capture_time, p.import_time, p.edit_time, p.rating, p.flag, p.label, p.edited, "
                "p.develop_rev, p.develop, p.master_id, p.copy_name, p.stack_id, p.stack_pos, p.missing, p.duration, p.camera, p.lens, p.iso, p.focal, p.aperture, "
-               "p.shutter, p.gps_lat, p.gps_lon, p.file_size, p.folder_id, p.smart_preview FROM photos p")
+               "p.shutter, p.gps_lat, p.gps_lon, p.file_size, p.folder_id, p.smart_preview, p.xmp_state FROM photos p")
 
 
 def loads(text: str | None, default: Any) -> Any:
@@ -52,6 +52,8 @@ def summary(r: Any) -> dict:
         out["gps"] = [r["gps_lat"], r["gps_lon"]]
     if r["smart_preview"]:
         out["sp2"] = 1
+    if r["xmp_state"]:
+        out["xs"] = r["xmp_state"]
     return out
 
 

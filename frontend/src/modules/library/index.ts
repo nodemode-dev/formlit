@@ -1,8 +1,10 @@
 import type { Ctx } from '../../app';
 import { catalog } from '../../state/catalog';
 import { library } from '../../state/library';
-import { el, q, setClass, setHidden, setText } from '../../ui/dom';
+import { el, escapeHtml, q, setClass, setHidden, setText } from '../../ui/dom';
 import { brandMark } from '../../ui/brand';
+import { Dialog } from '../../ui/dialogs';
+import { toast } from '../../ui/toast';
 import { Filmstrip } from '../../ui/filmstrip';
 import { ThumbGrid } from '../../ui/grid';
 import { icon } from '../../ui/icons';
@@ -91,6 +93,13 @@ class LibraryModule {
     this.painter = new Painter(this.ctx);
     this.grid = new ThumbGrid({ axis: 'y', cls: 'fl-lg', names: true, onOpen: (id) => { library.setActive(id); this.setView('loupe'); }, onContext: (_id, e) => this.context(e), paint: (id) => this.painter.paint(id) });
     this.grid.setSize(size);
+    this.grid.root.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('.fl-b-xmp');
+      const id = b ? this.grid.idAt(b) : null;
+      if (!b || id === null) return;
+      e.stopPropagation();
+      void this.xmpBadge(id, b.dataset.xmp as string);
+    });
     this.loupe = new Viewer('fl-loupe');
     this.loupe.onClick = (e) => this.loupe.toggleZoom(e);
     this.compareA = new Viewer('fl-compare-a');
@@ -256,6 +265,28 @@ class LibraryModule {
     const n = library.selected().length;
     this.ctx.shell.setSelection(n > 1 ? `${n} selected` : p ? p.file : '');
     this.ctx.shell.setCount(`${library.ids.length} photo${library.ids.length === 1 ? '' : 's'}`);
+  }
+
+  private async xmpBadge(id: number, kind: string): Promise<void> {
+    const p = library.photo(id);
+    if (!p) return;
+    if (kind === 'save') {
+      try { await this.ctx.api.cmd('photo.saveMetadata', { ids: [id] }); toast(`Saved metadata to ${p.file}`); } catch (err) { this.ctx.fail(err); }
+      return;
+    }
+    const choice = await new Promise<string>((done) => {
+      const d = new Dialog('Metadata Changed on Disk', 460);
+      d.body.appendChild(el(`<p class="cv-note">The metadata of ${escapeHtml(p.file)} was changed outside formlit. Import it, or overwrite it with formlit's settings?</p>`));
+      d.button('Cancel', 'ghost', () => { done(''); d.close(); }).classList.add('cv-btn-apart');
+      d.button('Overwrite Settings', 'ghost', () => { done('save'); d.close(); });
+      d.button('Import Settings from Disk', 'primary', () => { done('read'); d.close(); });
+      d.onClose = () => { done(''); d.scrim.remove(); };
+      d.open();
+    });
+    try {
+      if (choice === 'read') { await this.ctx.api.cmd('photo.readMetadata', { ids: [id] }); toast(`Imported metadata from ${p.file}`); }
+      if (choice === 'save') { await this.ctx.api.cmd('photo.saveMetadata', { ids: [id] }); toast(`Saved metadata to ${p.file}`); }
+    } catch (err) { this.ctx.fail(err); }
   }
 
   private syncCompareBar(): void {

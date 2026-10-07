@@ -572,4 +572,8 @@ def prefs_get() -> dict:
 
 @command("prefs.set", "Set Preferences", {"values": {"type": "object"}})
 def prefs_set(values: dict) -> dict:
-    return prefs.update(values)
+    out = prefs.update(values)
+    if {"autoWriteXmp", "xmpIntoFiles"} & set(values):
+        from app.services import xmpwrite
+        xmpwrite.configure()
+    return out
