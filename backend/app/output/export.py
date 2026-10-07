@@ -248,12 +248,29 @@ def _record(pid: int) -> dict:
     return rec
 
 
-def _export_keywords() -> set[str] | None:
+def _export_keywords() -> dict:
     cat = catalog_mod.get()
-    hidden = {int(r["id"]) for r in cat.rows("SELECT id FROM keywords WHERE export=0")}
-    if not hidden:
-        return None
-    return {cat.keyword_path(int(r["id"])) for r in cat.rows("SELECT id FROM keywords WHERE export=1")}
+    rows = {int(r["id"]): r for r in cat.rows("SELECT id, name, parent_id, synonyms, export FROM keywords")}
+    path: dict[int, str] = {}
+
+    def full(kid: int) -> str:
+        if kid not in path:
+            r = rows[kid]
+            up = r["parent_id"]
+            path[kid] = (full(int(up)) + "|" if up is not None and int(up) in rows else "") + r["name"]
+        return path[kid]
+    extras: dict[str, list[str]] = {}
+    for kid, r in rows.items():
+        terms = list(loads(r["synonyms"], []))
+        up = r["parent_id"]
+        while up is not None and int(up) in rows:
+            if int(rows[int(up)]["export"]):
+                terms.append(rows[int(up)]["name"])
+            up = rows[int(up)]["parent_id"]
+        if terms:
+            extras[full(kid)] = terms
+    hidden = any(not int(r["export"]) for r in rows.values())
+    return {"only": {full(k) for k, r in rows.items() if int(r["export"])} if hidden else None, "extras": extras}
 
 
 def trim_args(rec: dict) -> list[str]:
@@ -284,7 +301,7 @@ def _video(rec: dict, s: dict, dest: Path) -> Path:
     return out
 
 
-def export_one(pid: int, s: dict, seq: int, kw_filter: set[str] | None) -> Path | None:
+def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | None:
     rec = _record(pid)
     f = s["file"]
     fmt = f.get("format", "jpeg")
@@ -292,7 +309,7 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: set[str] | None) -> Path 
     stem = target_name(rec, s, seq)
     existing = s["destination"].get("existing", "unique")
     m = s["metadata"]
-    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")), kw_filter)
+    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")), kw_filter if kw_filter is not None else _export_keywords())
     if rec.get("kind") == "video":
         if not s["video"].get("include", True):
             return None
@@ -334,9 +351,12 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: set[str] | None) -> Path 
         tmp.write_bytes(data)
         os.replace(tmp, dest)
         return dest
-    out = render_photo(pid, s["size"], space)
+    out = render_photo(pid, s["size"], "prophoto" if space.startswith("icc:") else space)
     out = sharpen(out, s["sharpen"], ppi)
     out = watermark(out, s["watermark"], rec)
+    if space.startswith("icc:"):
+        from app.output import icc
+        out = icc.convert(out, "prophoto", space[4:], f.get("intent", "relative"))
     data = encode.encode(out, fmt, space, int(f.get("quality", 85)), int(f.get("depth", 8)), ppi, meta_rec, f.get("compression", "none"), int(f.get("limitKB", 0)))
     tmp = dest.with_name(dest.name + ".part")
     tmp.write_bytes(data)

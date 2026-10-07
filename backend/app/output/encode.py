@@ -14,6 +14,7 @@ FORMATS = {
     "jpeg": {"ext": "jpg", "label": "JPEG", "depths": [8], "quality": True},
     "png": {"ext": "png", "label": "PNG", "depths": [8, 16], "quality": False},
     "tiff": {"ext": "tif", "label": "TIFF", "depths": [8, 16], "quality": False},
+    "psd": {"ext": "psd", "label": "PSD", "depths": [8, 16], "quality": False},
     "webp": {"ext": "webp", "label": "WebP", "depths": [8], "quality": True},
     "avif": {"ext": "avif", "label": "AVIF", "depths": [8], "quality": True},
     "heic": {"ext": "heic", "label": "HEIC", "depths": [8], "quality": True},
@@ -34,7 +35,7 @@ def _dms(v: float) -> tuple[float, float, float]:
     return float(d), float(m), round((v - d - m / 60) * 3600, 4)
 
 
-def filtered(rec: dict, mode: str, remove_person: bool, remove_location: bool, export_keywords: set[str] | None = None) -> dict:
+def filtered(rec: dict, mode: str, remove_person: bool, remove_location: bool, export_keywords: dict | None = None) -> dict:
     meta = dict(rec.get("meta") or {})
     out: dict = {"fileName": rec.get("fileName"), "rating": 0, "label": "", "meta": {}, "keywords": []}
     if mode == "none":
@@ -46,11 +47,13 @@ def filtered(rec: dict, mode: str, remove_person: bool, remove_location: bool, e
         keep |= set(meta)
         out.update(rating=rec.get("rating", 0), label=rec.get("label") or "", captureTime=rec.get("captureTime"))
         kws = rec.get("keywords") or []
-        if export_keywords is not None:
-            kws = [k for k in kws if k in export_keywords]
+        kw = export_keywords or {}
+        if kw.get("only") is not None:
+            kws = [k for k in kws if k in kw["only"]]
         if remove_person:
             kws = [k for k in kws if not k.startswith("People|")]
         out["keywords"] = kws
+        out["subjects"] = sorted({t for k in kws for t in (kw.get("extras") or {}).get(k, [])})
     if remove_person:
         keep.discard("personShown")
     if remove_location:
@@ -164,6 +167,21 @@ def _tiff(arr: np.ndarray, icc: bytes, xmp: bytes | None, ppi: int, r: dict, com
     return buf.getvalue()
 
 
+def _psd(arr: np.ndarray, icc: bytes, xmp: bytes | None, ppi: int) -> bytes:
+    h, w = arr.shape[:2]
+    if max(h, w) > 30000:
+        raise ValueError("PSD is limited to 30,000 pixels on a side")
+    depth = 16 if arr.dtype == np.uint16 else 8
+
+    def res(rid: int, data: bytes) -> bytes:
+        return b"8BIM" + struct.pack(">H", rid) + b"\0\0" + struct.pack(">I", len(data)) + data + (b"\0" if len(data) % 2 else b"")
+    fixed = struct.pack(">IHHIHH", int(ppi * 65536), 1, 1, int(ppi * 65536), 1, 1)
+    block = res(1005, fixed) + res(1039, icc) + (res(1060, xmp) if xmp else b"")
+    head = b"8BPS" + struct.pack(">H", 1) + b"\0" * 6 + struct.pack(">HIIHH", 3, h, w, depth, 3)
+    planes = np.ascontiguousarray(np.moveaxis(arr[..., :3], -1, 0)).astype(">u2" if depth == 16 else np.uint8).tobytes()
+    return head + struct.pack(">I", 0) + struct.pack(">I", len(block)) + block + struct.pack(">I", 0) + struct.pack(">H", 0) + planes
+
+
 def _pil(arr: np.ndarray, fmt: str, quality: int, icc: bytes, exif: bytes | None, xmp: bytes | None, ppi: int) -> bytes:
     im = Image.fromarray(arr, "RGB")
     buf = io.BytesIO()
@@ -191,13 +209,19 @@ def _pil(arr: np.ndarray, fmt: str, quality: int, icc: bytes, exif: bytes | None
 def encode(out: np.ndarray, fmt: str, space: str, quality: int = 85, depth: int = 8, ppi: int = 240, rec: dict | None = None,
            compression: str = "none", limit_kb: int = 0) -> bytes:
     r = rec or {}
-    icc = icc_profile(space)
+    if space.startswith("icc:"):
+        with open(space[4:], "rb") as fh:
+            icc = fh.read()
+    else:
+        icc = icc_profile(space)
     h, w = out.shape[:2]
     has_meta = bool(r.get("meta") or r.get("keywords") or r.get("camera") or r.get("captureTime"))
     exif = exif_bytes(r, w, h, ppi)
     xmp = xmp_packet(r) if has_meta else None
-    if fmt in ("png", "tiff"):
+    if fmt in ("png", "tiff", "psd"):
         arr = to_u16(out) if depth == 16 else to_u8(out)
+        if fmt == "psd":
+            return _psd(arr, icc, xmp, ppi)
         return _png(arr, icc, xmp, ppi, exif) if fmt == "png" else _tiff(arr, icc, xmp, ppi, r, compression)
     arr = to_u8(out)
     data = _pil(arr, fmt, quality, icc, exif, xmp, ppi)

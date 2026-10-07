@@ -65,7 +65,9 @@ def export_options() -> dict:
     formats = dict(encode.FORMATS)
     if importlib.util.find_spec("pillow_heif") is None:
         formats.pop("heic", None)
-    return {"formats": formats, "spaces": encode.SPACES, "metadata": encode.METADATA, "tokens": rename.TOKENS, "defaults": export.merged({}),
+    from app.output import icc
+    spaces = {**encode.SPACES, **{f"icc:{p['path']}": p["name"] for p in icc.profiles() if p["space"] == "RGB"}}
+    return {"formats": formats, "spaces": spaces, "metadata": encode.METADATA, "tokens": rename.TOKENS, "defaults": export.merged({}),
             "anchors": list(export.ANCHORS), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 
@@ -191,6 +193,8 @@ def photo_edit_in(ids: Any = None, app: str = "", mode: str = "copy", format: st
             outs.append(dest)
             progress(i + 1, len(pids), f"Preparing {i + 1} of {len(pids)}")
         launched = export.open_with(app, outs) if app else False
+        from app.engine.cmd_library import WATCH
+        WATCH.update(new_ids if mode != "original" else pids)
         return {"paths": [str(p) for p in outs], "ids": new_ids, "launched": launched, "app": app}
     return _wait(tasks.start("editIn", "Preparing for external editing", job), wait)
 

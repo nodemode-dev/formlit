@@ -87,7 +87,7 @@ LUT_N = 33
 
 
 @lru_cache(maxsize=8)
-def _lut(path: str, intent: str, bpc: bool) -> np.ndarray:
+def _lut(path: str, intent: str, bpc: bool, src: str = "srgb") -> np.ndarray:
     v = np.round(np.linspace(0, 255, LUT_N)).astype(np.uint8)
     r, g, b = np.meshgrid(v, v, v, indexing="ij")
     grid = np.stack([r, g, b], axis=-1).reshape(LUT_N * LUT_N, LUT_N, 3)
@@ -95,13 +95,36 @@ def _lut(path: str, intent: str, bpc: bool) -> np.ndarray:
     if dst.profile.xcolor_space.strip() != "RGB":
         raise ValueError("Choose an RGB printer profile; CMYK profiles are for prepress, not desktop printers")
     flags = ImageCms.Flags.BLACKPOINTCOMPENSATION if bpc else ImageCms.Flags.NONE
-    t = ImageCms.buildTransform(ImageCms.createProfile("sRGB"), dst, "RGB", "RGB", renderingIntent=INTENTS.get(intent, ImageCms.Intent.PERCEPTUAL), flags=flags)
+    if src == "srgb":
+        source = ImageCms.createProfile("sRGB")
+    else:
+        import io
+        from app.develop.output import icc_profile
+        source = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile(src)))
+    t = ImageCms.buildTransform(source, dst, "RGB", "RGB", renderingIntent=INTENTS.get(intent, ImageCms.Intent.PERCEPTUAL), flags=flags)
     out = np.asarray(ImageCms.applyTransform(Image.fromarray(grid, "RGB"), t), np.float32) / 255.0
     return out.reshape(LUT_N, LUT_N, LUT_N, 3)
 
 
-def to_printer(img: np.ndarray, path: str, intent: str = "perceptual", bpc: bool = True) -> np.ndarray:
-    lut = _lut(path, intent, bpc)
+def convert(img: np.ndarray, src: str, path: str, intent: str = "relative") -> np.ndarray:
+    from app.develop.output import icc_profile
+    from app.services import decode
+    a, b = decode.icc_matrix(icc_profile(src)), decode.icc_matrix(icc_bytes(path))
+    if a is None or b is None or intent == "perceptual":
+        return to_printer(img, path, intent, True, src)
+    grid = np.linspace(0.0, 1.0, 4096)
+    m = (np.linalg.inv(b[1].astype(np.float64)) @ a[1].astype(np.float64)).astype(np.float32)
+    out = np.empty(img.shape, np.float32)
+    for y0 in range(0, img.shape[0], 512):
+        part = img[y0:y0 + 512]
+        lin = np.stack([np.interp(np.clip(part[..., i], 0.0, 1.0), grid, a[0][i]) for i in range(3)], axis=-1).astype(np.float32)
+        rgb = np.clip(lin.reshape(-1, 3) @ m.T, 0.0, 1.0).reshape(lin.shape)
+        out[y0:y0 + 512] = np.stack([np.interp(rgb[..., i], b[0][i], grid) for i in range(3)], axis=-1)
+    return out
+
+
+def to_printer(img: np.ndarray, path: str, intent: str = "perceptual", bpc: bool = True, src: str = "srgb") -> np.ndarray:
+    lut = _lut(path, intent, bpc, src)
     n = LUT_N - 1
     out = np.empty(img.shape, np.float32)
     for y0 in range(0, img.shape[0], 256):

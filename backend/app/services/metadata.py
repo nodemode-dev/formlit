@@ -336,7 +336,7 @@ def build_xmp(record: dict) -> str:
         children.append(f'<dc:creator><rdf:Seq><rdf:li>{_esc(meta["creator"])}</rdf:li></rdf:Seq></dc:creator>')
     kws = record.get("keywords") or []
     if kws:
-        leaves = sorted({k.split("|")[-1] for k in kws})
+        leaves = sorted({k.split("|")[-1] for k in kws} | set(record.get("subjects") or []))
         children.append("<dc:subject><rdf:Bag>" + "".join(f"<rdf:li>{_esc(k)}</rdf:li>" for k in leaves) + "</rdf:Bag></dc:subject>")
         children.append("<lr:hierarchicalSubject><rdf:Bag>" + "".join(f"<rdf:li>{_esc(k)}</rdf:li>" for k in sorted(kws)) + "</rdf:Bag></lr:hierarchicalSubject>")
     ns = " ".join(f'xmlns:{p}="{u}"' for p, u in NS.items() if p not in ("x", "rdf"))
