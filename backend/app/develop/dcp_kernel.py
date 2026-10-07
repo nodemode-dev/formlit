@@ -73,6 +73,8 @@ def table(rgb, deltas, srgb, vscale):
             a1 += deltas[vi, hi, si, 1] * w
             a2 += deltas[vi, hi, si, 2] * w
         h2 = (h + a0 * 6.0 / 360.0) % 6.0
+        if h2 >= 6.0:
+            h2 = 0.0
         s2 = min(max(s * a1, 0.0), 1.0)
         if srgb:
             v2 = v * _dec(vv * a2) / max(vs, 1e-12)

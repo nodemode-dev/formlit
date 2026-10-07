@@ -55,6 +55,7 @@ def _rgb_to_hsv(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 def _hsv_to_rgb(h: np.ndarray, s: np.ndarray, v: np.ndarray) -> np.ndarray:
     h = np.mod(h, 6.0)
+    h = np.where(h >= 6.0, 0.0, h)
     i = np.floor(h)
     f = h - i
     p, q, t = v * (1 - s), v * (1 - s * f), v * (1 - s * (1 - f))
@@ -190,7 +191,9 @@ def lookup(rgb: np.ndarray, dims, table, srgb_value: bool, vscale: float = 1.0) 
         return _apply_table(rgb, dims, table, srgb_value, vscale)
     deltas = np.ascontiguousarray(np.asarray(table, np.float64).reshape(max(1, vd), hd, sd, 3))
     flat = np.ascontiguousarray(rgb.reshape(-1, 3), np.float64)
-    return dcp_kernel.table(flat, deltas, bool(srgb_value), float(vscale)).reshape(rgb.shape)
+    from app.develop import pool
+    with pool.LOCK:
+        return dcp_kernel.table(flat, deltas, bool(srgb_value), float(vscale)).reshape(rgb.shape)
 
 
 def apply_camera(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tuple[float, float] = (6500.0, 0.0), rows: int = 512) -> np.ndarray:
