@@ -66,12 +66,17 @@ export function registerAiCommands(ctx: Ctx): void {
     { id: 'photo.hdr', label: 'HDR Merge...', keys: ['Mod+H'], enabled: two, run: async () => {
       const ids = library.targets();
       const v = await askMerge(ctx, 'hdr', ids);
-      if (v) await run(ctx, 'ai.hdrMerge', { ids, deghost: v.deghost, autoTone: v.autoTone, align: v.align }, 'HDR merge started');
+      if (v) await run(ctx, 'ai.hdrMerge', { ids, deghost: v.deghost, autoTone: v.autoTone, align: v.align, createStack: v.createStack }, 'HDR merge started');
     } },
     { id: 'photo.pano', label: 'Panorama Merge...', keys: ['Mod+M'], enabled: two, run: async () => {
       const ids = library.targets();
       const v = await askMerge(ctx, 'pano', ids);
-      if (v) await run(ctx, 'ai.panoMerge', { ids, projection: v.projection, boundaryWarp: v.boundaryWarp, fillEdges: v.fillEdges, autoCrop: v.autoCrop }, 'Panorama merge started');
+      if (v) await run(ctx, 'ai.panoMerge', { ids, projection: v.projection, boundaryWarp: v.boundaryWarp, fillEdges: v.fillEdges, autoCrop: v.autoCrop, createStack: v.createStack }, 'Panorama merge started');
+    } },
+    { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
+      const ids = library.targets();
+      const v = await askMerge(ctx, 'hdrpano', ids);
+      if (v) await run(ctx, 'ai.hdrPanoMerge', { ids, projection: v.projection, boundaryWarp: v.boundaryWarp, fillEdges: v.fillEdges, autoCrop: v.autoCrop, deghost: v.deghost, createStack: v.createStack }, 'HDR Panorama merge started');
     } },
     { id: 'library.cull', label: 'Assisted Culling...', keys: ['Alt+Shift+C'], enabled: has, run: async () => {
       const ids = library.targets().length > 1 ? library.targets() : library.ids;

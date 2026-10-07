@@ -315,7 +315,7 @@ def ai_depth(ids: Any = None) -> dict:
     return {"ids": pids, "depth": out}
 
 
-def _derived(src: int, path: Path, label: str, dev: dict, progress) -> int:
+def _derived(src: int, path: Path, label: str, dev: dict, progress, stack: list[int] | None = None) -> int:
     from app.engine.cmd_library import stack_group
     from app.services import importer
     res = importer.import_files([str(path)], "add", "", "", "", "", dev, None, None, None, False, False, progress)
@@ -328,10 +328,12 @@ def _derived(src: int, path: Path, label: str, dev: dict, progress) -> int:
             ch.update("photos", new, capture_time=row["capture_time"], camera=row["camera"], lens=row["lens"], focal=row["focal"], aperture=row["aperture"],
                       shutter=row["shutter"], iso=row["iso"], gps_lat=row["gps_lat"], gps_lon=row["gps_lon"], rating=row["rating"], label=row["label"],
                       meta=loads(row["meta"], {}))
-    try:
-        stack_group([new, src])
-    except CommandError:
-        pass
+    group = [new, src] if stack is None else ([new, *[p for p in stack if p != new]] if stack else [])
+    if len(group) > 1:
+        try:
+            stack_group(group)
+        except CommandError:
+            pass
     previews.request(new, "t")
     return new
 
@@ -454,11 +456,11 @@ def _maybe_wait(tid: int, wait: bool) -> dict:
     return {"task": tid, **(t.get("result") or {} if t else {})}
 
 
-@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano"]}, "projection": {"type": "string"},
+@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano", "hdrpano"]}, "projection": {"type": "string"},
                                              "boundaryWarp": {"type": "number"}, "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"},
-                                             "deghost": {"type": "string"}, "align": {"type": "boolean"}, "showGhosts": {"type": "boolean"}}, mutates=False)
+                                             "deghost": {"type": "string"}, "align": {"type": "boolean"}, "showGhosts": {"type": "boolean"}, "createStack": {"type": "boolean"}}, mutates=False)
 def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True,
-                     deghost: str = "off", align: bool = True, showGhosts: bool = False) -> dict:
+                     deghost: str = "off", align: bool = True, showGhosts: bool = False, createStack: bool = False) -> dict:
     import base64
     from app.develop.output import to_u8
     pids = resolve_ids(ids)
@@ -471,7 +473,12 @@ def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "sph
         imgs.append(cv2.resize(img, (max(1, round(img.shape[1] * s)), max(1, round(img.shape[0] * s))), interpolation=cv2.INTER_AREA) if s < 1 else img.copy())
     ghosts: list = []
     try:
-        if kind == "hdr":
+        if kind == "hdrpano":
+            groups = brackets(pids)
+            merged = [merge.hdr([imgs[pids.index(p)] for p in g], _factors(g), deghost, None, True) for g in groups]
+            out = merge.pano(merged, projection, None, 4e6, boundaryWarp, fillEdges, autoCrop)
+            kind = "hdr"
+        elif kind == "hdr":
             factors = []
             for pid in pids:
                 r = cat().photo(pid)
@@ -497,9 +504,66 @@ def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "sph
             "ghostPixels": int(np.any(np.stack(ghosts), axis=0).sum()) if ghosts else 0}
 
 
+def _ev(pid: int) -> float:
+    r = cat().photo(pid)
+    f = merge.exposure_factor({"shutter": r["shutter"], "aperture": r["aperture"], "iso": r["iso"]}) if r else None
+    return round(float(np.log2(f)) * 3) / 3 if f else 0.0
+
+
+def brackets(pids: list[int]) -> list[list[int]]:
+    order = sorted(pids, key=lambda p: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (p,)) or ""), p))
+    evs = [_ev(p) for p in order]
+    k = len(set(evs))
+    if k < 2 or len(order) % k or len(order) // k < 2:
+        raise CommandError("HDR Panorama needs two or more bracketed sets of the same size, for example 3 positions of 3 exposures")
+    groups = [order[i:i + k] for i in range(0, len(order), k)]
+    for g in groups:
+        if len({evs[order.index(p)] for p in g}) != k:
+            raise CommandError("Each bracketed set must hold one photo of every exposure; select whole sets in capture order")
+    return groups
+
+
+def _factors(pids: list[int]) -> list[float | None]:
+    out = []
+    for pid in pids:
+        r = cat().photo(pid)
+        out.append(merge.exposure_factor({"shutter": r["shutter"], "aperture": r["aperture"], "iso": r["iso"]}) if r else None)
+    return out
+
+
+@command("ai.hdrPanoMerge", "HDR Panorama Merge", {"ids": {"type": "array"}, "projection": {"type": "string", "enum": ["spherical", "cylindrical", "plane"]},
+                                                  "boundaryWarp": {"type": "number"}, "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"},
+                                                  "deghost": {"type": "string", "enum": ["off", "low", "medium", "high"]}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def ai_hdr_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True, deghost: str = "off",
+                createStack: bool = False, wait: bool = False) -> dict:
+    pids = resolve_ids(ids)
+    groups = brackets(pids)
+
+    def job(progress):
+        merged, infos = [], []
+        for gi, g in enumerate(groups):
+            imgs = []
+            for pid in g:
+                img, info = previews.source(pid, None, full=True)
+                imgs.append(img.copy())
+            infos.append(info)
+            merged.append(merge.hdr(imgs, _factors(g), deghost, None, True))
+            progress(gi + 1, len(groups) + 2, f"HDR {gi + 1} of {len(groups)}")
+        out = merge.pano(merged, projection, None, 80e6, boundaryWarp, fillEdges, autoCrop)
+        ref = groups[0][len(groups[0]) // 2]
+        target = _out_path(ref, "HDR-Pano")
+        dng.write_linear_dng(target, out, {**infos[0], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
+        new = _derived(ref, target, "HDR Panorama Merge", _settings_for(ref, ("light", "crop", "masks", "spots", "redEye", "geometry", "optics", "lensBlur")), progress,
+                       stack=pids if createStack else [])
+        from app.engine.cmd_develop import auto
+        auto([new])
+        return {"ids": [new], "sets": len(groups)}
+    return _maybe_wait(tasks.start("hdrpano", "HDR Panorama Merge", job), wait)
+
+
 @command("ai.hdrMerge", "HDR Merge", {"ids": {"type": "array"}, "deghost": {"type": "string", "enum": ["off", "low", "medium", "high"]}, "autoTone": {"type": "boolean"},
-                                      "align": {"type": "boolean"}, "wait": {"type": "boolean"}})
-def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: bool = True, wait: bool = False) -> dict:
+                                      "align": {"type": "boolean"}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: bool = True, createStack: bool = False, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
     if len(pids) < 2:
         raise CommandError("Select two or more bracketed photos")
@@ -518,7 +582,7 @@ def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: 
         target = _out_path(ref, "HDR")
         dng.write_linear_dng(target, out, {**infos[pids.index(ref)], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
         dev = _settings_for(ref, ("light", "crop", "masks", "spots", "redEye", "lensBlur"))
-        new = _derived(ref, target, "HDR Merge", dev, progress)
+        new = _derived(ref, target, "HDR Merge", dev, progress, stack=pids if createStack else [])
         if autoTone:
             from app.engine.cmd_develop import auto
             auto([new])
@@ -528,8 +592,9 @@ def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: 
 
 @command("ai.panoMerge", "Panorama Merge", {"ids": {"type": "array"}, "projection": {"type": "string", "enum": ["spherical", "cylindrical", "plane"]},
                                             "boundaryWarp": {"type": "number", "description": "0 to 100: bend the edges out to fill the frame"},
-                                            "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"}, "wait": {"type": "boolean"}})
-def ai_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True, wait: bool = False) -> dict:
+                                            "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def ai_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True, createStack: bool = False,
+            wait: bool = False) -> dict:
     pids = resolve_ids(ids)
     if len(pids) < 2:
         raise CommandError("Select two or more overlapping photos")
@@ -544,7 +609,8 @@ def ai_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float 
         out = merge.pano(imgs, projection, progress, 80e6, boundaryWarp, fillEdges, autoCrop)
         target = _out_path(pids[0], "Pano")
         dng.write_linear_dng(target, out, {**infos[0], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pids[0],)))
-        new = _derived(pids[0], target, "Panorama Merge", _settings_for(pids[0], ("crop", "masks", "spots", "redEye", "geometry", "optics", "lensBlur")), progress)
+        new = _derived(pids[0], target, "Panorama Merge", _settings_for(pids[0], ("crop", "masks", "spots", "redEye", "geometry", "optics", "lensBlur")), progress,
+                       stack=pids if createStack else [])
         return {"ids": [new]}
     return _maybe_wait(tasks.start("pano", "Panorama Merge", job), wait)
 

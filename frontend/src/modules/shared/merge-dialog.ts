@@ -2,17 +2,28 @@ import type { Ctx } from '../../app';
 import { Dialog } from '../../ui/dialogs';
 import { el, q, setClass, setHidden, setText } from '../../ui/dom';
 
-type Kind = 'hdr' | 'pano';
+type Kind = 'hdr' | 'pano' | 'hdrpano';
+
+const DEGHOST = `<div class="fl-row"><span class="fl-row-label">Deghost</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="deghost"><button type="button" data-v="off" class="is-on">None</button><button type="button" data-v="low">Low</button><button type="button" data-v="medium">Medium</button><button type="button" data-v="high">High</button></div></div>`;
+const STACK = '<label class="fl-check"><input type="checkbox" data-k="createStack"> Create Stack</label>';
 
 const HDR_OPTS = `<label class="fl-check"><input type="checkbox" data-k="align" checked> Auto Align</label>
 <label class="fl-check"><input type="checkbox" data-k="autoTone" checked> Auto Settings</label>
-<div class="fl-row"><span class="fl-row-label">Deghost</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="deghost"><button type="button" data-v="off" class="is-on">None</button><button type="button" data-v="low">Low</button><button type="button" data-v="medium">Medium</button><button type="button" data-v="high">High</button></div></div>
-<label class="fl-check"><input type="checkbox" data-k="showGhosts"> Show Deghost Overlay</label>`;
+${DEGHOST}
+<label class="fl-check"><input type="checkbox" data-k="showGhosts"> Show Deghost Overlay</label>
+${STACK}`;
 
-const PANO_OPTS = `<div class="fl-row"><span class="fl-row-label">Projection</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="projection"><button type="button" data-v="spherical" class="is-on">Spherical</button><button type="button" data-v="cylindrical">Cylindrical</button><button type="button" data-v="plane">Perspective</button></div></div>
+const PANO_CORE = `<div class="fl-row"><span class="fl-row-label">Projection</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="projection"><button type="button" data-v="spherical" class="is-on">Spherical</button><button type="button" data-v="cylindrical">Cylindrical</button><button type="button" data-v="plane">Perspective</button></div></div>
 <label class="fl-opt"><span>Boundary Warp</span><input class="cv-slider" type="range" min="0" max="100" value="0" data-k="boundaryWarp"><em data-out="boundaryWarp">0</em></label>
 <label class="fl-check"><input type="checkbox" data-k="fillEdges"> Fill Edges</label>
 <label class="fl-check"><input type="checkbox" data-k="autoCrop" checked> Auto Crop</label>`;
+
+const PANO_OPTS = `${PANO_CORE}
+${STACK}`;
+
+const HDRPANO_OPTS = `${PANO_CORE}
+${DEGHOST}
+${STACK}`;
 
 class MergeDialog extends Dialog {
   private readonly prev = el('<div class="fl-merge-prev"><img alt="" draggable="false"><span class="fl-merge-status">Building preview...</span></div>');
@@ -47,8 +58,8 @@ class MergeDialog extends Dialog {
   ask(kind: Kind, ids: number[]): Promise<Record<string, unknown> | null> {
     this.kind = kind;
     this.ids = ids;
-    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : `Panorama Merge Preview (${ids.length} photos)`);
-    const html = kind === 'hdr' ? HDR_OPTS : PANO_OPTS;
+    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : kind === 'hdrpano' ? `HDR Panorama Merge Preview (${ids.length} photos)` : `Panorama Merge Preview (${ids.length} photos)`);
+    const html = kind === 'hdr' ? HDR_OPTS : kind === 'hdrpano' ? HDRPANO_OPTS : PANO_OPTS;
     if (this.opts.dataset.kind !== kind) { this.opts.dataset.kind = kind; this.opts.innerHTML = html; }
     q<HTMLImageElement>(this.prev, 'img').removeAttribute('src');
     setText(q(this.prev, '.fl-merge-status'), 'Building preview...');
