@@ -1,6 +1,6 @@
 import type { Ctx } from '../../app';
 import { catalog } from '../../state/catalog';
-import { Dialog } from '../../ui/dialogs';
+import { confirmAction, Dialog, promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
@@ -13,10 +13,12 @@ const PREFS_KEY = 'formlit_import';
 const RENAMES: Array<[string, string]> = [['', 'Filename (unchanged)'], ['{date:%Y%m%d}-{name}', 'Date - Filename'], ['{custom}-{seq:3}', 'Custom Name - Sequence'], ['{date:%Y-%m-%d}-{seq:4}', 'Date - Sequence'], ['{shoot}-{name}', 'Shoot Name - Filename']];
 const ORGANIZE: Array<[string, string]> = [['{date:%Y}/{date:%Y-%m-%d}', 'By date: 2026/2026-10-07'], ['{date:%Y}/{date:%m}', 'By date: 2026/10'], ['{date:%Y-%m-%d}', 'By date: 2026-10-07'], ['', 'Into one folder']];
 
-interface Prefs { mode: string; recursive: boolean; skipDup: boolean; previews: string; rename: string; organize: string; destination: string; preset: string; copyright: string; creator: string; last: string }
+interface Prefs { mode: string; recursive: boolean; skipDup: boolean; previews: string; rename: string; organize: string; destination: string; backup: string; preset: string; copyright: string; creator: string; last: string }
+type ImportPreset = Omit<Prefs, 'last'>;
+const PRESET_KEYS: Array<keyof ImportPreset> = ['mode', 'recursive', 'skipDup', 'previews', 'rename', 'organize', 'destination', 'backup', 'preset', 'copyright', 'creator'];
 
 function readPrefs(): Prefs {
-  const d: Prefs = { mode: 'add', recursive: true, skipDup: true, previews: 'embedded', rename: '', organize: ORGANIZE[0][0], destination: '', preset: '', copyright: '', creator: '', last: '' };
+  const d: Prefs = { mode: 'add', recursive: true, skipDup: true, previews: 'embedded', rename: '', organize: ORGANIZE[0][0], destination: '', backup: '', preset: '', copyright: '', creator: '', last: '' };
   try { return { ...d, ...(JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') as Partial<Prefs>) }; } catch { return d; }
 }
 
@@ -34,6 +36,9 @@ class ImportDialog extends Dialog {
   private readonly status: HTMLElement;
   private readonly go: HTMLButtonElement;
   private readonly dest: HTMLElement;
+  private readonly presetSel = el<HTMLSelectElement>('<select class="cv-select fl-imp-preset" aria-label="Import preset"></select>');
+  private importPresets: Record<string, ImportPreset> = {};
+  private presetName = '';
   private seq = 0;
 
   constructor(private readonly ctx: Ctx) {
@@ -60,7 +65,8 @@ class ImportDialog extends Dialog {
 <label class="fl-opt"><span>Keywords</span><input class="cv-input" type="text" data-keywords placeholder="comma separated" spellcheck="false"></label>
 <div class="fl-imp-dest"><div class="fl-sub">Destination</div>
 <label class="fl-opt"><span>To</span><input class="cv-input" type="text" data-pref="destination" spellcheck="false"></label>
-<label class="fl-opt"><span>Organize</span><select class="cv-select" data-pref="organize">${ORGANIZE.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}</select></label></div>
+<label class="fl-opt"><span>Organize</span><select class="cv-select" data-pref="organize">${ORGANIZE.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}</select></label>
+<label class="fl-opt"><span>Second Copy To</span><input class="cv-input" type="text" data-pref="backup" placeholder="No second copy" spellcheck="false"></label></div>
 </aside></div></div>`);
     this.body.appendChild(layout);
     this.crumbs = q(layout, '.fl-imp-crumbs');
@@ -70,7 +76,8 @@ class ImportDialog extends Dialog {
     this.status = q(layout, '.fl-imp-status');
     this.dest = q(layout, '.fl-imp-dest');
     this.summary = el('<span class="fl-imp-summary"></span>');
-    this.foot.appendChild(this.summary);
+    this.foot.append(this.presetSel, this.summary);
+    this.presetSel.addEventListener('change', () => void this.choosePreset(this.presetSel.value));
     this.button('Cancel', 'ghost', () => this.close());
     this.go = this.button('Import', 'primary', () => void this.start());
 
@@ -107,6 +114,49 @@ class ImportDialog extends Dialog {
 
   private save(): void { try { localStorage.setItem(PREFS_KEY, JSON.stringify(this.prefs)); } catch { return; } }
 
+  private fillPresets(): void {
+    const names = Object.keys(this.importPresets).sort();
+    if (!names.includes(this.presetName)) this.presetName = '';
+    const opts: Array<[string, string]> = [['', 'Import Preset: None'], ...names.map((n): [string, string] => [n, `Import Preset: ${n}`]), ['__save', 'Save Current Settings as New Preset...']];
+    if (this.presetName) opts.push(['__delete', `Delete Preset "${this.presetName}"...`]);
+    const key = opts.map((o) => o.join('=')).join('|');
+    if (this.presetSel.dataset.key !== key) { this.presetSel.dataset.key = key; this.presetSel.replaceChildren(...opts.map(([v, l]) => new Option(l, v))); }
+    this.presetSel.value = this.presetName;
+  }
+
+  private async storePresets(): Promise<void> {
+    try { await this.ctx.api.cmd('prefs.set', { values: { importPresets: this.importPresets } }); } catch (err) { this.ctx.fail(err, 'Import presets'); }
+  }
+
+  private async choosePreset(v: string): Promise<void> {
+    if (v === '__save') {
+      const name = (await promptName('New Import Preset', this.presetName || 'My Import', 'Create'))?.trim();
+      if (name) {
+        this.importPresets[name] = Object.fromEntries(PRESET_KEYS.map((k) => [k, this.prefs[k]])) as ImportPreset;
+        this.presetName = name;
+        await this.storePresets();
+      }
+    } else if (v === '__delete') {
+      const name = this.presetName;
+      if (name && await confirmAction('Delete Import Preset', `Delete the import preset "${name}"? Photos already imported are not affected.`, 'Delete', true)) {
+        delete this.importPresets[name];
+        this.presetName = '';
+        await this.storePresets();
+      }
+    } else {
+      this.presetName = v;
+      const p = this.importPresets[v];
+      if (p) {
+        this.prefs = { ...this.prefs, ...p };
+        this.save();
+        this.syncFields();
+        this.sync();
+        if (p.recursive !== undefined) void this.scan();
+      }
+    }
+    this.fillPresets();
+  }
+
   async show(start?: string): Promise<void> {
     this.open(this.go);
     const roots = await this.ctx.api.get<{ roots: Root[]; library: string }>('/api/files/roots');
@@ -128,6 +178,9 @@ class ImportDialog extends Dialog {
     const cols = q<HTMLSelectElement>(this.body, '[data-collection]');
     cols.length = 1;
     for (const c of catalog.tree.collections.filter((x) => x.kind === 'collection')) cols.add(new Option(c.name, String(c.id)));
+    const stored = await this.ctx.api.cmd<Record<string, unknown>>('prefs.get').catch(() => ({} as Record<string, unknown>));
+    this.importPresets = (stored.importPresets as Record<string, ImportPreset> | undefined) ?? {};
+    this.fillPresets();
     this.syncFields();
     await this.browse(start || this.prefs.last || roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/');
   }
@@ -220,7 +273,7 @@ class ImportDialog extends Dialog {
     const params = {
       paths, mode: this.prefs.mode, destination: this.prefs.destination, folderTemplate: this.prefs.organize, renameTemplate: this.prefs.rename,
       custom: q<HTMLInputElement>(this.body, '[data-custom]').value, develop: this.prefs.preset || null, metadata, keywords, collection: col ? Number(col) : null,
-      skipDuplicates: this.prefs.skipDup, recursive: false, buildPreviews: this.prefs.previews,
+      skipDuplicates: this.prefs.skipDup, recursive: false, buildPreviews: this.prefs.previews, backup: this.prefs.mode === 'add' ? '' : this.prefs.backup.trim(),
     };
     this.close();
     try {

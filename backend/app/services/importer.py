@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import time
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -126,12 +127,13 @@ def _transfer(src: Path, dst: Path, move: bool) -> None:
 def import_files(paths: list[str], mode: str = "add", destination: str = "", folder_template: str = "{date:%Y}/{date:%Y-%m-%d}",
                  rename_template: str = "", custom: str = "", develop: dict | None = None, meta_preset: dict | None = None,
                  keywords: list[str] | None = None, collection: int | None = None, skip_duplicates: bool = True,
-                 recursive: bool = True, progress=None) -> dict:
+                 recursive: bool = True, progress=None, backup: str = "") -> dict:
     cat = catalog_mod.get()
     files = walk(paths, recursive)
     hashes = {r["content_hash"] for r in cat.rows("SELECT content_hash FROM photos WHERE content_hash != ''")}
     known = {(r["path"], r["file_name"]) for r in cat.rows("SELECT f.path, p.file_name FROM photos p JOIN folders f ON f.id=p.folder_id")}
     dest_root = Path(destination).expanduser() if destination else None
+    backup_root = Path(backup).expanduser() / f"Imported on {date.today().isoformat()}" if backup and mode in ("copy", "move") else None
     if mode in ("copy", "move") and dest_root is None:
         raise ValueError("Copy and Move need a destination folder")
     added: list[int] = []
@@ -158,6 +160,10 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
             if mode in ("copy", "move") and dest_root is not None:
                 final = _destination(src, info, dest_root, folder_template, rename_template, len(added) + 1, custom)
                 _transfer(src, final, mode == "move")
+                if backup_root is not None:
+                    second = rename.unique(backup_root / src.name)
+                    second.parent.mkdir(parents=True, exist_ok=True)
+                    _transfer(final, second, False)
             exif = info.get("exif", {})
             xmp = info.get("xmp", {})
             dev = dict(develop or {})

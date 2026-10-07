@@ -78,7 +78,7 @@ def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
 @command("library.import", "Import Photos", {"paths": {"type": "array"}, "mode": {"type": "string", "enum": ["add", "copy", "move"]}, "destination": {"type": "string"}})
 def do_import(paths: list[str], mode: str = "add", destination: str = "", folderTemplate: str = "{date:%Y}/{date:%Y-%m-%d}", renameTemplate: str = "",
               custom: str = "", develop: Any = None, metadata: dict | None = None, keywords: list[str] | None = None, collection: int | None = None,
-              skipDuplicates: bool = True, recursive: bool = True, wait: bool = False, buildPreviews: str = "") -> dict:
+              skipDuplicates: bool = True, recursive: bool = True, wait: bool = False, buildPreviews: str = "", backup: str = "") -> dict:
     dev = None
     if isinstance(develop, dict):
         dev = develop
@@ -90,7 +90,7 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
 
     def job(progress):
         res = importer.import_files(paths, mode, destination, folderTemplate, renameTemplate, custom, dev, metadata, keywords, collection,
-                                    skipDuplicates, recursive, progress)
+                                    skipDuplicates, recursive, progress, backup=backup)
         if buildPreviews in ("standard", "1:1") and res["ids"]:
             previews.build_all(res["ids"], "p", progress)
         return res
