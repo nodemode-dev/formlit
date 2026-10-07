@@ -199,9 +199,52 @@ def _maybe_wait(tid: int, wait: bool) -> dict:
     return {"task": tid, **(t.get("result") or {} if t else {})}
 
 
+@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano"]}, "projection": {"type": "string"},
+                                             "boundaryWarp": {"type": "number"}, "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"},
+                                             "deghost": {"type": "string"}, "align": {"type": "boolean"}, "showGhosts": {"type": "boolean"}}, mutates=False)
+def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True,
+                     deghost: str = "off", align: bool = True, showGhosts: bool = False) -> dict:
+    import base64
+    from app.develop.output import to_u8
+    pids = resolve_ids(ids)
+    if len(pids) < 2:
+        raise CommandError("Select two or more photos")
+    imgs = []
+    for pid in pids:
+        img, _ = previews.source(pid)
+        s = min(1.0, 900.0 / max(img.shape[:2]))
+        imgs.append(cv2.resize(img, (max(1, round(img.shape[1] * s)), max(1, round(img.shape[0] * s))), interpolation=cv2.INTER_AREA) if s < 1 else img.copy())
+    ghosts: list = []
+    try:
+        if kind == "hdr":
+            factors = []
+            for pid in pids:
+                r = cat().photo(pid)
+                factors.append(merge.exposure_factor({"shutter": r["shutter"], "aperture": r["aperture"], "iso": r["iso"]}) if r else None)
+            if len({im.shape for im in imgs}) > 1:
+                raise CommandError("HDR merge needs photos of the same size and orientation")
+            out = merge.hdr(imgs, factors, deghost, None, align, ghosts)
+        else:
+            out = merge.pano(imgs, projection, None, 4e6, boundaryWarp, fillEdges, autoCrop)
+    except ValueError as exc:
+        raise CommandError(str(exc)) from exc
+    gain = 0.5 / max(1e-6, float(np.percentile(out, 50))) if kind == "hdr" else 1.0 / max(1e-6, float(np.percentile(out, 99)))
+    disp = np.clip(out * gain, 0.0, None)
+    disp = disp / (1.0 + disp) * (1.6 if kind == "hdr" else 1.0) if kind == "hdr" else np.clip(disp, 0.0, 1.0)
+    disp = np.where(disp <= 0.0031308, disp * 12.92, 1.055 * np.power(np.clip(disp, 0.0031308, None), 1 / 2.4) - 0.055)
+    if showGhosts and ghosts:
+        g = np.any(np.stack(ghosts), axis=0)[..., None]
+        disp = np.where(g, disp * 0.45 + np.array([0.9, 0.15, 0.25], np.float32) * 0.55, disp)
+    ok, buf = cv2.imencode(".jpg", cv2.cvtColor(to_u8(np.clip(disp, 0.0, 1.0).astype(np.float32)), cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 85])
+    if not ok:
+        raise CommandError("Could not encode the preview")
+    return {"jpeg": base64.b64encode(buf.tobytes()).decode("ascii"), "w": int(out.shape[1]), "h": int(out.shape[0]),
+            "ghostPixels": int(np.any(np.stack(ghosts), axis=0).sum()) if ghosts else 0}
+
+
 @command("ai.hdrMerge", "HDR Merge", {"ids": {"type": "array"}, "deghost": {"type": "string", "enum": ["off", "low", "medium", "high"]}, "autoTone": {"type": "boolean"},
-                                      "wait": {"type": "boolean"}})
-def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, wait: bool = False) -> dict:
+                                      "align": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: bool = True, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
     if len(pids) < 2:
         raise CommandError("Select two or more bracketed photos")
@@ -215,7 +258,7 @@ def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, wait: b
             r = cat().photo(pid)
             factors.append(merge.exposure_factor({"shutter": r["shutter"], "aperture": r["aperture"], "iso": r["iso"]}) if r else None)
             progress(i + 1, len(pids) + 2, "Reading brackets")
-        out = merge.hdr(imgs, factors, deghost, progress)
+        out = merge.hdr(imgs, factors, deghost, progress, align)
         ref = pids[int(np.argsort([float(np.median(i)) for i in imgs])[len(imgs) // 2])]
         target = _out_path(ref, "HDR")
         dng.write_linear_dng(target, out, {**infos[pids.index(ref)], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
@@ -229,8 +272,9 @@ def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, wait: b
 
 
 @command("ai.panoMerge", "Panorama Merge", {"ids": {"type": "array"}, "projection": {"type": "string", "enum": ["spherical", "cylindrical", "plane"]},
-                                            "wait": {"type": "boolean"}})
-def ai_pano(ids: Any = None, projection: str = "spherical", wait: bool = False) -> dict:
+                                            "boundaryWarp": {"type": "number", "description": "0 to 100: bend the edges out to fill the frame"},
+                                            "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def ai_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
     if len(pids) < 2:
         raise CommandError("Select two or more overlapping photos")
@@ -242,7 +286,7 @@ def ai_pano(ids: Any = None, projection: str = "spherical", wait: bool = False) 
             imgs.append(img.copy())
             infos.append(info)
             progress(i + 1, len(pids) + 1, "Reading photos")
-        out = merge.pano(imgs, projection, progress)
+        out = merge.pano(imgs, projection, progress, 80e6, boundaryWarp, fillEdges, autoCrop)
         target = _out_path(pids[0], "Pano")
         dng.write_linear_dng(target, out, {**infos[0], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pids[0],)))
         new = _derived(pids[0], target, "Panorama Merge", _settings_for(pids[0], ("crop", "masks", "spots", "redEye", "geometry", "optics", "lensBlur")), progress)

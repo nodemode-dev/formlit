@@ -4,6 +4,7 @@ import { Dialog } from '../../ui/dialogs';
 import { el, q, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
+import { askMerge } from './merge-dialog';
 
 interface CullResult { photos: number; groups: number; best: number[]; blurry: number[]; duplicates: number[] }
 
@@ -65,16 +66,13 @@ export function registerAiCommands(ctx: Ctx): void {
     } },
     { id: 'photo.hdr', label: 'HDR Merge...', keys: ['Mod+H'], enabled: two, run: async () => {
       const ids = library.targets();
-      const v = await ask('HDR Merge', `<p class="cv-note">Merges ${ids.length} bracketed exposures into one high dynamic range DNG.</p>
-<label class="fl-opt"><span>Deghost</span><select class="cv-select" data-k="deghost"><option value="off">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
-<label class="fl-check"><input type="checkbox" data-k="auto" checked> Auto Settings</label>`, 'Merge', (r) => ({ deghost: q<HTMLSelectElement>(r, '[data-k="deghost"]').value, autoTone: q<HTMLInputElement>(r, '[data-k="auto"]').checked }));
-      if (v) await run(ctx, 'ai.hdrMerge', { ids, ...v }, 'HDR merge started');
+      const v = await askMerge(ctx, 'hdr', ids);
+      if (v) await run(ctx, 'ai.hdrMerge', { ids, deghost: v.deghost, autoTone: v.autoTone, align: v.align }, 'HDR merge started');
     } },
     { id: 'photo.pano', label: 'Panorama Merge...', keys: ['Mod+M'], enabled: two, run: async () => {
       const ids = library.targets();
-      const v = await ask('Panorama Merge', `<p class="cv-note">Stitches ${ids.length} overlapping photos into one panorama DNG.</p>
-<label class="fl-opt"><span>Projection</span><select class="cv-select" data-k="projection"><option value="spherical">Spherical</option><option value="cylindrical">Cylindrical</option><option value="plane">Perspective</option></select></label>`, 'Merge', (r) => ({ projection: q<HTMLSelectElement>(r, '[data-k="projection"]').value }));
-      if (v) await run(ctx, 'ai.panoMerge', { ids, ...v }, 'Panorama merge started');
+      const v = await askMerge(ctx, 'pano', ids);
+      if (v) await run(ctx, 'ai.panoMerge', { ids, projection: v.projection, boundaryWarp: v.boundaryWarp, fillEdges: v.fillEdges, autoCrop: v.autoCrop }, 'Panorama merge started');
     } },
     { id: 'library.cull', label: 'Assisted Culling...', keys: ['Alt+Shift+C'], enabled: has, run: async () => {
       const ids = library.targets().length > 1 ? library.targets() : library.ids;

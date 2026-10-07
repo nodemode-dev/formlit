@@ -26,7 +26,7 @@ def _shift(img: np.ndarray, dx: float, dy: float) -> np.ndarray:
     return cv2.warpAffine(img, m, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
 
 
-def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "off", progress=None) -> np.ndarray:
+def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "off", progress=None, align: bool = True, ghosts: list | None = None) -> np.ndarray:
     n = len(images)
     if n < 2:
         raise ValueError("HDR merge needs two or more photos")
@@ -49,7 +49,7 @@ def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "o
     mtb = cv2.createAlignMTB()
     aligned = []
     for i, im in enumerate(images):
-        if i == ref_i:
+        if i == ref_i or not align:
             aligned.append(im)
             continue
         g = cv2.cvtColor(_proxy8(im, 1600, 1.0 / max(1e-6, float(np.percentile(im, 99)))), cv2.COLOR_RGB2GRAY)
@@ -70,6 +70,8 @@ def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "o
         if deghost != "off" and i != ref_i:
             thr = {"low": 1.2, "medium": 0.8, "high": 0.5}.get(deghost, 0.8)
             diff = np.abs(np.log2(np.maximum(norm.mean(axis=2), 1e-5)) - np.log2(np.maximum(ref_norm.mean(axis=2), 1e-5)))
+            if ghosts is not None:
+                ghosts.append((diff >= thr) & (wt > 0))
             wt = wt * (diff < thr)
         acc += norm * wt[..., None]
         wsum += wt
@@ -79,7 +81,8 @@ def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "o
     return np.maximum(out, 0.0).astype(np.float32)
 
 
-def pano(images: list[np.ndarray], projection: str = "spherical", progress=None, max_pixels: float = 80e6) -> np.ndarray:
+def pano(images: list[np.ndarray], projection: str = "spherical", progress=None, max_pixels: float = 80e6, boundary: float = 0.0, fill: bool = False,
+         crop: bool = True) -> np.ndarray:
     if len(images) < 2:
         raise ValueError("Panorama merge needs two or more photos")
     gain = 1.0 / max(1e-6, float(np.median([np.percentile(im, 99) for im in images])))
@@ -133,10 +136,94 @@ def pano(images: list[np.ndarray], projection: str = "spherical", progress=None,
         wsum[ys:ys + hh, xs:xs + ww] += wt
     covered = wsum > 1e-6
     out = np.where(covered[..., None], acc / np.maximum(wsum, 1e-6)[..., None], 0.0)
-    rows = np.where(covered.mean(axis=1) > 0.98)[0]
-    cols = np.where(covered.mean(axis=0) > 0.98)[0]
-    if len(rows) > 16 and len(cols) > 16:
-        sub = covered[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
-        if sub.mean() > 0.995:
-            out = out[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
+    return finish_pano(np.maximum(out, 0.0).astype(np.float32), covered, boundary, fill, crop)
+
+
+def _edges(covered: np.ndarray, axis: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    m = covered if axis == 0 else covered.T
+    n = m.shape[0]
+    has = m.any(axis=0)
+    lo = np.where(has, m.argmax(axis=0), 0).astype(np.float32)
+    hi = np.where(has, n - 1 - m[::-1].argmax(axis=0), n - 1).astype(np.float32)
+    k = max(3, (m.shape[1] // 60) | 1)
+    lo = cv2.GaussianBlur(lo.reshape(1, -1), (k, 1), 0).ravel()
+    hi = cv2.GaussianBlur(hi.reshape(1, -1), (k, 1), 0).ravel()
+    return lo, hi, has
+
+
+def boundary_warp(img: np.ndarray, covered: np.ndarray, amount: float) -> tuple[np.ndarray, np.ndarray]:
+    a = max(0.0, min(1.0, amount / 100.0))
+    if a <= 0:
+        return img, covered
+    for axis in (0, 1):
+        h, w = covered.shape
+        lo, hi, has = _edges(covered, axis)
+        n = h if axis == 0 else w
+        t = np.linspace(0.0, 1.0, n, dtype=np.float32)
+        span = np.where(has, hi - lo, n - 1)
+        src = lo[None, :] + t[:, None] * span[None, :]
+        pos = np.arange(n, dtype=np.float32)[:, None]
+        src = pos * (1.0 - a) + src * a
+        if axis == 0:
+            map_y = src
+            map_x = np.broadcast_to(np.arange(w, dtype=np.float32)[None, :], (h, w)).copy()
+        else:
+            map_x = src.T.copy()
+            map_y = np.broadcast_to(np.arange(h, dtype=np.float32)[:, None], (h, w)).copy()
+        img = cv2.remap(img, map_x.astype(np.float32), map_y.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        covered = cv2.remap(covered.astype(np.uint8) * 255, map_x.astype(np.float32), map_y.astype(np.float32), cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT) > 127
+    return img, covered
+
+
+def fill_edges(img: np.ndarray, covered: np.ndarray) -> np.ndarray:
+    hole = ~covered
+    if not hole.any():
+        return img
+    h, w = covered.shape
+    s = min(1.0, 1200.0 / max(h, w))
+    sw, sh = max(1, round(w * s)), max(1, round(h * s))
+    small = cv2.resize(img, (sw, sh), interpolation=cv2.INTER_AREA)
+    small_hole = (cv2.resize(hole.astype(np.uint8) * 255, (sw, sh), interpolation=cv2.INTER_NEAREST) > 0).astype(np.uint8)
+    small_hole = cv2.dilate(small_hole, np.ones((3, 3), np.uint8))
+    enc = np.log2(np.maximum(small, 1e-5)).astype(np.float32)
+    filled = np.stack([cv2.inpaint(np.ascontiguousarray(enc[..., c]), small_hole, 6, cv2.INPAINT_TELEA) for c in range(3)], axis=-1)
+    big = np.exp2(cv2.resize(filled, (w, h), interpolation=cv2.INTER_CUBIC)).astype(np.float32)
+    soft = cv2.GaussianBlur(hole.astype(np.float32), (0, 0), max(1.0, 2.0 / s))
+    soft = np.maximum(soft, hole.astype(np.float32))[..., None]
+    return (img * (1.0 - soft) + big * soft).astype(np.float32)
+
+
+def largest_rect(covered: np.ndarray) -> tuple[int, int, int, int]:
+    h, w = covered.shape
+    s = min(1.0, 600.0 / max(h, w))
+    m = cv2.resize(covered.astype(np.uint8), (max(1, round(w * s)), max(1, round(h * s))), interpolation=cv2.INTER_NEAREST) > 0
+    m = cv2.erode(m.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    mh, mw = m.shape
+    heights = np.zeros(mw, np.int32)
+    best = (0, 0, 0, mw, mh)
+    for y in range(mh):
+        heights = np.where(m[y], heights + 1, 0)
+        stack: list[int] = []
+        for x in range(mw + 1):
+            cur = heights[x] if x < mw else 0
+            while stack and heights[stack[-1]] >= cur:
+                top = stack.pop()
+                left = stack[-1] + 1 if stack else 0
+                area = int(heights[top]) * (x - left)
+                if area > best[0]:
+                    best = (area, left, y - int(heights[top]) + 1, x, y + 1)
+            stack.append(x)
+    _, x0, y0, x1, y1 = best
+    return int(np.ceil(x0 / s)), int(np.ceil(y0 / s)), int(np.floor(x1 / s)), int(np.floor(y1 / s))
+
+
+def finish_pano(out: np.ndarray, covered: np.ndarray, boundary: float = 0.0, fill: bool = False, crop: bool = True) -> np.ndarray:
+    out, covered = boundary_warp(out, covered, boundary)
+    if fill:
+        out = fill_edges(out, covered)
+        covered = np.ones_like(covered)
+    if crop and not covered.all():
+        x0, y0, x1, y1 = largest_rect(covered)
+        if x1 - x0 > 16 and y1 - y0 > 16:
+            out = out[y0:y1, x0:x1]
     return np.maximum(out, 0.0).astype(np.float32)

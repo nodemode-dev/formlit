@@ -241,6 +241,15 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-imp-name { position: absolute; left: 6px; right: 6px; bottom: 3px; overflow: hidden; color: var(--text-muted); font-size: var(--fs-10); text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 .fl-opt { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; margin: 4px 0; color: var(--text-muted); font-size: var(--fs-11); }
 .fl-opt .cv-select, .fl-opt .cv-input { width: 100%; height: 26px; }
+.fl-merge-prev { position: relative; display: grid; place-items: center; height: 340px; margin-bottom: 12px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-0); overflow: hidden; }
+.fl-merge-prev img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity 160ms ease; }
+.fl-merge-prev img:not([src]) { visibility: hidden; }
+.fl-merge-prev.is-busy img { opacity: 0.55; }
+.fl-merge-status { position: absolute; inset: auto 12px 12px; padding: 4px 8px; border-radius: 6px; background: var(--glass-bg); color: var(--text-secondary); font-size: var(--fs-11); text-align: center; }
+.fl-merge-status[hidden] { display: none; }
+.fl-merge-opts .fl-opt { grid-template-columns: 96px minmax(0, 1fr) 32px; }
+.fl-merge-opts .fl-opt em { color: var(--text-secondary); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.fl-merge-opts .fl-row { margin: 4px 0; }
 .fl-imp-dest[hidden] { display: none; }
 .fl-imp-summary { margin-right: auto; color: var(--text-secondary); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
 .fl-imp-preset { width: 240px; flex: none; margin-right: 12px; }
