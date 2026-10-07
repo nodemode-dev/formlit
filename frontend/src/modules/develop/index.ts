@@ -259,7 +259,7 @@ class DevelopModule {
       { id: 'develop.wbPicker', label: 'White Balance Selector', keys: ['W'], run: tool('wb'), checked: () => this.toolId === 'wb' },
       { id: 'develop.preset', label: 'New Develop Preset...', run: () => ctx.run('develop.newPreset') },
       { id: 'develop.zoom', label: 'Toggle Zoom', keys: ['Z'], run: () => { if (ctx.module() === 'develop') this.view.toggleZoom(); else ctx.run('view.zoomToggle'); } },
-      { id: 'develop.aiDenoise', label: 'Denoise...', keys: ['Alt+Mod+D'], run: () => this.run('ai.denoise', { amount: 50 }, () => toast('Denoise started; a new DNG will appear next to the original')), enabled: has },
+      { id: 'develop.aiDenoise', label: 'Denoise...', keys: ['Alt+Mod+D'], run: () => ctx.run('photo.enhance'), enabled: has },
       { id: 'develop.lensBlurDepth', label: 'Build Depth Map', run: () => this.run('ai.depth', {}, () => toast('Depth map ready')), enabled: has },
     );
   }

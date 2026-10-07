@@ -173,21 +173,22 @@ export class MaskTool implements Tool {
   }
 
   private async create(kind: string, op: 'new' | 'add' | 'subtract' | 'intersect'): Promise<void> {
-    if (kind === 'linear' || kind === 'radial') {
+    if (kind === 'linear' || kind === 'radial' || kind === 'object') {
       this.pendingKind = kind;
       this.pendingOp = op;
-      this.host.ctx.shell.setHint(`Drag on the photo to place the ${NAMES[kind].toLowerCase()}`);
+      this.host.ctx.shell.setHint(kind === 'object' ? 'Drag a box around the object to select it' : `Drag on the photo to place the ${NAMES[kind].toLowerCase()}`);
       return;
     }
     let shape = this.defaultShape(kind);
     if (AI_KINDS.some(([k]) => k === kind) || kind === 'depthRange') {
       const id = develop.id;
       if (id === null) return;
+      const done = this.host.ctx.shell.busy(`Detecting ${NAMES[kind].toLowerCase()}`);
       try {
         await develop.flush();
-        const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind });
+        const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: kind === 'depthRange' ? 'depth' : kind });
         shape = kind === 'depthRange' ? { ...shape, bitmap: (r.shape.bitmap as string) ?? 'depth' } : r.shape;
-      } catch (err) { this.host.ctx.fail(err, NAMES[kind]); return; }
+      } catch (err) { this.host.ctx.fail(err, NAMES[kind]); return; } finally { done(); }
     }
     const masks = this.masks();
     this.place(shape, op, masks);
@@ -268,7 +269,27 @@ export class MaskTool implements Tool {
 
   hover(p: Pt | null): void { this.hoverPt = p; if (this.current().c?.shape.kind === 'brush') this.host.view.draw(); }
 
+  private box: { a: Pt; b: Pt } | null = null;
+
+  private async objectFrom(a: Pt, b: Pt): Promise<void> {
+    const id = develop.id;
+    if (id === null) return;
+    const box = [Math.min(a.nx, b.nx), Math.min(a.ny, b.ny), Math.max(a.nx, b.nx), Math.max(a.ny, b.ny)];
+    const done = this.host.ctx.shell.busy('Selecting the object');
+    try {
+      await develop.flush();
+      const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', box });
+      const masks = this.masks();
+      this.place(r.shape, this.pendingOp, masks);
+      this.write(masks, 'end', 'Mask: Objects');
+    } catch (err) { this.host.ctx.fail(err, 'Objects'); } finally { done(); }
+  }
+
   down(p: Pt): boolean {
+    if (this.pendingKind === 'object') {
+      this.box = { a: p, b: p };
+      return true;
+    }
     if (this.pendingKind === 'linear' || this.pendingKind === 'radial') {
       const masks = this.masks();
       const shape = this.pendingKind === 'linear' ? { kind: 'linear', start: [p.nx, p.ny], end: [p.nx, p.ny] } : { kind: 'radial', center: [p.nx, p.ny], rx: 0.005, ry: 0.005, angle: 0, feather: 50 };
@@ -333,6 +354,7 @@ export class MaskTool implements Tool {
   }
 
   move(p: Pt): void {
+    if (this.box) { this.box.b = p; return; }
     const d = this.drag;
     if (!d) return;
     const { masks, c } = this.current();
@@ -364,6 +386,14 @@ export class MaskTool implements Tool {
   }
 
   up(): void {
+    if (this.box) {
+      const { a, b } = this.box;
+      this.box = null;
+      this.pendingKind = '';
+      this.host.ctx.shell.setHint('');
+      if (Math.abs(a.sx - b.sx) > 6 && Math.abs(a.sy - b.sy) > 6) void this.objectFrom(a, b);
+      return;
+    }
     const d = this.drag;
     this.drag = null;
     if (!d) return;
@@ -419,6 +449,11 @@ export class MaskTool implements Tool {
         c.setLineDash([]);
         for (const [x, y] of [[ctr[0], ctr[1]], [ctr[0] + rx, ctr[1]], [ctr[0] - rx, ctr[1]], [ctr[0], ctr[1] + ry], [ctr[0], ctr[1] - ry]]) { c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill(); }
       }
+    }
+    if (this.box) {
+      c.setLineDash([5, 4]);
+      c.strokeRect(Math.min(this.box.a.sx, this.box.b.sx), Math.min(this.box.a.sy, this.box.b.sy), Math.abs(this.box.b.sx - this.box.a.sx), Math.abs(this.box.b.sy - this.box.a.sy));
+      c.setLineDash([]);
     }
     if (comp?.shape.kind === 'brush' && this.hoverPt) {
       const r = this.brush.size * view.pxPerLong();

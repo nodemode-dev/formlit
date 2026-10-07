@@ -64,6 +64,10 @@ def masks_dir() -> Path:
     return _ensure(catalog_path().parent / "Masks")
 
 
+def faces_dir() -> Path:
+    return _ensure(catalog_path().parent / "Faces")
+
+
 def presets_dir() -> Path:
     return _ensure(data_dir() / "Presets")
 

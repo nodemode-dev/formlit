@@ -209,3 +209,26 @@
 .fl-prefs-theme { display: flex; align-items: center; gap: 10px; }
 .fl-prefs-engine { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .fl-prefs-engine .fl-meta-row { grid-template-columns: 130px minmax(0, 1fr); }
+.fl-models { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.fl-model-row { grid-template-columns: 170px minmax(0, 1fr); align-items: center; min-height: 28px; }
+.fl-model-row .fl-meta-val { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.fl-ok { color: var(--text-secondary); font-style: normal; }
+
+.fl-people { padding: 4px 8px 10px; }
+.fl-faces-head { margin: 6px 2px 4px; color: var(--text-muted); font-size: var(--fs-10); letter-spacing: 0.06em; text-transform: uppercase; }
+.fl-faces-head[hidden], .fl-faces-empty[hidden] { display: none; }
+.fl-faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px 6px; }
+.fl-faces:empty { display: none; }
+.fl-faces-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 2px; }
+.fl-face { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fl-face-pic { position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 1px solid var(--line-1); border-radius: 8px; overflow: hidden; background: var(--surface-0); cursor: pointer; }
+.fl-face-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.fl-face-pic:hover { border-color: var(--line-3); }
+.fl-face.is-active .fl-face-pic { border-color: var(--accent-line); box-shadow: 0 0 0 1px var(--accent-line); }
+.fl-face-count { position: absolute; right: 4px; bottom: 4px; min-width: 18px; padding: 0 4px; border-radius: 4px; background: var(--glass-bg, var(--surface-0)); color: var(--text-secondary); font-size: var(--fs-10); line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.fl-face-ok { position: absolute; top: 4px; right: 4px; height: 18px; padding: 0 5px; border: 1px solid var(--accent-line); border-radius: 4px; background: var(--accent-soft); color: var(--text-primary); font-size: var(--fs-10); cursor: pointer; }
+.fl-face-ok[hidden] { display: none; }
+.fl-face-name { width: 100%; height: 22px; padding: 0 4px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-11); text-align: center; text-overflow: ellipsis; }
+.fl-face-name:not([readonly]) { border-color: var(--line-1); background: var(--surface-field); }
+.fl-face-name:not([readonly]):focus { outline: none; border-color: var(--accent-line); color: var(--text-primary); }
+.fl-face.is-named .fl-face-name { cursor: pointer; pointer-events: none; color: var(--text-primary); }

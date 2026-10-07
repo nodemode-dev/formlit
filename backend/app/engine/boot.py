@@ -9,6 +9,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_library",
     "app.engine.cmd_develop",
     "app.engine.presets",
+    "app.engine.cmd_ai",
 ]
 
 

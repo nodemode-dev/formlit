@@ -12,6 +12,7 @@ class Preferences extends Dialog {
   private readonly themeName = el('<span class="fl-muted"></span>');
   private readonly engine = el('<div class="fl-prefs-engine"></div>');
   private readonly agents = el('<pre class="fl-code"></pre>');
+  private readonly models = el('<div class="fl-models"></div>');
 
   constructor(private readonly ctx: Ctx) {
     super('Preferences', 620);
@@ -23,6 +24,14 @@ class Preferences extends Dialog {
     this.field('Accent strength', this.intensity);
     this.body.appendChild(el('<div class="fl-sub">Engine</div>'));
     this.body.appendChild(this.engine);
+    this.body.appendChild(el('<div class="fl-sub">AI Models</div>'));
+    this.body.appendChild(el('<p class="cv-note">Masks, Remove, Super Resolution, depth and faces run on this computer. Each model downloads once, is checked against its published SHA-256, and stays in your formlit folder.</p>'));
+    this.body.appendChild(this.models);
+    this.models.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-model]');
+      if (!b) return;
+      void this.ctx.api.cmd('ai.download', { model: b.dataset.model }).then(() => { b.setAttribute('disabled', ''); setText(b, 'Installing...'); }, (err) => this.ctx.fail(err));
+    });
     this.body.appendChild(el('<div class="fl-sub">Agents (MCP)</div>'));
     this.body.appendChild(el('<p class="cv-note">Agents drive formlit through the same commands as this window. Point an MCP client at the endpoint below, or run <code>./formlit agents install</code> to register it with Claude Code, Codex and Cursor.</p>'));
     this.body.appendChild(this.agents);
@@ -53,6 +62,8 @@ class Preferences extends Dialog {
         ['Version', caps.version], ['Catalog', caps.catalog], ['Data folder', caps.dataDir], ['Raw decoding', yes(caps.raw)], ['HEIC', yes(caps.heic)],
         ['AI models runtime', yes(caps.onnx)], ['PDF output', yes(caps.pdf)], ['Video (ffmpeg)', yes(caps.ffmpeg)], ['Render workers', String(caps.workers)],
       ].map(([k, v]) => `<div class="fl-meta-row"><span class="fl-meta-key">${k}</span><span class="fl-meta-val">${escapeHtml(String(v))}</span></div>`).join('');
+      const ms = await this.ctx.api.cmd<{ models: Array<{ id: string; name: string; license: string; sizeMB: number; ready: boolean; downloading: boolean }> }>('ai.models');
+      this.models.innerHTML = ms.models.map((m) => `<div class="fl-meta-row fl-model-row"><span class="fl-meta-key">${escapeHtml(m.name)}</span><span class="fl-meta-val">${m.sizeMB} MB · ${escapeHtml(m.license)} ${m.ready ? '<em class="fl-ok">Installed</em>' : `<button class="cv-btn fl-btn-sm" type="button" data-model="${m.id}"${m.downloading ? ' disabled' : ''}>${m.downloading ? 'Installing...' : 'Install'}</button>`}</span></div>`).join('');
       const origin = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8390';
       setText(this.agents, JSON.stringify({ mcpServers: { formlit: { type: 'http', url: `${this.ctx.api.base || origin}/mcp` } } }, null, 2));
     } catch { setText(q(this.body, '.fl-prefs-engine'), 'The engine is not reachable.'); }

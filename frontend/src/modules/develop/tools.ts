@@ -309,7 +309,7 @@ export class SpotTool implements Tool {
   private readonly sOpacity: Slider;
 
   constructor(private readonly host: ToolHost) {
-    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('spotHeal', 14)} Healing</div><div class="fl-row"><span class="fl-row-label">Mode</span><div class="cv-seg fl-seg-sm fl-grow"><button type="button" data-m="heal">Heal</button><button type="button" data-m="clone">Clone</button></div></div><div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Click to heal, drag to paint a stroke. [ and ] change size.</span><button class="cv-btn fl-btn-sm" type="button" data-a="clear">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('spotHeal', 14)} Healing</div><div class="fl-row"><span class="fl-row-label">Mode</span><div class="cv-seg fl-seg-sm fl-grow"><button type="button" data-m="remove" title="Generative remove, fills from the surroundings">Remove</button><button type="button" data-m="heal">Heal</button><button type="button" data-m="clone">Clone</button></div></div><div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Click to heal, drag to paint a stroke. [ and ] change size.</span><button class="cv-btn fl-btn-sm" type="button" data-a="clear">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
     const upd = (k: 'size' | 'feather' | 'opacity') => (v: number, phase: 'drag' | 'end') => {
       if (k === 'size') this.size = v / 1000; else if (k === 'feather') this.feather = v; else this.opacity = v;
       if (this.sel >= 0) { const spots = this.spots(); const s = spots[this.sel]; if (s) { if (k === 'size') s.size = this.size; else (s as unknown as Record<string, number>)[k] = v; this.write(spots, phase, 'Edit Spot'); } }
@@ -412,6 +412,14 @@ export class SpotTool implements Tool {
     const spots = this.spots();
     const s = spots[d.i];
     if (!s) return;
+    if (s.mode === 'remove' && (d.kind === 'new' || d.kind === 'dst')) {
+      const done = this.host.ctx.shell.busy('Removing');
+      void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string }>('develop.removeFill', { id: develop.id, spot: s })).then((r) => {
+        const now = this.spots();
+        if (now[d.i]) { (now[d.i] as Spot & { patch?: string }).patch = r.patch; now[d.i].source = null; this.write(now, 'end', 'Remove'); }
+      }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(spots, 'end', 'Remove'); }).finally(done);
+      return;
+    }
     if (d.kind === 'new' || !s.source) {
       void this.host.ctx.api.cmd<{ source: [number, number] }>('develop.spotSource', { id: develop.id, spot: s, settings: develop.settings }).then((r) => {
         const now = this.spots();

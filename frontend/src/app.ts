@@ -8,6 +8,7 @@ import { toast } from './ui/toast';
 import { api, errorText, type Api } from './io/api';
 import { events } from './io/events';
 import { registerPhotoActions } from './modules/shared/actions';
+import { registerAiCommands } from './modules/shared/ai';
 import { openPreferences } from './ui/preferences';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
@@ -57,6 +58,7 @@ export class App implements Ctx {
   start(): void {
     for (const m of modules()) this.shell.addModuleTab(m.id, m.label, m.icon, `${m.label} (${this.keyText(m)})`);
     registerPhotoActions(this);
+    registerAiCommands(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));
@@ -170,8 +172,8 @@ export class App implements Ctx {
     const defs = this.menus.length ? this.menus : [
       { label: 'File', items: () => tidy(['library.import', 'library.export', 'library.exportPrevious', 'library.exportPreset', '-', 'library.editIn', '-', 'preset.importFiles', 'library.newCatalog', 'library.openCatalog', '-', 'app.preferences', 'app.about']) },
       { label: 'Edit', items: () => tidy(['edit.undo', 'edit.redo', '-', 'edit.selectAll', 'edit.selectNone', 'edit.invertSelection', 'edit.selectPicks', 'edit.deselectUnflagged', '-', 'view.find']) },
-      { label: 'Library', items: () => tidy(['lib.colNew', 'lib.colNewSmart', 'lib.colNewSet', '-', 'view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.findMissing', 'library.buildPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
-      { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },
+      { label: 'Library', items: () => tidy(['lib.colNew', 'lib.colNewSmart', 'lib.colNewSet', '-', 'view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.cull', 'library.findFaces', '-', 'library.findMissing', 'library.buildPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
+      { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.enhance', 'photo.hdr', 'photo.pano', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },
       { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename']) },
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.matchExposure', 'develop.autoBw']) },
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },

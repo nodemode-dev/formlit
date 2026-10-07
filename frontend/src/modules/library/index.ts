@@ -13,6 +13,7 @@ import { registerModule, type ModuleHosts } from '../registry';
 import { FilterBar } from './filterbar';
 import { importDropped, openImport } from './importer';
 import { InspectPanels } from './inspect';
+import { PeoplePanel } from './people';
 import { SourcePanels } from './sources';
 
 type View = 'grid' | 'loupe' | 'compare' | 'survey';
@@ -42,6 +43,7 @@ class LibraryModule {
     this.hosts = hosts;
     this.menu = new PopupMenu(ctx.commands, null, true);
     new SourcePanels(ctx, hosts.left);
+    hosts.left.appendChild(new PeoplePanel(ctx).panel.root);
     new InspectPanels(ctx, hosts.right);
     this.stage();
     this.toolbar();
