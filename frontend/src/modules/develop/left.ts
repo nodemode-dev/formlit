@@ -47,7 +47,7 @@ export class LeftPanels {
       view.setZoom(z === 'fit' || z === 'fill' ? z : Number(z));
     });
     pNav.tools.appendChild(zooms);
-    this.navBox = el('<div class="fl-nav"><img alt="" draggable="false"><div class="fl-nav-rect"></div></div>');
+    this.navBox = el('<div class="fl-nav fl-nav-fit"><img alt="" draggable="false"><div class="fl-nav-rect"></div></div>');
     this.navImg = q<HTMLImageElement>(this.navBox, 'img');
     this.navRect = q(this.navBox, '.fl-nav-rect');
     this.navBox.addEventListener('pointerdown', (e) => {
@@ -281,7 +281,10 @@ export class LeftPanels {
 
   nav(): void {
     const p = library.photo(develop.id);
-    if (p) void loadInto(this.navImg, thumbUrl(p));
+    if (p) {
+      setStyleVar(this.navBox, '--fl-nav-ar', String(p.a || 1.5));
+      void loadInto(this.navImg, thumbUrl(p));
+    }
     this.navSync();
   }
 
