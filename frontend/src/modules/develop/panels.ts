@@ -126,7 +126,30 @@ export class DevelopPanels {
       el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Zoom to 1:1 (Z) to judge sharpening and noise.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.aiDenoise">${icon('aiSpark', 13)} Denoise...</button></div>`));
 
     const pOptics = this.panel('dev.optics', 'Lens Corrections', 'optics');
-    pOptics.body.append(el('<div class="fl-sub">Profile</div>'), s('optics.profileDistortion'), s('optics.profileVignetting'), el('<div class="fl-sub">Manual</div>'), s('optics.distortion'), s('optics.vignetting'), s('optics.vignettingMidpoint'),
+    const lensRow = el('<div class="fl-row"><label class="fl-check-sm fl-lens-check"><input type="checkbox"> Enable Profile Corrections</label><span class="fl-muted fl-grow fl-lens-note"></span></div>');
+    const lensBox = q<HTMLInputElement>(lensRow, 'input');
+    lensBox.addEventListener('change', () => {
+      const id = develop.id;
+      if (id === null) return;
+      void develop.flush().then(() => this.ctx.api.cmd<{ noProfile: number[] }>('develop.lensProfile', { ids: [id], enable: lensBox.checked })).then((r) => {
+        if (r.noProfile.length) { lensBox.checked = false; setText(q(lensRow, '.fl-lens-note'), 'No lens profile is embedded in this file'); }
+        return develop.reload('photo');
+      }, (err) => this.ctx.fail(err));
+    });
+    let lensFor: number | null = null;
+    develop.listen((why) => {
+      if (why === 'drag') return;
+      const prof = ((develop.settings.optics as Record<string, unknown> | undefined)?.profile as { enabled?: boolean } | undefined);
+      if (lensBox.checked !== !!prof?.enabled) lensBox.checked = !!prof?.enabled;
+      if (develop.id !== null && develop.id !== lensFor) {
+        lensFor = develop.id;
+        void this.ctx.api.cmd<{ available: boolean; source: string | null }>('develop.lensProfileInfo', { id: develop.id }).then((r) => {
+          setText(q(lensRow, '.fl-lens-note'), r.available ? `Built in (${r.source})` : 'None embedded; use Manual');
+          lensBox.disabled = !r.available && !prof?.enabled;
+        }, () => undefined);
+      }
+    });
+    pOptics.body.append(el('<div class="fl-sub">Profile</div>'), lensRow, s('optics.profileDistortion'), s('optics.profileVignetting'), el('<div class="fl-sub">Manual</div>'), s('optics.distortion'), s('optics.vignetting'), s('optics.vignettingMidpoint'),
       el('<div class="fl-sub">Chromatic Aberration</div>'), s('optics.caRed'), s('optics.caBlue'), el('<div class="fl-sub">Defringe</div>'), s('optics.defringePurple'), s('optics.defringePurpleHueLo'), s('optics.defringePurpleHueHi'),
       s('optics.defringeGreen'), s('optics.defringeGreenHueLo'), s('optics.defringeGreenHueHi'));
 

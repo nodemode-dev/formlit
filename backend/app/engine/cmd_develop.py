@@ -114,6 +114,43 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
             "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
+@command("develop.lensProfileInfo", "Lens Profile", {"id": {"type": "integer"}}, mutates=False)
+def lens_profile_info(id: int) -> dict:
+    from app.develop import lensprofile
+    path = cat().photo_path(int(id))
+    found = lensprofile.read(path) if path is not None and path.is_file() else None
+    dev, _ = current(int(id))
+    prof = (dev.get("optics") or {}).get("profile") or {}
+    return {"available": bool(found), "kinds": sorted(found) if found else [], "enabled": bool(prof.get("enabled")), "source": "DNG opcodes" if found else None}
+
+
+@command("develop.lensProfile", "Enable Profile Corrections", {"ids": {"type": "array"}, "enable": {"type": "boolean"}})
+def lens_profile(ids: Any = None, enable: bool = True) -> dict:
+    from app.develop import lensprofile
+    pids = resolve_ids(ids)
+    applied, missing = [], []
+    with cat().change("Enable Profile Corrections" if enable else "Disable Profile Corrections") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            new = copy.deepcopy(dev)
+            optics = new.setdefault("optics", {})
+            if not enable:
+                optics.pop("profile", None)
+                store(ch, pid, new, "Disable Profile Corrections")
+                applied.append(pid)
+                continue
+            path = cat().photo_path(pid)
+            found = lensprofile.read(path) if path is not None and path.is_file() else None
+            if not found:
+                missing.append(pid)
+                continue
+            optics["profile"] = {"enabled": True, **found}
+            store(ch, pid, new, "Enable Profile Corrections")
+            applied.append(pid)
+    after(applied)
+    return {"ids": applied, "noProfile": missing}
+
+
 @command("develop.info", "Develop Source Info", {"id": {"type": "integer"}, "settings": {"type": "object"}}, mutates=False)
 def info(id: int | None = None, settings: dict | None = None) -> dict:
     from app.develop import profiles
