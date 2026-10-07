@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+cd "$FORMLIT_ROOT"
+pids=()
+( cd backend && ./boot_backend ) &
+pids+=($!)
+( cd frontend && ./boot_frontend ) &
+pids+=($!)
+trap 'kill "${pids[@]}" 2>/dev/null' EXIT INT TERM
+fl_say "frontend http://localhost:5390 · engine http://127.0.0.1:${FORMLIT_PORT:-8390}"
+wait

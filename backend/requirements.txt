@@ -1,0 +1,13 @@
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+httpx==0.28.1
+pillow==12.3.0
+pillow-heif==1.7.0
+rawpy==0.27.1
+numpy==2.5.3
+opencv-python-headless==5.0.0.93
+exifread==3.5.1
+tifffile==2026.3.3
+reportlab==5.0.1
+onnxruntime==1.30.0

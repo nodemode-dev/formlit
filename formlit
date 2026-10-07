@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+usage() {
+  printf 'formlit %s · photo library and raw developer\n' "$(sed -n "s/^export const VERSION = '\(.*\)';$/\1/p" frontend/src/version.ts 2>/dev/null)"
+  cat << 'EOF'
+
+usage: ./formlit [command] [options]
+
+  (none) | boot       boot the engine (8390) and the frontend (5390) together
+  install [--lite]    install the engine, the AI extra (skipped with --lite) and the frontend
+  install-ml          install the optional AI runtime extras
+  install-desktop     install PyInstaller and check the Rust and Tauri toolchain
+  backend             boot the engine only
+  frontend            boot the frontend only
+  build               production build of the frontend into frontend/dist
+  serve               serve the built frontend from the engine on 127.0.0.1:8390
+  freeze              freeze the engine into the Tauri sidecar binary
+  desktop dev|build   run or bundle the desktop app
+  doctor              check the toolchain, installs and ports
+  counts [--check]    the README's code sizes (--check: exit 1 if README.md has drifted)
+  clean [--all]       remove build output (--all also venv and node_modules)
+  help                this text
+EOF
+}
+cmd="${1:-boot}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  boot|dev) exec setup/boot_all "$@" ;;
+  install) exec setup/install_all "$@" ;;
+  install-ml) exec setup/install_ml "$@" ;;
+  install-desktop) exec setup/install_desktop "$@" ;;
+  backend) exec setup/boot_backend "$@" ;;
+  frontend) exec setup/boot_frontend "$@" ;;
+  build) exec setup/build_frontend "$@" ;;
+  serve) exec setup/serve "$@" ;;
+  freeze) exec setup/freeze_backend "$@" ;;
+  desktop)
+    sub="${1:-dev}"
+    [ $# -gt 0 ] && shift
+    case "$sub" in
+      dev) exec setup/desktop_dev "$@" ;;
+      build) exec setup/desktop_build "$@" ;;
+      *) usage; exit 2 ;;
+    esac ;;
+  doctor) exec setup/doctor "$@" ;;
+  counts) exec setup/counts "$@" ;;
+  clean) exec setup/clean "$@" ;;
+  help|-h|--help) usage ;;
+  *) printf '[formlit] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;
+esac

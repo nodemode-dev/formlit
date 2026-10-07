@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+triple="$(fl_target_triple)" || fl_die "rustc not found; run ./formlit install-desktop"
+[ -x "$FORMLIT_ROOT/src-tauri/binaries/formlit-engine-${triple}$(fl_exe)" ] || "$FORMLIT_ROOT/setup/freeze_backend"
+cd "$FORMLIT_ROOT"
+exec frontend/node_modules/.bin/tauri dev "$@"

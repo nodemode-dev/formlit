@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+fl_venv
+cd "$FORMLIT_ROOT/backend"
+if [ "$(fl_os)" = macos ]; then pip install -r requirements_ml_macos.txt; else pip install -r requirements_ml.txt; fi
+fl_say "AI extras ready; each model downloads on first use (Preferences > AI Models), pinned to its SHA-256"

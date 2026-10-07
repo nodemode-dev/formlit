@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+[ -f "$FORMLIT_ROOT/frontend/dist/index.html" ] || "$FORMLIT_ROOT/setup/build_frontend"
+fl_venv
+cd "$FORMLIT_ROOT/backend"
+export FORMLIT_DIST="$FORMLIT_ROOT/frontend/dist"
+fl_say "serving http://127.0.0.1:${FORMLIT_PORT:-8390}"
+exec uvicorn app.main:app --host "${FORMLIT_HOST:-127.0.0.1}" --port "${FORMLIT_PORT:-8390}"

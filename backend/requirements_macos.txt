@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+pillow
+pillow-heif
+rawpy
+numpy
+opencv-python-headless
+exifread
+tifffile
+reportlab
+onnxruntime

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+lite=0
+for arg in "$@"; do [ "$arg" = "--lite" ] && lite=1; done
+fl_say "installing the engine"
+( cd "$FORMLIT_ROOT/backend" && ./oc_install )
+if [ "$lite" = 1 ]; then
+  fl_say "skipping the AI extra (--lite): AI masks, Remove and Denoise fetch their models on first use"
+else
+  "$FORMLIT_ROOT/setup/install_ml" || fl_say "the AI extra did not install; everything else works. Retry with ./formlit install-ml"
+fi
+fl_say "installing the frontend"
+( cd "$FORMLIT_ROOT/frontend" && ./oc_install )
+fl_say "done. Boot with ./formlit"

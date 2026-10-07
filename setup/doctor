@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+source "$(dirname "$0")/lib.sh"
+fail=0
+ok() { printf '  ok     %s\n' "$1"; }
+bad() { printf '  FAIL   %s · %s\n' "$1" "$2"; fail=1; }
+warn() { printf '  warn   %s · %s\n' "$1" "$2"; }
+fl_say "doctor · $(fl_os)"
+if command -v node >/dev/null 2>&1 && node -e 'const [m,n]=process.versions.node.split(".").map(Number);process.exit((m===20&&n>=19)||(m===22&&n>=12)||m>=23?0:1)'; then ok "node $(node -v)"; else bad "node" "Node 20.19+ or 22.12+ is required"; fi
+if command -v npm >/dev/null 2>&1; then ok "npm"; else bad "npm" "install npm"; fi
+if py="$(fl_python)"; then ok "python $("$py" -V 2>&1 | awk '{print $2}')"; else bad "python" "Python 3.12+ is required"; fi
+if [ -f "$FORMLIT_ROOT/backend/venv/bin/activate" ]; then ok "engine venv"; else warn "engine venv" "run ./formlit install"; fi
+if [ -d "$FORMLIT_ROOT/frontend/node_modules" ]; then ok "frontend node_modules"; else warn "frontend deps" "run ./formlit install"; fi
+vpy="$FORMLIT_ROOT/backend/venv/bin/python"
+if [ -x "$vpy" ]; then
+  if "$vpy" -c "import rawpy" >/dev/null 2>&1; then ok "camera raw decoding (LibRaw)"; else bad "rawpy" "rerun ./formlit install"; fi
+  if "$vpy" -c "import cv2" >/dev/null 2>&1; then ok "OpenCV"; else bad "OpenCV" "rerun ./formlit install"; fi
+  if "$vpy" -c "import pillow_heif" >/dev/null 2>&1; then ok "HEIC decoding"; else warn "HEIC decoding" "pillow-heif missing"; fi
+  if "$vpy" -c "import onnxruntime" >/dev/null 2>&1; then ok "ONNX Runtime for AI masks"; else warn "ONNX Runtime" "AI masks need it: ./formlit install"; fi
+  if "$vpy" -c "import reportlab" >/dev/null 2>&1; then ok "PDF output (Book, Print)"; else warn "reportlab" "rerun ./formlit install"; fi
+fi
+if command -v ffmpeg >/dev/null 2>&1; then ok "ffmpeg for slideshow video"; else warn "ffmpeg" "slideshows export as PDF only until ffmpeg is installed"; fi
+if command -v cargo >/dev/null 2>&1; then ok "rust $(rustc --version | awk '{print $2}') for desktop builds"; else warn "rust" "desktop builds need https://rustup.rs"; fi
+for port in 5390 "${FORMLIT_PORT:-8390}"; do
+  if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then warn "port $port" "already in use"; else ok "port $port free"; fi
+done
+if [ "$fail" = 0 ]; then fl_say "ready"; else fl_say "fix the FAIL lines above"; fi
+exit "$fail"
