@@ -53,6 +53,13 @@ BOOK_TEMPLATES = {
     "blank": {"name": "Blank", "cells": [], "texts": []},
     "cover": {"name": "Cover", "cells": [[0.0, 0.0, 1.0, 0.72]], "texts": [[0.08, 0.76, 0.84, 0.1], [0.08, 0.87, 0.84, 0.06]]},
 }
+BOOK_PRESETS = [
+    {"id": "clean", "name": "Clean White", "settings": {"background": "#ffffff", "textColor": "#222222", "pageNumbers": True, "captions": False}},
+    {"id": "gallery", "name": "Gallery Black", "settings": {"background": "#111111", "textColor": "#e6e6e6", "pageNumbers": False, "captions": True, "captionField": "title"}},
+    {"id": "travel", "name": "Travel Journal", "settings": {"background": "#f4efe6", "textColor": "#3a3128", "captions": True, "captionField": "titleCaption", "autoLayout": "mixed"}},
+    {"id": "portfolio", "name": "Portfolio, One per Page", "settings": {"background": "#ffffff", "textColor": "#222222", "autoLayout": "one", "size": "large-landscape", "pageNumbers": False}},
+    {"id": "square", "name": "Square Keepsake", "settings": {"size": "small-square", "background": "#ffffff", "textColor": "#222222"}},
+]
 BOOK_DEFAULTS: dict = {
     "size": "standard-landscape", "background": "#ffffff", "textColor": "#222222", "font": "Helvetica", "titleSize": 28, "textSize": 11,
     "pageNumbers": True, "captions": False, "captionField": "title", "autoLayout": "mixed",

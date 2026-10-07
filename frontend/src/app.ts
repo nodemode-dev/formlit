@@ -9,6 +9,8 @@ import { api, errorText, type Api } from './io/api';
 import { events } from './io/events';
 import { registerPhotoActions } from './modules/shared/actions';
 import { registerAiCommands } from './modules/shared/ai';
+import { registerExport } from './modules/shared/export';
+import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { openPreferences } from './ui/preferences';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
@@ -59,6 +61,8 @@ export class App implements Ctx {
     for (const m of modules()) this.shell.addModuleTab(m.id, m.label, m.icon, `${m.label} (${this.keyText(m)})`);
     registerPhotoActions(this);
     registerAiCommands(this);
+    registerExport(this);
+    registerPhotoDialogs(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));

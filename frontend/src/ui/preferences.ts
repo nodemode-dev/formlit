@@ -7,7 +7,7 @@ interface Caps { version: string; platform: string; desktop: boolean; raw: boole
 
 class Preferences extends Dialog {
   private readonly swatches = el('<div class="nm-theme-grid"></div>');
-  private readonly accent = el<HTMLInputElement>('<input class="cv-color-input" type="color">');
+  private readonly accent = el<HTMLInputElement>('<input class="fl-color" type="color">');
   private readonly intensity = el<HTMLInputElement>('<input class="cv-slider" type="range" min="0" max="1.5" step="0.05">');
   private readonly themeName = el('<span class="fl-muted"></span>');
   private readonly engine = el('<div class="fl-prefs-engine"></div>');

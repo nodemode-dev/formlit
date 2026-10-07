@@ -1,4 +1,5 @@
 import mimetypes
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,11 @@ def _allowed(p: Path) -> bool:
     roots = [config.exports_dir().resolve(), config.temp_dir().resolve()]
     rp = p.resolve()
     return any(rp == r or r in rp.parents for r in roots)
+
+
+@router.get("/fs/{full:path}")
+def browse(full: str) -> Any:
+    return file(full if sys.platform == "win32" else "/" + full.lstrip("/"))
 
 
 @router.get("/file")

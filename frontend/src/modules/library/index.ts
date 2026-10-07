@@ -14,6 +14,7 @@ import { FilterBar } from './filterbar';
 import { importDropped, openImport } from './importer';
 import { InspectPanels } from './inspect';
 import { PeoplePanel } from './people';
+import { PublishPanel } from './publish';
 import { SourcePanels } from './sources';
 
 type View = 'grid' | 'loupe' | 'compare' | 'survey';
@@ -44,6 +45,7 @@ class LibraryModule {
     this.menu = new PopupMenu(ctx.commands, null, true);
     new SourcePanels(ctx, hosts.left);
     hosts.left.appendChild(new PeoplePanel(ctx).panel.root);
+    hosts.left.appendChild(new PublishPanel(ctx).panel.root);
     new InspectPanels(ctx, hosts.right);
     this.stage();
     this.toolbar();

@@ -69,8 +69,8 @@ export class Shell {
   }
 
   addModuleTab(id: string, label: string, iconName: string, title: string): void {
-    const b = el<HTMLButtonElement>(`<button class="fl-module" type="button" role="tab" aria-selected="false">${icon(iconName, 14)}<span></span></button>`);
-    setText(q(b, 'span'), label);
+    const b = el<HTMLButtonElement>(`<button class="fl-module" type="button" role="tab" aria-selected="false">${icon(iconName, 14)}<span class="fl-module-label"></span></button>`);
+    setText(q(b, '.fl-module-label'), label);
     b.title = title;
     b.addEventListener('click', () => this.onModule?.(id));
     this.modulesBar.appendChild(b);

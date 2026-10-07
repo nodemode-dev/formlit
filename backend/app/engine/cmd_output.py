@@ -205,7 +205,14 @@ def print_options() -> dict:
 def print_layout(settings: dict | None = None, ids: Any = None, collection: int | None = None) -> dict:
     pids = _ids(ids, collection)
     asp = _aspects(pids)
-    return layout.print_pages(settings or {}, [{"id": p, "aspect": asp.get(p, 1.5)} for p in pids])
+    return _with_overlays(layout.print_pages(settings or {}, [{"id": p, "aspect": asp.get(p, 1.5)} for p in pids]))
+
+
+def _with_overlays(lay: dict) -> dict:
+    total = len(lay["pages"])
+    for page in lay["pages"]:
+        page["overlays"] = pages._overlays(page, lay, lay["settings"], total)
+    return lay
 
 
 @command("print.printers", "Printers", mutates=False)
@@ -238,7 +245,8 @@ def print_run(settings: dict | None = None, ids: Any = None, collection: int | N
 @command("book.options", "Book Options", mutates=False)
 def book_options() -> dict:
     return {"sizes": {k: {"name": v[0], "w": v[1], "h": v[2]} for k, v in layout.BOOK_SIZES.items()},
-            "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"]} for k, v in layout.BOOK_TEMPLATES.items()}, "defaults": layout.BOOK_DEFAULTS}
+            "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"]} for k, v in layout.BOOK_TEMPLATES.items()}, "defaults": layout.BOOK_DEFAULTS,
+            "presets": layout.BOOK_PRESETS}
 
 
 @command("book.autoLayout", "Auto Layout Book", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "mode": {"type": "string", "enum": ["mixed", "one"]}}, mutates=False)
@@ -251,7 +259,7 @@ def book_auto(ids: Any = None, collection: int | None = None, mode: str = "mixed
 def book_layout(settings: dict | None = None) -> dict:
     s = layout.deep_merge(layout.BOOK_DEFAULTS, settings)
     used = [int(p) for pg in [s["cover"]] + list(s["pages"]) for p in (pg.get("photos") or []) if p is not None]
-    return layout.book_pages(s, _aspects(used))
+    return _with_overlays(layout.book_pages(s, _aspects(used)))
 
 
 @command("book.export", "Export Book", {"settings": {"type": "object"}, "format": {"type": "string", "enum": ["pdf", "jpeg"]}, "path": {"type": "string"},
@@ -274,6 +282,15 @@ def book_export(settings: dict | None = None, format: str = "pdf", path: str | N
 def slideshow_options() -> dict:
     return {"templates": slideshow.TEMPLATES, "defaults": slideshow.DEFAULTS, "sizes": {k: {"w": v[0], "h": v[1]} for k, v in slideshow.SIZES.items()},
             "ffmpeg": bool(shutil.which("ffmpeg"))}
+
+
+@command("slideshow.layout", "Slideshow Layout", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"}}, mutates=False)
+def slideshow_layout(ids: Any = None, collection: int | None = None, settings: dict | None = None) -> dict:
+    pids = _ids(ids, collection)
+    s = slideshow.merged(settings)
+    lay = _with_overlays(slideshow.page_layout(pids, _aspects(pids), s, for_pdf=False))
+    lay["slideshow"] = s
+    return lay
 
 
 @command("slideshow.export", "Export Slideshow", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"},
@@ -304,9 +321,9 @@ def web_options() -> dict:
     return {"templates": web.TEMPLATES, "defaults": web.DEFAULTS}
 
 
-@command("web.preview", "Preview Web Gallery", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"}}, mutates=False)
-def web_preview(ids: Any = None, collection: int | None = None, settings: dict | None = None) -> dict:
-    return {"html": web.preview_html(_ids(ids, collection), settings or {})}
+@command("web.preview", "Preview Web Gallery", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"}, "base": {"type": "string"}}, mutates=False)
+def web_preview(ids: Any = None, collection: int | None = None, settings: dict | None = None, base: str = "") -> dict:
+    return {"html": web.preview_html(_ids(ids, collection), settings or {}, base)}
 
 
 @command("web.export", "Export Web Gallery", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "settings": {"type": "object"}, "folder": {"type": "string"},
@@ -495,6 +512,15 @@ def gps_tracklog(ids: Any = None, path: str | None = None, gpx: str | None = Non
                 ch.update("photos", pid, gps_lat=la, gps_lon=lo)
     return {"matched": {str(k): v for k, v in matched.items()}, "count": len(matched), "points": len(pts), "track": [[p[1], p[2]] for p in pts[:: max(1, len(pts) // 2000)]],
             "start": datetime.fromtimestamp(pts[0][0], timezone.utc).isoformat(), "end": datetime.fromtimestamp(pts[-1][0], timezone.utc).isoformat(), "offsetMinutes": offsetMinutes}
+
+
+@command("output.reveal", "Show in Folder", {"path": {"type": "string"}}, mutates=False)
+def output_reveal(path: str) -> dict:
+    p = Path(path).expanduser()
+    if not p.exists():
+        raise CommandError(f"Not found: {p}")
+    export.reveal(p)
+    return {"path": str(p), "desktop": config.is_desktop()}
 
 
 @command("prefs.get", "Preferences", mutates=False)
