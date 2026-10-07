@@ -152,6 +152,42 @@ export function registerCatalogCommands(ctx: Ctx): void {
       },
     },
     {
+      id: 'library.exportCatalog', label: 'Export as Catalog...', enabled: () => library.targets().length > 0,
+      run: async () => {
+        const ids = library.targets();
+        const v = await askForm('Export as Catalog', `Writes a new catalog with ${ids.length} ${ids.length === 1 ? 'photo' : 'photos'}, their settings, keywords, collections, history and masks. Virtual copies bring their masters.`, [
+          { path: 'folder', label: 'Folder', kind: 'text', placeholder: '/Users/you/Desktop' },
+          { path: 'name', label: 'Name', kind: 'text' },
+          { path: 'negatives', label: 'Export negative files', kind: 'check' },
+          { path: 'smart', label: 'Build / include smart previews', kind: 'check' },
+          { path: 'previews', label: 'Include available previews', kind: 'check' },
+        ], { folder: '', name: 'Exported Catalog', negatives: false, smart: false, previews: true }, 'Export Catalog');
+        if (!v?.folder) return;
+        try {
+          const start = await ctx.api.cmd<{ task: number }>('catalog.exportAs', { ids, folder: v.folder, name: v.name, negatives: !!v.negatives, smart: !!v.smart, previews: !!v.previews });
+          const r = await whenDone(start.task);
+          toast(`Exported ${String(r.photos)} photos to ${String(r.path)}`);
+        } catch (err) { ctx.fail(err, 'Export as Catalog'); }
+      },
+    },
+    {
+      id: 'library.importCatalog', label: 'Import from Another Catalog...',
+      run: async () => {
+        const v = await askForm('Import from Another Catalog', 'Adds the photos of another formlit catalog, with their settings, keywords, collections, history and masks. Photos already here can take the other catalog\'s settings.', [
+          { path: 'path', label: 'Catalog', kind: 'text', placeholder: '/Users/you/Desktop/Exported Catalog/Exported Catalog.fldb' },
+          { path: 'mode', label: 'File handling', kind: 'select', options: [['add', 'Add photos to the catalog without moving'], ['copy', 'Copy photos to a new location and import']] },
+          { path: 'destination', label: 'Copy to', kind: 'text', placeholder: '/Users/you/Pictures', show: (g) => g('mode') === 'copy' },
+          { path: 'replace', label: 'Replace metadata and develop settings of photos already here', kind: 'check' },
+        ], { path: '', mode: 'add', destination: '', replace: true }, 'Import');
+        if (!v?.path) return;
+        try {
+          const start = await ctx.api.cmd<{ task: number }>('catalog.importFrom', { path: v.path, mode: v.mode, destination: v.destination, replace: !!v.replace });
+          const r = await whenDone(start.task);
+          toast(`Imported ${(r.added as number[]).length} new and updated ${(r.updated as number[]).length} photos`);
+        } catch (err) { ctx.fail(err, 'Import from Catalog'); }
+      },
+    },
+    {
       id: 'library.buildPreviews', label: 'Build Standard-Sized Previews',
       run: async () => {
         const ids = library.selected().length ? library.selected() : library.ids.slice();

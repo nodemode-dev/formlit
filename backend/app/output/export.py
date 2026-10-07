@@ -380,10 +380,27 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
         dest = place(folder / f"{stem}.dng", existing)
         if dest is None:
             return None
-        img, info = previews.source(pid, None, full=True)
-        make = meta_rec.get("make") or (rec.get("exif") or {}).get("make") or ""
-        dng.write_linear_dng(dest, img, info, make, rec.get("camera") or "", rec.get("captureTime"))
-        metadata.write_sidecar(dest, dict(meta_rec, develop=json.dumps(rec.get("develop") or {}, separators=(",", ":"))))
+        src = Path(rec["path"])
+        done = False
+        if rec.get("kind") == "raw" and src.is_file():
+            if src.suffix.lower() == ".dng":
+                shutil.copy2(src, dest)
+                done = True
+            else:
+                try:
+                    done = dng.write_cfa_dng(src, dest, {**(rec.get("exif") or {}), "captureTime": rec.get("captureTime")})
+                except Exception:
+                    done = False
+        if not done:
+            img, info = previews.source(pid, None, full=True)
+            make = meta_rec.get("make") or (rec.get("exif") or {}).get("make") or ""
+            dng.write_linear_dng(dest, img, info, make, rec.get("camera") or "", rec.get("captureTime"))
+        full = dict(meta_rec, develop=json.dumps(rec.get("develop") or {}, separators=(",", ":")), aspect=(rec.get("w") or 3) / max(1, rec.get("h") or 2))
+        try:
+            from app.services import xmpembed
+            xmpembed.write(dest, metadata.build_xmp(full))
+        except (OSError, ValueError):
+            metadata.write_sidecar(dest, full)
         return dest
     ext = encode.FORMATS.get(fmt, encode.FORMATS["jpeg"])["ext"]
     dest = place(folder / f"{stem}.{ext}", existing)

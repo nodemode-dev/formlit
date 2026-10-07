@@ -1331,6 +1331,46 @@ def catalog_open(path: str) -> dict:
     return _switch_catalog(p.resolve())
 
 
+@command("catalog.exportAs", "Export as Catalog", {"ids": {"type": "array"}, "folder": {"type": "string"}, "name": {"type": "string"},
+                                                   "negatives": {"type": "boolean", "description": "copy the original files next to the new catalog"},
+                                                   "previews": {"type": "boolean"}, "smart": {"type": "boolean", "description": "include smart previews"}, "wait": {"type": "boolean"}})
+def catalog_export_as(folder: str, name: str = "Exported Catalog", ids: Any = None, negatives: bool = False, previews: bool = True, smart: bool = False,
+                      wait: bool = False) -> dict:
+    from app.services import catalog_io
+    pids = _ids(ids)
+
+    def job(progress):
+        return catalog_io.export_catalog(pids, folder, name, negatives, previews, smart, progress)
+    tid = tasks.start("catalogExport", "Exporting catalog", job)
+    if wait:
+        t = tasks.wait(tid)
+        if t and t["state"] == "failed":
+            raise CommandError(t["error"] or "Export as Catalog failed")
+        return {"task": tid, **(t["result"] if t else {})}
+    return {"task": tid}
+
+
+@command("catalog.importFrom", "Import from Another Catalog", {"path": {"type": "string"}, "mode": {"type": "string", "enum": ["add", "copy"]},
+                                                              "destination": {"type": "string"}, "replace": {"type": "boolean", "description": "update photos already here with the other catalog's settings and metadata"},
+                                                              "wait": {"type": "boolean"}})
+def catalog_import_from(path: str, mode: str = "add", destination: str = "", replace: bool = True, wait: bool = False) -> dict:
+    from app.services import catalog_io
+
+    def job(progress):
+        r = catalog_io.import_catalog(path, mode, destination, replace, progress)
+        from app.engine.cmd_ai import adapt
+        adapt(r["added"])
+        previews.warm(r["added"] + r["updated"])
+        return r
+    tid = tasks.start("catalogImport", "Importing from catalog", job)
+    if wait:
+        t = tasks.wait(tid)
+        if t and t["state"] == "failed":
+            raise CommandError(t["error"] or "Import from Catalog failed")
+        return {"task": tid, **(t["result"] if t else {})}
+    return {"task": tid}
+
+
 @command("catalog.create", "New Catalog", {"folder": {"type": "string"}, "name": {"type": "string"}})
 def catalog_create(folder: str, name: str = "formlit") -> dict:
     base = Path(folder).expanduser() / rename.safe(name or "formlit")
