@@ -429,7 +429,7 @@ export class CropTool implements Tool {
   }
 }
 
-interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[] }
+interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[]; detect?: boolean; label?: string }
 
 export class SpotTool implements Tool {
   readonly id = 'spot';
@@ -460,6 +460,12 @@ export class SpotTool implements Tool {
     this.root.insertBefore(this.sFeather.root, this.sOpacity.root);
     this.root.insertBefore(this.sSize.root, this.sFeather.root);
     this.root.insertBefore(this.variantsRow, this.root.lastElementChild);
+    this.root.insertBefore(this.removeRow, this.variantsRow);
+    q<HTMLInputElement>(this.removeRow, '[data-detect]').addEventListener('change', (e) => { this.detect = (e.target as HTMLInputElement).checked; });
+    this.removeRow.addEventListener('click', (e) => {
+      const d = (e.target as HTMLElement).closest<HTMLElement>('[data-distract]')?.dataset.distract;
+      if (d) { e.stopPropagation(); void this.distraction(d); }
+    });
     this.sVis = slider('spot.visualize', 'Threshold', 0, 100, 50, 50, (v) => { this.visLevel = v; this.host.view.schedule(); });
     const visCheck = q<HTMLInputElement>(this.visRow, 'input');
     visCheck.addEventListener('change', () => this.setVisualize(visCheck.checked));
@@ -488,6 +494,25 @@ export class SpotTool implements Tool {
 
   activate(): void { this.host.drawer.replaceChildren(this.root); this.syncOpts(); }
 
+  private detect = false;
+  private readonly removeRow = el('<div class="fl-spot-remove"><label class="fl-check fl-check-sm" data-only="remove"><input type="checkbox" data-detect> Detect Objects</label><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
+
+  private async distraction(kind: string): Promise<void> {
+    const id = develop.id;
+    if (id === null) return;
+    const done = this.host.ctx.shell.busy(kind === 'people' ? 'Removing people' : 'Finding dust spots');
+    try {
+      await develop.flush();
+      const r = await this.host.ctx.api.cmd<{ spots: Spot[] }>(kind === 'people' ? 'develop.removePeople' : 'develop.findDust', { id });
+      if (!r.spots.length) { this.host.ctx.shell.setHint(kind === 'people' ? 'No people found' : 'No dust spots found'); return; }
+      const spots = this.spots();
+      spots.push(...r.spots.map((s) => ({ ...s })));
+      this.sel = spots.length - 1;
+      this.write(spots, 'end', kind === 'people' ? 'Remove People' : `Remove Dust (${r.spots.length})`);
+      this.syncVariants();
+    } catch (err) { this.host.ctx.fail(err, kind === 'people' ? 'Remove People' : 'Remove Dust'); } finally { done(); }
+  }
+
   private visualize = false;
   private visLevel = 50;
   private readonly sVis: Slider;
@@ -515,7 +540,7 @@ export class SpotTool implements Tool {
 
   private fill(i: number, s: Spot, label: string): void {
     const done = this.host.ctx.shell.busy('Removing');
-    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[] }>('develop.removeFill', { id: develop.id, spot: s })).then((r) => {
+    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[] }>('develop.removeFill', { id: develop.id, spot: s, detect: !!s.detect })).then((r) => {
       const now = this.spots();
       if (now[i]) { now[i].patch = r.patch; now[i].variants = r.variants; now[i].source = null; this.write(now, 'end', label); this.syncVariants(); }
     }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(this.spots(), 'end', label); }).finally(done);
@@ -523,6 +548,7 @@ export class SpotTool implements Tool {
 
   private syncOpts(): void {
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>('[data-m]'))) setClass(b, 'is-on', b.dataset.m === this.mode);
+    setHidden(q(this.removeRow, '[data-only="remove"]'), this.mode !== 'remove');
     this.sSize.set(Math.round(this.size * 1000));
     this.sFeather.set(this.feather);
     this.sOpacity.set(this.opacity);
@@ -568,7 +594,7 @@ export class SpotTool implements Tool {
       this.drag = { kind: hit.kind, i: hit.i, start: p, orig: s };
       return true;
     }
-    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode };
+    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode, ...(this.mode === 'remove' && this.detect ? { detect: true } : {}) };
     spots.push(spot);
     this.sel = spots.length - 1;
     this.drag = { kind: 'new', i: this.sel, start: p, orig: spot };

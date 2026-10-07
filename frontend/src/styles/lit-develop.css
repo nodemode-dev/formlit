@@ -20,6 +20,9 @@
 .fl-hdr-body { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; padding: 6px 8px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-0); }
 .fl-hdr-body[hidden], .fl-hdr-sdr[hidden] { display: none; }
 .fl-tool-opts .cv-btn.is-on { border-color: var(--accent-line); color: var(--accent-color); }
+.fl-spot-remove { display: flex; flex-direction: column; gap: 4px; }
+.fl-spot-remove .fl-row { gap: 6px; }
+.fl-spot-remove [hidden] { display: none; }
 
 .fl-sl { display: grid; grid-template-columns: minmax(0, 1fr) 54px; grid-template-rows: 16px 16px; align-items: center; column-gap: 8px; padding: 2px 0; }
 .fl-sl[hidden] { display: none; }

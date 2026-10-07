@@ -699,56 +699,158 @@ def upright_guides(id: int | None = None, add: list[float] | None = None, remove
     return {"guides": shown, "count": len(guides)}
 
 
-@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "description": "1 to 3 fills to choose from"}})
-def remove_fill(spot: dict, id: int | None = None, variants: int = 3) -> dict:
+def _remove_view(pid: int) -> tuple:
     from app.develop.render import plan
-    pid = int(id) if id is not None else resolve_ids("active")[0]
-    _need("remove")
     dev, _ = current(pid)
     img, info = previews.source(pid)
     eff = effective({k: v for k, v in dev.items() if k not in ("crop", "spots")})
     sh, sw = img.shape[:2]
     frame, w, h, ppl = plan(sw, sh, eff, None, None, False)
-    sampled = frame.sample(img, w, h)
-    to_out = frame.norm_to_out(w, h)
-    pts = [to_out @ np.array([float(p[0]), float(p[1]), 1.0]) for p in spot.get("points", [])]
-    if not pts:
-        raise CommandError("The spot has no points")
-    r = max(2.0, float(spot.get("size", 0.02)) * ppl)
-    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return frame.sample(img, w, h), frame, w, h, ppl
+
+
+def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool) -> list[str]:
+    ys, xs = np.nonzero(full)
+    if not len(xs):
+        raise CommandError("Nothing to remove there")
     folder = config.masks_dir() / str(pid)
     folder.mkdir(parents=True, exist_ok=True)
     n = frame.out_to_norm(w, h)
     stamp = int(time.time() * 1000)
     out = []
     for vi, (padk, flip, shift) in enumerate([(4.0, False, 2), (6.5, True, 3), (2.8, False, -2)][:max(1, min(3, int(variants)))]):
-        pad = r * padk
-        x0, y0 = int(max(0, min(xs) - pad)), int(max(0, min(ys) - pad))
-        x1, y1 = int(min(w, max(xs) + pad)), int(min(h, max(ys) + pad))
+        pad = max(r * padk, 0.35 * max(xs.max() - xs.min(), ys.max() - ys.min())) if alpha else r * padk
+        x0, y0 = int(max(0, xs.min() - pad)), int(max(0, ys.min() - pad))
+        x1, y1 = int(min(w, xs.max() + 1 + pad)), int(min(h, ys.max() + 1 + pad))
         crop = sampled[y0:y1, x0:x1]
         peak = max(1e-6, float(np.percentile(crop, 99.5)))
         enc = np.sqrt(np.clip(crop / peak, 0.0, 1.0))
-        hole = np.zeros(crop.shape[:2], np.uint8)
-        for (px, py, _), q in zip(pts, pts[1:] + pts[-1:]):
-            cv2.line(hole, (int(px - x0), int(py - y0)), (int(q[0] - x0), int(q[1] - y0)), 255, int(max(1, r * 2)))
-            cv2.circle(hole, (int(px - x0), int(py - y0)), int(r), 255, -1)
+        hole = full[y0:y1, x0:x1]
         src8 = (enc * 255 + 0.5).astype(np.uint8)
-        hm = hole.astype(np.float32) / 255.0
+        hm = (hole > 0).astype(np.float32)
         if flip:
             filled = nets.lama(np.ascontiguousarray(src8[:, ::-1]), np.ascontiguousarray(hm[:, ::-1]))[:, ::-1].astype(np.float32) / 255.0
         else:
             filled = nets.lama(src8, hm).astype(np.float32) / 255.0
         lin = (filled ** 2) * peak
         detail = enc - cv2.GaussianBlur(enc, (0, 0), 1.0)
-        noise = np.where((hole > 0)[..., None], np.roll(detail, (int(r * shift), int(r * shift)), (0, 1)) * 0.6, 0.0)
+        if alpha:
+            outside = (hm < 0.5)[..., None]
+            grain = np.where(outside, detail, 0.0)
+            ys0, xs0 = np.nonzero(hm < 0.5)
+            if len(xs0):
+                step = max(1, int(r))
+                noise = np.roll(grain, (int(step * shift * 3), int(step * shift * 5)), (0, 1)) * 0.5 * (hm > 0.5)[..., None]
+            else:
+                noise = 0.0
+        else:
+            noise = np.where((hole > 0)[..., None], np.roll(detail, (int(r * shift), int(r * shift)), (0, 1)) * 0.6, 0.0)
         lin = np.maximum(((np.sqrt(lin / peak) + noise) ** 2) * peak, 0.0)
+        if alpha:
+            soft = cv2.GaussianBlur(hm, (0, 0), max(1.0, r * 0.15))
+            lin = np.concatenate([lin, np.clip(np.maximum(soft, hm * 0.98), 0.0, 1.0)[..., None]], axis=-1)
         key = f"remove-{stamp}-{vi}"
         np.save(folder / f"{key}.npy", lin.astype(np.float16))
         a = n @ np.array([x0, y0, 1.0])
         b = n @ np.array([x1, y1, 1.0])
         (folder / f"{key}.json").write_text(json.dumps({"rect": [float(a[0]), float(a[1]), float(b[0]), float(b[1])]}))
         out.append(f"{pid}/{key}")
-    return {"patch": out[0], "variants": out}
+    return out
+
+
+@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "description": "1 to 3 fills to choose from"},
+                                                     "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"}})
+def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bool = False) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    _need("remove")
+    sampled, frame, w, h, ppl = _remove_view(pid)
+    to_out = frame.norm_to_out(w, h)
+    pts = [to_out @ np.array([float(p[0]), float(p[1]), 1.0]) for p in spot.get("points", [])]
+    if not pts:
+        raise CommandError("The spot has no points")
+    r = max(2.0, float(spot.get("size", 0.02)) * ppl)
+    full = np.zeros((h, w), np.uint8)
+    for (px, py, _), q in zip(pts, pts[1:] + pts[-1:]):
+        cv2.line(full, (int(px), int(py)), (int(q[0]), int(q[1])), 255, int(max(1, r * 2)))
+        cv2.circle(full, (int(px), int(py)), int(r), 255, -1)
+    detect = bool(detect or spot.get("detect"))
+    if detect and models.ready("objects"):
+        ys, xs = np.nonzero(full)
+        grow = r * 1.2
+        box = [max(0.0, (xs.min() - grow) / w), max(0.0, (ys.min() - grow) / h), min(1.0, (xs.max() + grow) / w), min(1.0, (ys.max() + grow) / h)]
+        from app.services import decode
+        lin709 = np.maximum(sampled.reshape(-1, 3) @ decode.REC2020_TO_SRGB.T, 0.0).reshape(sampled.shape)
+        rgb8 = (decode.linear_to_srgb(lin709 / max(1e-6, float(np.percentile(lin709, 99.5)))) * 255 + 0.5).astype(np.uint8)
+        obj = nets.sam_box(rgb8, box, [[float(p[0]) / w, float(p[1]) / h] for p in pts[:8]])
+        within = np.zeros_like(full)
+        cv2.rectangle(within, (int(box[0] * w), int(box[1] * h)), (int(box[2] * w), int(box[3] * h)), 255, -1)
+        objm = ((obj > 0.5) & (within > 0)).astype(np.uint8) * 255
+        grown = cv2.dilate(objm, np.ones((5, 5), np.uint8), iterations=max(1, int(r * 0.08)))
+        if objm.sum() >= full.sum() * 0.3:
+            full = grown
+        elif objm.any():
+            full = np.maximum(full, grown)
+    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect)
+    return {"patch": out[0], "variants": out, "detected": detect}
+
+
+@command("develop.removePeople", "Remove People", {"id": {"type": "integer"}, "people": {"type": "array", "description": "person indexes from develop.aiPeople; omit for everyone"},
+                                                   "variants": {"type": "integer"}})
+def remove_people(id: int | None = None, people: list[int] | None = None, variants: int = 1) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    _need("remove")
+    sampled, frame, w, h, ppl = _remove_view(pid)
+    rgb8 = view_rgb8(pid, long=max(w, h))
+    if rgb8.shape[:2] != (h, w):
+        rgb8 = cv2.resize(rgb8, (w, h), interpolation=cv2.INTER_AREA)
+    alpha, _faces, found = _people(rgb8)
+    targets = [found[i]["alpha"] for i in (people if people is not None else range(len(found))) if 0 <= int(i) < len(found)] if found else ([alpha] if people is None else [])
+    n = frame.out_to_norm(w, h)
+    spots = []
+    for a in targets:
+        full = ((a > 0.25).astype(np.uint8) * 255)
+        if not full.any():
+            continue
+        full = cv2.dilate(full, np.ones((5, 5), np.uint8), iterations=max(2, int(max(w, h) / 300)))
+        ys, xs = np.nonzero(full)
+        r = max(4.0, 0.02 * max(w, h))
+        keys = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=True)
+        c = n @ np.array([float(xs.mean()), float(ys.mean()), 1.0])
+        spots.append({"points": [[round(float(c[0]), 5), round(float(c[1]), 5)]], "size": 0.02, "source": None, "feather": 0, "opacity": 100, "mode": "remove",
+                      "patch": keys[0], "variants": keys, "detect": True, "label": "Person"})
+    if not spots:
+        raise CommandError("No people found to remove")
+    return {"spots": spots}
+
+
+@command("develop.findDust", "Find Dust Spots", {"id": {"type": "integer"}, "sensitivity": {"type": "number", "description": "0 to 100"}}, mutates=False)
+def find_dust(id: int | None = None, sensitivity: float = 50.0) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    sampled, frame, w, h, ppl = _remove_view(pid)
+    y = np.sqrt(np.clip(sampled @ np.array([0.2627, 0.6780, 0.0593], np.float32) / max(1e-6, float(np.percentile(sampled, 99.5))), 0.0, 1.0)).astype(np.float32)
+    s = max(w, h) / 2000.0
+    small, large = cv2.GaussianBlur(y, (0, 0), 1.2 * s), cv2.GaussianBlur(y, (0, 0), 6.0 * s)
+    dip = large - small
+    ring = cv2.GaussianBlur(np.abs(y - cv2.GaussianBlur(y, (0, 0), 3.0 * s)), (0, 0), 14.0 * s)
+    sens = max(0.0, min(100.0, float(sensitivity))) / 100.0
+    cand = ((dip > np.maximum(0.012 * (1.6 - sens), (12.0 - 6.0 * sens) * ring)) & (large > 0.2)).astype(np.uint8)
+    num, lab, stats, cent = cv2.connectedComponentsWithStats(cand, 8)
+    from app.develop.retouch import auto_source
+    n = frame.out_to_norm(w, h)
+    found = []
+    for i in range(1, num):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area < 2 or area > (40 * s) ** 2:
+            continue
+        cx, cy = cent[i]
+        found.append((float(dip[int(cy), int(cx)]), float(cx), float(cy), max(2.0, float(np.sqrt(area / np.pi)) * 1.8 + 2 * s)))
+    out = []
+    for strength, cx, cy, rad in sorted(found, reverse=True)[:200]:
+        dx, dy = auto_source(sampled, (cx, cy), rad)
+        c, src = n @ np.array([cx, cy, 1.0]), n @ np.array([cx + dx, cy + dy, 1.0])
+        out.append({"points": [[round(float(c[0]), 5), round(float(c[1]), 5)]], "size": round(rad / ppl, 5), "source": [round(float(src[0] - c[0]), 5), round(float(src[1] - c[1]), 5)],
+                    "feather": 50, "opacity": 100, "mode": "heal", "strength": round(strength, 4)})
+    return {"spots": out}
 
 
 @command("ai.findFaces", "Find Faces", {"ids": {"type": "array"}, "all": {"type": "boolean"}, "wait": {"type": "boolean"}})
