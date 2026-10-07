@@ -25,6 +25,8 @@ A turn on an attached `.git` lands as real commits on the checked-out branch. Th
 | `backend/app/__init__.py` | `__version__` |
 | `src-tauri/tauri.conf.json` | `version` |
 | `src-tauri/Cargo.toml` | `[package] version` |
+| `src-tauri/Cargo.lock` | the `formlit` package's `version` (committed since v0.3.0) |
+| `README.md` | the version badge |
 
 Every one by hand. Filenames and tags read `v0.2.0`, never `v0_2_0`.
 

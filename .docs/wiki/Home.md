@@ -15,6 +15,6 @@ formlit is the form family's photo library and raw developer, an alternative to 
 | [Releasing](Releasing) | Secrets, the updater key and cutting a desktop release |
 | [Verification](Verification) | The throttled browser procedure every interface change passes |
 
-Status at v0.2.0: 57.5 of 58 Lightroom Classic 15 feature rows (57 complete, reflection removal partial) (`docs/PARITY.md` in the repository); the README's Status section and `CHANGELOG.md` list what is not verified yet.
+Status at v0.3.0: 57.5 of 58 Lightroom Classic 15 feature rows (57 complete, reflection removal partial) (`docs/PARITY.md` in the repository); the README's Status section and `CHANGELOG.md` list what is not verified yet.
 
 These pages are the source of truth in the repository under `.docs/wiki/`. Edit them there; the wiki workflow publishes them.
