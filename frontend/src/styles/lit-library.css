@@ -220,6 +220,8 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-imp-dest[hidden] { display: none; }
 .fl-imp-summary { margin-right: auto; color: var(--text-secondary); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
 .fl-imp-preset { width: 240px; flex: none; margin-right: 12px; }
+.fl-imp-tokens { margin: 0 0 6px; color: var(--text-muted); font-family: var(--font-mono, monospace); font-size: var(--fs-10); line-height: 1.5; word-spacing: 4px; }
+.fl-imp-eject[hidden] { display: none; }
 
 .fl-prefs-theme { display: flex; align-items: center; gap: 10px; }
 .fl-prefs-engine { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }

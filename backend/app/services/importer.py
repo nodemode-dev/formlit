@@ -133,8 +133,8 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
     hashes = {r["content_hash"] for r in cat.rows("SELECT content_hash FROM photos WHERE content_hash != ''")}
     known = {(r["path"], r["file_name"]) for r in cat.rows("SELECT f.path, p.file_name FROM photos p JOIN folders f ON f.id=p.folder_id")}
     dest_root = Path(destination).expanduser() if destination else None
-    backup_root = Path(backup).expanduser() / f"Imported on {date.today().isoformat()}" if backup and mode in ("copy", "move") else None
-    if mode in ("copy", "move") and dest_root is None:
+    backup_root = Path(backup).expanduser() / f"Imported on {date.today().isoformat()}" if backup and mode in ("copy", "move", "dng") else None
+    if mode in ("copy", "move", "dng") and dest_root is None:
         raise ValueError("Copy and Move need a destination folder")
     added: list[int] = []
     skipped: list[str] = []
@@ -157,13 +157,29 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
                 continue
             info = metadata.probe(src)
             final = src
-            if mode in ("copy", "move") and dest_root is not None:
+            if mode in ("copy", "move", "dng") and dest_root is not None:
                 final = _destination(src, info, dest_root, folder_template, rename_template, len(added) + 1, custom)
-                _transfer(src, final, mode == "move")
+                converted = False
+                if mode == "dng" and info.get("kind") == "raw" and final.suffix.lower() != ".dng":
+                    from app.ai import dng as dng_mod
+                    target = rename.unique(final.with_suffix(".dng"))
+                    try:
+                        converted = dng_mod.write_cfa_dng(src, target, {**info.get("exif", {}), "captureTime": info.get("captureTime")})
+                    except Exception:
+                        converted = False
+                    if converted:
+                        final = target
+                        side = metadata.sidecar_path(src)
+                        if side.is_file():
+                            shutil.copy2(side, metadata.sidecar_path(final))
+                        st = final.stat()
+                        info = {**info, "format": "dng", "size": st.st_size, "mtime": st.st_mtime}
+                if not converted:
+                    _transfer(src, final, mode == "move")
                 if backup_root is not None:
                     second = rename.unique(backup_root / src.name)
                     second.parent.mkdir(parents=True, exist_ok=True)
-                    _transfer(final, second, False)
+                    _transfer(src if converted else final, second, False)
             exif = info.get("exif", {})
             xmp = info.get("xmp", {})
             dev = dict(develop or {})

@@ -79,21 +79,38 @@ def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
 @command("library.import", "Import Photos", {"paths": {"type": "array"}, "mode": {"type": "string", "enum": ["add", "copy", "move"]}, "destination": {"type": "string"}})
 def do_import(paths: list[str], mode: str = "add", destination: str = "", folderTemplate: str = "{date:%Y}/{date:%Y-%m-%d}", renameTemplate: str = "",
               custom: str = "", develop: Any = None, metadata: dict | None = None, keywords: list[str] | None = None, collection: int | None = None,
-              skipDuplicates: bool = True, recursive: bool = True, wait: bool = False, buildPreviews: str = "", backup: str = "") -> dict:
+              skipDuplicates: bool = True, recursive: bool = True, wait: bool = False, buildPreviews: str = "", backup: str = "",
+              smartPreviews: bool = False, eject: str = "") -> dict:
     dev = None
     if isinstance(develop, dict):
         dev = develop
     elif isinstance(develop, str) and develop:
         from app.engine import presets
         dev = presets.settings_of(develop)
-    if mode not in ("add", "copy", "move"):
-        raise CommandError("mode is add, copy or move")
+    if mode not in ("add", "copy", "move", "dng"):
+        raise CommandError("mode is add, copy, dng (Copy as DNG) or move")
 
     def job(progress):
         res = importer.import_files(paths, mode, destination, folderTemplate, renameTemplate, custom, dev, metadata, keywords, collection,
                                     skipDuplicates, recursive, progress, backup=backup)
         if buildPreviews in ("standard", "1:1") and res["ids"]:
             previews.build_all(res["ids"], "p", progress)
+        if buildPreviews == "1:1" and res["ids"]:
+            previews.build_all(res["ids"], "f", progress)
+        if smartPreviews and res["ids"]:
+            built = []
+            for i, pid in enumerate(res["ids"]):
+                try:
+                    previews.source(pid)
+                    built.append(pid)
+                except (FileNotFoundError, OSError, ValueError):
+                    continue
+                progress(i + 1, len(res["ids"]), f"Smart preview {i + 1} of {len(res['ids'])}")
+            with cat().change("Build Smart Previews", undoable=False) as ch:
+                for pid in built:
+                    ch.update("photos", pid, smart_preview=1)
+        if eject:
+            res["ejected"] = _eject(eject)
         return res
     tid = tasks.start("import", "Importing photos", job)
     if wait:
@@ -102,6 +119,25 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
             raise CommandError(t["error"] or "Import failed")
         return {"task": tid, **(t["result"] if t and t.get("result") else {})}
     return {"task": tid}
+
+
+def _eject(path: str) -> bool:
+    p = Path(path).expanduser()
+    while not os.path.ismount(p) and p.parent != p:
+        p = p.parent
+    if p == Path(p.anchor):
+        return False
+    system = platform.system()
+    if system == "Darwin":
+        cmd = ["diskutil", "eject", str(p)]
+    elif system == "Windows":
+        cmd = ["powershell", "-NoProfile", "-Command", f"(New-Object -ComObject Shell.Application).Namespace(17).ParseName('{str(p).rstrip(chr(92))}').InvokeVerb('Eject')"]
+    else:
+        cmd = ["gio", "mount", "-e", str(p)]
+    try:
+        return subprocess.run(cmd, capture_output=True, timeout=60).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def _flag(v: Any) -> int:

@@ -1,7 +1,7 @@
 import type { Ctx } from '../../app';
 import { catalog } from '../../state/catalog';
 import { confirmAction, Dialog, promptName } from '../../ui/dialogs';
-import { el, escapeHtml, patchList, q, setClass, setText, setValue } from '../../ui/dom';
+import { el, escapeHtml, patchList, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { loadMetaPresets, type MetaPresets } from './metadata-presets';
@@ -13,12 +13,12 @@ const PREFS_KEY = 'formlit_import';
 const RENAMES: Array<[string, string]> = [['', 'Filename (unchanged)'], ['{date:%Y%m%d}-{name}', 'Date - Filename'], ['{custom}-{seq:3}', 'Custom Name - Sequence'], ['{date:%Y-%m-%d}-{seq:4}', 'Date - Sequence'], ['{shoot}-{name}', 'Shoot Name - Filename']];
 const ORGANIZE: Array<[string, string]> = [['{date:%Y}/{date:%Y-%m-%d}', 'By date: 2026/2026-10-07'], ['{date:%Y}/{date:%m}', 'By date: 2026/10'], ['{date:%Y-%m-%d}', 'By date: 2026-10-07'], ['', 'Into one folder']];
 
-interface Prefs { mode: string; recursive: boolean; skipDup: boolean; previews: string; rename: string; organize: string; destination: string; backup: string; preset: string; copyright: string; creator: string; last: string }
+interface Prefs { mode: string; recursive: boolean; skipDup: boolean; previews: string; smart: boolean; eject: boolean; rename: string; organize: string; destination: string; backup: string; preset: string; copyright: string; creator: string; last: string }
 type ImportPreset = Omit<Prefs, 'last'>;
-const PRESET_KEYS: Array<keyof ImportPreset> = ['mode', 'recursive', 'skipDup', 'previews', 'rename', 'organize', 'destination', 'backup', 'preset', 'copyright', 'creator'];
+const PRESET_KEYS: Array<keyof ImportPreset> = ['mode', 'recursive', 'skipDup', 'previews', 'smart', 'eject', 'rename', 'organize', 'destination', 'backup', 'preset', 'copyright', 'creator'];
 
 function readPrefs(): Prefs {
-  const d: Prefs = { mode: 'add', recursive: true, skipDup: true, previews: 'embedded', rename: '', organize: ORGANIZE[0][0], destination: '', backup: '', preset: '', copyright: '', creator: '', last: '' };
+  const d: Prefs = { mode: 'add', recursive: true, skipDup: true, previews: 'embedded', smart: false, eject: false, rename: '', organize: ORGANIZE[0][0], destination: '', backup: '', preset: '', copyright: '', creator: '', last: '' };
   try { return { ...d, ...(JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') as Partial<Prefs>) }; } catch { return d; }
 }
 
@@ -38,6 +38,7 @@ class ImportDialog extends Dialog {
   private readonly dest: HTMLElement;
   private readonly presetSel = el<HTMLSelectElement>('<select class="cv-select fl-imp-preset" aria-label="Import preset"></select>');
   private importPresets: Record<string, ImportPreset> = {};
+  private volumes: string[] = [];
   private presetName = '';
   private seq = 0;
 
@@ -45,17 +46,21 @@ class ImportDialog extends Dialog {
     super('Import Photos and Videos', 1180);
     q<HTMLElement>(this.scrim, '.cv-dialog').classList.add('fl-import');
     const layout = el(`<div class="fl-imp">
-<div class="fl-imp-top"><div class="cv-seg fl-imp-mode"><button type="button" data-mode="add">Add</button><button type="button" data-mode="copy">Copy</button><button type="button" data-mode="move">Move</button></div><span class="fl-imp-modehint"></span><span class="fl-tb-spacer"></span><div class="fl-imp-crumbs"></div></div>
+<div class="fl-imp-top"><div class="cv-seg fl-imp-mode"><button type="button" data-mode="add">Add</button><button type="button" data-mode="dng">Copy as DNG</button><button type="button" data-mode="copy">Copy</button><button type="button" data-mode="move">Move</button></div><span class="fl-imp-modehint"></span><span class="fl-tb-spacer"></span><div class="fl-imp-crumbs"></div></div>
 <div class="fl-imp-body">
 <aside class="fl-imp-side"><div class="fl-sub">Source</div><div class="fl-imp-roots"></div><div class="fl-sub">Folders</div><div class="fl-imp-dirs"></div><label class="fl-check"><input type="checkbox" data-pref="recursive"> Include Subfolders</label></aside>
 <section class="fl-imp-main"><div class="fl-imp-bar"><span class="fl-imp-status"></span><span class="fl-tb-spacer"></span><button class="cv-btn cv-btn-ghost" type="button" data-all="1">Check All</button><button class="cv-btn cv-btn-ghost" type="button" data-all="0">Uncheck All</button></div><div class="fl-imp-grid"></div></section>
 <aside class="fl-imp-opts">
 <div class="fl-sub">File Handling</div>
 <label class="fl-opt"><span>Build Previews</span><select class="cv-select" data-pref="previews"><option value="embedded">Embedded and Sidecar</option><option value="standard">Standard</option><option value="1:1">1:1</option></select></label>
+<label class="fl-check"><input type="checkbox" data-pref="smart"> Build Smart Previews</label>
+<label class="fl-check fl-imp-eject" hidden><input type="checkbox" data-pref="eject"> Eject after import</label>
 <label class="fl-check"><input type="checkbox" data-pref="skipDup"> Don't Import Suspected Duplicates</label>
 <label class="fl-opt"><span>Add to Collection</span><select class="cv-select" data-collection><option value="">None</option></select></label>
 <div class="fl-sub">File Renaming</div>
-<label class="fl-opt"><span>Template</span><select class="cv-select" data-pref="rename">${RENAMES.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}</select></label>
+<label class="fl-opt"><span>Template</span><select class="cv-select" data-preset-for="rename">${RENAMES.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}<option value="__custom">Custom</option></select></label>
+<label class="fl-opt"><span>Pattern</span><input class="cv-input" type="text" data-pref="rename" spellcheck="false" placeholder="unchanged"></label>
+<div class="fl-imp-tokens">{name} {seq:3} {num} {date:%Y%m%d} {camera} {lens} {iso} {custom} {shoot} {folder}</div>
 <label class="fl-opt"><span>Custom Text</span><input class="cv-input" type="text" data-custom placeholder="Shoot name"></label>
 <div class="fl-sub">Apply During Import</div>
 <label class="fl-opt"><span>Develop Settings</span><select class="cv-select" data-pref="preset"><option value="">None</option></select></label>
@@ -65,7 +70,8 @@ class ImportDialog extends Dialog {
 <label class="fl-opt"><span>Keywords</span><input class="cv-input" type="text" data-keywords placeholder="comma separated" spellcheck="false"></label>
 <div class="fl-imp-dest"><div class="fl-sub">Destination</div>
 <label class="fl-opt"><span>To</span><input class="cv-input" type="text" data-pref="destination" spellcheck="false"></label>
-<label class="fl-opt"><span>Organize</span><select class="cv-select" data-pref="organize">${ORGANIZE.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}</select></label>
+<label class="fl-opt"><span>Organize</span><select class="cv-select" data-preset-for="organize">${ORGANIZE.map(([v, l]) => `<option value="${escapeHtml(v)}">${l}</option>`).join('')}<option value="__custom">Custom</option></select></label>
+<label class="fl-opt"><span>Folders</span><input class="cv-input" type="text" data-pref="organize" spellcheck="false" placeholder="into one folder"></label>
 <label class="fl-opt"><span>Second Copy To</span><input class="cv-input" type="text" data-pref="backup" placeholder="No second copy" spellcheck="false"></label></div>
 </aside></div></div>`);
     this.body.appendChild(layout);
@@ -87,11 +93,18 @@ class ImportDialog extends Dialog {
     });
     layout.addEventListener('change', (e) => {
       const t = e.target as HTMLInputElement;
+      const pk = t.dataset.presetFor as 'rename' | 'organize' | undefined;
+      if (pk) {
+        if (t.value !== '__custom') { this.prefs[pk] = t.value; this.save(); this.syncFields(); }
+        else q<HTMLInputElement>(this.body, `input[data-pref="${pk}"]`).focus();
+        return;
+      }
       const k = t.dataset.pref as keyof Prefs | undefined;
       if (k) {
         (this.prefs as unknown as Record<string, unknown>)[k] = t.type === 'checkbox' ? t.checked : t.value;
         this.save();
         if (k === 'recursive') void this.scan();
+        if (k === 'rename' || k === 'organize') this.syncFields();
         this.sync();
       }
       if (t.dataset.file !== undefined) {
@@ -113,6 +126,10 @@ class ImportDialog extends Dialog {
   }
 
   private save(): void { try { localStorage.setItem(PREFS_KEY, JSON.stringify(this.prefs)); } catch { return; } }
+
+  private onVolume(): boolean {
+    return this.volumes.some((v) => v.length > 1 && this.path.startsWith(v));
+  }
 
   private fillPresets(): void {
     const names = Object.keys(this.importPresets).sort();
@@ -161,6 +178,7 @@ class ImportDialog extends Dialog {
     this.open(this.go);
     const roots = await this.ctx.api.get<{ roots: Root[]; library: string }>('/api/files/roots');
     if (!this.prefs.destination) this.prefs.destination = roots.library;
+    this.volumes = roots.roots.filter((r) => r.kind === 'volume').map((r) => r.path);
     patchList(this.roots, roots.roots, {
       key: (r) => r.path,
       create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
@@ -190,6 +208,10 @@ class ImportDialog extends Dialog {
       const v = (this.prefs as unknown as Record<string, unknown>)[input.dataset.pref as string];
       if (input.type === 'checkbox') input.checked = !!v; else setValue(input, String(v ?? ''));
     }
+    for (const sel of Array.from(this.body.querySelectorAll<HTMLSelectElement>('select[data-preset-for]'))) {
+      const v = String((this.prefs as unknown as Record<string, unknown>)[sel.dataset.presetFor as string] ?? '');
+      setValue(sel, Array.from(sel.options).some((o) => o.value === v) ? v : '__custom');
+    }
   }
 
   private async browse(path: string): Promise<void> {
@@ -206,7 +228,9 @@ class ImportDialog extends Dialog {
       this.crumbs.innerHTML = crumbs.map((c) => `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button>`).join(`<span>${icon('chevronRight', 10)}</span>`);
       const dirs = [...(r.parent ? [{ name: '..', path: r.parent }] : []), ...r.dirs];
       this.dirs.replaceChildren(...dirs.map((d) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(d.path)}">${icon(d.name === '..' ? 'chevronUp' : 'folder', 14)}<span>${escapeHtml(d.name)}</span></button>`)));
-      for (const b of Array.from(this.roots.children) as HTMLElement[]) setClass(b, 'is-on', r.path.startsWith(b.dataset.path ?? '\u0000'));
+      const rows = Array.from(this.roots.children) as HTMLElement[];
+      const best = rows.map((b) => b.dataset.path ?? '').filter((p) => p && r.path.startsWith(p)).sort((a, b) => b.length - a.length)[0];
+      for (const b of rows) setClass(b, 'is-on', b.dataset.path === best);
       await this.scan();
     } catch (err) { this.ctx.fail(err); }
   }
@@ -252,7 +276,8 @@ class ImportDialog extends Dialog {
 
   private sync(): void {
     for (const b of Array.from(this.body.querySelectorAll<HTMLElement>('[data-mode]'))) setClass(b, 'is-on', b.dataset.mode === this.prefs.mode);
-    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' ? 'Copy photos to a new location and add them' : 'Move photos to a new location and add them');
+    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' ? 'Copy photos to a new location and add them' : this.prefs.mode === 'dng' ? 'Convert raw files to DNG in a new location and add them' : 'Move photos to a new location and add them');
+    setHidden(q(this.body, '.fl-imp-eject'), !this.onVolume());
     this.dest.hidden = this.prefs.mode === 'add';
     for (const n of Array.from(this.grid.children) as HTMLElement[]) setClass(n, 'is-on', this.checked.has(n.dataset.key ?? ''));
     const n = this.checked.size;
@@ -274,6 +299,7 @@ class ImportDialog extends Dialog {
       paths, mode: this.prefs.mode, destination: this.prefs.destination, folderTemplate: this.prefs.organize, renameTemplate: this.prefs.rename,
       custom: q<HTMLInputElement>(this.body, '[data-custom]').value, develop: this.prefs.preset || null, metadata, keywords, collection: col ? Number(col) : null,
       skipDuplicates: this.prefs.skipDup, recursive: false, buildPreviews: this.prefs.previews, backup: this.prefs.mode === 'add' ? '' : this.prefs.backup.trim(),
+      smartPreviews: this.prefs.smart, eject: this.prefs.eject && this.onVolume() ? this.path : '',
     };
     this.close();
     try {

@@ -103,12 +103,12 @@ def read_exif(path: Path) -> dict:
     else:
         out["camera"] = model or make
     out["make"], out["model"] = make, model
-    out["lens"] = _text(tags.get("EXIF LensModel", "") or tags.get("MakerNote LensModel", "") or tags.get("EXIF LensSpecification", ""))
-    out["focal"] = _num(tags.get("EXIF FocalLength"))
+    out["lens"] = _text(tags.get("EXIF LensModel", "") or tags.get("Image LensModel", "") or tags.get("MakerNote LensModel", "") or tags.get("EXIF LensSpecification", ""))
+    out["focal"] = _num(tags.get("EXIF FocalLength") or tags.get("Image FocalLength"))
     out["focal35"] = _num(tags.get("EXIF FocalLengthIn35mmFilm"))
-    out["aperture"] = _num(tags.get("EXIF FNumber"))
-    out["shutter"] = _num(tags.get("EXIF ExposureTime"))
-    iso = tags.get("EXIF ISOSpeedRatings") or tags.get("EXIF PhotographicSensitivity") or tags.get("EXIF RecommendedExposureIndex")
+    out["aperture"] = _num(tags.get("EXIF FNumber") or tags.get("Image FNumber"))
+    out["shutter"] = _num(tags.get("EXIF ExposureTime") or tags.get("Image ExposureTime"))
+    iso = tags.get("EXIF ISOSpeedRatings") or tags.get("EXIF PhotographicSensitivity") or tags.get("EXIF RecommendedExposureIndex") or tags.get("Image ISOSpeedRatings")
     out["iso"] = int(_num(iso)) if _num(iso) else None
     out["bias"] = _num(tags.get("EXIF ExposureBiasValue"))
     fl = _num(tags.get("EXIF Flash"))
