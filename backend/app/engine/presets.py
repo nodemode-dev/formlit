@@ -37,6 +37,28 @@ BUILTIN: list[dict] = [
 ]
 
 
+def _adaptive(name: str, shapes: list[dict], adjust: dict) -> dict:
+    return {"masks": [{"id": 1, "name": name, "visible": True, "components": [{"shape": s, "op": "add"} for s in shapes], "adjust": adjust}]}
+
+
+SKY = {"kind": "sky", "bitmap": "adaptive-sky"}
+SUBJECT = {"kind": "subject", "bitmap": "adaptive-subject"}
+BACKGROUND = {"kind": "background", "bitmap": "adaptive-background"}
+BUILTIN += [
+    {"group": "Adaptive: Sky", "name": "Deep Blue Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.35, "highlights": -30, "saturation": 18, "temp": -10})},
+    {"group": "Adaptive: Sky", "name": "Dramatic Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.5, "contrast": 22, "dehaze": 25, "clarity": 15})},
+    {"group": "Adaptive: Sky", "name": "Golden Sky", "settings": _adaptive("Sky", [SKY], {"temp": 22, "tint": 8, "saturation": 12, "highlights": -20})},
+    {"group": "Adaptive: Subject", "name": "Pop Subject", "settings": _adaptive("Subject", [SUBJECT], {"exposure": 0.25, "clarity": 12, "texture": 10, "saturation": 8})},
+    {"group": "Adaptive: Subject", "name": "Darken Background", "settings": _adaptive("Background", [BACKGROUND], {"exposure": -0.6, "saturation": -15})},
+    {"group": "Adaptive: Subject", "name": "Soft Background", "settings": _adaptive("Background", [BACKGROUND], {"clarity": -40, "texture": -50, "sharpness": -60})},
+    {"group": "Adaptive: Portrait", "name": "Smooth Skin", "settings": _adaptive("Skin", [{"kind": "people", "part": "faceSkin", "label": "Face Skin", "bitmap": "adaptive-faceSkin"},
+                                                                                     {"kind": "people", "part": "bodySkin", "label": "Body Skin", "bitmap": "adaptive-bodySkin"}], {"texture": -35, "clarity": -12})},
+    {"group": "Adaptive: Portrait", "name": "Brighten Eyes", "settings": _adaptive("Eyes", [{"kind": "people", "part": "iris", "label": "Iris and Pupil", "bitmap": "adaptive-iris"},
+                                                                                       {"kind": "people", "part": "sclera", "label": "Eye Sclera", "bitmap": "adaptive-sclera"}], {"exposure": 0.3, "clarity": 10, "saturation": 6})},
+    {"group": "Adaptive: Portrait", "name": "Whiten Teeth", "settings": _adaptive("Teeth", [{"kind": "people", "part": "teeth", "label": "Teeth", "bitmap": "adaptive-teeth"}], {"exposure": 0.2, "saturation": -40})},
+]
+
+
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
@@ -89,9 +111,29 @@ def apply(preset: str, ids: Any = None, amount: float = 100.0) -> dict:
     with catalog_mod.get().change(f"Preset: {name}") as ch:
         for pid in pids:
             dev, _ = current(pid)
-            store(ch, pid, S.apply_groups(dev, src, groups, amount / 100.0), f"Preset: {name}")
+            new = S.apply_groups(dev, src, groups, amount / 100.0)
+            if src.get("masks"):
+                new["masks"] = merge_masks(dev.get("masks") or [], src["masks"], amount / 100.0)
+            store(ch, pid, new, f"Preset: {name}")
     after(pids)
     return {"ids": pids, "preset": name}
+
+
+def merge_masks(old: list, add: list, amount: float = 1.0) -> list:
+    import copy as copy_mod
+    out = copy_mod.deepcopy(old)
+    keys = {c.get("shape", {}).get("bitmap") for m in out for c in m.get("components") or []}
+    nid = max([int(m.get("id", 0)) for m in out] + [0])
+    for m in add:
+        own = {c.get("shape", {}).get("bitmap") for c in m.get("components") or []}
+        if own and own <= keys and any(x.get("name") == m.get("name") for x in out):
+            continue
+        nid += 1
+        m2 = copy_mod.deepcopy(m)
+        m2["id"] = nid
+        m2["adjust"] = {k: (v * amount if k != "amount" and isinstance(v, (int, float)) else v) for k, v in (m2.get("adjust") or {}).items()}
+        out.append(m2)
+    return out
 
 
 @command("preset.create", "New Develop Preset", {"name": {"type": "string"}, "group": {"type": "string"}, "id": {"type": "integer"}, "groups": {"type": "array"}})

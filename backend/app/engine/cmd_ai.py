@@ -69,32 +69,78 @@ def ai_download(model: str, wait: bool = False) -> dict:
     return {"task": tid, "model": model}
 
 
+def _people(rgb8: np.ndarray) -> tuple[np.ndarray, list[dict], list[dict]]:
+    from app.ai import people as people_mod
+    _need("people")
+    alpha = nets.u2net(rgb8, "people")
+    ready = models.ready("faces")
+    faces = nets.faces(rgb8) if ready else []
+    return alpha, faces, people_mod.persons(rgb8, alpha, faces, components=not ready)
+
+
+def _part_maps(rgb8: np.ndarray, group: str, person: int | None = None) -> dict[str, np.ndarray]:
+    from app.ai import parts as parts_mod
+    if group == "people":
+        alpha, faces, found = _people(rgb8)
+        if person is not None:
+            if person >= len(found):
+                return {k: np.zeros(alpha.shape, np.float32) for k in parts_mod.PERSON_PARTS}
+            box = found[person]["box"]
+            faces = [f for f in faces if abs((f["box"][0] + f["box"][2]) / 2 - (box[0] + box[2]) / 2) < (box[2] - box[0]) / 2 + 1e-3] or faces
+            alpha = found[person]["alpha"]
+        return parts_mod.people_parts(rgb8, alpha, faces)
+    sky = nets.sky(rgb8) if models.ready("sky") else None
+    dep = nets.depth(rgb8) if models.ready("depth") else None
+    return parts_mod.landscape_parts(rgb8, sky, dep)
+
+
 @command("develop.aiParts", "AI Mask Parts", {"id": {"type": "integer"}, "group": {"type": "string", "enum": ["people", "landscape"]},
-                                             "parts": {"type": "array", "description": "people: faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; landscape: sky, water, vegetation, mountains, architecture, naturalGround, artificialGround"}})
-def ai_parts(group: str, parts: list[str], id: int | None = None) -> dict:
+                                             "parts": {"type": "array", "description": "people: faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; landscape: sky, water, vegetation, mountains, architecture, naturalGround, artificialGround"},
+                                             "person": {"type": "integer", "description": "people only: the person's index from develop.aiPeople, left to right; omit for everyone"}})
+def ai_parts(group: str, parts: list[str], id: int | None = None, person: int | None = None) -> dict:
     from app.ai import parts as parts_mod
     pid = int(id) if id is not None else resolve_ids("active")[0]
     names = parts_mod.PERSON_PARTS if group == "people" else parts_mod.LANDSCAPE_PARTS
     want = [p for p in parts if p in names]
     if not want:
         raise CommandError("Choose one or more parts: " + ", ".join(names))
-    rgb8 = view_rgb8(pid)
-    if group == "people":
-        _need("people")
-        person = nets.u2net(rgb8, "people")
-        faces = nets.faces(rgb8) if models.ready("faces") else []
-        maps = parts_mod.people_parts(rgb8, person, faces)
-    else:
-        sky = nets.sky(rgb8) if models.ready("sky") else None
-        dep = nets.depth(rgb8) if models.ready("depth") else None
-        maps = parts_mod.landscape_parts(rgb8, sky, dep)
+    maps = _part_maps(view_rgb8(pid), group, person if group == "people" else None)
     shapes = []
     stamp = int(time.time() * 1000)
     for p in want:
         key = f"{group}-{p}-{stamp}"
         save_bitmap(pid, key, maps[p])
-        shapes.append({"kind": group, "part": p, "label": names[p], "bitmap": key, "coverage": round(float(maps[p].mean()), 4)})
+        shape = {"kind": group, "part": p, "label": names[p] if person is None else f"{names[p]}, Person {person + 1}", "bitmap": key, "coverage": round(float(maps[p].mean()), 4)}
+        if person is not None and group == "people":
+            shape["person"] = int(person)
+        shapes.append(shape)
     return {"shapes": shapes}
+
+
+@command("develop.aiPeople", "Detect People", {"id": {"type": "integer"}})
+def ai_people(id: int | None = None) -> dict:
+    import base64
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    rgb8 = view_rgb8(pid)
+    alpha, _faces, found = _people(rgb8)
+    stamp = int(time.time() * 1000)
+    save_bitmap(pid, f"people-{stamp}", alpha)
+    h, w = rgb8.shape[:2]
+    out = []
+    for i, p in enumerate(found):
+        key = f"people-p{i}-{stamp}"
+        save_bitmap(pid, key, p["alpha"])
+        x0, y0, x1, y1 = p["box"]
+        pad = 0.35 * max(x1 - x0, y1 - y0)
+        crop = rgb8[max(0, int((y0 - pad) * h)):min(h, int((y1 + pad) * h)), max(0, int((x0 - pad) * w)):min(w, int((x1 + pad) * w))]
+        thumb = ""
+        if crop.size:
+            crop = cv2.resize(crop, (64, max(1, int(64 * crop.shape[0] / max(1, crop.shape[1])))), interpolation=cv2.INTER_AREA)
+            ok, buf = cv2.imencode(".jpg", cv2.cvtColor(crop, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 82])
+            thumb = base64.b64encode(buf.tobytes()).decode() if ok else ""
+        out.append({"index": i, "box": [round(v, 4) for v in p["box"]], "coverage": round(float(p["alpha"].mean()), 4), "thumb": thumb,
+                    "shape": {"kind": "people", "person": i, "bitmap": key}})
+    return {"all": {"kind": "people", "bitmap": f"people-{stamp}"}, "persons": out}
 
 
 @command("develop.aiMask", "AI Mask", {"id": {"type": "integer"}, "kind": {"type": "string", "enum": ["subject", "background", "sky", "people", "object", "depth"]},
@@ -120,7 +166,134 @@ def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, po
         a = nets.depth(rgb8)
     key = f"{kind}-{int(time.time() * 1000)}"
     save_bitmap(pid, key, a)
-    return {"shape": {"kind": "depthRange" if kind == "depth" else kind, "bitmap": key}, "coverage": round(float(a.mean()), 4)}
+    shape: dict = {"kind": "depthRange" if kind == "depth" else kind, "bitmap": key}
+    if kind == "object":
+        shape["box"] = [round(float(v), 4) for v in (box or [0.25, 0.25, 0.75, 0.75])]
+        if points:
+            shape["points"] = points
+    return {"shape": shape, "coverage": round(float(a.mean()), 4)}
+
+
+def bitmap_refs(dev: dict) -> list[dict]:
+    refs = []
+    for m in dev.get("masks") or []:
+        for comp in m.get("components") or []:
+            sh = comp.get("shape") or {}
+            if sh.get("bitmap") and (sh.get("kind") in ("subject", "background", "sky", "people", "object", "landscape", "depthRange")):
+                refs.append(sh)
+    key = (dev.get("lensBlur") or {}).get("depth")
+    if key:
+        refs.append({"kind": "depthRange", "bitmap": key})
+    return refs
+
+
+def missing_bitmaps(pid: int, dev: dict | None = None) -> list[dict]:
+    if dev is None:
+        dev, _ = current(pid)
+    seen, out = set(), []
+    for sh in bitmap_refs(dev):
+        if sh["bitmap"] not in seen and not bitmap_path(pid, sh["bitmap"]).is_file():
+            seen.add(sh["bitmap"])
+            out.append(sh)
+    return out
+
+
+def _family(pid: int) -> list[int]:
+    master = int(cat().scalar("SELECT COALESCE(master_id, id) FROM photos WHERE id=?", (pid,)) or pid)
+    return [master] + [int(r["id"]) for r in cat().rows("SELECT id FROM photos WHERE master_id=?", (master,))]
+
+
+def compute_shape(pid: int, sh: dict, memo: dict) -> bool:
+    import shutil
+    key = sh["bitmap"]
+    for other in _family(pid):
+        src = bitmap_path(other, key)
+        if other != pid and src.is_file():
+            dst = bitmap_path(pid, key)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+            return True
+    kind = sh.get("kind")
+    need = {"subject": "subject", "background": "subject", "sky": "sky", "people": "people", "object": "objects", "depthRange": "depth"}.get(kind or "")
+    if (need and not sh.get("part") and not models.ready(need)) or (sh.get("part") and sh.get("kind") == "people" and not models.ready("people")):
+        return False
+    if "rgb8" not in memo:
+        memo["rgb8"] = view_rgb8(pid)
+    rgb8 = memo["rgb8"]
+    if sh.get("part"):
+        mk = f"parts:{kind}:{sh.get('person')}"
+        if mk not in memo:
+            memo[mk] = _part_maps(rgb8, str(kind), sh.get("person"))
+        a = memo[mk].get(sh["part"])
+        if a is None:
+            return False
+    elif kind == "people" and sh.get("person") is not None:
+        if "persons" not in memo:
+            memo["persons"] = _people(rgb8)[2]
+        i = int(sh["person"])
+        a = memo["persons"][i]["alpha"] if i < len(memo["persons"]) else np.zeros(rgb8.shape[:2], np.float32)
+    elif kind in ("subject", "background"):
+        if "subject" not in memo:
+            memo["subject"] = nets.u2net(rgb8, "subject")
+        a = memo["subject"] if kind == "subject" else 1.0 - memo["subject"]
+    elif kind == "people":
+        a = nets.u2net(rgb8, "people")
+    elif kind == "sky":
+        a = nets.sky(rgb8)
+    elif kind == "object":
+        a = nets.sam_box(rgb8, sh.get("box") or [0.25, 0.25, 0.75, 0.75], sh.get("points"))
+    elif kind == "depthRange":
+        if "depth" not in memo:
+            memo["depth"] = nets.depth(rgb8)
+        a = memo["depth"]
+    else:
+        return False
+    save_bitmap(pid, key, a)
+    return True
+
+
+def ensure_masks(pid: int, dev: dict | None = None) -> int:
+    from app.develop.render import drop_stages
+    todo = missing_bitmaps(pid, dev)
+    memo: dict = {}
+    made = sum(1 for sh in todo if compute_shape(pid, sh, memo))
+    if made:
+        drop_stages(pid)
+    return made
+
+
+_adapting: set[int] = set()
+
+
+def adapt(pids: list[int]) -> None:
+    todo = [pid for pid in pids if pid not in _adapting and missing_bitmaps(pid)]
+    if not todo:
+        return
+    _adapting.update(todo)
+
+    def job(progress):
+        from app.engine import events
+        done = []
+        try:
+            for i, pid in enumerate(todo):
+                progress(i, len(todo), f"Updating AI masks {i + 1} of {len(todo)}")
+                try:
+                    if ensure_masks(pid):
+                        done.append(pid)
+                except Exception:
+                    continue
+            if done:
+                with cat().change("AI Masks Updated", undoable=False) as ch:
+                    for pid in done:
+                        rev = int(cat().scalar("SELECT develop_rev FROM photos WHERE id=?", (pid,)) or 0)
+                        ch.update("photos", pid, develop_rev=rev + 1)
+                for pid in done:
+                    previews.request(pid, "t")
+                    events.publish("masks.updated", id=pid)
+            return {"ids": done}
+        finally:
+            _adapting.difference_update(todo)
+    tasks.start("masks", "Updating AI masks", job)
 
 
 @command("ai.depth", "Build Depth Map", {"ids": {"type": "array"}})

@@ -147,7 +147,7 @@ export class MaskTool implements Tool {
 <div class="fl-mask-list"></div>
 <div class="fl-sub">Create New Mask</div>
 <div class="fl-mask-grid">${AI_KINDS.map(btn).join('')}${PART_GROUPS.map(btn).join('')}${MANUAL.map(btn).join('')}${RANGES.map(btn).join('')}</div>
-<div class="fl-mask-parts" hidden><div class="fl-sub fl-mask-parts-title"></div><div class="fl-mask-parts-list"></div><label class="fl-check fl-check-sm"><input type="checkbox" data-separate> Create separate masks</label><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="parts-cancel">Cancel</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="parts-create">Create Mask</button></div></div>
+<div class="fl-mask-parts" hidden><div class="fl-sub fl-mask-parts-title"></div><div class="fl-mask-who"></div><div class="fl-mask-parts-list"></div><label class="fl-check fl-check-sm"><input type="checkbox" data-separate> Create separate masks</label><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="parts-cancel">Cancel</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="parts-create">Create Mask</button></div></div>
 <div class="fl-mask-comp"></div>
 <div class="fl-mask-brush" hidden></div>
 <div class="fl-mask-adjust" hidden><div class="fl-sub">Adjustments</div><div class="fl-row"><span class="fl-row-label">Effect</span><select class="cv-select fl-grow" data-effect aria-label="Effect preset"></select></div></div>
@@ -230,7 +230,7 @@ export class MaskTool implements Tool {
   private click(e: Event): void {
     const t = e.target as HTMLElement;
     const nw = t.closest<HTMLElement>('[data-new]')?.dataset.new;
-    if (nw === 'people-parts' || nw === 'landscape') { this.openParts(nw === 'landscape' ? 'landscape' : 'people'); return; }
+    if (nw === 'people-parts' || nw === 'landscape' || nw === 'people') { void this.openParts(nw === 'landscape' ? 'landscape' : nw === 'people' ? 'persons' : 'people'); return; }
     if (nw) { void this.create(nw, 'new'); return; }
     const pa = t.closest<HTMLElement>('[data-a="parts-cancel"], [data-a="parts-create"]')?.dataset.a;
     if (pa === 'parts-cancel') { setHidden(q(this.root, '.fl-mask-parts'), true); return; }
@@ -277,29 +277,74 @@ export class MaskTool implements Tool {
 
   private nextId(masks: Mask[]): number { return masks.reduce((a, m) => Math.max(a, m.id), 0) + 1; }
 
-  private partGroup: 'people' | 'landscape' = 'people';
+  private partGroup: 'people' | 'landscape' | 'persons' = 'people';
+  private people: { id: number; all: Shape; persons: Array<{ index: number; thumb: string; coverage: number; shape: Shape }> } | null = null;
 
-  private openParts(group: 'people' | 'landscape'): void {
+  private async loadPeople(): Promise<boolean> {
+    const id = develop.id;
+    if (id === null) return false;
+    if (this.people?.id === id) return true;
+    const done = this.host.ctx.shell.busy('Finding people');
+    try {
+      await develop.flush();
+      const r = await this.host.ctx.api.cmd<{ all: Shape; persons: Array<{ index: number; thumb: string; coverage: number; shape: Shape }> }>('develop.aiPeople', { id });
+      this.people = { id, ...r };
+      return true;
+    } catch (err) { this.host.ctx.fail(err, 'People'); return false; } finally { done(); }
+  }
+
+  private async openParts(group: 'people' | 'landscape' | 'persons'): Promise<void> {
+    if (group !== 'landscape' && !(await this.loadPeople())) return;
     this.partGroup = group;
     const box = q(this.root, '.fl-mask-parts');
-    setText(q(box, '.fl-mask-parts-title'), group === 'people' ? 'People Parts' : 'Landscape');
-    const html = PARTS[group].map(([k, l]) => `<label class="fl-check fl-check-sm"><input type="checkbox" data-part="${k}"> ${l}</label>`).join('');
+    setText(q(box, '.fl-mask-parts-title'), group === 'people' ? 'People Parts' : group === 'persons' ? `People (${this.people?.persons.length ?? 0} found)` : 'Landscape');
+    const persons = this.people?.persons ?? [];
+    const who = q(box, '.fl-mask-who');
+    const whoHtml = group === 'people' && persons.length > 1 ? `<div class="fl-row"><span class="fl-row-label">Person</span><select class="cv-select fl-grow" data-who><option value="">All People</option>${persons.map((p) => `<option value="${p.index}">Person ${p.index + 1}</option>`).join('')}</select></div>` : '';
+    if (who.dataset.key !== `${group}:${this.people?.id}:${persons.length}`) { who.dataset.key = `${group}:${this.people?.id}:${persons.length}`; who.innerHTML = whoHtml; }
+    const html = group === 'persons'
+      ? `<label class="fl-check fl-check-sm fl-person"><input type="checkbox" data-person="all" checked> All People</label>${persons.map((p) => `<label class="fl-check fl-check-sm fl-person"><input type="checkbox" data-person="${p.index}">${p.thumb ? `<img alt="" src="data:image/jpeg;base64,${p.thumb}">` : ''} Person ${p.index + 1}</label>`).join('')}`
+      : PARTS[group].map(([k, l]) => `<label class="fl-check fl-check-sm"><input type="checkbox" data-part="${k}"> ${l}</label>`).join('');
     const list = q(box, '.fl-mask-parts-list');
-    if (list.dataset.key !== group) { list.dataset.key = group; list.innerHTML = html; }
+    const key = group === 'persons' ? `persons:${this.people?.id}:${persons.length}` : group;
+    if (list.dataset.key !== key) { list.dataset.key = key; list.innerHTML = html; }
+    setClass(list, 'is-persons', group === 'persons');
     setHidden(box, false);
+  }
+
+  private personsShapes(): Array<[string, Shape]> {
+    const box = q(this.root, '.fl-mask-parts');
+    const picked = Array.from(box.querySelectorAll<HTMLInputElement>('[data-person]')).filter((i) => i.checked).map((i) => i.dataset.person as string);
+    if (!this.people || !picked.length) return [];
+    if (picked.includes('all')) return [['People', this.people.all]];
+    return picked.map((v) => { const p = this.people?.persons[Number(v)]; return [`Person ${Number(v) + 1}`, p?.shape] as [string, Shape | undefined]; }).filter((x): x is [string, Shape] => !!x[1]);
   }
 
   private async createParts(): Promise<void> {
     const box = q(this.root, '.fl-mask-parts');
+    const separate = q<HTMLInputElement>(box, '[data-separate]').checked;
+    if (this.partGroup === 'persons') {
+      const shapes = this.personsShapes();
+      if (!shapes.length) { this.host.ctx.fail(new Error('Tick one or more people')); return; }
+      const masks = this.masks();
+      if (separate) for (const [name, s] of shapes) masks.push({ id: this.nextId(masks), name, visible: true, components: [{ shape: s, op: 'add' }], adjust: {} });
+      else masks.push({ id: this.nextId(masks), name: shapes.map(([n]) => n).join(', '), visible: true, components: shapes.map(([, s]) => ({ shape: s, op: 'add' as const })), adjust: {} });
+      this.sel = masks.length - 1;
+      this.comp = 0;
+      setHidden(box, true);
+      this.write(masks, 'end', 'Mask: People');
+      return;
+    }
     const parts = Array.from(box.querySelectorAll<HTMLInputElement>('[data-part]')).filter((i) => i.checked).map((i) => i.dataset.part as string);
     if (!parts.length) { this.host.ctx.fail(new Error('Tick one or more parts')); return; }
     const id = develop.id;
     if (id === null) return;
-    const separate = q<HTMLInputElement>(box, '[data-separate]').checked;
+    const whoSel = box.querySelector<HTMLSelectElement>('[data-who]');
+    const person = whoSel && whoSel.value !== '' ? Number(whoSel.value) : undefined;
     const done = this.host.ctx.shell.busy(this.partGroup === 'people' ? 'Finding people parts' : 'Finding landscape parts');
     try {
       await develop.flush();
-      const r = await this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts });
+      const r = await this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts, ...(person !== undefined ? { person } : {}) });
       const masks = this.masks();
       if (separate) {
         for (const s of r.shapes) masks.push({ id: this.nextId(masks), name: String(s.label ?? s.part), visible: true, components: [{ shape: s, op: 'add' }], adjust: {} });

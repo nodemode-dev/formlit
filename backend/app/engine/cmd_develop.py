@@ -37,8 +37,10 @@ def store(ch: Change, pid: int, dev: dict, label: str, history: bool = True) -> 
 
 
 def after(pids: list[int]) -> None:
+    from app.engine.cmd_ai import adapt
     for pid in pids:
         previews.request(pid, "t")
+    adapt(pids)
 
 
 def _apply_values(dev: dict, values: dict, delta: bool) -> dict:

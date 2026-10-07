@@ -79,6 +79,7 @@ class DevelopModule {
     this.view = new DevelopView();
     hosts.stage.appendChild(this.view.root);
     events.on('before', (e) => { if (Number(e.id) === develop.id) this.view.beforeChanged(); });
+    events.on('masks.updated', (e) => { if (Number(e.id) === develop.id) { this.view.beforeChanged(); this.view.schedule(); } });
     this.drawer = el('<div class="fl-drawer" hidden></div>');
     const strip = toolStrip();
     void develop.init().then(() => {

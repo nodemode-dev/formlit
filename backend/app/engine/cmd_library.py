@@ -140,6 +140,15 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
     def job(progress):
         res = importer.import_files(paths, mode, destination, folderTemplate, renameTemplate, custom, dev, metadata, keywords, collection,
                                     skipDuplicates, recursive, progress, backup=backup)
+        if dev and res["ids"]:
+            from app.engine.cmd_ai import bitmap_refs, ensure_masks
+            if bitmap_refs(dev):
+                for i, pid in enumerate(res["ids"]):
+                    progress(i + 1, len(res["ids"]), f"Adaptive masks {i + 1} of {len(res['ids'])}")
+                    try:
+                        ensure_masks(pid)
+                    except Exception:
+                        continue
         if buildPreviews in ("standard", "1:1") and res["ids"]:
             previews.build_all(res["ids"], "p", progress)
         if buildPreviews == "1:1" and res["ids"]:
@@ -346,6 +355,8 @@ def virtual_copy(ids: Any = None, name: str = "") -> dict:
             for col in c.db.execute("SELECT collection_id, position FROM collection_photos WHERE photo_id=?", (pid,)).fetchall():
                 ch.insert("collection_photos", collection_id=int(col["collection_id"]), photo_id=new, position=int(col["position"]))
             made.append(new)
+    from app.engine.cmd_ai import adapt
+    adapt(made)
     return {"ids": made}
 
 

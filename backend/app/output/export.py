@@ -126,6 +126,11 @@ def render_photo(pid: int, size: dict, space: str, dev: dict | None = None) -> n
     cat = catalog_mod.get()
     if dev is None:
         dev = loads(cat.scalar("SELECT develop FROM photos WHERE id=?", (pid,)), {})
+    from app.engine.cmd_ai import ensure_masks
+    try:
+        ensure_masks(pid, dev)
+    except Exception:
+        pass
     eff = render_mod.effective(dev)
     pimg, pinfo = previews.source(pid)
     ph, pw = pimg.shape[:2]

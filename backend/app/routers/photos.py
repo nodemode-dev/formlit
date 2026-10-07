@@ -104,7 +104,15 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
         except Exception as exc:
             return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
         groups = sorted({g for g, keys in S.GROUPS.items() for k in src if k in keys}) or None
+        base_masks = (dev or {}).get("masks") or []
         dev = S.apply_groups(dev, src, groups, float(body.get("presetAmount", 100)) / 100.0)
+        if src.get("masks"):
+            from app.engine.cmd_ai import ensure_masks
+            dev["masks"] = presets.merge_masks(base_masks, src["masks"], float(body.get("presetAmount", 100)) / 100.0)
+            try:
+                ensure_masks(pid, dev)
+            except Exception:
+                pass
     long = int(body.get("long") or previews.PREVIEW)
     size = body.get("size")
     region = body.get("region")
