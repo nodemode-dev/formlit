@@ -31,6 +31,7 @@ The formlit mark is original.
 | onnxruntime | MIT | local AI models |
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
 | ffmpeg | LGPL or GPL builds | not bundled; used as an external program for slideshow video and video export when it is installed |
+| gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode and reads its output, without linking to libgphoto2 |
 
 ## Downloaded on first use, never bundled
 

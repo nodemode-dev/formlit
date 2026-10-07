@@ -1260,6 +1260,45 @@ def auto_import_set(enabled: bool | None = None, watch: str | None = None, desti
     return s
 
 
+@command("tether.cameras", "Tethered Cameras", mutates=False)
+def tether_cameras() -> dict:
+    from app.services import tether
+    return {"installed": bool(tether.binary()), "cameras": tether.cameras()}
+
+
+@command("tether.start", "Start Tethered Capture", {"port": {"type": "string"}, "model": {"type": "string"}, "session": {"type": "string"}, "destination": {"type": "string"},
+                                                    "renameTemplate": {"type": "string"}, "keywords": {"type": "array"}, "preset": {"type": "string"}, "collection": {"type": "integer"}})
+def tether_start(port: str = "", model: str = "", session: str = "Tethered", destination: str = "", renameTemplate: str = "", keywords: list[str] | None = None,
+                 preset: str = "", collection: int | None = None) -> dict:
+    from app.services import tether
+    try:
+        return tether.start(port, model, {"session": session, "destination": destination, "renameTemplate": renameTemplate, "keywords": keywords or [], "preset": preset,
+                                          "collection": collection})
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
+
+
+@command("tether.capture", "Capture", mutates=False)
+def tether_capture() -> dict:
+    from app.services import tether
+    try:
+        return tether.capture()
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
+
+
+@command("tether.stop", "Stop Tethered Capture", mutates=False)
+def tether_stop() -> dict:
+    from app.services import tether
+    return tether.stop()
+
+
+@command("tether.state", "Tethered Capture Status", mutates=False)
+def tether_state() -> dict:
+    from app.services import tether
+    return tether.state()
+
+
 @command("catalog.recent", "Recent Catalogs", mutates=False)
 def catalog_recent() -> dict:
     from app.core import prefs

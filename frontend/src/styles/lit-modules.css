@@ -34,6 +34,17 @@
 .fl-exp-main .fl-form-row.is-check { grid-template-columns: 150px auto; }
 .fl-ask-lead { margin: 0 0 10px; }
 .fl-ask-preview { margin: 10px 0 0; padding: 6px 8px; border-radius: 6px; background: var(--surface-0); color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: var(--fs-11); }
+.fl-tether { position: fixed; top: 52px; left: 50%; z-index: var(--z-companion); display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 10px 0 16px; border: 1px solid var(--glass-border); border-radius: 14px; background: var(--glass-bg); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); color: var(--text-secondary); font-size: var(--fs-11); transform: translateX(-50%); }
+.fl-tether[hidden] { display: none; }
+.fl-tether-cam { display: flex; flex-direction: column; min-width: 120px; }
+.fl-tether-cam strong { color: var(--text-primary); font-size: var(--fs-12); font-weight: 600; }
+.fl-tether-read { display: flex; flex-direction: column; align-items: center; min-width: 46px; }
+.fl-tether-read span { color: var(--text-muted); font-size: var(--fs-10); }
+.fl-tether-read b { color: var(--text-primary); font-weight: 500; font-variant-numeric: tabular-nums; }
+.fl-tether-shutter { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 2px solid var(--text-primary); border-radius: 50%; background: transparent; cursor: pointer; }
+.fl-tether-shutter span { width: 26px; height: 26px; border-radius: 50%; background: var(--text-primary); transition: transform 120ms ease; }
+.fl-tether-shutter:active span { transform: scale(0.86); }
+.fl-tether-count { min-width: 54px; font-variant-numeric: tabular-nums; }
 .fl-toast-act { display: flex; align-items: center; gap: 10px; }
 .fl-toast-act span { flex: 1; }
 .fl-toast-btn { height: 22px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface-2); color: var(--text-primary); font: inherit; font-size: var(--fs-11); cursor: pointer; white-space: nowrap; }
