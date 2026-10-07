@@ -87,7 +87,8 @@ def from_crs(crs: dict, aspect: float = 1.5) -> dict:
         if pid:
             dev["profile"] = {"id": pid, **({"amount": round(float(amount.group(1)) * 100)} if amount and float(amount.group(1)) != 1.0 else {})}
     elif str(crs.get("CameraProfile", "")).startswith("Camera "):
-        dev["profile"] = {"id": "fl.camera"}
+        variant = str(crs.get("CameraProfile", ""))[7:].strip().lower()
+        dev["profile"] = {"id": f"fl.camera.{variant}" if variant in ("neutral", "vivid", "portrait", "landscape") else "fl.camera"}
     spots = []
     for item in [s for s in str(crs.get("RetouchInfo") or "").split("|") if "centerX" in s]:
         kv = {k.strip(): v.strip() for k, _, v in (p.partition("=") for p in item.split(","))}
@@ -138,7 +139,7 @@ def to_crs(dev: dict) -> dict:
         l, t, r, b = crop["rect"]
         out.update(HasCrop="True", CropLeft=f"{l:.6f}", CropTop=f"{t:.6f}", CropRight=f"{r:.6f}", CropBottom=f"{b:.6f}", CropAngle=f"{float(crop.get('angle', 0)):.4f}")
     prof = (dev.get("profile") or {}).get("id", "fl.color")
-    out["CameraProfile"] = "Camera Standard" if prof == "fl.camera" else "Adobe Standard"
+    out["CameraProfile"] = ("Camera " + (prof.split(".")[2].title() if prof.count(".") == 2 else "Standard")) if str(prof).startswith("fl.camera") else "Adobe Standard"
     optics = dev.get("optics") or {}
     lp = optics.get("profile") or {}
     out["LensProfileEnable"] = "1" if lp.get("enabled") else "0"
@@ -245,7 +246,7 @@ def crs_children(dev: dict, aspect: float = 1.5) -> list[str]:
             out.append(_seq(name, [f"{round(float(x) * 255)}, {round(float(y) * 255)}" for x, y in pts]))
     prof = dev.get("profile") or {}
     look = LOOKS.get(prof.get("id", "")) if prof else None
-    if look is None and prof.get("id") not in (None, "fl.camera"):
+    if look is None and prof.get("id") is not None and not str(prof.get("id")).startswith("fl.camera"):
         from app.develop.profiles import PROFILES
         look = next((p["name"] for p in PROFILES if p["id"] == prof.get("id")), None)
     if look:

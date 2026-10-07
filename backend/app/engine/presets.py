@@ -208,6 +208,7 @@ def export_preset(id: str, folder: str = "") -> dict:
 
 @command("preset.import", "Import Presets", {"paths": {"type": "array"}})
 def import_presets(paths: list[str]) -> dict:
+    from app.develop import adobe_profile
     from app.services import xmp_presets
     made = []
     for raw in paths:
@@ -219,6 +220,12 @@ def import_presets(paths: list[str]) -> dict:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(f.read_bytes())
                 made.append(dst.stem)
+            elif f.suffix.lower() == ".xmp" and adobe_profile.is_profile(f):
+                from app.develop.profiles import import_profile_xmp
+                try:
+                    made.append(import_profile_xmp(f))
+                except ValueError as exc:
+                    raise CommandError(f"{f.name}: {exc}") from exc
             elif f.suffix.lower() in (".xmp", ".lrtemplate"):
                 conv = xmp_presets.convert(f)
                 if conv:
@@ -228,12 +235,9 @@ def import_presets(paths: list[str]) -> dict:
                 from app.develop.profiles import import_cube
                 made.append(import_cube(f))
             elif f.suffix.lower() == ".dcp":
-                from app.develop import dcp
-                from app.develop.profiles import load_cube
+                from app.develop.profiles import import_dcp
                 try:
-                    dst, _ = dcp.to_cube(f, config.profiles_dir())
+                    made.append(import_dcp(f))
                 except ValueError as exc:
                     raise CommandError(f"{f.name}: {exc}") from exc
-                load_cube.cache_clear()
-                made.append(f"lut:{dst.stem}")
     return {"imported": made}

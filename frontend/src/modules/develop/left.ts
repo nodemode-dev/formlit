@@ -238,7 +238,7 @@ export class LeftPanels {
       for (const f of files) form.append('files', f, f.name);
       void this.ctx.api.upload<{ paths: string[] }>('/api/files/upload/presets', form)
         .then((r) => this.ctx.api.cmd<{ imported: string[] }>('preset.import', { paths: r.paths }))
-        .then((r) => { toast(r.imported.length ? `Imported ${r.imported.length}: ${r.imported.slice(0, 3).join(', ')}${r.imported.length > 3 ? '...' : ''}` : 'Nothing to import in those files'); void this.loadPresets(); }, (e) => this.ctx.fail(e));
+        .then((r) => { toast(r.imported.length ? `Imported ${r.imported.length}: ${r.imported.slice(0, 3).join(', ')}${r.imported.length > 3 ? '...' : ''}` : 'Nothing to import in those files'); void this.loadPresets(); void develop.refreshInfo(); }, (e) => this.ctx.fail(e));
     });
     document.body.appendChild(input);
     input.click();
