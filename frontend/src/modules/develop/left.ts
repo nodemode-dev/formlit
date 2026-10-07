@@ -281,10 +281,7 @@ export class LeftPanels {
 
   nav(): void {
     const p = library.photo(develop.id);
-    if (p) {
-      setStyleVar(this.navBox, '--fl-nav-ar', String(p.a || 1.5));
-      void loadInto(this.navImg, thumbUrl(p));
-    }
+    if (p) void loadInto(this.navImg, thumbUrl(p));
     this.navSync();
   }
 
@@ -301,9 +298,13 @@ export class LeftPanels {
     if (!zoomed) return;
     const x0 = Math.max(0, -r.x / r.w), y0 = Math.max(0, -r.y / r.h);
     const x1 = Math.min(1, (stage.width - r.x) / r.w), y1 = Math.min(1, (stage.height - r.y) / r.h);
-    setStyleVar(this.navRect, '--l', `${(x0 * 100).toFixed(2)}%`);
-    setStyleVar(this.navRect, '--t', `${(y0 * 100).toFixed(2)}%`);
-    setStyleVar(this.navRect, '--w', `${((x1 - x0) * 100).toFixed(2)}%`);
-    setStyleVar(this.navRect, '--h', `${((y1 - y0) * 100).toFixed(2)}%`);
+    const box = this.navBox.getBoundingClientRect();
+    const pic = this.navImg.getBoundingClientRect();
+    const bw = Math.max(1, box.width), bh = Math.max(1, box.height);
+    const sx = pic.width / bw, sy = pic.height / bh, ox = (pic.left - box.left) / bw, oy = (pic.top - box.top) / bh;
+    setStyleVar(this.navRect, '--l', `${((ox + x0 * sx) * 100).toFixed(2)}%`);
+    setStyleVar(this.navRect, '--t', `${((oy + y0 * sy) * 100).toFixed(2)}%`);
+    setStyleVar(this.navRect, '--w', `${((x1 - x0) * sx * 100).toFixed(2)}%`);
+    setStyleVar(this.navRect, '--h', `${((y1 - y0) * sy * 100).toFixed(2)}%`);
   }
 }
