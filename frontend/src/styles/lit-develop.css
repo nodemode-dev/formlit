@@ -1,4 +1,5 @@
 .fl-row { display: flex; align-items: center; gap: 6px; min-height: 28px; margin: 2px 0; }
+.fl-row[hidden] { display: none; }
 .fl-row-end { justify-content: flex-end; flex-wrap: wrap; }
 .fl-row-label { flex: none; width: 74px; color: var(--text-muted); font-size: var(--fs-11); }
 .fl-grow { flex: 1; min-width: 0; }
@@ -54,6 +55,9 @@
 .fl-proof-opts[hidden] { display: none; }
 .fl-proof-profile { width: 190px; }
 .fl-proof-opts [hidden] { display: none; }
+.fl-lens-pick { display: flex; flex-direction: column; gap: 2px; }
+.fl-lens-pick[hidden] { display: none; }
+.fl-lens-attr { padding: 2px 0 4px; font-size: var(--fs-10); }
 .fl-proof-paper { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; color: var(--text-secondary); white-space: nowrap; }
 .fl-dv.is-zoomed { cursor: grab; }
 .fl-dv.is-panning { cursor: grabbing; }

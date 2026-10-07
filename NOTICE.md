@@ -46,6 +46,8 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 | LaMa (Carve ONNX export) | Apache-2.0 | Generative Remove |
 | Real-ESRGAN x4plus | BSD-3-Clause | Super Resolution |
 
+The lens profile database is downloaded when the person chooses Download Lens Profiles in Lens Corrections: the Lensfun project's XML files (data/db, lensfun.github.io), used unmodified under CC BY-SA 3.0 and credited in the panel. formlit reads the files and keeps a derived index beside them in the models folder; Lensfun's LGPL library code is not used. Unlike the models, the files track Lensfun's main branch and are not hash-pinned, because the database is updated as lenses are calibrated.
+
 ## Map tiles
 
 The Map module shows OpenStreetMap tiles. Map data copyright OpenStreetMap contributors, available under the Open Database License; the attribution is drawn on the map. The Terrain style shows OpenTopoMap tiles (CC-BY-SA, with SRTM elevation data), also attributed on the map. Tiles are fetched while the Map module is open and are not stored in the repository. Look Up Address asks the OpenStreetMap Nominatim service for place names (one request per second, only when the user runs it); results are data from OpenStreetMap contributors under the ODbL.

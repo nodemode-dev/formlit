@@ -114,10 +114,41 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
             "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
+@command("lens.database", "Lens Profile Database", {"download": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def lens_database(download: bool = False, wait: bool = False) -> dict:
+    from app.engine import tasks
+    from app.services import lensdb
+    status = {"available": lensdb.available(), "lenses": len(lensdb.index()["lenses"]) if lensdb.available() else 0, "attribution": lensdb.ATTRIBUTION}
+    if not download:
+        return status
+    tid = tasks.start("lensdb", "Downloading lens profiles", lambda progress: lensdb.download(progress))
+    if wait:
+        t = tasks.wait(tid)
+        if t and t["state"] == "failed":
+            raise CommandError(t["error"] or "Download failed")
+        return {**status, "task": tid, **(t.get("result") or {} if t else {}), "available": lensdb.available()}
+    return {**status, "task": tid}
+
+
+@command("lens.makers", "Lens Makers", mutates=False)
+def lens_makers() -> dict:
+    from app.services import lensdb
+    return {"makers": lensdb.makers()}
+
+
+@command("lens.models", "Lens Models", {"maker": {"type": "string"}}, mutates=False)
+def lens_models(maker: str) -> dict:
+    from app.services import lensdb
+    return {"models": lensdb.models(maker)}
+
+
 @command("develop.autoCa", "Measure Chromatic Aberration", {"id": {"type": "integer"}}, mutates=False)
 def auto_ca(id: int | None = None) -> dict:
     from app.develop import fringe
     pid = int(id) if id is not None else resolve_ids("active")[0]
+    prof = ((current(pid)[0].get("optics") or {}).get("profile") or {})
+    if prof.get("enabled") and (prof.get("lensfun") or {}).get("tca"):
+        return {"autoCaRed": 0.0, "autoCaBlue": 0.0, "fromProfile": True}
     img, _ = previews.source(pid)
     red, blue = fringe.estimate_ca(img)
     return {"autoCaRed": red, "autoCaBlue": blue}
@@ -144,15 +175,53 @@ def proof_profiles() -> dict:
 @command("develop.lensProfileInfo", "Lens Profile", {"id": {"type": "integer"}}, mutates=False)
 def lens_profile_info(id: int) -> dict:
     from app.develop import lensprofile
+    from app.services import lensdb
     path = cat().photo_path(int(id))
     found = lensprofile.read(path) if path is not None and path.is_file() else None
     dev, _ = current(int(id))
     prof = (dev.get("optics") or {}).get("profile") or {}
-    return {"available": bool(found), "kinds": sorted(found) if found else [], "enabled": bool(prof.get("enabled")), "source": "DNG opcodes" if found else None}
+    out = {"available": bool(found), "kinds": sorted(found) if found else [], "enabled": bool(prof.get("enabled")), "source": "DNG opcodes" if found else None,
+           "database": lensdb.available(), "lens": (prof.get("lensfun") or {}).get("lens"), "maker": (prof.get("lensfun") or {}).get("maker"), "guess": None}
+    if not found and lensdb.available():
+        lens, score = _lens_guess(int(id))
+        if lens is not None:
+            out.update(available=True, source="Lensfun", guess={"maker": lens["maker"], "model": lens["model"], "score": round(score, 2)})
+    return out
+
+
+def _photo_optics(pid: int) -> tuple[str, str, str, float | None, float | None, float | None]:
+    r = cat().row("SELECT camera, lens, focal, exif FROM photos WHERE id=?", (pid,))
+    exif = records.loads(r["exif"], {}) if r else {}
+    focal = float(r["focal"]) if r and r["focal"] else (float(exif["focal"]) if exif.get("focal") else None)
+    f35 = exif.get("focal35")
+    crop = (float(f35) / focal) if f35 and focal else None
+    aperture = float(exif["aperture"]) if exif.get("aperture") else None
+    return str(exif.get("make") or ""), str((r["camera"] if r else "") or exif.get("model") or ""), str((r["lens"] if r else "") or exif.get("lens") or ""), focal, aperture, crop
+
+
+def _lens_guess(pid: int) -> tuple[dict | None, float]:
+    from app.services import lensdb
+    make, model, lens, focal, _, _ = _photo_optics(pid)
+    if not lens:
+        return None, 0.0
+    best, score = lensdb.match(lens, make, model, focal)
+    return (best, score) if best is not None and score >= 0.6 else (None, score)
+
+
+def _lensfun_profile(pid: int, model: str | None) -> dict | None:
+    from app.services import lensdb
+    if not lensdb.available():
+        return None
+    lens = lensdb.lens(model) if model else _lens_guess(pid)[0]
+    if lens is None:
+        return None
+    make, cam_model, _, focal, aperture, crop = _photo_optics(pid)
+    cam = lensdb.camera(make, cam_model)
+    return lensdb.profile_for(lens, focal or lens["fmin"] or 50.0, aperture, (cam or {}).get("crop") or crop)
 
 
 @command("develop.lensProfile", "Enable Profile Corrections", {"ids": {"type": "array"}, "enable": {"type": "boolean"}})
-def lens_profile(ids: Any = None, enable: bool = True) -> dict:
+def lens_profile(ids: Any = None, enable: bool = True, lens: str | None = None) -> dict:
     from app.develop import lensprofile
     pids = resolve_ids(ids)
     applied, missing = [], []
@@ -167,7 +236,10 @@ def lens_profile(ids: Any = None, enable: bool = True) -> dict:
                 applied.append(pid)
                 continue
             path = cat().photo_path(pid)
-            found = lensprofile.read(path) if path is not None and path.is_file() else None
+            found = None if lens else (lensprofile.read(path) if path is not None and path.is_file() else None)
+            if not found:
+                lf = _lensfun_profile(pid, lens)
+                found = {"lensfun": lf, "source": "Lensfun"} if lf else None
             if not found:
                 missing.append(pid)
                 continue

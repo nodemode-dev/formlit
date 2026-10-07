@@ -5,6 +5,7 @@ import { Histogram } from '../../ui/histogram';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
 import { Slider } from '../../ui/slider';
+import { whenDone } from '../shared/tasks';
 import { CurveEditor } from './curve';
 import type { DevelopView } from './view';
 import { ColorWheel } from './wheel';
@@ -136,16 +137,53 @@ export class DevelopPanels {
         return develop.reload('photo');
       }, (err) => this.ctx.fail(err));
     });
+    const pick = el('<div class="fl-lens-pick"><div class="fl-row"><span class="fl-row-label">Make</span><select class="cv-select fl-grow" data-lens="maker"></select></div><div class="fl-row"><span class="fl-row-label">Model</span><select class="cv-select fl-grow" data-lens="model"></select></div><div class="fl-muted fl-lens-attr"></div></div>');
+    const makerSel = q<HTMLSelectElement>(pick, '[data-lens="maker"]');
+    const modelSel = q<HTMLSelectElement>(pick, '[data-lens="model"]');
+    const dbRow = el('<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">No lens profile database yet.</span><button class="cv-btn fl-btn-sm" type="button">Download Lens Profiles</button></div>');
+    setHidden(pick, true);
+    setHidden(dbRow, true);
+    const fillModels = async (maker: string, chosen: string | null): Promise<void> => {
+      const r = await this.ctx.api.cmd<{ models: string[] }>('lens.models', { maker }).catch(() => ({ models: [] as string[] }));
+      modelSel.replaceChildren(new Option('Choose a lens...', ''), ...r.models.map((m) => new Option(m, m)));
+      modelSel.value = chosen && r.models.includes(chosen) ? chosen : '';
+    };
+    makerSel.addEventListener('change', () => void fillModels(makerSel.value, null));
+    modelSel.addEventListener('change', () => {
+      const id = develop.id;
+      if (id === null || !modelSel.value) return;
+      void develop.flush().then(() => this.ctx.api.cmd('develop.lensProfile', { ids: [id], enable: true, lens: modelSel.value })).then(() => develop.reload('photo'), (err) => this.ctx.fail(err));
+    });
+    dbRow.querySelector('button')?.addEventListener('click', () => {
+      setText(q(dbRow, 'span'), 'Downloading...');
+      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task)).then(() => { lensFor = null; setHidden(dbRow, true); develop.reload('photo'); }, (err) => { setText(q(dbRow, 'span'), 'Download failed'); this.ctx.fail(err); });
+    });
     let lensFor: number | null = null;
+    let makersLoaded = false;
     develop.listen((why) => {
       if (why === 'drag') return;
-      const prof = ((develop.settings.optics as Record<string, unknown> | undefined)?.profile as { enabled?: boolean } | undefined);
+      const prof = ((develop.settings.optics as Record<string, unknown> | undefined)?.profile as { enabled?: boolean; lensfun?: { lens?: string; maker?: string } } | undefined);
       if (lensBox.checked !== !!prof?.enabled) lensBox.checked = !!prof?.enabled;
       if (develop.id !== null && develop.id !== lensFor) {
         lensFor = develop.id;
-        void this.ctx.api.cmd<{ available: boolean; source: string | null }>('develop.lensProfileInfo', { id: develop.id }).then((r) => {
-          setText(q(lensRow, '.fl-lens-note'), r.available ? `Built in (${r.source})` : 'None embedded; use Manual');
+        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+          const using = r.lens ? `${r.lens} (Lensfun)` : r.source === 'DNG opcodes' ? 'Built in (DNG opcodes)' : r.guess ? `${r.guess.model} (Lensfun)` : 'No profile found; choose the lens';
+          setText(q(lensRow, '.fl-lens-note'), using);
           lensBox.disabled = !r.available && !prof?.enabled;
+          setHidden(dbRow, r.database || r.source === 'DNG opcodes');
+          setHidden(pick, !r.database || r.source === 'DNG opcodes');
+          setText(q(pick, '.fl-lens-attr'), r.database ? 'Lens data from the Lensfun database, CC BY-SA 3.0' : '');
+          if (r.database && r.source !== 'DNG opcodes') {
+            if (!makersLoaded) {
+              const m = await this.ctx.api.cmd<{ makers: string[] }>('lens.makers').catch(() => ({ makers: [] as string[] }));
+              makerSel.replaceChildren(new Option('Make...', ''), ...m.makers.map((x) => new Option(x, x)));
+              makersLoaded = true;
+            }
+            const maker = r.maker ?? r.guess?.maker ?? '';
+            makerSel.value = maker;
+            if (maker) await fillModels(maker, r.lens ?? r.guess?.model ?? null);
+            else modelSel.replaceChildren(new Option('Choose a make first', ''));
+          }
         }, () => undefined);
       }
     });
@@ -171,7 +209,7 @@ export class DevelopPanels {
       if (caBox.checked !== on) caBox.checked = on;
     });
     const fringeHead = el(`<div class="fl-row"><span class="fl-sub-inline fl-grow">Defringe</span><button class="cv-icon-btn" type="button" data-cmd="develop.fringePicker" aria-label="Fringe Color Selector">${icon('eyeDropper', 14)}</button></div>`);
-    pOptics.body.append(el('<div class="fl-sub">Profile</div>'), lensRow, s('optics.profileDistortion'), s('optics.profileVignetting'), el('<div class="fl-sub">Manual</div>'), s('optics.distortion'), s('optics.vignetting'), s('optics.vignettingMidpoint'),
+    pOptics.body.append(el('<div class="fl-sub">Profile</div>'), lensRow, pick, dbRow, s('optics.profileDistortion'), s('optics.profileVignetting'), el('<div class="fl-sub">Manual</div>'), s('optics.distortion'), s('optics.vignetting'), s('optics.vignettingMidpoint'),
       el('<div class="fl-sub">Chromatic Aberration</div>'), caRow, s('optics.caRed'), s('optics.caBlue'), fringeHead, s('optics.defringePurple'), s('optics.defringePurpleHueLo'), s('optics.defringePurpleHueHi'),
       s('optics.defringeGreen'), s('optics.defringeGreenHueLo'), s('optics.defringeGreenHueHi'));
 
