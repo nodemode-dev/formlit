@@ -111,7 +111,7 @@ def _jpeg(arr: np.ndarray, quality: int) -> bytes:
 
 def _overlays(page: dict, layout: dict, s: dict, total: int) -> list[dict]:
     out: list[dict] = []
-    pw, ph = layout["page"]["w"], layout["page"]["h"]
+    pw, ph = page.get("w", layout["page"]["w"]), page.get("h", layout["page"]["h"])
     ident = s.get("identity") or {}
     if ident.get("on") and ident.get("text"):
         out.append({"x": float(ident.get("x", 0.5)) * pw, "y": float(ident.get("y", 0.05)) * ph, "size": float(ident.get("size", 18)), "text": ident["text"],
@@ -131,6 +131,10 @@ def _overlays(page: dict, layout: dict, s: dict, total: int) -> list[dict]:
     for t in page.get("texts") or []:
         if t.get("text"):
             size = float(t.get("size") or (s.get("titleSize", 28) if t.get("title") else s.get("textSize", 11)))
+            if t.get("rotate"):
+                out.append({"x": t["x"] + t["w"] / 2, "y": t["y"] + t["h"] / 2, "size": size, "text": t["text"], "align": "center", "rotate": float(t["rotate"]),
+                            "color": t.get("color") or s.get("textColor", "#222222"), "font": t.get("font", "sans"), "bold": True, "italic": False})
+                continue
             align = str(t.get("align") or "center")
             x = t["x"] if align == "left" else t["x"] + t["w"] if align == "right" else t["x"] + t["w"] / 2
             out.append({"x": x, "y": t["y"] + size / 72, "size": size, "text": t["text"], "align": align, "color": t.get("color") or s.get("textColor", "#222222"), "wrap": t["w"],
@@ -160,13 +164,15 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
     job = s.get("job") or {}
     ppi, space, quality = float(job.get("ppi", 300)), job.get("space", "srgb"), int(job.get("quality", 92))
     sharpen = job.get("sharpen") or {}
-    pw, ph = layout["page"]["w"], layout["page"]["h"]
-    c = rl_canvas.Canvas(str(path), pagesize=(pw * 72, ph * 72))
+    PW, PH = layout["page"]["w"], layout["page"]["h"]
+    c = rl_canvas.Canvas(str(path), pagesize=(PW * 72, PH * 72))
     c.setTitle(path.stem)
     c.setCreator("formlit")
     total = len(layout["pages"])
     bg = _hex(s.get("background", "#ffffff"))
     for n, page in enumerate(layout["pages"]):
+        pw, ph = page.get("w", PW), page.get("h", PH)
+        c.setPageSize((pw * 72, ph * 72))
         if bg != (255, 255, 255):
             c.setFillColorRGB(*(v / 255 for v in bg))
             c.rect(0, 0, pw * 72, ph * 72, stroke=0, fill=1)
@@ -197,6 +203,13 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
             c.setFillColorRGB(*(v / 255 for v in _hex(t["color"])))
             font = pdf_font(t.get("font", "sans"), bool(t.get("bold", t["size"] >= 20)), bool(t.get("italic")))
             c.setFont(font, t["size"])
+            if t.get("rotate"):
+                c.saveState()
+                c.translate(t["x"] * 72, (ph - t["y"]) * 72)
+                c.rotate(-float(t["rotate"]))
+                c.drawCentredString(0, -t["size"] * 0.35, t["text"])
+                c.restoreState()
+                continue
             lines = simpleSplit(t["text"], font, t["size"], t["wrap"] * 72) if t.get("wrap") else [t["text"]]
             for i, line in enumerate(lines):
                 X, Y = t["x"] * 72, (ph - t["y"]) * 72 - i * t["size"] * 1.3
@@ -217,7 +230,7 @@ def raster(layout: dict, page: dict, ppi: float | None = None, bits: int = 8) ->
     s = layout["settings"]
     job = s.get("job") or {}
     ppi = float(ppi or job.get("ppi", 300))
-    pw, ph = layout["page"]["w"], layout["page"]["h"]
+    pw, ph = page.get("w", layout["page"]["w"]), page.get("h", layout["page"]["h"])
     k = min(1.0, MAX_LONG_PX / max(pw * ppi, ph * ppi))
     ppi *= k
     W, H = max(1, round(pw * ppi)), max(1, round(ph * ppi))
@@ -248,6 +261,12 @@ def raster(layout: dict, page: dict, ppi: float | None = None, bits: int = 8) ->
     for t in _overlays(page, layout, s, len(layout["pages"])):
         font = ImageFont.load_default(size=max(6, round(t["size"] / 72 * ppi)))
         X, Y = t["x"] * ppi, t["y"] * ppi
+        if t.get("rotate"):
+            tile = Image.new("RGBA", (max(1, int(draw.textlength(t["text"], font=font)) + 8), max(1, int(t["size"] / 72 * ppi * 1.5))), (0, 0, 0, 0))
+            ImageDraw.Draw(tile).text((tile.width / 2, tile.height / 2), t["text"], font=font, fill=(*_hex(t["color"]), 255), anchor="mm")
+            tile = tile.rotate(-float(t["rotate"]), expand=True)
+            ink.alpha_composite(tile, (int(X - tile.width / 2), int(Y - tile.height / 2)))
+            continue
         draw.text((X, Y), t["text"], font=font, fill=(*_hex(t["color"]), 255), anchor={"center": "ms", "right": "rs"}.get(t["align"], "ls"))
     layer = np.asarray(ink, np.float32) / 255.0
     a = layer[..., 3:4]

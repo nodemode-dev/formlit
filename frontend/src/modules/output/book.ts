@@ -1,4 +1,5 @@
 import { library } from '../../state/library';
+import { promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setHidden, setStyleVar, setText, setValue } from '../../ui/dom';
 import { Panel } from '../../ui/panel';
 import { toast } from '../../ui/toast';
@@ -9,9 +10,9 @@ import { PageView, type Layout } from './page';
 
 interface Crop { z: number; x: number; y: number }
 interface TextStyle { style?: string; align?: string; color?: string }
-interface BookPage { template: string; photos: Array<number | null>; texts: string[]; crops?: Array<Crop | null>; styles?: Array<TextStyle | null> }
+interface BookPage { template: string; photos: Array<number | null>; texts: string[]; crops?: Array<Crop | null>; styles?: Array<TextStyle | null>; pads?: Array<number | null>; spine?: string }
 const STYLE_NAMES: Array<[string, string]> = [['', 'Book Default'], ['title', 'Title'], ['heading', 'Heading'], ['body', 'Body'], ['caption', 'Caption'], ['quote', 'Quote'], ['mono', 'Typewriter']];
-interface TemplateDef { name: string; cells: number[][]; texts: number[][] }
+interface TemplateDef { name: string; cells: number[][]; texts: number[][]; spread?: boolean; wrap?: boolean; hidden?: boolean; custom?: boolean }
 type View = 'multi' | 'spread' | 'single';
 
 class BookModule extends OutputModule {
@@ -34,7 +35,7 @@ class BookModule extends OutputModule {
   private readonly templatesBox = el('<div class="fl-tpl-grid"></div>');
   private readonly textBox = el('<div class="fl-form"></div>');
   private readonly pageInfo = el('<p class="cv-note"></p>');
-  private readonly cellBox = el('<div class="fl-book-cell" hidden><div class="fl-sub">Photo in Cell</div><label class="fl-opt"><span>Zoom</span><input class="cv-slider" type="range" min="100" max="400" step="5" value="100" data-cz></label><p class="cv-note">Drag the photo in its cell to reposition it.</p><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-creset>Reset</button></div></div>');
+  private readonly cellBox = el('<div class="fl-book-cell" hidden><div class="fl-sub">Photo in Cell</div><label class="fl-opt"><span>Zoom</span><input class="cv-slider" type="range" min="100" max="400" step="5" value="100" data-cz></label><label class="fl-opt"><span>Padding</span><input class="cv-slider" type="range" min="0" max="40" step="1" value="0" data-cpad></label><p class="cv-note">Drag the photo in its cell to reposition it.</p><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-creset>Reset</button></div></div>');
   private selectedCell = -1;
   private pan: { view: PageView; cell: number; node: HTMLElement; sx: number; sy: number; c0: Crop; moved: boolean } | null = null;
   private readonly viewSeg = el('<div class="cv-seg fl-seg-sm"><button type="button" data-v="multi">Multi-Page</button><button type="button" data-v="spread">Spread</button><button type="button" data-v="single">Single Page</button></div>');
@@ -70,7 +71,9 @@ class BookModule extends OutputModule {
     const sizes = () => Object.entries((this.options?.sizes as Record<string, { name: string }>) ?? {}).map(([k, v]) => [k, v.name] as [string, string]);
     this.formPanel(right, 'settings', 'Book Settings', [
       { path: 'size', label: 'Size', kind: 'select', options: sizes },
-      { path: 'job.output', label: 'Book', kind: 'seg', options: [['pdf', 'PDF'], ['jpeg', 'JPEG']] },
+      { path: 'job.output', label: 'Book', kind: 'seg', options: [['pdf', 'PDF'], ['jpeg', 'JPEG'], ['blurb', 'Blurb']] },
+      { path: '', label: 'Blurb writes an interior PDF and a wrap cover PDF with 0.125 in bleed and a spine sized to the page count, then opens Blurb PDF to Book for the upload.', kind: 'note', show: () => this.get('job.output') === 'blurb' },
+      { path: 'cover.spine', label: 'Spine text', kind: 'text', placeholder: 'The title', show: () => !!this.tdefs()[String(this.get('cover.template'))]?.wrap },
       { path: 'job.ppi', label: 'Resolution', kind: 'number', min: 72, max: 600, step: 10, unit: 'ppi' },
       { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100 },
       { path: 'job.sharpen.on', label: 'Sharpening', kind: 'check' },
@@ -80,9 +83,10 @@ class BookModule extends OutputModule {
       { path: 'autoLayout', label: 'Preset', kind: 'select', options: [['mixed', 'Mixed layouts'], ['one', 'One photo per page']] },
     ]).body.appendChild(this.buttons([['auto', 'Auto Layout'], ['clear', 'Clear Layout']]));
     const pp = new Panel('book.page', 'Page');
-    pp.body.append(this.pageInfo, this.templatesBox, this.buttons([['add', 'Add Page'], ['remove', 'Remove Page']]), this.cellBox);
+    pp.body.append(this.pageInfo, this.templatesBox, this.buttons([['add', 'Add Page'], ['remove', 'Remove Page']]), this.buttons([['savetpl', 'Save as Custom Page...'], ['deltpl', 'Delete Custom Page']]), this.cellBox);
     right.appendChild(pp.root);
     q<HTMLInputElement>(this.cellBox, '[data-cz]').addEventListener('input', (e) => this.setCrop({ z: Number((e.target as HTMLInputElement).value) / 100 }));
+    q<HTMLInputElement>(this.cellBox, '[data-cpad]').addEventListener('change', (e) => this.setPad(Number((e.target as HTMLInputElement).value) / 100));
     q(this.cellBox, '[data-creset]').addEventListener('click', () => this.setCrop(null));
     this.templatesBox.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tpl]');
@@ -120,8 +124,43 @@ class BookModule extends OutputModule {
       else if (a === 'clear') { this.set('pages', []); this.set('cover', { template: 'cover', photos: [], texts: [String((this.get('cover.texts') as string[] | undefined)?.[0] ?? 'Untitled'), ''] }); this.selected = 0; }
       else if (a === 'add') { const p = [...this.pages()]; p.splice(Math.max(0, this.selected), 0, { template: 'single', photos: [], texts: [] }); this.set('pages', p); this.selected += 1; }
       else if (a === 'remove' && this.selected > 0) { const p = [...this.pages()]; p.splice(this.selected - 1, 1); this.set('pages', p); this.selected = Math.min(this.selected, p.length); }
+      else if (a === 'savetpl') void this.saveCustom();
+      else if (a === 'deltpl') void this.deleteCustom();
     });
     return row;
+  }
+
+  private async saveCustom(): Promise<void> {
+    const page = this.pageRef(this.selected);
+    const t = page ? this.tdefs()[page.template] : undefined;
+    if (!page || !t || t.spread || t.wrap || t.hidden) { toast('Pick a single-page layout first; cell padding is saved with it'); return; }
+    const name = await promptName('Save as Custom Page', `${t.name} Custom`, 'Save');
+    if (!name) return;
+    try {
+      const r = await this.ctx.api.cmd<{ template: string }>('book.saveTemplate', { name, settings: this.settings, page: this.selected });
+      this.options = await this.ctx.api.cmd<Record<string, unknown>>('book.options');
+      this.writePage(this.selected, { ...page, template: r.template, pads: [] });
+      toast(`Saved ${name} with the custom pages`);
+    } catch (err) { this.ctx.fail(err); }
+  }
+
+  private async deleteCustom(): Promise<void> {
+    const page = this.pageRef(this.selected);
+    if (!page || !this.tdefs()[page.template]?.custom) { toast('Select a page that uses a custom page layout'); return; }
+    try {
+      await this.ctx.api.cmd('book.deleteTemplate', { template: page.template });
+      this.options = await this.ctx.api.cmd<Record<string, unknown>>('book.options');
+      this.writePage(this.selected, { ...page, template: 'single' });
+    } catch (err) { this.ctx.fail(err); }
+  }
+
+  private setPad(v: number): void {
+    const page = this.pageRef(this.selected);
+    if (!page || this.selectedCell < 0) return;
+    const pads = [...(page.pads ?? [])];
+    while (pads.length <= this.selectedCell) pads.push(null);
+    pads[this.selectedCell] = v || null;
+    this.writePage(this.selected, { ...page, pads });
   }
 
   protected buildFoots(_left: HTMLElement, right: HTMLElement): void {
@@ -154,9 +193,31 @@ class BookModule extends OutputModule {
   }
 
   private setTemplate(t: string): void {
+    const defs = this.tdefs();
+    if (defs[t]?.spread && this.selected > 0) {
+      const left = this.selected % 2 === 1 ? this.selected : this.selected - 1;
+      const lp = this.pageRef(left);
+      if (!lp) return;
+      const p = [...this.pages()];
+      p[left - 1] = { ...lp, template: t, texts: (lp.texts ?? []).slice(0, defs[t].texts.length) };
+      if (left < p.length) p[left] = { template: 'spread-cont', photos: [], texts: [] };
+      else p.push({ template: 'spread-cont', photos: [], texts: [] });
+      this.set('pages', p);
+      if (left !== this.selected) toast('Spreads begin on a left-hand page; this one starts on the page to the left');
+      this.selected = left;
+      return;
+    }
     const page = this.pageRef(this.selected);
     if (!page) return;
-    this.writePage(this.selected, { ...page, template: t, texts: (page.texts ?? []).slice(0, this.tdefs()[t]?.texts.length ?? 0) });
+    if (page.template === 'spread-cont') { toast('This page is the right half of a spread; change the left page instead'); return; }
+    if (defs[page.template]?.spread && this.pageRef(this.selected + 1)?.template === 'spread-cont') {
+      const p = [...this.pages()];
+      p[this.selected] = { template: 'single', photos: [], texts: [] };
+      p[this.selected - 1] = { ...page, template: t, texts: (page.texts ?? []).slice(0, defs[t]?.texts.length ?? 0) };
+      this.set('pages', p);
+      return;
+    }
+    this.writePage(this.selected, { ...page, template: t, texts: (page.texts ?? []).slice(0, defs[t]?.texts.length ?? 0) });
   }
 
   private setText(index: number, value: string): void {
@@ -308,7 +369,7 @@ class BookModule extends OutputModule {
         }
         v.index = pi;
         if (host.children[k] !== v.root) host.insertBefore(v.root, host.children[k] ?? null);
-        v.render(lay, lay.pages[pi], width, { background: String(this.get('background') ?? '#fff'), editable: true });
+        v.render(lay, lay.pages[pi], width * ((lay.pages[pi].w ?? lay.page.w) / lay.page.w), { background: String(this.get('background') ?? '#fff'), editable: true });
         vi += 1;
       }
     }
@@ -329,10 +390,10 @@ class BookModule extends OutputModule {
     const page = this.pageRef(this.selected);
     setText(this.pageInfo, this.selected === 0 ? 'Cover. Pick a template, then drag photos onto its cells.' : `Page ${this.selected}. Pick a template, then drag photos onto its cells.`);
     const defs = this.tdefs();
-    const keys = Object.keys(defs).filter((k) => (this.selected === 0 ? ['cover', 'full', 'single'].includes(k) : k !== 'cover'));
+    const keys = Object.keys(defs).filter((k) => !defs[k].hidden && (this.selected === 0 ? ['cover', 'full', 'single'].includes(k) || !!defs[k].wrap : k !== 'cover' && !defs[k].wrap));
     patchList(this.templatesBox, keys.map((k) => ({ k, d: defs[k] })), {
       key: (x) => x.k,
-      create: ({ k, d }) => el(`<button class="fl-tpl" type="button" data-tpl="${k}" title="${escapeHtml(d.name)}"><span class="fl-tpl-page">${d.cells.map((c) => `<i style="left:${c[0] * 100}%;top:${c[1] * 100}%;width:${c[2] * 100}%;height:${c[3] * 100}%"></i>`).join('')}${d.texts.map((c) => `<b style="left:${c[0] * 100}%;top:${c[1] * 100}%;width:${c[2] * 100}%;height:${c[3] * 100}%"></b>`).join('')}</span></button>`),
+      create: ({ k, d }) => { const sx = d.spread ? 50 : 100; return el(`<button class="fl-tpl${d.spread || d.wrap ? ' is-wide' : ''}" type="button" data-tpl="${k}" title="${escapeHtml(d.name)}"><span class="fl-tpl-page">${d.cells.map((c) => `<i style="left:${c[0] * sx}%;top:${c[1] * 100}%;width:${c[2] * sx}%;height:${c[3] * 100}%"></i>`).join('')}${d.texts.map((c) => `<b style="left:${c[0] * sx}%;top:${c[1] * 100}%;width:${c[2] * sx}%;height:${c[3] * 100}%"></b>`).join('')}</span></button>`); },
       update: () => undefined,
     });
     for (const n of Array.from(this.templatesBox.children) as HTMLElement[]) setClass(n, 'is-on', page?.template === n.dataset.key);
@@ -354,13 +415,15 @@ class BookModule extends OutputModule {
     const hasPhoto = this.selectedCell >= 0 && lay?.cells[this.selectedCell]?.photo != null;
     setHidden(this.cellBox, !hasPhoto);
     if (hasPhoto) setValue(q<HTMLInputElement>(this.cellBox, '[data-cz]'), String(Math.round(this.crop(this.selected, this.selectedCell).z * 100)));
+    if (hasPhoto) setValue(q<HTMLInputElement>(this.cellBox, '[data-cpad]'), String(Math.round((page?.pads?.[this.selectedCell] ?? 0) * 100)));
   }
 
   private async exportBook(): Promise<void> {
     if (!this.pages().length) { toast('Lay out the book first'); return; }
     const fmt = String(this.get('job.output') || 'pdf');
     const name = String((this.get('cover.texts') as string[] | undefined)?.[0] || 'Book');
-    await runOutput(this.ctx, 'book.export', { settings: this.settings, format: fmt, name }, (r) => fmt === 'pdf' ? `Exported ${String(r.pages ?? '')} pages to PDF` : `Exported ${(r.paths as string[]).length} page JPEGs`);
+    const r = await runOutput(this.ctx, 'book.export', { settings: this.settings, format: fmt, name }, (x) => fmt === 'pdf' ? `Exported ${String(x.pages ?? '')} pages to PDF` : fmt === 'blurb' ? `Blurb files ready: ${String(x.pages)} pages, ${String(x.spine)} in spine` : `Exported ${(x.paths as string[]).length} page JPEGs`);
+    if (r && fmt === 'blurb' && typeof r.upload === 'string') window.open(r.upload, '_blank', 'noopener');
   }
 }
 

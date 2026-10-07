@@ -70,7 +70,33 @@ BOOK_TEMPLATES = {
     "text": {"name": "Text Page", "cells": [], "texts": [[0.15, 0.3, 0.7, 0.4]]},
     "blank": {"name": "Blank", "cells": [], "texts": []},
     "cover": {"name": "Cover", "cells": [[0.0, 0.0, 1.0, 0.72]], "texts": [[0.08, 0.76, 0.84, 0.1], [0.08, 0.87, 0.84, 0.06]]},
+    "spread": {"name": "Two-Page Spread", "spread": True, "cells": [[0, 0, 2, 1]], "texts": []},
+    "spread-caption": {"name": "Spread with Caption", "spread": True, "cells": [[0, 0, 2, 0.86]], "texts": [[1.08, 0.89, 0.84, 0.07]]},
+    "spread-text": {"name": "Spread with Text Left", "spread": True, "cells": [[0.62, 0, 1.38, 1]], "texts": [[0.08, 0.32, 0.46, 0.08], [0.08, 0.42, 0.46, 0.3]]},
+    "spread-two": {"name": "Two Facing Bleeds", "spread": True, "cells": [[0, 0, 1, 1], [1, 0, 1, 1]], "texts": []},
+    "spread-cont": {"name": "Spread (right page)", "hidden": True, "cells": [], "texts": []},
+    "wrap": {"name": "Wrap Photo", "wrap": True, "cells": [[0, 0, 1, 1]], "texts": [[0.56, 0.08, 0.4, 0.1], [0.56, 0.18, 0.4, 0.06], [0.05, 0.7, 0.38, 0.2]]},
+    "wrap-front": {"name": "Front Photo, Text Back", "wrap": True, "cells": [[0.52, 0, 0.48, 1]], "texts": [[0.56, 0.06, 0.4, 0.1], [0.56, 0.16, 0.4, 0.06], [0.05, 0.3, 0.38, 0.4]]},
+    "wrap-both": {"name": "Front and Back Photos", "wrap": True, "cells": [[0, 0, 0.48, 1], [0.52, 0, 0.48, 1]], "texts": [[0.56, 0.08, 0.4, 0.1], [0.56, 0.18, 0.4, 0.06], [0.05, 0.82, 0.38, 0.1]]},
 }
+SPINE_PER_PAGE = 0.0025
+SPINE_BOARD = 0.25
+BLEED = 0.125
+
+
+def templates() -> dict:
+    from app.core import prefs
+    user = prefs.load().get("bookTemplates") or {}
+    return {**BOOK_TEMPLATES, **{k: v for k, v in user.items() if isinstance(v, dict) and "cells" in v}}
+
+
+def spine_width(pages: int) -> float:
+    return round(SPINE_BOARD + SPINE_PER_PAGE * max(20, pages), 3)
+
+
+def _padded(x: float, y: float, w: float, h: float, pad: float) -> tuple[float, float, float, float]:
+    p = max(0.0, min(0.45, pad)) * min(w, h)
+    return x + p, y + p, w - 2 * p, h - 2 * p
 BOOK_PRESETS = [
     {"id": "clean", "name": "Clean White", "settings": {"background": "#ffffff", "textColor": "#222222", "pageNumbers": True, "captions": False}},
     {"id": "gallery", "name": "Gallery Black", "settings": {"background": "#111111", "textColor": "#e6e6e6", "pageNumbers": False, "captions": True, "captionField": "title"}},
@@ -194,37 +220,91 @@ def print_pages(settings: dict, photos: list[dict]) -> dict:
     return {"page": {"w": pw, "h": ph}, "pages": pages, "settings": s, "cellCount": len(cells), "fits": bool(cells)}
 
 
+def _book_items(page: dict, t: dict, photos: dict[int, float], W: float, H: float, title: bool, bleed: float = 0.0, span: float = 0.0) -> tuple[list, list]:
+    ids = list(page.get("photos") or [])
+    crops = list(page.get("crops") or [])
+    pads = list(page.get("pads") or [])
+    cells = []
+    for i, (x, y, w, h) in enumerate(t["cells"]):
+        pid = ids[i] if i < len(ids) else None
+        x, y, w, h = _padded(x * W, y * H, w * W, h * H, float(pads[i]) if i < len(pads) and pads[i] else 0.0)
+        if bleed:
+            right = span or W
+            x0 = x - bleed if x <= 1e-6 else x
+            y0 = y - bleed if y <= 1e-6 else y
+            x1 = x + w + bleed if x + w >= right - 1e-6 else x + w
+            y1 = y + h + bleed if y + h >= H - 1e-6 else y + h
+            x, y, w, h = x0 + bleed, y0 + bleed, x1 - x0, y1 - y0
+        c = {"x": x, "y": y, "w": w, "h": h}
+        item = place(c, photos.get(int(pid)) if pid is not None else None, True, False)
+        item["photo"] = pid
+        adj = crops[i] if i < len(crops) and isinstance(crops[i], dict) else None
+        if adj and item.get("img"):
+            item["img"] = pan_zoom(c, item["img"], float(adj.get("z", 1)), float(adj.get("x", 0)), float(adj.get("y", 0)))
+            item["crop"] = {"z": float(adj.get("z", 1)), "x": float(adj.get("x", 0)), "y": float(adj.get("y", 0))}
+        cells.append(item)
+    texts = []
+    values = list(page.get("texts") or [])
+    styles = list(page.get("styles") or [])
+    for i, (x, y, w, h) in enumerate(t["texts"]):
+        frame = {"x": x * W + bleed, "y": y * H + bleed, "w": w * W, "h": h * H, "text": values[i] if i < len(values) else "", "title": title and i == 0}
+        st = styles[i] if i < len(styles) and isinstance(styles[i], dict) else None
+        if st:
+            base = TEXT_STYLES.get(str(st.get("style", "")), {})
+            frame.update({k: v for k, v in {**base, **st}.items() if k in ("font", "bold", "italic", "size", "align", "color")})
+        texts.append(frame)
+    return cells, texts
+
+
+def _half(items: list, x0: float, x1: float, shift: float, key: str = "cells") -> list:
+    out = []
+    for it in items:
+        if key == "cells":
+            a, b = max(x0, it["x"]), min(x1, it["x"] + it["w"])
+            if b - a <= 1e-6:
+                continue
+            c = dict(it, x=a - shift, w=b - a)
+            if it.get("img"):
+                c["img"] = dict(it["img"], x=it["img"]["x"] - shift)
+            out.append(c)
+        elif x0 - 1e-6 <= it["x"] < x1:
+            out.append(dict(it, x=it["x"] - shift))
+    return out
+
+
 def book_pages(settings: dict, photos: dict[int, float]) -> dict:
     s = deep_merge(BOOK_DEFAULTS, settings)
     _, pw, ph = BOOK_SIZES.get(s.get("size", ""), BOOK_SIZES["standard-landscape"])
+    tpl = templates()
+    b = BLEED if (s.get("job") or {}).get("bleed") or (s.get("job") or {}).get("output") == "blurb" else 0.0
+    src = [s["cover"]] + list(s["pages"])
+    spine = spine_width(len(src) - 1)
     out = []
-    for idx, page in enumerate([s["cover"]] + list(s["pages"])):
-        t = BOOK_TEMPLATES.get(page.get("template", "single"), BOOK_TEMPLATES["single"])
-        ids = list(page.get("photos") or [])
-        cells = []
-        crops = list(page.get("crops") or [])
-        for i, (x, y, w, h) in enumerate(t["cells"]):
-            pid = ids[i] if i < len(ids) else None
-            c = {"x": x * pw, "y": y * ph, "w": w * pw, "h": h * ph}
-            item = place(c, photos.get(int(pid)) if pid is not None else None, True, False)
-            item["photo"] = pid
-            adj = crops[i] if i < len(crops) and isinstance(crops[i], dict) else None
-            if adj and item.get("img"):
-                item["img"] = pan_zoom(c, item["img"], float(adj.get("z", 1)), float(adj.get("x", 0)), float(adj.get("y", 0)))
-                item["crop"] = {"z": float(adj.get("z", 1)), "x": float(adj.get("x", 0)), "y": float(adj.get("y", 0))}
-            cells.append(item)
-        texts = []
-        values = list(page.get("texts") or [])
-        styles = list(page.get("styles") or [])
-        for i, (x, y, w, h) in enumerate(t["texts"]):
-            frame = {"x": x * pw, "y": y * ph, "w": w * pw, "h": h * ph, "text": values[i] if i < len(values) else "", "title": idx == 0 and i == 0}
-            st = styles[i] if i < len(styles) and isinstance(styles[i], dict) else None
-            if st:
-                base = TEXT_STYLES.get(str(st.get("style", "")), {})
-                frame.update({k: v for k, v in {**base, **st}.items() if k in ("font", "bold", "italic", "size", "align", "color")})
-            texts.append(frame)
-        out.append({"template": page.get("template", "single"), "cells": cells, "texts": texts, "cover": idx == 0, "number": idx})
-    return {"page": {"w": pw, "h": ph}, "pages": out, "settings": s}
+    carry: dict | None = None
+    for idx, page in enumerate(src):
+        t = tpl.get(page.get("template", "single"), BOOK_TEMPLATES["single"])
+        base = {"template": page.get("template", "single"), "cover": idx == 0, "number": idx}
+        if idx == 0 and t.get("wrap"):
+            W = 2 * pw + spine
+            cells, texts = _book_items(page, t, photos, W, ph, True, b)
+            spine_text = str(page.get("spine") if page.get("spine") is not None else (page.get("texts") or ["Untitled"])[0])
+            if spine_text:
+                texts.append({"x": pw + b, "y": b, "w": spine, "h": ph, "text": spine_text, "rotate": 90, "size": max(7.0, min(18.0, spine * 72 * 0.45))})
+            out.append({**base, "cells": cells, "texts": texts, "w": W + 2 * b, "h": ph + 2 * b, "spine": [pw + b, spine]})
+            continue
+        if t.get("spread") and idx > 0:
+            cells, texts = _book_items(page, t, photos, pw, ph, False, b, span=2 * pw)
+            out.append({**base, "cells": _half(cells, 0, pw + b, 0), "texts": _half(texts, 0, pw + b, 0, "texts"), "w": pw + 2 * b, "h": ph + 2 * b, "spreadLeft": True})
+            carry = {"cells": _half(cells, pw + b, 2 * pw + 2 * b, pw), "texts": _half(texts, pw + b, 2 * pw + 2 * b, pw, "texts")}
+            continue
+        if page.get("template") == "spread-cont" and carry is not None:
+            out.append({**base, **carry, "w": pw + 2 * b, "h": ph + 2 * b, "spreadRight": True})
+            carry = None
+            continue
+        carry = None
+        cells, texts = _book_items(page, t, photos, pw, ph, idx == 0, b)
+        out.append({**base, "cells": cells, "texts": texts, "w": pw + 2 * b, "h": ph + 2 * b})
+    return {"page": {"w": pw + 2 * b, "h": ph + 2 * b}, "pages": out, "settings": s, "bleed": b, "spine": spine}
 
 
 def auto_book(ids: list[int], aspects: dict[int, float], mode: str = "mixed") -> list[dict]:

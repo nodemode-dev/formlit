@@ -1,13 +1,13 @@
 import { api } from '../../io/api';
 import { library } from '../../state/library';
-import { el, patchList, setClass, setStyleVar, setText } from '../../ui/dom';
+import { el, patchList, setClass, setHidden, setStyleVar, setText } from '../../ui/dom';
 import { previewUrl, thumbUrl } from '../../ui/thumbs';
 
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Cell extends Rect { photo: number | null; rot?: boolean; img?: Rect | null }
-export interface Overlay { x: number; y: number; size: number; text: string; align: string; color: string; wrap?: number; font?: string; bold?: boolean; italic?: boolean }
+export interface Overlay { x: number; y: number; size: number; text: string; align: string; color: string; wrap?: number; font?: string; bold?: boolean; italic?: boolean; rotate?: number }
 export interface TextFrame extends Rect { text: string; title?: boolean }
-export interface LayoutPage { cells: Cell[]; texts?: TextFrame[]; overlays?: Overlay[]; number: number; cover?: boolean; template?: string }
+export interface LayoutPage { cells: Cell[]; texts?: TextFrame[]; overlays?: Overlay[]; number: number; cover?: boolean; template?: string; w?: number; h?: number; spine?: [number, number] }
 export interface Layout { page: { w: number; h: number }; pages: LayoutPage[]; settings: Record<string, unknown> }
 
 export function photoSrc(id: number, small: boolean): string {
@@ -19,9 +19,10 @@ export function photoSrc(id: number, small: boolean): string {
 const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
 
 export class PageView {
-  readonly root = el('<div class="fl-page"><div class="fl-page-cells"></div><div class="fl-page-texts"></div></div>');
-  private readonly cells = this.root.firstElementChild as HTMLElement;
-  private readonly texts = this.root.lastElementChild as HTMLElement;
+  readonly root = el('<div class="fl-page"><div class="fl-page-cells"></div><div class="fl-page-texts"></div><div class="fl-page-spine" hidden></div></div>');
+  private readonly cells = this.root.children[0] as HTMLElement;
+  private readonly texts = this.root.children[1] as HTMLElement;
+  private readonly spine = this.root.children[2] as HTMLElement;
   onCell: ((index: number, e: MouseEvent) => void) | null = null;
   onDropIds: ((index: number, ids: number[]) => void) | null = null;
   index = -1;
@@ -49,7 +50,7 @@ export class PageView {
   }
 
   render(lay: Layout, page: LayoutPage, widthPx: number, opts: { background?: string; stroke?: number; strokeColor?: string; empty?: boolean; editable?: boolean } = {}): void {
-    const { w: pw, h: ph } = lay.page;
+    const pw = page.w ?? lay.page.w, ph = page.h ?? lay.page.h;
     const pp = widthPx / pw;
     setStyleVar(this.root, '--pw', `${Math.round(widthPx)}px`);
     setStyleVar(this.root, '--pa', `${pw} / ${ph}`);
@@ -86,6 +87,12 @@ export class PageView {
       setClass(n, 'is-mono', t.font === 'mono');
       setClass(n, 'is-bold', !!t.bold);
       setClass(n, 'is-italic', !!t.italic);
+      setClass(n, 'is-spine', !!t.rotate);
+    }
+    setHidden(this.spine, !page.spine);
+    if (page.spine) {
+      setStyleVar(this.spine, '--sx', pct(page.spine[0] / pw));
+      setStyleVar(this.spine, '--sw', pct(page.spine[1] / pw));
     }
   }
 

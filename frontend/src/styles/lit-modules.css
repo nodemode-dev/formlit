@@ -88,6 +88,9 @@
 .fl-ptext.is-mono { font-family: 'Courier New', Courier, monospace; }
 .fl-ptext.is-bold { font-weight: 700; }
 .fl-ptext.is-italic { font-style: italic; }
+.fl-ptext.is-spine { width: auto; transform: translate(-50%, -50%) rotate(90deg); white-space: nowrap; font-weight: 700; }
+.fl-page-spine { position: absolute; top: 0; bottom: 0; left: var(--sx); width: var(--sw); border-left: 1px dashed rgba(127, 127, 127, 0.6); border-right: 1px dashed rgba(127, 127, 127, 0.6); pointer-events: none; }
+.fl-page-spine[hidden] { display: none; }
 .fl-pcell.is-cell-on { outline: 2px solid var(--accent-color); outline-offset: -2px; cursor: grab; }
 .fl-pcell.is-panning { cursor: grabbing; }
 .fl-book-cell[hidden] { display: none; }
@@ -110,6 +113,8 @@
 .fl-tpl { padding: 4px; border: 1px solid var(--line-1); border-radius: 6px; background: var(--surface-0); cursor: pointer; }
 .fl-tpl:hover { border-color: var(--line-3); }
 .fl-tpl.is-on { border-color: var(--accent-line); background: var(--accent-soft); }
+.fl-tpl.is-wide { grid-column: span 2; }
+.fl-tpl.is-wide .fl-tpl-page { aspect-ratio: 20 / 8; }
 .fl-tpl-page { position: relative; display: block; aspect-ratio: 10 / 8; background: var(--surface-2); }
 .fl-tpl-page i, .fl-tpl-page b { position: absolute; display: block; }
 .fl-tpl-page i { background: var(--text-muted); opacity: 0.55; }

@@ -285,8 +285,40 @@ def print_run(settings: dict | None = None, ids: Any = None, collection: int | N
 @command("book.options", "Book Options", mutates=False)
 def book_options() -> dict:
     return {"sizes": {k: {"name": v[0], "w": v[1], "h": v[2]} for k, v in layout.BOOK_SIZES.items()},
-            "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"]} for k, v in layout.BOOK_TEMPLATES.items()}, "defaults": layout.BOOK_DEFAULTS,
-            "presets": layout.BOOK_PRESETS, "textStyles": layout.TEXT_STYLES}
+            "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"], **{f: True for f in ("spread", "wrap", "hidden", "custom") if v.get(f)}}
+                          for k, v in layout.templates().items()}, "defaults": layout.BOOK_DEFAULTS,
+            "presets": layout.BOOK_PRESETS, "textStyles": layout.TEXT_STYLES, "bleed": layout.BLEED}
+
+
+@command("book.saveTemplate", "Save as Custom Page", {"name": {"type": "string"}, "settings": {"type": "object"}, "page": {"type": "integer", "description": "1-based page number; 0 is the cover"}})
+def book_save_template(name: str, settings: dict | None = None, page: int = 1) -> dict:
+    from app.core import prefs
+    s = layout.deep_merge(layout.BOOK_DEFAULTS, settings)
+    src = [s["cover"]] + list(s["pages"])
+    if not 0 <= int(page) < len(src):
+        raise CommandError("No such page")
+    pg = src[int(page)]
+    t = layout.templates().get(pg.get("template", "single"))
+    if t is None or t.get("spread") or t.get("wrap") or t.get("hidden"):
+        raise CommandError("Custom pages are made from single-page templates")
+    pads = list(pg.get("pads") or [])
+    cells = [[round(v, 4) for v in layout._padded(x, y, w, h, float(pads[i]) if i < len(pads) and pads[i] else 0.0)] for i, (x, y, w, h) in enumerate(t["cells"])]
+    key = f"custom-{rename.safe(name).lower().replace(' ', '-')}"
+    user = dict(prefs.load().get("bookTemplates") or {})
+    user[key] = {"name": name, "cells": cells, "texts": t["texts"], "custom": True}
+    prefs.update({"bookTemplates": user})
+    return {"template": key}
+
+
+@command("book.deleteTemplate", "Delete Custom Page", {"template": {"type": "string"}})
+def book_delete_template(template: str) -> dict:
+    from app.core import prefs
+    user = dict(prefs.load().get("bookTemplates") or {})
+    if template not in user:
+        raise CommandError("No such custom page")
+    user.pop(template)
+    prefs.update({"bookTemplates": user})
+    return {"template": template}
 
 
 @command("book.autoLayout", "Auto Layout Book", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "mode": {"type": "string", "enum": ["mixed", "one"]}}, mutates=False)
@@ -302,12 +334,31 @@ def book_layout(settings: dict | None = None) -> dict:
     return _with_overlays(layout.book_pages(s, _aspects(used)))
 
 
-@command("book.export", "Export Book", {"settings": {"type": "object"}, "format": {"type": "string", "enum": ["pdf", "jpeg"]}, "path": {"type": "string"},
+@command("book.export", "Export Book", {"settings": {"type": "object"}, "format": {"type": "string", "enum": ["pdf", "jpeg", "blurb"]}, "path": {"type": "string"},
                                         "name": {"type": "string"}, "wait": {"type": "boolean"}})
 def book_export(settings: dict | None = None, format: str = "pdf", path: str | None = None, name: str = "Book", wait: bool = False) -> dict:
+    if format == "blurb":
+        s = dict(settings or {})
+        s["job"] = {**(s.get("job") or {}), "output": "blurb", "bleed": True}
+        cover = dict(s.get("cover") or {})
+        if not layout.templates().get(str(cover.get("template", "cover")), {}).get("wrap"):
+            cover["template"] = "wrap-front"
+        s["cover"] = cover
+        settings = s
     lay = book_layout(settings)
 
     def job(progress):
+        if format == "blurb":
+            folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(f"{name} for Blurb"))
+            folder.mkdir(parents=True, exist_ok=True)
+            interior = {**lay, "pages": [p for p in lay["pages"] if not p.get("cover")]}
+            if len(interior["pages"]) % 2:
+                interior["pages"].append({"cells": [], "texts": [], "number": len(interior["pages"]) + 1, "template": "blank", "w": lay["page"]["w"], "h": lay["page"]["h"]})
+            cover = {**lay, "pages": [p for p in lay["pages"] if p.get("cover")]}
+            pages.write_pdf(interior, folder / f"{rename.safe(name)} interior.pdf", progress)
+            pages.write_pdf(cover, folder / f"{rename.safe(name)} cover.pdf")
+            return {"folder": str(folder), "paths": [str(folder / f"{rename.safe(name)} interior.pdf"), str(folder / f"{rename.safe(name)} cover.pdf")],
+                    "pages": len(interior["pages"]), "spine": lay.get("spine"), "bleed": lay.get("bleed"), "upload": "https://www.blurb.com/pdf-to-book"}
         if format == "jpeg":
             folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(name))
             files = pages.write_jpegs(lay, folder, rename.safe(name), progress)
