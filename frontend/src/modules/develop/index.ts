@@ -160,7 +160,7 @@ class DevelopModule {
     const i = develop.info;
     if (!this.panels || !i) return;
     const p = library.photo(develop.id);
-    this.panels.setHistogramInfo(p ? `${i.width ?? p.w} x ${i.height ?? p.h}${i.raw ? ' · raw' : ''} · As shot ${i.asShotTemp} K` : '');
+    this.panels.setHistogramInfo(p ? `${i.width ?? p.w} x ${i.height ?? p.h}${i.raw ? ` · raw · As shot ${i.asShotTemp} K` : ''}` : '');
   }
 
   private applyProof(): void {

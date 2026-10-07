@@ -12,10 +12,40 @@ import type { DevelopView } from './view';
 import { ColorWheel } from './wheel';
 
 const BANDS = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+const MIRED_STEP = 0.75;
+const RAW_ONLY_WB = new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
+
+function shotTemp(): number { return develop.info?.asShotTemp || 6500; }
+
+export function toRelativeWb(cid: string, v: number): number {
+  if (cid === 'wb.tint') return Math.round(Math.max(-100, Math.min(100, v - (develop.info?.asShotTint ?? 0))));
+  return Math.round(Math.max(-100, Math.min(100, (1e6 / shotTemp() - 1e6 / Math.max(1, v)) / MIRED_STEP)));
+}
+
+export function fromRelativeWb(cid: string, r: number): number {
+  if (cid === 'wb.tint') return r + (develop.info?.asShotTint ?? 0);
+  return Math.round(1e6 / (1e6 / shotTemp() - r * MIRED_STEP));
+}
 
 export class SliderSet {
   readonly sliders = new Map<string, Slider>();
+  readonly relative = new Map<string, Slider>();
   constructor(private readonly view: DevelopView) {}
+
+  makeRelativeWb(cid: string): HTMLElement {
+    const spec = develop.specs.get(cid);
+    if (!spec) return el('<div></div>');
+    const s = new Slider({ ...spec, min: -100, max: 100, default: 0, step: 1, decimals: 0 }, {
+      input: (_id, v, phase) => {
+        this.view.setDragging(phase === 'drag');
+        develop.set(cid, fromRelativeWb(cid, v), phase, `${spec.label} ${v > 0 ? '+' : ''}${v}`);
+      },
+      reset: () => develop.set(cid, fromRelativeWb(cid, 0), 'end', `${spec.label} 0`),
+    });
+    s.root.hidden = true;
+    this.relative.set(cid, s);
+    return s.root;
+  }
 
   make(cid: string, label?: string): HTMLElement {
     const spec = develop.specs.get(cid);
@@ -30,7 +60,16 @@ export class SliderSet {
     return s.root;
   }
 
-  sync(): void { for (const [cid, s] of this.sliders) s.set(develop.value(cid)); }
+  sync(): void {
+    for (const [cid, s] of this.sliders) s.set(develop.value(cid));
+    const rel = !!develop.info?.relativeWb;
+    for (const [cid, s] of this.relative) {
+      s.set(toRelativeWb(cid, develop.value(cid)));
+      setHidden(s.root, !rel);
+      const k = this.sliders.get(cid);
+      if (k) setHidden(k.root, rel);
+    }
+  }
 }
 
 export class DevelopPanels {
@@ -79,7 +118,7 @@ export class DevelopPanels {
     const wbRow = el('<div class="fl-row"><span class="fl-row-label">WB</span></div>');
     wbRow.append(this.wbSel, picker);
     const auto = el(`<div class="fl-row fl-row-end"><span class="fl-sub-inline">Tone</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.auto">Auto</button></div>`);
-    pBasic.body.append(this.treat, new HdrSection(this.view).root, profRow, s('profile.amount'), el('<div class="fl-sub">White Balance</div>'), wbRow, s('wb.temp'), s('wb.tint'), auto,
+    pBasic.body.append(this.treat, new HdrSection(this.view).root, profRow, s('profile.amount'), el('<div class="fl-sub">White Balance</div>'), wbRow, s('wb.temp'), this.sliders.makeRelativeWb('wb.temp'), s('wb.tint'), this.sliders.makeRelativeWb('wb.tint'), auto,
       s('light.exposure'), s('light.contrast'), s('light.highlights'), s('light.shadows'), s('light.whites'), s('light.blacks'),
       el('<div class="fl-sub">Presence</div>'), s('effects.texture'), s('effects.clarity'), s('effects.dehaze'), s('color.vibrance'), s('color.saturation'));
 
@@ -370,6 +409,12 @@ export class DevelopPanels {
       setClass(amount.root, 'is-inert', fixed);
     }
     setValue(this.wbSel, develop.wbMode());
+    const rawWb = !develop.info?.relativeWb;
+    for (const o of Array.from(this.wbSel.options)) {
+      if (!RAW_ONLY_WB.has(o.value)) continue;
+      if (o.hidden === rawWb) o.hidden = !rawWb;
+      if (o.disabled === rawWb) o.disabled = !rawWb;
+    }
     for (const p of this.panels) p.sync();
     this.curve.sync();
     for (const w of this.wheels) w.sync();
