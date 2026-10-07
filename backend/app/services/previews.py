@@ -139,6 +139,8 @@ def source(pid: int, long: int | None = PREVIEW, full: bool = False) -> tuple[np
                 write_atomic(disk.with_suffix(".json"), json.dumps(info).encode())
             except OSError:
                 pass
+    if info.get("raw") and "camera" not in info:
+        info = {**info, "camera": str(cat.scalar("SELECT camera FROM photos WHERE id=?", (int(master),)) or "")}
     with _sources_lock:
         if full:
             for k in [k for k in _sources if k[1] == "full" and k != key]:

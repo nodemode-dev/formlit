@@ -6,7 +6,11 @@ import numpy as np
 
 TYPES = {1: ("B", 1), 2: ("s", 1), 3: ("H", 2), 4: ("I", 4), 5: ("II", 8), 7: ("B", 1), 8: ("h", 2), 9: ("i", 4), 10: ("ii", 8), 11: ("f", 4), 12: ("d", 8)}
 TAGS = {50936: "name", 50937: "hsmDims", 50938: "hsm1", 50939: "hsm2", 50940: "toneCurve", 50942: "copyright", 50981: "lookDims", 50982: "look",
-        51107: "hsmEncoding", 51108: "lookEncoding", 51109: "baselineExposureOffset", 50778: "illum1", 50779: "illum2"}
+        51107: "hsmEncoding", 51108: "lookEncoding", 51109: "baselineExposureOffset", 50778: "illum1", 50779: "illum2",
+        50708: "camera", 50721: "cm1", 50722: "cm2", 50964: "fm1", 50965: "fm2"}
+LIGHT_K = {1: 5500.0, 2: 4150.0, 3: 2850.0, 4: 5500.0, 9: 5500.0, 10: 6500.0, 11: 7500.0, 12: 6400.0, 13: 5000.0, 14: 4150.0, 15: 3450.0,
+           16: 2925.0, 17: 2850.0, 18: 5500.0, 19: 6500.0, 20: 5500.0, 21: 6500.0, 22: 7500.0, 23: 5000.0, 24: 3200.0}
+SENSOR_EV = 0.35
 
 
 def read(path: Path) -> dict:
@@ -60,11 +64,22 @@ def _hsv_to_rgb(h: np.ndarray, s: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.stack([r, g, b], axis=-1)
 
 
-def _apply_table(rgb: np.ndarray, dims: tuple, table: tuple, srgb_value: bool) -> np.ndarray:
+def _enc(v: np.ndarray) -> np.ndarray:
+    v = np.clip(v, 0.0, 1.0)
+    return np.where(v <= 0.0031308, v * 12.92, 1.055 * np.power(np.maximum(v, 0.0031308), 1 / 2.4) - 0.055)
+
+
+def _dec(v: np.ndarray) -> np.ndarray:
+    v = np.clip(v, 0.0, 1.0)
+    return np.where(v <= 0.04045, v / 12.92, np.power((np.maximum(v, 0.04045) + 0.055) / 1.055, 2.4))
+
+
+def _apply_table(rgb: np.ndarray, dims: tuple, table, srgb_value: bool, vscale: float = 1.0) -> np.ndarray:
     hd, sd, vd = (int(x) for x in dims[:3])
     deltas = np.asarray(table, np.float64).reshape(max(1, vd), hd, sd, 3)
     h, s, v = _rgb_to_hsv(np.maximum(rgb, 0.0))
-    vv = np.where(v <= 0.0031308, v * 12.92, 1.055 * np.power(np.clip(v, 0.0031308, None), 1 / 2.4) - 0.055) if srgb_value else v
+    vs = np.minimum(v * vscale, 1.0)
+    vv = _enc(vs) if srgb_value else vs
     hf = h * hd / 6.0
     h0 = np.floor(hf).astype(np.int32) % hd
     h1 = (h0 + 1) % hd
@@ -91,7 +106,10 @@ def _apply_table(rgb: np.ndarray, dims: tuple, table: tuple, srgb_value: bool) -
                 acc = acc + at(vi, hi, si) * (wv * wh * ws)[..., None]
     h2 = h + acc[..., 0] * 6.0 / 360.0
     s2 = np.clip(s * acc[..., 1], 0.0, 1.0)
-    v2 = v * acc[..., 2]
+    if srgb_value:
+        v2 = v * _dec(vv * acc[..., 2]) / np.maximum(vs, 1e-12)
+    else:
+        v2 = v * acc[..., 2]
     return _hsv_to_rgb(h2, s2, v2)
 
 
@@ -102,17 +120,91 @@ def load(stem: str) -> dict | None:
     return read(path) if path.is_file() else None
 
 
-def apply_linear(lin: np.ndarray, prof: dict, rows: int = 256) -> np.ndarray:
+def _norm(s: str) -> str:
+    return "".join(ch for ch in str(s).lower() if ch.isalnum())
+
+
+def fits_camera(prof: dict, camera: str) -> bool:
+    own = _norm(prof.get("camera") or "")
+    other = _norm(camera)
+    return bool(own) and bool(other) and (own == other or own.endswith(other) or other.endswith(own))
+
+
+def weight1(prof: dict, temp: float) -> float:
+    t1 = LIGHT_K.get(int((prof.get("illum1") or (0,))[0]), 0.0)
+    t2 = LIGHT_K.get(int((prof.get("illum2") or (0,))[0]), 0.0)
+    if not t1 or not t2 or t1 == t2:
+        return 1.0
+    lo, hi, flip = (t1, t2, False) if t1 < t2 else (t2, t1, True)
+    g = 1.0 if temp <= lo else 0.0 if temp >= hi else (1.0 / temp - 1.0 / hi) / (1.0 / lo - 1.0 / hi)
+    return 1.0 - g if flip else g
+
+
+def _pick(prof: dict, a: str, b: str, g: float) -> np.ndarray | None:
+    one, two = prof.get(a), prof.get(b)
+    if one is None and two is None:
+        return None
+    if one is None or two is None:
+        return np.asarray(one if two is None else two, np.float64)
+    return np.asarray(one, np.float64) * g + np.asarray(two, np.float64) * (1.0 - g)
+
+
+def needs_exposure(prof: dict) -> bool:
+    dims = prof.get("lookDims")
+    return bool(prof.get("look") and dims and (int(dims[2]) > 1 or int((prof.get("lookEncoding") or (0,))[0]) == 1))
+
+
+def to_prophoto(prof: dict, info: dict, wb: tuple[float, float]) -> np.ndarray:
     from app.develop import colour
-    to_pp = colour.from_xyz("prophoto") @ colour.bradford(colour.D65, colour.D50) @ colour.to_xyz("rec2020")
-    back = np.linalg.inv(to_pp)
-    hsm = prof.get("hsm2") or prof.get("hsm1")
+    from app.services.decode import temp_tint_to_xy
+    base = colour.from_xyz("prophoto") @ colour.bradford(colour.D65, colour.D50) @ colour.to_xyz("rec2020")
+    cam = info.get("camToRec2020")
+    if cam is None or not fits_camera(prof, info.get("camera", "")):
+        return base
+    g = weight1(prof, float(wb[0]))
+    from_cam = np.linalg.inv(np.asarray(cam, np.float64))
+    fm = _pick(prof, "fm1", "fm2", g)
+    if fm is not None and fm.size == 9:
+        return colour.from_xyz("prophoto") @ fm.reshape(3, 3) @ from_cam
+    cm = _pick(prof, "cm1", "cm2", g)
+    if cm is None or cm.size != 9:
+        return base
+    cm = cm.reshape(3, 3)
+    xy = temp_tint_to_xy(float(wb[0]), float(wb[1]))
+    white = colour.xy_to_xyz(xy)
+    neutral = cm @ white
+    return colour.from_xyz("prophoto") @ colour.bradford(xy, colour.D50) @ np.linalg.inv(cm) @ np.diag(neutral) @ from_cam
+
+
+def apply_linear(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tuple[float, float] = (6500.0, 0.0), ev: float = 0.0,
+                 rows: int = 256) -> np.ndarray:
+    from app.develop import colour
+    info = info or {}
+    to_pp = to_prophoto(prof, info, wb)
+    back = np.linalg.inv(colour.from_xyz("prophoto") @ colour.bradford(colour.D65, colour.D50) @ colour.to_xyz("rec2020"))
+    gain = float(info.get("sensorGain") or 2.0 ** SENSOR_EV)
+    offset = 2.0 ** float((prof.get("baselineExposureOffset") or (0.0,))[0])
+    g = weight1(prof, float(wb[0]))
+    hsm = _pick(prof, "hsm1", "hsm2", g)
+    look_scale = 2.0 ** (float(ev) - SENSOR_EV)
     out = np.empty_like(lin)
     for y0 in range(0, lin.shape[0], rows):
         pp = np.maximum(lin[y0:y0 + rows].astype(np.float64), 0.0) @ to_pp.T
-        if prof.get("hsmDims") and hsm:
-            pp = _apply_table(pp, prof["hsmDims"], hsm, int((prof.get("hsmEncoding") or (0,))[0]) == 1)
+        if prof.get("hsmDims") and hsm is not None:
+            pp = _apply_table(pp, prof["hsmDims"], hsm, int((prof.get("hsmEncoding") or (0,))[0]) == 1, 1.0 / gain)
+        pp = pp * offset
         if prof.get("lookDims") and prof.get("look"):
-            pp = _apply_table(pp, prof["lookDims"], prof["look"], int((prof.get("lookEncoding") or (0,))[0]) == 1)
+            pp = _apply_table(pp, prof["lookDims"], prof["look"], int((prof.get("lookEncoding") or (0,))[0]) == 1, look_scale)
         out[y0:y0 + rows] = np.maximum(pp @ back.T, 0.0)
     return out
+
+
+def tone_knots(prof: dict) -> list | None:
+    curve = prof.get("toneCurve")
+    if not curve or len(curve) < 4:
+        return None
+    pts = np.asarray(curve, np.float64).reshape(-1, 2)
+    xs = np.geomspace(0.0007, 1.2, 32)
+    ys = np.interp(xs * 2.0 ** -SENSOR_EV, pts[:, 0], pts[:, 1])
+    ys = np.minimum(np.maximum.accumulate(ys), 0.999)
+    return [[float(x), float(y)] for x, y in zip(xs, ys)]
