@@ -32,6 +32,8 @@ The formlit mark is original.
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
 | ffmpeg | LGPL or GPL builds | not bundled; used as an external program for slideshow video and video export when it is installed |
 | gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode and reads its output, without linking to libgphoto2 |
+| digiCamControl | MIT | not bundled; tethered capture on Windows runs the user's installed CameraControlCmd.exe |
+| imagecodecs | BSD-3-Clause; bundles libjxl (BSD-3-Clause), libavif (BSD-2-Clause), libultrahdr (Apache-2.0), aom and dav1d (BSD-2-Clause) and other permissively licensed codecs, each licence in its `licenses/` folder | JPEG XL import and export, HDR AVIF and JPEG XL export, Ultra HDR checks |
 
 ## Downloaded on first use, never bundled
 

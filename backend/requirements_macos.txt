@@ -10,5 +10,6 @@ numba
 opencv-python-headless
 exifread
 tifffile
+imagecodecs
 reportlab
 onnxruntime

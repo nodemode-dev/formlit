@@ -45,6 +45,16 @@
 .fl-tether-shutter span { width: 26px; height: 26px; border-radius: 50%; background: var(--text-primary); transition: transform 120ms ease; }
 .fl-tether-shutter:active span { transform: scale(0.86); }
 .fl-tether-count { min-width: 54px; font-variant-numeric: tabular-nums; }
+.fl-tether-sel { max-width: 92px; height: 20px; padding: 0 4px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface-field); color: var(--text-primary); font: inherit; font-size: var(--fs-11); }
+.fl-tether-sel[hidden], .fl-tether-read b[hidden] { display: none; }
+.fl-tether-dev .fl-tether-sel { max-width: 150px; }
+.fl-live { position: fixed; right: 24px; bottom: 120px; z-index: var(--z-companion); display: flex; flex-direction: column; width: 480px; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-bg); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); overflow: hidden; }
+.fl-live[hidden] { display: none; }
+.fl-live-head { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 6px 0 12px; color: var(--text-primary); font-size: var(--fs-12); font-weight: 600; }
+.fl-live-fps { flex: 1; color: var(--text-muted); font-size: var(--fs-10); font-weight: 400; }
+.fl-live img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: var(--surface-0); }
+.fl-live-msg { position: absolute; left: 0; right: 0; top: 50%; padding: 0 16px; color: var(--text-muted); font-size: var(--fs-11); text-align: center; }
+.fl-live-msg[hidden] { display: none; }
 .fl-toast-act { display: flex; align-items: center; gap: 10px; }
 .fl-toast-act span { flex: 1; }
 .fl-toast-btn { height: 22px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface-2); color: var(--text-primary); font: inherit; font-size: var(--fs-11); cursor: pointer; white-space: nowrap; }

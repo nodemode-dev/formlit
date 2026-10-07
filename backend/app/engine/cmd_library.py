@@ -1434,6 +1434,38 @@ def tether_state() -> dict:
     return tether.state()
 
 
+@command("tether.liveView", "Live View Frame", mutates=False)
+def tether_live() -> dict:
+    import base64
+    from app.services import tether
+    try:
+        data = tether.live()
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
+    if not data:
+        raise CommandError("The camera sent no live view frame; not every camera supports live view over USB")
+    return {"jpeg": base64.b64encode(data).decode("ascii")}
+
+
+@command("tether.set", "Camera Setting", {"key": {"type": "string", "description": "iso, shutterspeed, aperture, whitebalance, exposurecompensation, imagequality"},
+                                          "value": {"type": "string"}}, mutates=False)
+def tether_set(key: str, value: str) -> dict:
+    from app.services import tether
+    try:
+        return tether.set_config(str(key), str(value))
+    except (RuntimeError, ValueError) as exc:
+        raise CommandError(str(exc)) from exc
+
+
+@command("tether.develop", "Tethered Develop Settings", {"preset": {"type": "string", "description": "a preset id or name, previous for Same as Previous, empty for none"}}, mutates=False)
+def tether_develop(preset: str = "") -> dict:
+    from app.services import tether
+    try:
+        return tether.set_preset(preset)
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
+
+
 @command("catalog.recent", "Recent Catalogs", mutates=False)
 def catalog_recent() -> dict:
     from app.core import prefs
