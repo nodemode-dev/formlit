@@ -17,6 +17,9 @@ usage: ./formlit [command] [options]
   serve               serve the built frontend from the engine on 127.0.0.1:8390
   freeze              freeze the engine into the Tauri sidecar binary
   desktop dev|build   run or bundle the desktop app
+  mcp                 the MCP server over stdio for agents (starts the engine if needed)
+  agents install|sync register formlit with Claude Code, Codex and Cursor, or refresh the skill
+  cli <command> ...   run any engine command from the terminal (./formlit cli list)
   doctor              check the toolchain, installs and ports
   counts [--check]    the README's code sizes (--check: exit 1 if README.md has drifted)
   clean [--all]       remove build output (--all also venv and node_modules)
@@ -43,6 +46,12 @@ case "$cmd" in
       build) exec setup/desktop_build "$@" ;;
       *) usage; exit 2 ;;
     esac ;;
+  mcp) exec python3 setup/mcp_stdio.py "$@" ;;
+  agents)
+    py=python3
+    [ -x backend/venv/bin/python ] && py=backend/venv/bin/python
+    exec "$py" setup/agents.py "$@" ;;
+  cli) exec python3 setup/cli.py "$@" ;;
   doctor) exec setup/doctor "$@" ;;
   counts) exec setup/counts "$@" ;;
   clean) exec setup/clean "$@" ;;

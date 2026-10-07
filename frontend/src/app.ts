@@ -12,6 +12,7 @@ import { registerAiCommands } from './modules/shared/ai';
 import { registerExport } from './modules/shared/export';
 import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { openPreferences } from './ui/preferences';
+import { library, type Source } from './state/library';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
 
@@ -112,6 +113,18 @@ export class App implements Ctx {
       running.delete(id);
       this.shell.setHint(state === 'failed' ? `${String(e.label ?? 'Task')} failed: ${String(e.error ?? '')}` : '');
       if (state === 'failed') toast(`${String(e.label ?? 'Task')} failed: ${String(e.error ?? '')}`, 'error');
+    });
+    let agentTimer = 0;
+    events.on('agent.activity', (e) => {
+      this.shell.setHint(`Agent · ${String(e.label ?? e.tool ?? '')}`);
+      window.clearTimeout(agentTimer);
+      agentTimer = window.setTimeout(() => this.shell.setHint(''), 4000);
+    });
+    events.on('agent.show', (e) => {
+      if (typeof e.module === 'string' && moduleById(e.module)) this.toModule(e.module);
+      if (e.source && typeof e.source === 'object') library.setSource(e.source as Source);
+      if (typeof e.photo === 'number') library.setActive(e.photo, false);
+      if (typeof e.message === 'string' && e.message) toast(e.message);
     });
     events.onStatus = (on) => this.shell.setGpu(on ? '' : 'Engine offline · reconnecting');
     events.start();

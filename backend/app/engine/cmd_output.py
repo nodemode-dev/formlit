@@ -60,7 +60,11 @@ def _out_path(kind: str, name: str, ext: str, path: str | None) -> Path:
 
 @command("export.options", "Export Options", mutates=False)
 def export_options() -> dict:
-    return {"formats": encode.FORMATS, "spaces": encode.SPACES, "metadata": encode.METADATA, "tokens": rename.TOKENS, "defaults": export.merged({}),
+    import importlib.util
+    formats = dict(encode.FORMATS)
+    if importlib.util.find_spec("pillow_heif") is None:
+        formats.pop("heic", None)
+    return {"formats": formats, "spaces": encode.SPACES, "metadata": encode.METADATA, "tokens": rename.TOKENS, "defaults": export.merged({}),
             "anchors": list(export.ANCHORS), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 
