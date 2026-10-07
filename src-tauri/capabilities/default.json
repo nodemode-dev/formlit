@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "The app talks HTTP to its engine; the shell owns the windows, the sidecar and updates.",
-  "windows": ["splash", "main"],
-  "permissions": ["core:default"]
+  "windows": ["splash", "main", "second"],
+  "permissions": ["core:default", "core:webview:allow-create-webview-window", "core:window:allow-set-focus"]
 }

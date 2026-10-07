@@ -8,6 +8,7 @@ import { Panel } from '../../ui/panel';
 import { thumbUrl } from '../../ui/thumbs';
 import { toast } from '../../ui/toast';
 import { Tree, type TreeNode } from '../../ui/tree';
+import { KeywordSets, rememberKeywords } from './keyword-sets';
 
 export interface PhotoDetail {
   id: number;
@@ -94,13 +95,14 @@ export class InspectPanels {
     this.kwText = el<HTMLTextAreaElement>('<textarea class="cv-input fl-kw-text" rows="3" spellcheck="false" placeholder="Click here to add keywords"></textarea>');
     const kwAdd = el<HTMLInputElement>('<input class="cv-input fl-kw-add" type="text" spellcheck="false" placeholder="Enter keywords, comma separated">');
     this.kwSuggest = el('<div class="fl-kw-chips"></div>');
-    pKw.body.append(this.kwText, kwAdd, el('<div class="fl-sub">Keyword Suggestions</div>'), this.kwSuggest);
+    const sets = new KeywordSets(ctx);
+    pKw.body.append(this.kwText, kwAdd, el('<div class="fl-sub">Keyword Suggestions</div>'), this.kwSuggest, el('<div class="fl-sub">Keyword Set</div>'), sets.root);
     this.kwText.addEventListener('change', () => void this.setKeywords());
     kwAdd.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const kws = kwAdd.value.split(',').map((s) => s.trim()).filter(Boolean);
       kwAdd.value = '';
-      if (kws.length) void this.run('photo.addKeywords', { keywords: kws });
+      if (kws.length) { rememberKeywords(kws); sets.render(); void this.run('photo.addKeywords', { keywords: kws }); }
     });
     this.kwSuggest.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-kw]');

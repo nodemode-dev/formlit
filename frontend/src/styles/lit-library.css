@@ -214,6 +214,22 @@
 .fl-model-row .fl-meta-val { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .fl-ok { color: var(--text-secondary); font-style: normal; }
 
+.fl-kwset { display: flex; flex-direction: column; gap: 6px; }
+.fl-kwset-head { display: flex; gap: 6px; }
+.fl-kwset-head .cv-select { flex: 1; min-width: 0; height: 24px; }
+.fl-kwset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.fl-kwset-btn { height: 24px; padding: 0 6px; overflow: hidden; border: 1px solid var(--line-1); border-radius: 5px; background: var(--surface-0); color: var(--text-secondary); font: inherit; font-size: var(--fs-11); text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.fl-kwset-btn:hover:not(:disabled) { border-color: var(--line-3); color: var(--text-primary); }
+.fl-kwset-btn:disabled { opacity: 0.35; cursor: default; }
+.fl-painter { display: inline-flex; align-items: center; gap: 6px; }
+.fl-painter.is-on > .cv-icon-btn { background: var(--accent-soft); color: var(--accent-color); }
+.fl-painter-opts { display: inline-flex; align-items: center; gap: 6px; }
+.fl-painter-opts[hidden], .fl-painter-opts [hidden] { display: none; }
+.fl-painter-opts .cv-select { width: 104px; }
+.fl-painter-opts .cv-input { width: 120px; height: 26px; }
+.fl-tb:has(.fl-painter.is-on) .fl-tb-labels, .fl-tb:has(.fl-painter.is-on) .fl-tb-stars { display: none; }
+body.is-painting .fl-lg .fl-cell { cursor: crosshair; }
+
 .fl-people { padding: 4px 8px 10px; }
 .fl-faces-head { margin: 6px 2px 4px; color: var(--text-muted); font-size: var(--fs-10); letter-spacing: 0.06em; text-transform: uppercase; }
 .fl-faces-head[hidden], .fl-faces-empty[hidden] { display: none; }

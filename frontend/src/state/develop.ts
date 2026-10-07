@@ -192,7 +192,10 @@ export class DevelopSession {
     if (snapshot === this.committed) { this.dirty = false; return; }
     const label = this.pendingLabel || 'Develop';
     try {
+      const before = JSON.parse(this.committed) as Dev;
       await api.cmd('develop.update', { ids: [id], patch: JSON.parse(snapshot), replace: true, label });
+      const others = this.autoSync ? library.selected().filter((x) => x !== id) : [];
+      if (others.length) await this.syncOthers(id, before, JSON.parse(snapshot) as Dev, others);
       if (id === this.id) {
         this.committed = snapshot;
         if (JSON.stringify(this.settings) === snapshot) this.dirty = false;
@@ -201,6 +204,27 @@ export class DevelopSession {
       this.emit('error');
       throw err;
     }
+  }
+
+  get autoSync(): boolean {
+    try { return localStorage.getItem('formlit_auto_sync') === '1'; } catch { return false; }
+  }
+
+  set autoSync(on: boolean) {
+    try { localStorage.setItem('formlit_auto_sync', on ? '1' : '0'); } catch { this.emit('info'); }
+    this.emit('info');
+  }
+
+  private async syncOthers(from: number, before: Dev, after: Dev, ids: number[]): Promise<void> {
+    const values: Record<string, number> = {};
+    const covered = new Set<string>();
+    for (const cid of this.specs.keys()) {
+      const a = getPath(after, cid), b = getPath(before, cid);
+      if (a !== b && typeof (a ?? 0) === 'number') { values[cid] = Number(a ?? this.specs.get(cid)?.default ?? 0); covered.add(cid.split('.')[0]); }
+    }
+    const groups = Array.from(new Set([...Object.keys(after), ...Object.keys(before)])).filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k]) && !covered.has(k) && !['crop', 'orientation'].includes(k));
+    if (Object.keys(values).length) await api.cmd('develop.set', { ids, values });
+    if (groups.length) await api.cmd('develop.sync', { from, ids, groups });
   }
 
   async refreshInfo(): Promise<void> {

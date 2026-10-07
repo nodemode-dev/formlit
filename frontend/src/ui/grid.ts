@@ -9,6 +9,7 @@ export interface GridOptions {
   compact?: boolean;
   onOpen?: (id: number) => void;
   onContext?: (id: number, e: MouseEvent) => void;
+  paint?: (id: number) => boolean;
 }
 
 const isMod = (e: MouseEvent | KeyboardEvent): boolean => (/Mac|iPhone|iPad/.test(navigator.platform) ? e.metaKey : e.ctrlKey);
@@ -201,6 +202,7 @@ export class ThumbGrid {
     const id = this.idAt(e.target);
     this.root.focus({ preventScroll: true });
     if (id === null) return;
+    if (this.opts.paint?.(id)) return;
     if (e.shiftKey) library.select(id, 'range');
     else if (isMod(e)) library.select(id, 'toggle');
     else if (!library.selection.has(id) || library.selection.size <= 1) library.select(id, 'only');

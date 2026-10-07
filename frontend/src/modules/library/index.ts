@@ -13,6 +13,7 @@ import { registerModule, type ModuleHosts } from '../registry';
 import { FilterBar } from './filterbar';
 import { importDropped, openImport } from './importer';
 import { InspectPanels } from './inspect';
+import { Painter } from './painter';
 import { PeoplePanel } from './people';
 import { PublishPanel } from './publish';
 import { SourcePanels } from './sources';
@@ -36,6 +37,7 @@ class LibraryModule {
   private survey!: HTMLElement;
   private empty!: HTMLElement;
   private candidate: number | null = null;
+  private painter!: Painter;
   private menu!: PopupMenu;
   private active = false;
 
@@ -84,7 +86,8 @@ class LibraryModule {
     this.filter = new FilterBar(this.ctx);
     let size = 168;
     try { size = Number(localStorage.getItem(SIZE_KEY)) || 168; } catch { size = 168; }
-    this.grid = new ThumbGrid({ axis: 'y', cls: 'fl-lg', names: true, onOpen: (id) => { library.setActive(id); this.setView('loupe'); }, onContext: (_id, e) => this.context(e) });
+    this.painter = new Painter(this.ctx);
+    this.grid = new ThumbGrid({ axis: 'y', cls: 'fl-lg', names: true, onOpen: (id) => { library.setActive(id); this.setView('loupe'); }, onContext: (_id, e) => this.context(e), paint: (id) => this.painter.paint(id) });
     this.grid.setSize(size);
     this.loupe = new Viewer('fl-loupe');
     this.loupe.onClick = (e) => this.loupe.toggleZoom(e);
@@ -142,6 +145,7 @@ class LibraryModule {
 <span class="fl-tb-label fl-tb-gridonly">Thumbnails</span><input class="cv-slider fl-tb-size fl-tb-gridonly" type="range" min="80" max="400" step="4" aria-label="Thumbnail size">
 </div>`);
     t.appendChild(bar);
+    q(bar, '.fl-tb-spacer').before(el('<span class="fl-tb-sep"></span>'), this.painter.root);
     const sort = q<HTMLSelectElement>(bar, '.fl-tb-sort');
     sort.value = library.sort.by;
     sort.addEventListener('change', () => library.setSort({ by: sort.value }));

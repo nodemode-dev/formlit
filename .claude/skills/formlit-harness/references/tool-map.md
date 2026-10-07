@@ -78,4 +78,4 @@ Each curated tool in `backend/app/routers/mcp.py` and the engine commands it cal
 | `undo` | `edit.undo` |
 | `redo` | `edit.redo` |
 | `list_commands` | the registry catalogue (`GET /api/commands`) |
-| `run_command` | any command id, except `photo.delete`, `folder.remove`, `library.newCatalog` and `library.openCatalog` |
+| `run_command` | any command id, except `photo.delete`, `folder.remove`, `catalog.open` and `catalog.create` |

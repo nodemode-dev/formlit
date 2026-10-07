@@ -206,7 +206,7 @@ class DevelopModule {
 
   private foots(): void {
     const l = el(`<div class="fl-foot-row"><button class="cv-btn" type="button" data-cmd="develop.copy">Copy...</button><button class="cv-btn" type="button" data-cmd="develop.paste">Paste</button></div>`);
-    const r = el(`<div class="fl-foot-row"><button class="cv-btn" type="button" data-cmd="develop.syncSettings">Sync...</button><button class="cv-btn" type="button" data-cmd="develop.reset">Reset</button></div>`);
+    const r = el(`<div class="fl-foot-row"><button class="fl-autosync" type="button" data-cmd="develop.autoSync" role="switch" aria-label="Auto Sync"><span></span></button><button class="cv-btn" type="button" data-cmd="develop.syncSettings">Sync...</button><button class="cv-btn" type="button" data-cmd="develop.reset">Reset</button></div>`);
     this.hosts.leftFoot.appendChild(l);
     this.hosts.rightFoot.appendChild(r);
   }
@@ -247,6 +247,7 @@ class DevelopModule {
         const groups = await this.groupsDialog.ask('Synchronize Settings', 'Synchronize');
         if (groups) await ctx.api.cmd('develop.sync', { ids: ids.filter((i) => i !== from), from, groups }).then(() => toast(`Synced ${ids.length - 1} photos`), (e) => ctx.fail(e));
       }, enabled: multi },
+      { id: 'develop.autoSync', label: 'Auto Sync', keys: ['Alt+Shift+Mod+A'], run: () => { develop.autoSync = !develop.autoSync; toast(develop.autoSync ? 'Auto Sync on: edits apply to every selected photo' : 'Auto Sync off'); }, checked: () => develop.autoSync },
       { id: 'develop.matchExposure', label: 'Match Total Exposures', keys: ['Alt+Shift+Mod+M'], run: () => this.run('develop.matchExposure'), enabled: multi },
       { id: 'develop.clipping', label: 'Show Clipping', keys: ['J'], run: () => { this.view.clipping = !this.view.clipping; this.view.schedule(); }, checked: () => this.view.clipping },
       { id: 'develop.beforeAfter', label: 'Before/After Left/Right', keys: ['Y'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'lr' ? 'off' : 'lr'); }, checked: () => this.view.compare === 'lr' },

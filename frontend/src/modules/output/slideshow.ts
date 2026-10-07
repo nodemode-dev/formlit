@@ -1,3 +1,4 @@
+import { library } from '../../state/library';
 import { el, setClass, setDisabled, setStyleVar, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
@@ -175,6 +176,7 @@ class SlideshowModule extends OutputModule {
     const l = el('<div class="fl-foot-row"><button class="cv-btn" type="button" data-x="pdf">Export PDF...</button><button class="cv-btn" type="button" data-x="mp4">Export Video...</button></div>');
     l.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-x]'); if (b) void this.exportAs(b.dataset.x as string); });
     left.appendChild(l);
+    this.ctx.commands.add({ id: 'library.impromptuSlideshow', label: 'Impromptu Slideshow', keys: ['Mod+Enter'], run: () => void this.impromptu(), enabled: () => library.ids.length > 0 });
     const r = el('<div class="fl-foot-row"><button class="cv-btn" type="button" data-x="preview">Preview</button><button class="cv-btn cv-btn-primary" type="button" data-x="play">Play</button></div>');
     r.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-x]'); if (b?.dataset.x === 'play') this.play(); else if (b) this.play(this.slide); });
     right.appendChild(r);
@@ -185,6 +187,15 @@ class SlideshowModule extends OutputModule {
     if (combo === 'ArrowRight') { this.go(this.slide + 1); return true; }
     if (combo === 'ArrowLeft') { this.go(this.slide - 1); return true; }
     return e.defaultPrevented;
+  }
+
+  private async impromptu(): Promise<void> {
+    await this.ensure();
+    const ids = library.selected().length > 1 ? library.selected() : library.ids.slice();
+    try {
+      this.lay = await this.ctx.api.cmd<Layout>('slideshow.layout', { ids, settings: this.settings });
+      this.play(0);
+    } catch (err) { this.ctx.fail(err); }
   }
 
   private play(from = 0): void {

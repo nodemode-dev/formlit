@@ -921,6 +921,83 @@ def redo() -> dict:
     return {"label": label}
 
 
+def _switch_catalog(path: Path) -> dict:
+    from app.core import prefs
+    from app.develop import render as render_mod
+    os.environ["FORMLIT_CATALOG"] = str(path)
+    with previews._sources_lock:
+        previews._sources.clear()
+    with render_mod._stages_lock:
+        render_mod._stages.clear()
+    with SESSION.lock:
+        SESSION.selection.clear()
+        SESSION.active = None
+    c = catalog_mod.reopen(path)
+    from app.services import watch
+    watch.restart()
+    prefs.update({"catalog": str(path), "recentCatalogs": [str(path)] + [p for p in (prefs.load().get("recentCatalogs") or []) if p != str(path)][:7]})
+    from app.engine import events
+    events.publish("catalog.changed", path=str(path), name=path.stem)
+    return {"path": str(path), "name": path.stem, "photos": int(c.scalar("SELECT COUNT(*) FROM photos") or 0)}
+
+
+@command("catalog.open", "Open Catalog", {"path": {"type": "string"}})
+def catalog_open(path: str) -> dict:
+    p = Path(path).expanduser()
+    if p.is_dir():
+        found = sorted(p.glob("*.fldb"))
+        if not found:
+            raise CommandError(f"No formlit catalog (.fldb) in {p}")
+        p = found[0]
+    if p.suffix != ".fldb" or not p.is_file():
+        raise CommandError(f"Not a formlit catalog: {p}. Catalogs end in .fldb", 404)
+    return _switch_catalog(p.resolve())
+
+
+@command("catalog.create", "New Catalog", {"folder": {"type": "string"}, "name": {"type": "string"}})
+def catalog_create(folder: str, name: str = "formlit") -> dict:
+    base = Path(folder).expanduser() / rename.safe(name or "formlit")
+    target = base / f"{rename.safe(name or 'formlit')}.fldb"
+    if target.exists():
+        raise CommandError(f"A catalog already exists at {target}; open it instead")
+    base.mkdir(parents=True, exist_ok=True)
+    return _switch_catalog(target.resolve())
+
+
+@command("autoImport.get", "Auto Import Settings", mutates=False)
+def auto_import_get() -> dict:
+    from app.services import watch
+    return watch.settings()
+
+
+@command("autoImport.set", "Auto Import Settings", {"enabled": {"type": "boolean"}, "watch": {"type": "string"}, "destination": {"type": "string"},
+                                                    "folderTemplate": {"type": "string"}, "renameTemplate": {"type": "string"}, "keywords": {"type": "array"}, "preset": {"type": "string"}})
+def auto_import_set(enabled: bool | None = None, watch: str | None = None, destination: str | None = None, folderTemplate: str | None = None,
+                    renameTemplate: str | None = None, keywords: list[str] | None = None, preset: str | None = None) -> dict:
+    from app.services import watch as watch_mod
+    s = watch_mod.settings()
+    for k, v in (("enabled", enabled), ("watch", watch), ("destination", destination), ("folderTemplate", folderTemplate), ("renameTemplate", renameTemplate),
+                 ("keywords", keywords), ("preset", preset)):
+        if v is not None:
+            s[k] = v
+    if s.get("enabled"):
+        folder = Path(str(s.get("watch") or "")).expanduser()
+        if not folder.is_dir():
+            raise CommandError("Choose an existing folder to watch first")
+        if s.get("destination") and Path(str(s["destination"])).expanduser().resolve() == folder.resolve():
+            raise CommandError("The destination must differ from the watched folder")
+    with cat().change("Auto Import Settings", undoable=False) as ch:
+        ch.set_meta("autoImport", s)
+    s["running"] = watch_mod.restart()
+    return s
+
+
+@command("catalog.recent", "Recent Catalogs", mutates=False)
+def catalog_recent() -> dict:
+    from app.core import prefs
+    return {"current": str(cat().path), "recent": [p for p in (prefs.load().get("recentCatalogs") or []) if Path(p).is_file()]}
+
+
 @command("edit.history", "Undo History", mutates=False)
 def edit_history() -> dict:
     c = cat()

@@ -46,7 +46,7 @@ PROMPTS = [
     {"name": "develop_strategy", "title": "Develop a photo", "description": "The order formlit's develop tools work best in, with the setting ids.", "arguments": []},
 ]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
-BLOCKED = {"photo.delete", "folder.remove", "library.newCatalog", "library.openCatalog"}
+BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create"}
 
 
 def _tool(name: str, description: str, props: dict, required: list[str] | None = None, **hints: bool) -> dict:

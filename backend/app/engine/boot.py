@@ -28,12 +28,26 @@ def _warm() -> None:
         events.publish("engine", state="kernel-failed", error=str(exc))
 
 
+def _restore_catalog() -> None:
+    import os
+    from pathlib import Path
+    from app.core import prefs
+    last = prefs.load().get("catalog")
+    if last and not os.environ.get("FORMLIT_CATALOG") and Path(last).is_file():
+        os.environ["FORMLIT_CATALOG"] = last
+
+
 async def start() -> None:
     events.bind(asyncio.get_running_loop())
     load_commands()
+    _restore_catalog()
     catalog_mod.get()
+    from app.services import watch
+    watch.restart()
     threading.Thread(target=_warm, name="formlit-kernel", daemon=True).start()
 
 
 async def stop() -> None:
+    from app.services import watch
+    watch.stop()
     catalog_mod.get().close()
