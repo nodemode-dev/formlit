@@ -41,18 +41,22 @@ export class ProfileBrowser extends Dialog {
       const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-pid]');
       if (tile && !(e.target as HTMLElement).closest('.fl-pb-fav')) this.close();
     });
-    void ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => {
+    this.ready = ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => {
       this.favorites = new Set((p.profileFavorites as string[] | undefined) ?? []);
-      if (this.isOpen) this.paint();
     }, () => undefined);
   }
 
+  private readonly ready: Promise<void>;
+
   show(): void {
     if (develop.id == null) { toast('Choose a photo to browse its profiles'); return; }
-    this.fillFilter();
-    this.paint();
-    this.open(this.filter);
-    void this.renderAll();
+    void this.ready.then(() => {
+      if (this.isOpen) return;
+      this.fillFilter();
+      this.paint();
+      this.open(this.filter);
+      void this.renderAll();
+    });
   }
 
   private profiles(): Profile[] {
