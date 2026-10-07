@@ -22,6 +22,15 @@ def browse(full: str) -> Any:
     return file(full if sys.platform == "win32" else "/" + full.lstrip("/"))
 
 
+@router.get("/audio")
+def audio(path: str) -> Any:
+    from app.output.slideshow import AUDIO_EXTS
+    p = Path(path).expanduser()
+    if p.suffix.lower() not in AUDIO_EXTS or not p.is_file():
+        return JSONResponse({"ok": False, "error": "Not an audio file"}, status_code=404)
+    return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "audio/mpeg", headers={"Cache-Control": "no-store"})
+
+
 @router.get("/file")
 def file(path: str, download: bool = False) -> Any:
     p = Path(path).expanduser()

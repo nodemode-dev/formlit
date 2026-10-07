@@ -76,6 +76,8 @@
 .fl-pcell img { position: absolute; left: var(--ix); top: var(--iy); width: var(--iw); height: var(--ih); display: block; object-fit: fill; }
 .fl-pcell img:not([src]) { visibility: hidden; }
 .fl-pcell.is-rot img { transform: rotate(90deg); }
+.fl-pcell-video { position: absolute; left: var(--ix); top: var(--iy); width: var(--iw); height: var(--ih); display: block; object-fit: fill; visibility: hidden; }
+.fl-pcell-video.is-ready { visibility: visible; }
 .fl-pcell::after { content: ''; position: absolute; inset: 0; border: var(--cell-stroke, 0); pointer-events: none; }
 .fl-pcell.is-empty { background: color-mix(in srgb, var(--page-bg, var(--fl-paper)) 88%, var(--fl-ink)); outline: 1px dashed color-mix(in srgb, var(--page-bg, var(--fl-paper)) 60%, var(--fl-ink)); outline-offset: -1px; }
 .fl-pcell.is-editable { cursor: pointer; }

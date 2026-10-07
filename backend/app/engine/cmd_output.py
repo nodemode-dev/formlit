@@ -379,8 +379,10 @@ def slideshow_options() -> dict:
 def slideshow_layout(ids: Any = None, collection: int | None = None, settings: dict | None = None) -> dict:
     pids = _ids(ids, collection)
     s = slideshow.merged(settings)
-    lay = _with_overlays(slideshow.page_layout(pids, _aspects(pids), s, for_pdf=False))
+    lay = _with_overlays(slideshow.page_layout(pids, _aspects(pids), s, for_pdf=False, clip_info=slideshow.clips(pids)))
     lay["slideshow"] = s
+    lay["tracks"] = slideshow.tracks(s)
+    lay["gains"] = dict(zip(("video", "music"), slideshow.gains(s)))
     return lay
 
 

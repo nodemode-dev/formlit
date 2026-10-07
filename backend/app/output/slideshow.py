@@ -1,6 +1,7 @@
 import random
 import shutil
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
@@ -18,7 +19,7 @@ DEFAULTS: dict = {
     "caption": {"on": False, "field": "title", "size": 9, "custom": "", "color": "#e8e8e8"},
     "identity": {"on": False, "text": "", "size": 18, "x": 0.5, "y": 0.06, "color": "#ffffff"},
     "intro": {"on": False, "text": "", "seconds": 3.0}, "ending": {"on": False, "text": "", "seconds": 3.0},
-    "music": {"path": "", "fit": False},
+    "music": {"path": "", "fit": False, "balance": 50},
     "video": {"size": "1080p", "fps": 30, "quality": "high"},
 }
 TEMPLATES = [
@@ -35,6 +36,50 @@ def merged(s: dict | None) -> dict:
     return layout_mod.deep_merge(DEFAULTS, s)
 
 
+AUDIO_EXTS = {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg", ".oga", ".opus", ".aif", ".aiff"}
+
+
+def tracks(s: dict) -> list[str]:
+    m = s.get("music") or {}
+    raw = [*(m.get("tracks") or []), *str(m.get("path") or "").splitlines()]
+    out: list[str] = []
+    for p in raw:
+        p = str(Path(str(p).strip()).expanduser()) if str(p).strip() else ""
+        if p and p not in out and Path(p).suffix.lower() in AUDIO_EXTS and Path(p).is_file():
+            out.append(p)
+    return out[:10]
+
+
+def gains(s: dict) -> tuple[float, float]:
+    b = max(0.0, min(100.0, float((s.get("music") or {}).get("balance", 50))))
+    return min(1.0, (100.0 - b) / 50.0), min(1.0, b / 50.0)
+
+
+@lru_cache(maxsize=512)
+def _has_audio(path: str) -> bool:
+    if not shutil.which("ffprobe"):
+        return False
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", path], capture_output=True, text=True, timeout=20)
+    return bool(r.stdout.strip())
+
+
+def clips(ids: list[int]) -> dict[int, dict]:
+    from app.engine import catalog as catalog_mod
+    from app.engine.records import loads
+    cat = catalog_mod.get()
+    out: dict[int, dict] = {}
+    for r in cat.rows(f"SELECT id, duration, develop FROM photos WHERE kind='video' AND id IN ({','.join('?' * len(ids))})", tuple(ids)) if ids else []:
+        path = cat.photo_path(int(r["id"]))
+        if path is None or not path.is_file():
+            continue
+        t = (loads(r["develop"], {}) or {}).get("video") or {}
+        a, b, dur = float(t.get("trimStart") or 0), float(t.get("trimEnd") or 0), float(r["duration"] or 0) or _probe_seconds(str(path))
+        end = b if b > a else dur
+        if end - a > 0.2:
+            out[int(r["id"])] = {"path": str(path), "start": round(a, 3), "len": round(end - a, 3), "audio": _has_audio(str(path))}
+    return out
+
+
 def order(ids: list[int], s: dict) -> list[int]:
     out = list(ids)
     if s.get("random"):
@@ -42,7 +87,7 @@ def order(ids: list[int], s: dict) -> list[int]:
     return out
 
 
-def page_layout(ids: list[int], aspects: dict[int, float], s: dict, for_pdf: bool = True) -> dict:
+def page_layout(ids: list[int], aspects: dict[int, float], s: dict, for_pdf: bool = True, clip_info: dict[int, dict] | None = None) -> dict:
     fw, fh = SIZES.get((s.get("video") or {}).get("size", "1080p"), SIZES["1080p"])
     pw, ph = 10.0, 10.0 * fh / fw
     m = float(s.get("margin", 0.05)) * pw
@@ -56,7 +101,11 @@ def page_layout(ids: list[int], aspects: dict[int, float], s: dict, for_pdf: boo
         n += 1
         item = layout_mod.place(cell, aspects.get(pid), bool(s.get("fill")), False)
         item["photo"] = pid
-        out_pages.append({"cells": [item], "texts": [], "number": n, "cover": True})
+        page = {"cells": [item], "texts": [], "number": n, "cover": True}
+        if clip_info and pid in clip_info:
+            c = clip_info[pid]
+            page.update(clip={"start": c["start"], "len": c["len"], "audio": c["audio"]}, seconds=c["len"])
+        out_pages.append(page)
     if s["ending"].get("on") and s["ending"].get("text"):
         n += 1
         out_pages.append({"cells": [], "texts": [{"x": 0.5, "y": ph / 2 - 0.2, "w": pw - 1, "h": 1, "text": s["ending"]["text"], "title": True}], "number": n, "cover": True})
@@ -90,23 +139,68 @@ def _text_layer(W: int, H: int, items: list[dict], ppi: float) -> tuple[np.ndarr
     return a[..., :3], a[..., 3:4]
 
 
+class Clip:
+    def __init__(self, c: dict, w: int, h: int, fps: int, pid: int):
+        from app.develop import render as render_mod
+        from app.engine import catalog as catalog_mod
+        from app.engine.records import loads
+        self.w, self.h = max(2, w // 2 * 2), max(2, h // 2 * 2)
+        dev = loads(catalog_mod.get().scalar("SELECT develop FROM photos WHERE id=?", (pid,)), {}) or {}
+        self.dev = {k: v for k, v in dev.items() if k not in export.VIDEO_SKIP}
+        self.render = render_mod
+        self.proc = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", f"{c['start']:.3f}", "-t", f"{c['len']:.3f}", "-i", c["path"], "-an",
+                                      "-vf", f"scale={self.w}:{self.h}:flags=area,fps={fps}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
+        self.k = -1
+        self.last = np.zeros((self.h, self.w, 3), np.float32)
+
+    def frame(self, k: int) -> np.ndarray:
+        from app.services import decode
+        while self.k < k and self.proc.stdout is not None:
+            buf = self.proc.stdout.read(self.w * self.h * 3)
+            if len(buf) < self.w * self.h * 3:
+                self.close()
+                break
+            self.k += 1
+            if self.k == k:
+                f = np.frombuffer(buf, np.uint8).reshape(self.h, self.w, 3).astype(np.float32) / 255.0
+                if self.dev:
+                    lin = (decode.srgb_to_linear(f).reshape(-1, 3) @ decode.SRGB_TO_2020.T).reshape(f.shape).astype(np.float32)
+                    info = {"raw": False, "asShotTemp": 6500.0, "asShotTint": 0.0, "relativeWb": True, "fullWidth": self.w, "fullHeight": self.h}
+                    f = self.render.render(lin, info, self.dev, size=(self.w, self.h), space="srgb")
+                self.last = f
+        return self.last
+
+    def close(self) -> None:
+        if self.proc.stdout is not None:
+            self.proc.stdout.close()
+            self.proc.stdout = None
+            self.proc.kill()
+            self.proc.wait()
+
+
 class Slide:
-    def __init__(self, lay: dict, page: dict, W: int, H: int, s: dict, total: int):
+    def __init__(self, lay: dict, page: dict, W: int, H: int, s: dict, total: int, clip: dict | None = None, fps: int = 30):
         self.W, self.H = W, H
         ppi = W / lay["page"]["w"]
         self.bg = np.array(pages._hex(s.get("background", "#000000")), np.float32) / 255.0
-        self.zoom = float(s.get("panZoom", 0.0)) * 0.18
+        self.zoom = float(s.get("panZoom", 0.0)) * 0.18 if clip is None else 0.0
         self.img = None
+        self.clip: Clip | None = None
+        self.D = 1
         self.rect = (0, 0, 0, 0)
         self.drift = (0.0, 0.0)
         cell = page["cells"][0] if page["cells"] else None
         if cell and cell.get("img"):
             img = cell["img"]
             z = 1.0 + self.zoom
-            size = {"resize": True, "mode": "wh", "w": round(img["w"] * ppi * z), "h": round(img["h"] * ppi * z), "noEnlarge": False}
-            arr = export.render_photo(int(cell["photo"]), size, "srgb")
-            arr = export.sharpen(arr, {"on": True, "for": "screen", "amount": "low"}, 96)
-            self.img = arr
+            if clip is not None:
+                self.clip = Clip(clip, round(img["w"] * ppi), round(img["h"] * ppi), fps, int(cell["photo"]))
+                self.img = self.clip.last
+            else:
+                size = {"resize": True, "mode": "wh", "w": round(img["w"] * ppi * z), "h": round(img["h"] * ppi * z), "noEnlarge": False}
+                arr = export.render_photo(int(cell["photo"]), size, "srgb")
+                arr = export.sharpen(arr, {"on": True, "for": "screen", "amount": "low"}, 96)
+                self.img = arr
             x0, y0 = max(cell["x"], img["x"]), max(cell["y"], img["y"])
             x1, y1 = min(cell["x"] + cell["w"], img["x"] + img["w"]), min(cell["y"] + cell["h"], img["y"] + img["h"])
             self.rect = (round(x0 * ppi), round(y0 * ppi), round((x1 - x0) * ppi), round((y1 - y0) * ppi))
@@ -125,7 +219,10 @@ class Slide:
         self.text = _text_layer(W, H, pages._overlays(page, lay, lay["settings"], total), ppi)
         self.stroke = (max(1, round(float(s.get("stroke") or 0) / 72 * ppi)), np.array(pages._hex(s.get("strokeColor", "#ffffff")), np.float32) / 255) if float(s.get("stroke") or 0) > 0 else None
 
-    def frame(self, t: float) -> np.ndarray:
+    def frame(self, k: int) -> np.ndarray:
+        t = k / max(1, self.D - 1)
+        if self.clip is not None:
+            self.img = self.clip.frame(k)
         out = self.base.copy()
         if self.img is not None:
             x, y, w, h = self.rect
@@ -164,46 +261,95 @@ def write_video(ids: list[int], aspects: dict[int, float], settings: dict, path:
     v = s["video"]
     W, H = SIZES.get(v.get("size", "1080p"), SIZES["1080p"])
     fps = int(v.get("fps", 30))
-    lay = page_layout(ids, aspects, s, for_pdf=False)
+    info = clips(ids)
+    lay = page_layout(ids, aspects, s, for_pdf=False, clip_info=info)
     n = len(lay["pages"])
     if n == 0:
         raise RuntimeError("The slideshow has no slides")
-    music = (s.get("music") or {}).get("path") or ""
+    music = tracks(s)
     duration, fade = float(s["duration"]), float(s["fade"])
-    if music and (s.get("music") or {}).get("fit"):
-        total = _probe_seconds(music)
+    clip_secs = sum(float(p["seconds"]) for p in lay["pages"] if p.get("seconds"))
+    stills = sum(1 for p in lay["pages"] if not p.get("seconds"))
+    if music and (s.get("music") or {}).get("fit") and stills:
+        total = sum(_probe_seconds(m) for m in music)
         if total > 0:
-            duration = max(fade + 0.5, (total + fade * (n - 1)) / n)
-    D, F = max(1, round(duration * fps)), max(0, min(round(fade * fps), round(duration * fps) // 2))
+            duration = max(fade + 0.5, (total - clip_secs + fade * (n - 1)) / stills)
+    lens = [max(2, round(float(p.get("seconds") or duration) * fps)) for p in lay["pages"]]
+    F = max(0, round(fade * fps))
+    xf = [min(F, lens[i] // 2, lens[i + 1] // 2) for i in range(n - 1)] + [min(F, lens[-1] // 2)]
+    starts, off = [], 0
+    for i in range(n):
+        starts.append(off)
+        off += lens[i] - (xf[i] if i < n - 1 else 0)
+    secs = off / fps
+    vg, mg = gains(s)
     crf = {"max": "14", "high": "18", "medium": "22", "low": "27"}.get(v.get("quality", "high"), "18")
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-"]
-    if music and Path(music).is_file():
-        cmd += ["-i", music, "-c:a", "aac", "-b:a", "192k", "-shortest"]
+    parts: list[str] = []
+    labels: list[str] = []
+    idx = 1
+    if music and mg > 0:
+        for m in music:
+            cmd += ["-i", m]
+        chain = "".join(f"[{idx + j}:a]aresample=48000,aformat=channel_layouts=stereo[m{j}];" for j in range(len(music)))
+        parts.append(chain + "".join(f"[m{j}]" for j in range(len(music))) + f"concat=n={len(music)}:v=0:a=1,volume={mg:.3f}[mus]")
+        labels.append("[mus]")
+        idx += len(music)
+    if vg > 0:
+        for i, p in enumerate(lay["pages"]):
+            c = p.get("clip")
+            pid = p["cells"][0]["photo"] if p.get("cells") else None
+            if not c or not c.get("audio") or pid not in info:
+                continue
+            cmd += ["-ss", f"{c['start']:.3f}", "-t", f"{c['len']:.3f}", "-i", info[pid]["path"]]
+            ms = round(starts[i] / fps * 1000)
+            parts.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms},volume={vg:.3f}[c{idx}]")
+            labels.append(f"[c{idx}]")
+            idx += 1
+    if labels:
+        mix = f"{''.join(labels)}amix=inputs={len(labels)}:duration=longest:normalize=0," if len(labels) > 1 else f"{labels[0]}anull,"
+        parts.append(f"{mix}apad,atrim=0:{secs:.3f},afade=t=out:st={max(0.0, secs - 2.0):.3f}:d={min(2.0, secs):.3f}[aout]")
+        cmd += ["-filter_complex", ";".join(parts), "-map", "0:v", "-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
     cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     assert proc.stdin is not None
+
+    def make(i: int) -> Slide:
+        p = lay["pages"][i]
+        pid = p["cells"][0]["photo"] if p.get("cells") else None
+        sl = Slide(lay, p, W, H, s, n, info.get(pid) if p.get("clip") else None, fps)
+        sl.D = lens[i]
+        return sl
+
+    cur = nxt = None
     try:
-        cur = Slide(lay, lay["pages"][0], W, H, s, n)
+        cur = make(0)
         bg = cur.base * 0 + cur.bg
+        fin = min(F, lens[0] // 2)
         for i in range(n):
-            nxt = Slide(lay, lay["pages"][i + 1], W, H, s, n) if i + 1 < n else None
-            start = F if i > 0 else 0
-            for t in range(start, D):
-                f = cur.frame(t / max(1, D - 1))
-                if i == 0 and t < F:
-                    k = (t + 1) / (F + 1)
+            nxt = make(i + 1) if i + 1 < n else None
+            D, X = lens[i], xf[i]
+            for t in range(xf[i - 1] if i > 0 else 0, D):
+                f = cur.frame(t)
+                if i == 0 and t < fin:
+                    k = (t + 1) / (fin + 1)
                     f = bg * (1 - k) + f * k
-                if t >= D - F:
-                    k = (t - (D - F) + 1) / (F + 1)
-                    other = nxt.frame((t - (D - F)) / max(1, D - 1)) if nxt is not None else bg
+                if X and t >= D - X:
+                    k = (t - (D - X) + 1) / (X + 1)
+                    other = nxt.frame(t - (D - X)) if nxt is not None else bg
                     f = f * (1 - k) + other * k
                 proc.stdin.write(to_u8(f).tobytes())
+            if cur.clip is not None:
+                cur.clip.close()
             cur = nxt if nxt is not None else cur
             if progress is not None:
                 if getattr(progress, "cancelled", False):
                     break
                 progress(i + 1, n, f"Slide {i + 1} of {n}")
     finally:
+        for sl in (cur, nxt):
+            if sl is not None and sl.clip is not None:
+                sl.clip.close()
         proc.stdin.close()
         err = proc.stderr.read().decode(errors="replace") if proc.stderr else ""
         code = proc.wait()

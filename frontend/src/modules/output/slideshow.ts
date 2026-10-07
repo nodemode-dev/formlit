@@ -1,3 +1,4 @@
+import { api } from '../../io/api';
 import { library } from '../../state/library';
 import { el, setClass, setDisabled, setStyleVar, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
@@ -5,9 +6,16 @@ import { toast } from '../../ui/toast';
 import { registerModule } from '../registry';
 import { runOutput } from '../shared/tasks';
 import { OutputModule } from './base';
-import { PageView, type Layout } from './page';
+import { PageView, type Layout, type LayoutPage } from './page';
+
+type SlidePage = LayoutPage & { clip?: { start: number; len: number; audio: boolean }; seconds?: number };
+type SlideLayout = Layout & { tracks?: string[]; gains?: { video: number; music: number } };
 
 class Player {
+  private readonly music = new Audio();
+  private tracks: string[] = [];
+  private track = 0;
+  private gains = { video: 1, music: 1 };
   readonly root = el('<div class="fl-player" hidden><div class="fl-player-stage"></div><div class="fl-player-bar"><button class="cv-icon-btn" type="button" data-p="prev" aria-label="Previous"></button><button class="cv-icon-btn" type="button" data-p="toggle" aria-label="Pause"></button><button class="cv-icon-btn" type="button" data-p="next" aria-label="Next"></button><span class="fl-player-count"></span><button class="cv-icon-btn" type="button" data-p="close" aria-label="Exit"></button></div></div>');
   private readonly stage = this.root.firstElementChild as HTMLElement;
   private readonly a = new PageView();
@@ -30,12 +38,61 @@ class Player {
       if (p === 'prev') this.show(this.i - 1, true); else if (p === 'next') this.show(this.i + 1, true); else if (p === 'toggle') this.toggle(); else if (p === 'close') this.stop();
     });
     this.root.addEventListener('dblclick', () => this.stop());
+    this.music.addEventListener('ended', () => {
+      this.track += 1;
+      if (this.track >= this.tracks.length) { if (!this.opts.repeat) return; this.track = 0; }
+      this.startMusic();
+    });
     document.getElementById('overlay-root')?.appendChild(this.root);
+  }
+
+  private startMusic(): void {
+    const t = this.tracks[this.track];
+    if (!t || this.gains.music <= 0) return;
+    this.music.src = api.url(`/api/output/audio?path=${encodeURIComponent(t)}`);
+    this.music.volume = Math.min(1, this.gains.music);
+    void this.music.play().catch(() => undefined);
+  }
+
+  private clipFor(view: PageView, page: SlidePage | null): void {
+    const cell = view.root.querySelector<HTMLElement>('.fl-pcell');
+    let v = view.root.querySelector<HTMLVideoElement>('video.fl-pcell-video');
+    const clip = page?.clip;
+    const photo = page?.cells[0]?.photo;
+    if (!clip || !cell || photo === null || photo === undefined) {
+      if (v) { v.pause(); setClass(v, 'is-ready', false); }
+      return;
+    }
+    if (!v) {
+      const nv = el<HTMLVideoElement>('<video class="fl-pcell-video" playsinline preload="auto"></video>');
+      nv.addEventListener('playing', () => setClass(nv, 'is-ready', true));
+      v = nv;
+    }
+    if (v.parentElement !== cell) cell.appendChild(v);
+    setClass(v, 'is-ready', false);
+    const src = `${api.url(`/api/photos/${photo}/original`)}#t=${clip.start},${clip.start + clip.len}`;
+    if (v.getAttribute('src') !== src) v.src = src;
+    else v.currentTime = clip.start;
+    v.volume = Math.min(1, this.gains.video);
+    v.muted = this.gains.video <= 0 || !clip.audio;
+    if (!this.paused) void v.play().catch(() => undefined);
+  }
+
+  private seconds(): number {
+    const page = this.lay?.pages[this.i] as SlidePage | undefined;
+    if (!page?.clip) return this.opts.duration;
+    const v = this.front.root.querySelector<HTMLVideoElement>('video.fl-pcell-video');
+    return Math.max(0.2, page.clip.len - (v && v.currentTime > page.clip.start ? v.currentTime - page.clip.start : 0));
   }
 
   play(lay: Layout, s: Record<string, unknown>, start = 0): void {
     this.lay = lay;
+    const sl = lay as SlideLayout;
+    this.tracks = sl.tracks ?? [];
+    this.gains = sl.gains ?? { video: 1, music: 1 };
+    this.track = 0;
     this.opts = { duration: Number(s.duration ?? 4), fade: Number(s.fade ?? 1), zoom: Number(s.panZoom ?? 0) * 0.18, repeat: !!s.repeat, bg: String(s.background ?? '#000'), stroke: Number(s.stroke ?? 0), strokeColor: String(s.strokeColor ?? '#fff') };
+    this.startMusic();
     setStyleVar(this.root, '--player-bg', this.opts.bg);
     setStyleVar(this.root, '--fade', `${this.opts.fade}s`);
     this.root.hidden = false;
@@ -60,7 +117,10 @@ class Player {
     back.render(lay, lay.pages[this.i], this.size(), { background: this.opts.bg, stroke: this.opts.stroke, strokeColor: this.opts.strokeColor });
     setClass(back.root, 'is-front', true);
     setClass(this.front.root, 'is-front', false);
+    const old = this.front;
+    window.setTimeout(() => { if (this.front !== old) this.clipFor(old, null); }, this.opts.fade * 1000);
     this.front = back;
+    this.clipFor(back, lay.pages[this.i] as SlidePage);
     if (this.opts.zoom > 0) {
       const z = 1 + this.opts.zoom;
       const dx = (this.i % 2 ? -1 : 1) * this.opts.zoom * 30, dy = (this.i % 3 ? 1 : -1) * this.opts.zoom * 20;
@@ -70,14 +130,18 @@ class Player {
     }
     setText(this.root.querySelector('.fl-player-count'), `${this.i + 1} / ${n}`);
     window.clearTimeout(this.timer);
-    if (!this.paused) this.timer = window.setTimeout(() => this.show(this.i + 1, false), this.opts.duration * 1000);
+    if (!this.paused) this.timer = window.setTimeout(() => this.show(this.i + 1, false), this.seconds() * 1000);
   }
 
   private toggle(): void {
     this.paused = !this.paused;
     (this.root.querySelector('[data-p="toggle"]') as HTMLElement).innerHTML = icon(this.paused ? 'play' : 'pause', 18);
     window.clearTimeout(this.timer);
-    if (!this.paused) this.timer = window.setTimeout(() => this.show(this.i + 1, false), this.opts.duration * 1000);
+    const v = this.front.root.querySelector<HTMLVideoElement>('video.fl-pcell-video.is-ready');
+    if (this.paused) { this.music.pause(); v?.pause(); return; }
+    if (this.tracks.length && this.gains.music > 0) void this.music.play().catch(() => undefined);
+    if (v) void v.play().catch(() => undefined);
+    this.timer = window.setTimeout(() => this.show(this.i + 1, false), this.seconds() * 1000);
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -87,6 +151,9 @@ class Player {
 
   stop(): void {
     window.clearTimeout(this.timer);
+    this.music.pause();
+    this.clipFor(this.a, null);
+    this.clipFor(this.b, null);
     this.root.hidden = true;
     document.removeEventListener('keydown', this.keyFn, true);
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -160,11 +227,12 @@ class SlideshowModule extends OutputModule {
       { path: 'panZoom', label: 'Pan and zoom', kind: 'range', min: 0, max: 1, step: 0.05 },
       { path: 'random', label: 'Random order', kind: 'check' },
       { path: 'repeat', label: 'Repeat', kind: 'check' },
-      { path: 'music.path', label: 'Music file', kind: 'text', placeholder: '/path/to/track.mp3' },
+      { path: 'music.path', label: 'Music', kind: 'textarea', placeholder: 'One audio file per line, up to 10 tracks played in order' },
       { path: 'music.fit', label: 'Fit to music', kind: 'check', show: () => !!this.get('music.path') },
+      { path: 'music.balance', label: 'Audio balance', kind: 'range', min: 0, max: 100, step: 1, unit: '% music' },
     ]);
     this.formPanel(right, 'video', 'Video Export', [
-      { path: '', label: 'Video export writes H.264 MP4 with your music track.', kind: 'note', show: () => !!this.options?.ffmpeg },
+      { path: '', label: 'Video export writes H.264 MP4 with your music and the sound of video clips, mixed by Audio balance.', kind: 'note', show: () => !!this.options?.ffmpeg },
       { path: '', label: 'Video export needs ffmpeg on this computer. PDF export works without it.', kind: 'note', show: () => !this.options?.ffmpeg },
       { path: 'video.size', label: 'Size', kind: 'seg', options: [['480p', '480p'], ['720p', '720p'], ['1080p', '1080p'], ['4k', '4K']] },
       { path: 'video.fps', label: 'Frame rate', kind: 'select', options: [['24', '24 fps'], ['25', '25 fps'], ['30', '30 fps'], ['60', '60 fps']] },
