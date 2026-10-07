@@ -6,6 +6,7 @@ pillow==12.3.0
 pillow-heif==1.7.0
 rawpy==0.27.1
 numpy==2.5.3
+numba==0.68.0
 opencv-python-headless==5.0.0.93
 exifread==3.5.1
 tifffile==2026.3.3

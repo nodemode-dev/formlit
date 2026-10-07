@@ -134,6 +134,9 @@ def source(pid: int, long: int | None = PREVIEW, full: bool = False) -> tuple[np
             except OSError:
                 pass
     with _sources_lock:
+        if full:
+            for k in [k for k in _sources if k[1] == "full" and k != key]:
+                del _sources[k]
         _sources[key] = (img, info)
         _sources.move_to_end(key)
         limit = SOURCE_CACHE_ENTRIES

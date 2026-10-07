@@ -88,19 +88,43 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
     if row is None:
         return _missing(pid)
     dev = body.get("settings")
-    if dev is None:
+    if body.get("defaults"):
+        from app.develop.settings import defaults_for
+        dev = defaults_for(str(cat.scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or ""))
+    elif dev is None:
         dev = loads(row["develop"], {})
     long = int(body.get("long") or previews.PREVIEW)
     size = body.get("size")
+    region = body.get("region")
+    view = str(body.get("view") or "")
+    extra: dict = {}
+    full = long > previews.PREVIEW
     try:
-        img, info = previews.source(pid, previews.PREVIEW if long <= previews.PREVIEW else None, full=long > previews.PREVIEW)
+        img, info = previews.source(pid, None if full else previews.PREVIEW, full=full)
     except FileNotFoundError as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
-    out = render_mod.render(img, info, dev, max_long=None if size else long, size=tuple(size) if size else None, space=body.get("space", "srgb"),
-                            photo_id=pid, apply_crop=bool(body.get("crop", True)), overlay=body.get("overlay"))
+    slot = (pid, view, "full" if full else "p") if view else None
+    if region:
+        out, rect, dims = render_mod.render_region(img, info, dev, region, long, space=body.get("space", "srgb"), photo_id=pid, overlay=body.get("overlay"),
+                                                   src_long=max(img.shape[:2]) if full else None, slot=slot)
+        extra = {"X-Region": ",".join(str(v) for v in rect), "X-Full": f"{dims[0]},{dims[1]}"}
+    else:
+        out = render_mod.render(img, info, dev, max_long=None if size else long, size=tuple(size) if size else None, space=body.get("space", "srgb"),
+                                photo_id=pid, apply_crop=bool(body.get("crop", True)), overlay=body.get("overlay"), slot=slot,
+                                src_long=max(img.shape[:2]) if full else None)
     rgb8 = render_mod.to_u8(out)
+    eff = render_mod.effective(dev)
+    sh, sw = img.shape[:2]
+    if region:
+        fr = render_mod.Frame(sw, sh, eff, True)
+        fw, fh = fr.fit_long(long)
+    else:
+        fr, fw, fh, _ = render_mod.plan(sw, sh, eff, None if size else long, tuple(size) if size else None, bool(body.get("crop", True)))
+    geo = {"norm": [round(float(v), 9) for v in fr.out_to_norm(fw, fh).reshape(-1)], "w": fw, "h": fh, "ow": fr.ow, "oh": fr.oh, "rect": fr.rect,
+           "angle": fr.angle, "flipH": fr.flip_h, "flipV": fr.flip_v}
     headers = {"Cache-Control": "no-store", "X-Render-Ms": f"{(time.perf_counter() - started) * 1000:.0f}", "X-Width": str(rgb8.shape[1]),
-               "X-Height": str(rgb8.shape[0]), "Access-Control-Expose-Headers": "X-Render-Ms, X-Width, X-Height, X-Histogram"}
+               "X-Height": str(rgb8.shape[0]), "X-Geometry": json.dumps(geo, separators=(",", ":")),
+               "Access-Control-Expose-Headers": "X-Render-Ms, X-Width, X-Height, X-Histogram, X-Region, X-Full, X-Geometry", **extra}
     if body.get("histogram"):
         headers["X-Histogram"] = json.dumps(render_mod.histogram(out, 64), separators=(",", ":"))
     return Response(previews.encode_jpeg(rgb8, int(body.get("quality", 90))), media_type="image/jpeg", headers=headers)

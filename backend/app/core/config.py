@@ -112,6 +112,9 @@ def workers() -> int:
     return max(1, min(6, (os.cpu_count() or 2) - 1))
 
 
+os.environ.setdefault("NUMBA_CACHE_DIR", str(_ensure(data_dir() / "Cache" / "kernels")))
+
+
 def cors_origins() -> list[str]:
     raw = os.environ.get("FORMLIT_CORS_ORIGINS")
     if raw:

@@ -67,6 +67,61 @@ def get(id: int | None = None) -> dict:
     return {"id": pid, "settings": dev, "values": vals, "kind": kind}
 
 
+@command("develop.spotSource", "Find Spot Source", {"id": {"type": "integer"}, "spot": {"type": "object"}, "settings": {"type": "object"}}, mutates=False)
+def spot_source(spot: dict, id: int | None = None, settings: dict | None = None) -> dict:
+    import numpy as np
+    from app.develop.render import effective, plan
+    from app.develop.retouch import auto_source
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev = settings if settings is not None else current(pid)[0]
+    img, _ = previews.source(pid)
+    eff = effective({k: v for k, v in dev.items() if k != "spots"})
+    sh, sw = img.shape[:2]
+    frame, w, h, ppl = plan(sw, sh, eff, 1024)
+    sampled = frame.sample(img, w, h)
+    pts = spot.get("points") or [[0.5, 0.5]]
+    p = frame.norm_to_out(w, h) @ np.array([float(pts[0][0]), float(pts[0][1]), 1.0])
+    off = auto_source(sampled, (float(p[0]), float(p[1])), max(1.0, float(spot.get("size", 0.02)) * ppl))
+    n = frame.out_to_norm(w, h)
+    return {"source": [round(float(n[0, 0] * off[0] + n[0, 1] * off[1]), 6), round(float(n[1, 0] * off[0] + n[1, 1] * off[1]), 6)]}
+
+
+@command("develop.sampleColor", "Sample Color", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}}, mutates=False)
+def sample_color(x: float, y: float, id: int | None = None, settings: dict | None = None) -> dict:
+    import numpy as np
+    from app.develop import colour
+    from app.develop.masks import tonemap_for_select
+    from app.develop.render import effective, plan, white_balance
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev = settings if settings is not None else current(pid)[0]
+    img, info_ = previews.source(pid)
+    eff = effective(dev)
+    sh, sw = img.shape[:2]
+    frame, w, h, _ = plan(sw, sh, eff, 1024)
+    p = frame.norm_to_out(w, h) @ np.array([float(x), float(y), 1.0])
+    px, py = int(min(max(p[0], 0), w - 1)), int(min(max(p[1], 0), h - 1))
+    lin = white_balance(frame.sample(img, w, h), info_, eff, pid, full=img)
+    patch = lin[max(0, py - 2):py + 3, max(0, px - 2):px + 3].reshape(-1, 3).mean(axis=0)
+    ev = float((eff.get("light") or {}).get("exposure", 0))
+    lab = colour.oklab_from_2020(tonemap_for_select(patch[None, :] * (2.0 ** ev)))[0]
+    return {"lab": [round(float(v), 5) for v in lab]}
+
+
+@command("develop.info", "Develop Source Info", {"id": {"type": "integer"}, "settings": {"type": "object"}}, mutates=False)
+def info(id: int | None = None, settings: dict | None = None) -> dict:
+    from app.develop import profiles
+    from app.develop.render import effective_wb
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, kind = current(pid)
+    if settings is not None:
+        dev = settings
+    img, src = previews.source(pid)
+    t, ti = effective_wb(img, src, dev, pid)
+    return {"id": pid, "kind": kind, "raw": bool(src.get("raw")), "asShotTemp": round(float(src.get("asShotTemp", 6500))), "asShotTint": round(float(src.get("asShotTint", 0))),
+            "temp": round(t), "tint": round(ti), "relativeWb": bool(src.get("relativeWb")), "cameraLook": "cameraLook" in src,
+            "width": src.get("fullWidth"), "height": src.get("fullHeight"), "profiles": profiles.catalogue()}
+
+
 @command("develop.set", "Develop", {"ids": {"type": "array"}, "values": {"type": "object"}, "delta": {"type": "boolean"}})
 def set_values(ids: Any = None, values: dict | None = None, delta: bool = False, label: str = "") -> dict:
     pids = resolve_ids(ids)
