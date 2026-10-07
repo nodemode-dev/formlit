@@ -15,6 +15,7 @@ FORMATS = {
     "png": {"ext": "png", "label": "PNG", "depths": [8, 16], "quality": False},
     "tiff": {"ext": "tif", "label": "TIFF", "depths": [8, 16], "quality": False},
     "psd": {"ext": "psd", "label": "PSD", "depths": [8, 16], "quality": False},
+    "jxl": {"ext": "jxl", "label": "JPEG XL", "depths": [8, 16], "quality": True},
     "webp": {"ext": "webp", "label": "WebP", "depths": [8], "quality": True},
     "avif": {"ext": "avif", "label": "AVIF", "depths": [8], "quality": True},
     "heic": {"ext": "heic", "label": "HEIC", "depths": [8], "quality": True},
@@ -182,6 +183,87 @@ def _psd(arr: np.ndarray, icc: bytes, xmp: bytes | None, ppi: int) -> bytes:
     return head + struct.pack(">I", 0) + struct.pack(">I", len(block)) + block + struct.pack(">I", 0) + struct.pack(">H", 0) + planes
 
 
+def psd_layers(layers: list[tuple[str, np.ndarray]], icc: bytes, ppi: int = 300) -> bytes:
+    depth = 16 if layers[0][1].dtype == np.uint16 else 8
+    dt = ">u2" if depth == 16 else np.uint8
+    top = 65535 if depth == 16 else 255
+    H = max(a.shape[0] for _, a in layers)
+    W = max(a.shape[1] for _, a in layers)
+    if max(H, W) > 30000:
+        raise ValueError("PSD is limited to 30,000 pixels on a side")
+    records, data = b"", b""
+    for name, a in layers:
+        h, w = a.shape[:2]
+        chans = [(-1, np.full((h, w), top, dt).tobytes())] + [(i, np.ascontiguousarray(a[..., i]).astype(dt).tobytes()) for i in range(3)]
+        raw = name.encode("latin-1", "replace")[:255]
+        pname = bytes([len(raw)]) + raw
+        pname += b"\0" * ((4 - len(pname) % 4) % 4)
+        extra = struct.pack(">II", 0, 0) + pname
+        records += struct.pack(">iiiiH", 0, 0, h, w, len(chans))
+        records += b"".join(struct.pack(">hI", cid, len(b) + 2) for cid, b in chans)
+        records += b"8BIMnorm" + bytes([255, 0, 0, 0]) + struct.pack(">I", len(extra)) + extra
+        data += b"".join(struct.pack(">H", 0) + b for _, b in chans)
+    info = struct.pack(">h", len(layers)) + records + data
+    if len(info) % 2:
+        info += b"\0"
+    lm = struct.pack(">I", len(info)) + info + struct.pack(">I", 0)
+    canvas = np.zeros((H, W, 3), layers[-1][1].dtype)
+    for _, a in layers:
+        canvas[:a.shape[0], :a.shape[1]] = a[..., :3]
+
+    def res(rid: int, payload: bytes) -> bytes:
+        return b"8BIM" + struct.pack(">H", rid) + b"\0\0" + struct.pack(">I", len(payload)) + payload + (b"\0" if len(payload) % 2 else b"")
+    block = res(1005, struct.pack(">IHHIHH", int(ppi * 65536), 1, 1, int(ppi * 65536), 1, 1)) + res(1039, icc)
+    head = b"8BPS" + struct.pack(">H", 1) + b"\0" * 6 + struct.pack(">HIIHH", 3, H, W, depth, 3)
+    planes = np.ascontiguousarray(np.moveaxis(canvas, -1, 0)).astype(dt).tobytes()
+    return head + struct.pack(">I", 0) + struct.pack(">I", len(block)) + block + struct.pack(">I", len(lm)) + lm + struct.pack(">H", 0) + planes
+
+
+def _box(kind: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I", 8 + len(payload)) + kind + payload
+
+
+def _jxl(arr: np.ndarray, quality: int, primaries: str, transfer: str, exif: bytes | None, xmp: bytes | None) -> bytes:
+    import imagecodecs
+    J = imagecodecs.JPEGXL
+    data = bytes(imagecodecs.jpegxl_encode(arr, level=int(quality), effort=5, bitspersample=16 if arr.dtype == np.uint16 else 8,
+                                           primaries=getattr(J.PRIMARIES, primaries), transfer=getattr(J.TRANSFER_FUNCTION, transfer), usecontainer=True))
+    if exif:
+        data += _box(b"Exif", b"\0\0\0\0" + (exif[6:] if exif.startswith(b"Exif\0\0") else exif))
+    if xmp:
+        data += _box(b"xml ", xmp)
+    return data
+
+
+M709_2020 = np.array([[0.6274040, 0.3292820, 0.0433136], [0.0690970, 0.9195400, 0.0113612], [0.0163916, 0.0880132, 0.8955950]], np.float32)
+SDR_WHITE_NITS = 203.0
+
+
+def pq(nits: np.ndarray) -> np.ndarray:
+    m1, m2, c1, c2, c3 = 0.1593017578125, 78.84375, 0.8359375, 18.8515625, 18.6875
+    y = np.power(np.clip(nits / 10000.0, 0.0, 1.0), m1)
+    return np.power((c1 + c2 * y) / (1.0 + c3 * y), m2).astype(np.float32)
+
+
+def encode_hdr(fmt: str, lin709: np.ndarray, quality: int = 90, ppi: int = 240, rec: dict | None = None) -> bytes:
+    r = rec or {}
+    rgb = np.maximum(lin709.reshape(-1, 3) @ M709_2020.T, 0.0).reshape(lin709.shape).astype(np.float32)
+    h, w = rgb.shape[:2]
+    exif = exif_bytes(r, w, h, ppi)
+    xmp = xmp_packet(r) if (r.get("meta") or r.get("keywords") or r.get("camera") or r.get("captureTime")) else None
+    if fmt == "tiff":
+        return _tiff(rgb, icc_profile("linear"), xmp, ppi, r, "zip")
+    e = pq(rgb * SDR_WHITE_NITS)
+    if fmt == "jxl":
+        return _jxl((e * 65535.0 + 0.5).astype(np.uint16), quality, "BT2100", "PQ", exif, xmp)
+    if fmt == "avif":
+        import imagecodecs
+        A = imagecodecs.AVIF
+        return bytes(imagecodecs.avif_encode((e * 1023.0 + 0.5).astype(np.uint16), level=int(quality), speed=8, bitspersample=10, pixelformat=A.PIXEL_FORMAT.YUV444,
+                                             primaries=A.COLOR_PRIMARIES.BT2020, transfer=A.TRANSFER_CHARACTERISTICS.PQ, matrix=A.MATRIX_COEFFICIENTS.BT2020_NCL))
+    raise ValueError(f"No HDR encoding for {fmt}; choose JPEG (Ultra HDR), AVIF, JPEG XL or TIFF")
+
+
 def _pil(arr: np.ndarray, fmt: str, quality: int, icc: bytes, exif: bytes | None, xmp: bytes | None, ppi: int) -> bytes:
     im = Image.fromarray(arr, "RGB")
     buf = io.BytesIO()
@@ -218,6 +300,11 @@ def encode(out: np.ndarray, fmt: str, space: str, quality: int = 85, depth: int 
     has_meta = bool(r.get("meta") or r.get("keywords") or r.get("camera") or r.get("captureTime"))
     exif = exif_bytes(r, w, h, ppi)
     xmp = xmp_packet(r) if has_meta else None
+    if fmt == "jxl":
+        prim = {"srgb": "SRGB", "p3": "P3", "rec2020": "BT2100"}.get(space)
+        if prim is None:
+            raise ValueError("JPEG XL export supports the sRGB, Display P3 and Rec. 2020 colour spaces")
+        return _jxl(to_u16(out) if depth == 16 else to_u8(out), quality, prim, "SRGB", exif, xmp)
     if fmt in ("png", "tiff", "psd"):
         arr = to_u16(out) if depth == 16 else to_u8(out)
         if fmt == "psd":

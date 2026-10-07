@@ -34,6 +34,11 @@ def gain_from(sdr: np.ndarray, under: np.ndarray, stops: float) -> np.ndarray:
     return cv2.GaussianBlur(g.astype(np.float32), (0, 0), max(1.0, max(g.shape) / 1200.0))
 
 
+def hdr_linear(sdr: np.ndarray, gain: np.ndarray) -> np.ndarray:
+    g = gain if gain.shape[:2] == sdr.shape[:2] else cv2.resize(gain, (sdr.shape[1], sdr.shape[0]), interpolation=cv2.INTER_LINEAR)
+    return (_decode(sdr) * np.exp2(g)[..., None]).astype(np.float32)
+
+
 def render_pair(pid: int, size: dict, dev: dict, stops: float) -> tuple[np.ndarray, np.ndarray]:
     from app.output import export
     sdr = export.render_photo(pid, size, "srgb", dev)

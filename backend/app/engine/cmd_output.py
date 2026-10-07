@@ -162,8 +162,9 @@ def edit_in_add(name: str, path: str) -> dict:
     return {"editors": eds}
 
 
-@command("photo.editIn", "Edit In", {"ids": {"type": "array"}, "app": {"type": "string"}, "mode": {"type": "string", "enum": ["copy", "copyNoEdits", "original"]},
-                                     "format": {"type": "string", "enum": ["tiff", "png", "jpeg"]}, "space": {"type": "string"}, "depth": {"type": "integer"}, "wait": {"type": "boolean"}})
+@command("photo.editIn", "Edit In", {"ids": {"type": "array"}, "app": {"type": "string"}, "mode": {"type": "string", "enum": ["copy", "copyNoEdits", "original", "layers"],
+                                                                                                   "description": "layers opens the selection as layers of one PSD"},
+                                     "format": {"type": "string", "enum": ["tiff", "psd", "png", "jpeg"]}, "space": {"type": "string"}, "depth": {"type": "integer"}, "wait": {"type": "boolean"}})
 def photo_edit_in(ids: Any = None, app: str = "", mode: str = "copy", format: str | None = None, space: str | None = None, depth: int | None = None, wait: bool = True) -> dict:
     pids = resolve_ids(ids)
     opts = dict(prefs.load().get("editIn") or {})
@@ -175,6 +176,26 @@ def photo_edit_in(ids: Any = None, app: str = "", mode: str = "copy", format: st
     def job(progress):
         from app.engine.cmd_ai import _derived
         outs, new_ids = [], []
+        if mode == "layers":
+            layers = []
+            for i, pid in enumerate(pids):
+                row = cat().photo(pid)
+                if row is None:
+                    continue
+                out = export.render_photo(pid, {"resize": False}, sp, loads(row["develop"], {}))
+                layers.append((str(row["file_name"]), encode.to_u16(out) if dp == 16 else encode.to_u8(out)))
+                progress(i + 1, len(pids) + 1, f"Rendering layer {i + 1} of {len(pids)}")
+            src = cat().photo_path(pids[0])
+            if not layers or src is None:
+                raise CommandError("Nothing to open as layers")
+            dest = rename.unique(src.with_name(f"{src.stem}-Layers.psd"))
+            dest.write_bytes(encode.psd_layers(layers, encode.icc_profile(sp), int(opts.get("ppi", 300))))
+            new_ids.append(_derived(pids[0], dest, "Open as Layers", {}, None))
+            outs.append(dest)
+            launched = export.open_with(app, outs) if app else False
+            from app.engine.cmd_library import WATCH
+            WATCH.update(new_ids)
+            return {"paths": [str(dest)], "ids": new_ids, "launched": launched, "app": app}
         for i, pid in enumerate(pids):
             row = cat().photo(pid)
             src = cat().photo_path(pid)

@@ -383,6 +383,7 @@ def remove(ids: Any = None) -> dict:
     pids = _ids(ids)
     c = cat()
     with c.change("Remove Photos") as ch:
+        stacks = {int(r["stack_id"]) for pid in pids for r in c.db.execute("SELECT stack_id FROM photos WHERE id=? AND stack_id IS NOT NULL", (pid,)).fetchall()}
         for pid in pids:
             for table, col in (("photo_keywords", "photo_id"), ("collection_photos", "photo_id"), ("history", "photo_id"), ("snapshots", "photo_id"), ("faces", "photo_id")):
                 ch.delete(table, **{col: pid})
@@ -390,6 +391,15 @@ def remove(ids: Any = None) -> dict:
                 if int(vc["id"]) not in pids:
                     ch.update("photos", int(vc["id"]), master_id=None)
             ch.delete("photos", id=pid)
+        for sid in stacks:
+            left = [int(r["id"]) for r in c.db.execute("SELECT id FROM photos WHERE stack_id=? ORDER BY stack_pos, id", (sid,)).fetchall()]
+            if len(left) < 2:
+                for one in left:
+                    ch.update("photos", one, stack_id=None, stack_pos=0)
+                ch.delete("stacks", id=sid)
+            else:
+                for pos, one in enumerate(left):
+                    ch.update("photos", one, stack_pos=pos)
     for pid in pids:
         previews.drop_source(pid)
         previews.clear(pid)

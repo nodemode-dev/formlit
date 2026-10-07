@@ -287,6 +287,47 @@ def trim_args(rec: dict) -> list[str]:
     return out
 
 
+VIDEO_SKIP = ("video", "masks", "spots", "redEye", "lensBlur")
+
+
+def _video_graded(src: Path, dev: dict, trim: list[str], out: Path, crf: str, cap: int) -> Path:
+    from app.services import decode
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "json", str(src)],
+                           capture_output=True, timeout=30)
+    st = json.loads(probe.stdout or b"{}").get("streams", [{}])[0]
+    w, h, rate = int(st.get("width", 0)), int(st.get("height", 0)), st.get("r_frame_rate", "30/1")
+    if not w or not h:
+        raise ValueError("ffprobe could not read the video size")
+    info = {"raw": False, "asShotTemp": 6500.0, "asShotTint": 0.0, "relativeWb": True, "fullWidth": w, "fullHeight": h}
+    eff = render_mod.effective(dev)
+    fw, fh = Frame(w, h, eff, True).native_size()
+    k = min(1.0, cap / max(fw, fh)) if cap else 1.0
+    ow, oh = max(2, int(fw * k) // 2 * 2), max(2, int(fh * k) // 2 * 2)
+    dec = subprocess.Popen(["ffmpeg", "-v", "error", *trim, "-i", str(src), "-f", "rawvideo", "-pix_fmt", "rgb48le", "-"], stdout=subprocess.PIPE)
+    enc = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", rate, "-i", "-", *trim, "-i", str(src),
+                            "-map", "0:v", "-map", "1:a?", "-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+                            "-shortest", "-movflags", "+faststart", str(out)], stdin=subprocess.PIPE)
+    size = w * h * 6
+    assert dec.stdout is not None and enc.stdin is not None
+    try:
+        while True:
+            buf = dec.stdout.read(size)
+            if len(buf) < size:
+                break
+            frame = decode.srgb_to_linear(np.frombuffer(buf, "<u2").reshape(h, w, 3).astype(np.float32) / 65535.0)
+            lin = (frame.reshape(-1, 3) @ decode.SRGB_TO_2020.T).reshape(frame.shape).astype(np.float32)
+            rgb = render_mod.render(lin, info, dev, size=(ow, oh), space="srgb")
+            enc.stdin.write(render_mod.to_u8(rgb).tobytes())
+    finally:
+        enc.stdin.close()
+        dec.stdout.close()
+        dec.wait()
+        enc.wait()
+    if enc.returncode != 0 or not out.is_file():
+        raise ValueError("ffmpeg could not encode the graded video")
+    return out
+
+
 def _video(rec: dict, s: dict, dest: Path) -> Path:
     v = s["video"]
     src = Path(rec["path"])
@@ -300,6 +341,9 @@ def _video(rec: dict, s: dict, dest: Path) -> Path:
         return out
     out = dest.with_suffix(".mp4")
     crf = {"max": "16", "high": "20", "medium": "24", "low": "28"}.get(v.get("quality", "high"), "20")
+    dev = {k: val for k, val in (rec.get("develop") or {}).items() if k not in VIDEO_SKIP}
+    if dev:
+        return _video_graded(src, dev, trim, out, crf, 1920 if v.get("quality") in ("medium", "low") else 0)
     scale = ["-vf", "scale='min(1920,iw)':-2"] if v.get("quality") in ("medium", "low") else []
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *trim, "-i", str(src), *scale, "-c:v", "libx264", "-preset", "medium", "-crf", crf,
                     "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)], check=True)
@@ -352,6 +396,15 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
         sdr, gain = gainmap.render_pair(pid, s["size"], rec.get("develop") or {}, max(0.5, min(4.0, float(f.get("hdrStops", 2)))))
         sdr = watermark(sharpen(sdr, s["sharpen"], ppi), s["watermark"], rec)
         data = gainmap.ultrahdr(sdr, gain, int(f.get("quality", 85)), ppi, encode.exif_bytes(meta_rec, sdr.shape[1], sdr.shape[0], ppi))
+        tmp = dest.with_name(dest.name + ".part")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
+        return dest
+    if f.get("hdr") and fmt in ("avif", "jxl", "tiff"):
+        from app.output import gainmap
+        sdr, gain = gainmap.render_pair(pid, s["size"], rec.get("develop") or {}, max(0.5, min(4.0, float(f.get("hdrStops", 2)))))
+        sdr = watermark(sharpen(sdr, s["sharpen"], ppi), s["watermark"], rec)
+        data = encode.encode_hdr(fmt, gainmap.hdr_linear(sdr, gain), int(f.get("quality", 85)), ppi, meta_rec)
         tmp = dest.with_name(dest.name + ".part")
         tmp.write_bytes(data)
         os.replace(tmp, dest)

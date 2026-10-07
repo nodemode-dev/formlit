@@ -83,8 +83,8 @@ export function registerPhotoDialogs(ctx: Ctx): void {
         const v = await askForm('Edit In', `Open ${ids.length === 1 ? 'this photo' : `${ids.length} photos`} in another application. Copies are stacked with their originals.`, [
           { path: 'app', label: 'Application', kind: 'select', options: apps },
           { path: 'custom', label: 'Path', kind: 'text', placeholder: '/Applications/formvis.app', show: (g) => !g('app') },
-          { path: 'mode', label: 'Edit', kind: 'select', options: [['copy', 'A copy with formlit adjustments'], ['copyNoEdits', 'A copy without adjustments'], ['original', 'The original']] },
-          { path: 'format', label: 'File format', kind: 'select', options: [['tiff', 'TIFF'], ['png', 'PNG'], ['jpeg', 'JPEG']] },
+          { path: 'mode', label: 'Edit', kind: 'select', options: [['copy', 'A copy with formlit adjustments'], ['copyNoEdits', 'A copy without adjustments'], ['original', 'The original'], ['layers', 'All selected photos as layers of one PSD']] },
+          { path: 'format', label: 'File format', kind: 'select', options: [['tiff', 'TIFF'], ['psd', 'PSD'], ['png', 'PNG'], ['jpeg', 'JPEG']], show: (g) => g('mode') !== 'layers' },
           { path: 'space', label: 'Color space', kind: 'select', options: [['prophoto', 'ProPhoto RGB'], ['adobergb', 'Adobe RGB (1998)'], ['p3', 'Display P3'], ['srgb', 'sRGB']] },
           { path: 'depth', label: 'Bit depth', kind: 'select', options: [['16', '16 bits/component'], ['8', '8 bits/component']] },
         ], { app: apps[0][0], custom: '', mode: 'copy', format: eds.options.format, space: eds.options.space, depth: String(eds.options.depth) }, 'Edit');
