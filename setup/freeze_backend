@@ -19,8 +19,8 @@ pyinstaller --noconfirm --clean --onefile --name formlit-engine \
   --collect-all reportlab --collect-all onnxruntime --hidden-import tifffile --collect-all imagecodecs \
   --exclude-module pillow_heif \
   "$FORMLIT_ROOT/backend/formlit_engine.py"
+"dist-engine/formlit-engine${ext}" --selfcheck || fl_die "the frozen engine failed its selfcheck; nothing was copied to src-tauri/binaries"
 mkdir -p "$FORMLIT_ROOT/src-tauri/binaries"
 out="$FORMLIT_ROOT/src-tauri/binaries/formlit-engine-${triple}${ext}"
 cp "dist-engine/formlit-engine${ext}" "$out"
-"$out" --selfcheck
 fl_say "sidecar ready: $out"
