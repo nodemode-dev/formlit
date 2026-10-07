@@ -166,6 +166,9 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
                     dev = json.loads(xmp["develop"])
                 except ValueError:
                     dev = {}
+            if xmp.get("crs") and not dev:
+                from app.services import xmp_presets
+                dev = xmp_presets.from_crs(xmp["crs"])
             label = (xmp.get("label") or "").lower()
             sidecars = ["xmp"] if metadata.sidecar_path(final).is_file() else []
             with cat.change(f"Import {final.name}", undoable=False) as ch:

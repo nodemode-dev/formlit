@@ -80,6 +80,36 @@ def from_crs(crs: dict) -> dict:
     return S.prune(dev)
 
 
+def to_crs(dev: dict) -> dict:
+    out: dict[str, str] = {"ProcessVersion": "11.0", "Version": "15.0"}
+    for key, cid in SCALAR.items():
+        if key.startswith("SplitToning") or cid not in S.controls():
+            continue
+        v = S.get(dev, cid)
+        if v != S.controls()[cid].get("default", 0) or key in ("Exposure2012", "Contrast2012"):
+            out[key] = (f"{v:+.2f}" if key == "Exposure2012" else f"{v:+.0f}" if S.controls()[cid].get("min", 0) < 0 else f"{v:.0f}")
+    wb = dev.get("wb") or {}
+    out["WhiteBalance"] = {"asShot": "As Shot", "auto": "Auto", "daylight": "Daylight", "cloudy": "Cloudy", "shade": "Shade", "tungsten": "Tungsten",
+                           "fluorescent": "Fluorescent", "flash": "Flash"}.get(wb.get("mode", "asShot"), "Custom")
+    if out["WhiteBalance"] != "Custom":
+        out.pop("Temperature", None)
+        out.pop("Tint", None)
+    for lr, band in BANDS.items():
+        for kind, short in (("Hue", "hue"), ("Saturation", "sat"), ("Luminance", "lum")):
+            v = S.get(dev, f"mixer.{band}.{short}") if f"mixer.{band}.{short}" in S.controls() else 0
+            if v:
+                out[f"{kind}Adjustment{lr}"] = f"{v:+.0f}"
+        v = S.get(dev, f"bw.{band}") if f"bw.{band}" in S.controls() else 0
+        if v:
+            out[f"GrayMixer{lr}"] = f"{v:+.0f}"
+    out["ConvertToGrayscale"] = "True" if dev.get("treatment") == "bw" else "False"
+    crop = dev.get("crop") or {}
+    if crop.get("rect"):
+        l, t, r, b = crop["rect"]
+        out.update(HasCrop="True", CropLeft=f"{l:.6f}", CropTop=f"{t:.6f}", CropRight=f"{r:.6f}", CropBottom=f"{b:.6f}", CropAngle=f"{float(crop.get('angle', 0)):.4f}")
+    return out
+
+
 def _lrtemplate(text: str) -> tuple[str, dict]:
     title = re.search(r'title\s*=\s*"([^"]*)"', text)
     settings_block = text[text.find("settings"):] if "settings" in text else text

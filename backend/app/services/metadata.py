@@ -1,4 +1,5 @@
 import html
+import json
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -293,6 +294,12 @@ def build_xmp(record: dict) -> str:
         attrs.append(f'photoshop:DateCreated="{_esc(record["captureTime"])}"')
     if record.get("develop"):
         attrs.append(f'fl:develop="{_esc(record["develop"])}"')
+        try:
+            from app.services import xmp_presets
+            dev = json.loads(record["develop"]) if isinstance(record["develop"], str) else record["develop"]
+            attrs.extend(f'crs:{k}="{_esc(v)}"' for k, v in xmp_presets.to_crs(dev or {}).items())
+        except (ValueError, TypeError):
+            pass
     children = []
     if meta.get("title"):
         children.append(f'<dc:title><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta["title"])}</rdf:li></rdf:Alt></dc:title>')
