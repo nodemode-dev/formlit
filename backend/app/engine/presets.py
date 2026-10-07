@@ -142,6 +142,28 @@ def favorite(id: str, on: bool = True) -> dict:
     return {"id": id, "favorite": on}
 
 
+@command("preset.export", "Export Preset", {"id": {"type": "string"}, "folder": {"type": "string"}}, mutates=False)
+def export_preset(id: str, folder: str = "") -> dict:
+    import uuid
+    from app.services import metadata as M
+    from app.services import rename, xmp_presets
+    p = next((x for x in all_presets() if x["id"] == id), None)
+    if p is None:
+        raise CommandError(f"No preset {id}")
+    dest = Path(folder).expanduser() if folder else config.exports_dir() / "Presets"
+    dest.mkdir(parents=True, exist_ok=True)
+    attrs = " ".join(f'crs:{k}="{M._esc(v)}"' for k, v in xmp_presets.to_crs(p["settings"]).items())
+    alt = lambda tag, v: f'<crs:{tag}><rdf:Alt><rdf:li xml:lang="x-default">{M._esc(v)}</rdf:li></rdf:Alt></crs:{tag}>'
+    text = ('<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="formlit">\n <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n'
+            f'  <rdf:Description rdf:about="" xmlns:crs="{M.NS["crs"]}" xmlns:fl="{M.NS["fl"]}" crs:PresetType="Normal" crs:Cluster="" '
+            f'crs:UUID="{uuid.uuid4().hex.upper()}" crs:SupportsAmount="True" crs:SupportsColor="True" crs:SupportsMonochrome="True" '
+            f'{attrs} fl:develop="{M._esc(json.dumps(p["settings"], separators=(",", ":")))}">\n'
+            f'   {alt("Name", p["name"])}\n   {alt("Group", p["group"])}\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n')
+    path = rename.unique(dest / f"{_slug(p['name']) or 'preset'}.xmp")
+    path.write_text(text, encoding="utf-8")
+    return {"path": str(path), "name": p["name"]}
+
+
 @command("preset.import", "Import Presets", {"paths": {"type": "array"}})
 def import_presets(paths: list[str]) -> dict:
     from app.services import xmp_presets

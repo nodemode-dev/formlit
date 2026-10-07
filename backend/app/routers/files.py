@@ -2,6 +2,7 @@ import io
 import os
 import platform
 import string
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -99,3 +100,20 @@ async def upload(files: list[UploadFile] = File(...)) -> dict:
                 out.write(chunk)
         saved.append(str(target))
     return {"paths": saved, "skipped": skipped, "folder": str(dest)}
+
+
+@router.post("/upload/presets")
+async def upload_presets(files: list[UploadFile] = File(...)) -> dict:
+    dest = config.temp_dir() / "presets-in" / f"{time.time_ns()}"
+    dest.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for f in files:
+        name = safe(Path(f.filename or "preset.xmp").name)
+        if Path(name).suffix.lower() not in (".xmp", ".lrtemplate", ".flpreset", ".cube"):
+            continue
+        target = unique(dest / name)
+        with target.open("wb") as out:
+            while chunk := await f.read(1 << 20):
+                out.write(chunk)
+        saved.append(str(target))
+    return {"paths": saved}

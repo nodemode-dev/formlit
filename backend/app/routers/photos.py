@@ -93,6 +93,15 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
         dev = defaults_for(str(cat.scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or ""))
     elif dev is None:
         dev = loads(row["develop"], {})
+    if body.get("preset"):
+        from app.develop import settings as S
+        from app.engine import presets
+        try:
+            src = presets.settings_of(str(body["preset"]))
+        except Exception as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
+        groups = sorted({g for g, keys in S.GROUPS.items() for k in src if k in keys}) or None
+        dev = S.apply_groups(dev, src, groups, float(body.get("presetAmount", 100)) / 100.0)
     long = int(body.get("long") or previews.PREVIEW)
     size = body.get("size")
     region = body.get("region")

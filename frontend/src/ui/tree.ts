@@ -48,7 +48,7 @@ export class Tree {
       if (!row) return;
       const n = this.byKey.get(row.dataset.key ?? '');
       if (!n) return;
-      if ((e.target as HTMLElement).closest('.fl-tree-chev')) { this.toggle(n.key); return; }
+      if ((e.target as HTMLElement).closest('.fl-tree-chev') || (n.hasKids && n.data === undefined)) { this.toggle(n.key); return; }
       this.opts.onPick(n, e);
     });
     this.list.addEventListener('dblclick', (e) => {

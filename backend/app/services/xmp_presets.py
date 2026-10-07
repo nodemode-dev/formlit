@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -135,7 +136,13 @@ def convert(path: Path) -> dict | None:
         crs = parsed.get("crs", {})
         m = re.search(r'crs:Name>\s*<rdf:Alt>\s*<rdf:li[^>]*>([^<]*)<', text) or re.search(r'<crs:Name>([^<]*)<', text)
         name = m.group(1).strip() if m else path.stem
-    if not crs:
+    exact = None
+    if path.suffix.lower() != ".lrtemplate" and parsed.get("develop"):
+        try:
+            exact = json.loads(parsed["develop"])
+        except ValueError:
+            exact = None
+    if not crs and exact is None:
         return None
     group = crs.get("Group") or path.parent.name
-    return {"name": name or path.stem, "group": group, "settings": from_crs(crs)}
+    return {"name": name or path.stem, "group": group, "settings": exact if isinstance(exact, dict) else from_crs(crs)}
