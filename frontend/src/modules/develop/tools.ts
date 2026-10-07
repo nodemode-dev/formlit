@@ -291,7 +291,7 @@ export class CropTool implements Tool {
   }
 }
 
-interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean }
+interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[] }
 
 export class SpotTool implements Tool {
   readonly id = 'spot';
@@ -321,6 +321,18 @@ export class SpotTool implements Tool {
     this.root.insertBefore(this.sOpacity.root, this.root.lastElementChild);
     this.root.insertBefore(this.sFeather.root, this.sOpacity.root);
     this.root.insertBefore(this.sSize.root, this.sFeather.root);
+    this.root.insertBefore(this.variantsRow, this.root.lastElementChild);
+    this.variantsRow.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-var]');
+      if (!b || this.sel < 0) return;
+      e.stopPropagation();
+      const spots = this.spots();
+      const s = spots[this.sel];
+      if (!s) return;
+      if (b.dataset.var === 'more') { this.fill(this.sel, s, 'Remove: New Variations'); return; }
+      const v = s.variants?.[Number(b.dataset.var)];
+      if (v) { s.patch = v; this.write(spots, 'end', 'Remove: Choose Variation'); this.syncVariants(); }
+    });
     this.root.addEventListener('click', (e) => {
       const m = (e.target as HTMLElement).closest<HTMLElement>('[data-m]')?.dataset.m;
       if (m) { this.mode = m; if (this.sel >= 0) { const sp = this.spots(); if (sp[this.sel]) { sp[this.sel].mode = m; this.write(sp, 'end', 'Spot Mode'); } } this.syncOpts(); }
@@ -332,11 +344,31 @@ export class SpotTool implements Tool {
 
   activate(): void { this.host.drawer.replaceChildren(this.root); this.syncOpts(); }
 
+  private readonly variantsRow = el('<div class="fl-row fl-spot-vars" hidden><span class="fl-row-label">Variations</span><div class="cv-seg fl-seg-sm fl-grow"></div><button class="cv-btn fl-btn-sm" type="button" data-var="more" title="Make three new fills">Refresh</button></div>');
+
+  private syncVariants(): void {
+    const s = this.spots()[this.sel];
+    const vars = s?.mode === 'remove' ? s.variants ?? [] : [];
+    setHidden(this.variantsRow, vars.length < 2);
+    const html = vars.map((v, i) => `<button type="button" data-var="${i}" class="${v === s?.patch ? 'is-on' : ''}">${i + 1}</button>`).join('');
+    const seg = q(this.variantsRow, '.cv-seg');
+    if (seg.dataset.key !== html) { seg.dataset.key = html; seg.innerHTML = html; }
+  }
+
+  private fill(i: number, s: Spot, label: string): void {
+    const done = this.host.ctx.shell.busy('Removing');
+    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[] }>('develop.removeFill', { id: develop.id, spot: s })).then((r) => {
+      const now = this.spots();
+      if (now[i]) { now[i].patch = r.patch; now[i].variants = r.variants; now[i].source = null; this.write(now, 'end', label); this.syncVariants(); }
+    }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(this.spots(), 'end', label); }).finally(done);
+  }
+
   private syncOpts(): void {
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>('[data-m]'))) setClass(b, 'is-on', b.dataset.m === this.mode);
     this.sSize.set(Math.round(this.size * 1000));
     this.sFeather.set(this.feather);
     this.sOpacity.set(this.opacity);
+    this.syncVariants();
   }
 
   private spots(): Spot[] { return clone((develop.settings.spots as Spot[] | undefined) ?? []); }
@@ -413,11 +445,7 @@ export class SpotTool implements Tool {
     const s = spots[d.i];
     if (!s) return;
     if (s.mode === 'remove' && (d.kind === 'new' || d.kind === 'dst')) {
-      const done = this.host.ctx.shell.busy('Removing');
-      void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string }>('develop.removeFill', { id: develop.id, spot: s })).then((r) => {
-        const now = this.spots();
-        if (now[d.i]) { (now[d.i] as Spot & { patch?: string }).patch = r.patch; now[d.i].source = null; this.write(now, 'end', 'Remove'); }
-      }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(spots, 'end', 'Remove'); }).finally(done);
+      this.fill(d.i, s, 'Remove');
       return;
     }
     if (d.kind === 'new' || !s.source) {

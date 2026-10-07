@@ -406,8 +406,8 @@ def upright_guides(id: int | None = None, add: list[float] | None = None, remove
     return {"guides": shown, "count": len(guides)}
 
 
-@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}})
-def remove_fill(spot: dict, id: int | None = None) -> dict:
+@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "description": "1 to 3 fills to choose from"}})
+def remove_fill(spot: dict, id: int | None = None, variants: int = 3) -> dict:
     from app.develop.render import plan
     pid = int(id) if id is not None else resolve_ids("active")[0]
     _need("remove")
@@ -423,30 +423,39 @@ def remove_fill(spot: dict, id: int | None = None) -> dict:
         raise CommandError("The spot has no points")
     r = max(2.0, float(spot.get("size", 0.02)) * ppl)
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-    pad = r * 4
-    x0, y0 = int(max(0, min(xs) - pad)), int(max(0, min(ys) - pad))
-    x1, y1 = int(min(w, max(xs) + pad)), int(min(h, max(ys) + pad))
-    crop = sampled[y0:y1, x0:x1]
-    peak = max(1e-6, float(np.percentile(crop, 99.5)))
-    enc = np.sqrt(np.clip(crop / peak, 0.0, 1.0))
-    hole = np.zeros(crop.shape[:2], np.uint8)
-    for (px, py, _), q in zip(pts, pts[1:] + pts[-1:]):
-        cv2.line(hole, (int(px - x0), int(py - y0)), (int(q[0] - x0), int(q[1] - y0)), 255, int(max(1, r * 2)))
-        cv2.circle(hole, (int(px - x0), int(py - y0)), int(r), 255, -1)
-    filled = nets.lama((enc * 255 + 0.5).astype(np.uint8), hole.astype(np.float32) / 255.0).astype(np.float32) / 255.0
-    lin = (filled ** 2) * peak
-    detail = enc - cv2.GaussianBlur(enc, (0, 0), 1.0)
-    noise = np.where((hole > 0)[..., None], np.roll(detail, (int(r * 2), int(r * 2)), (0, 1)) * 0.6, 0.0)
-    lin = np.maximum(((np.sqrt(lin / peak) + noise) ** 2) * peak, 0.0)
-    key = f"remove-{int(time.time() * 1000)}"
     folder = config.masks_dir() / str(pid)
     folder.mkdir(parents=True, exist_ok=True)
-    np.save(folder / f"{key}.npy", lin.astype(np.float16))
     n = frame.out_to_norm(w, h)
-    a = n @ np.array([x0, y0, 1.0])
-    b = n @ np.array([x1, y1, 1.0])
-    (folder / f"{key}.json").write_text(json.dumps({"rect": [float(a[0]), float(a[1]), float(b[0]), float(b[1])]}))
-    return {"patch": f"{pid}/{key}"}
+    stamp = int(time.time() * 1000)
+    out = []
+    for vi, (padk, flip, shift) in enumerate([(4.0, False, 2), (6.5, True, 3), (2.8, False, -2)][:max(1, min(3, int(variants)))]):
+        pad = r * padk
+        x0, y0 = int(max(0, min(xs) - pad)), int(max(0, min(ys) - pad))
+        x1, y1 = int(min(w, max(xs) + pad)), int(min(h, max(ys) + pad))
+        crop = sampled[y0:y1, x0:x1]
+        peak = max(1e-6, float(np.percentile(crop, 99.5)))
+        enc = np.sqrt(np.clip(crop / peak, 0.0, 1.0))
+        hole = np.zeros(crop.shape[:2], np.uint8)
+        for (px, py, _), q in zip(pts, pts[1:] + pts[-1:]):
+            cv2.line(hole, (int(px - x0), int(py - y0)), (int(q[0] - x0), int(q[1] - y0)), 255, int(max(1, r * 2)))
+            cv2.circle(hole, (int(px - x0), int(py - y0)), int(r), 255, -1)
+        src8 = (enc * 255 + 0.5).astype(np.uint8)
+        hm = hole.astype(np.float32) / 255.0
+        if flip:
+            filled = nets.lama(np.ascontiguousarray(src8[:, ::-1]), np.ascontiguousarray(hm[:, ::-1]))[:, ::-1].astype(np.float32) / 255.0
+        else:
+            filled = nets.lama(src8, hm).astype(np.float32) / 255.0
+        lin = (filled ** 2) * peak
+        detail = enc - cv2.GaussianBlur(enc, (0, 0), 1.0)
+        noise = np.where((hole > 0)[..., None], np.roll(detail, (int(r * shift), int(r * shift)), (0, 1)) * 0.6, 0.0)
+        lin = np.maximum(((np.sqrt(lin / peak) + noise) ** 2) * peak, 0.0)
+        key = f"remove-{stamp}-{vi}"
+        np.save(folder / f"{key}.npy", lin.astype(np.float16))
+        a = n @ np.array([x0, y0, 1.0])
+        b = n @ np.array([x1, y1, 1.0])
+        (folder / f"{key}.json").write_text(json.dumps({"rect": [float(a[0]), float(a[1]), float(b[0]), float(b[1])]}))
+        out.append(f"{pid}/{key}")
+    return {"patch": out[0], "variants": out}
 
 
 @command("ai.findFaces", "Find Faces", {"ids": {"type": "array"}, "all": {"type": "boolean"}, "wait": {"type": "boolean"}})
