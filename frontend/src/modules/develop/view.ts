@@ -62,6 +62,7 @@ export class DevelopView {
   compare: Compare = 'off';
   split = 0.5;
   clipping = false;
+  depth = false;
   proof: { space: string; gamut: boolean; paper: string; intent?: string } | null = null;
   tool: Tool | null = null;
   private inflight = false;
@@ -229,6 +230,7 @@ export class DevelopView {
   private body(extra: Record<string, unknown> = {}): Record<string, unknown> {
     const overlay: Record<string, unknown> = {};
     if (this.clipping) overlay.clipping = true;
+    if (this.depth) overlay.depth = true;
     if (this.proof) overlay.proof = this.proof;
     const t = this.tool?.overlay?.();
     if (t) Object.assign(overlay, t);

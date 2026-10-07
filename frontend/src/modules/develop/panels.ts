@@ -237,7 +237,12 @@ export class DevelopPanels {
       el('<div class="fl-sub">Grain</div>'), s('grain.amount', 'Amount'), s('grain.size'), s('grain.roughness'));
 
     const pBlur = this.panel('dev.lensBlur', 'Lens Blur', 'lensBlur', false);
-    pBlur.body.append(el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Uses a depth map made on this computer.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurDepth">${icon('aiSpark', 13)} Build Depth</button></div>`), s('lensBlur.amount', 'Blur Amount'), s('lensBlur.focalDistance'), s('lensBlur.focalRange'), s('lensBlur.bokeh'));
+    const shapeRow = el(`<div class="fl-row"><span class="fl-row-label">Bokeh</span><select class="cv-select fl-grow" data-lb-shape aria-label="Bokeh shape"><option value="circle">Circle</option><option value="bubble">Bubble</option><option value="blade5">5-Blade</option><option value="ring">Ring</option><option value="cateye">Cat Eye</option></select></div>`);
+    const shapeSel = q<HTMLSelectElement>(shapeRow, 'select');
+    shapeSel.addEventListener('change', () => develop.patch('lensBlur', { ...((develop.settings.lensBlur as Record<string, unknown> | undefined) ?? {}), shape: shapeSel.value }, 'end', 'Bokeh Shape'));
+    develop.listen(() => setValue(shapeSel, String(((develop.settings.lensBlur as Record<string, unknown> | undefined) ?? {}).shape ?? 'circle')));
+    pBlur.body.append(el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Uses a depth map made on this computer.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurDepth">${icon('aiSpark', 13)} Build Depth</button></div>`), s('lensBlur.amount', 'Blur Amount'), shapeRow, s('lensBlur.focalDistance'), s('lensBlur.focalRange'), s('lensBlur.bokeh'),
+      el(`<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.visualizeDepth">Visualize Depth</button><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurRefine">${icon('eyeDropper', 13)} Focus and Refine</button></div>`));
 
     const pCal = this.panel('dev.calibration', 'Calibration', 'calibration', false);
     pCal.body.append(s('calibration.shadowsTint', 'Shadows Tint'), el('<div class="fl-sub">Red Primary</div>'), s('calibration.redHue', 'Hue'), s('calibration.redSat', 'Saturation'),

@@ -86,6 +86,43 @@ def spot_source(spot: dict, id: int | None = None, settings: dict | None = None)
     return {"source": [round(float(n[0, 0] * off[0] + n[0, 1] * off[1]), 6), round(float(n[1, 0] * off[0] + n[1, 1] * off[1]), 6)]}
 
 
+@command("develop.lensBlurFocus", "Lens Blur Focus Point", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}, "box": {"type": "array", "description": "[x0, y0, x1, y1] to focus on an area instead of a point"}, "apply": {"type": "boolean"}})
+def lens_blur_focus(x: float = 0.5, y: float = 0.5, id: int | None = None, box: list[float] | None = None, apply: bool = True) -> dict:
+    import numpy as np
+    from app.develop.masks import load_bitmap
+    from app.develop.render import effective, plan
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, _ = current(pid)
+    key = (dev.get("lensBlur") or {}).get("depth")
+    if not key:
+        raise CommandError("Build the depth map first (ai.depth)")
+    img, _ = previews.source(pid)
+    sh, sw = img.shape[:2]
+    frame, w, h, _ = plan(sw, sh, effective(dev), 512)
+    depth = load_bitmap(pid, key, frame, w, h)
+    to = frame.norm_to_out(w, h)
+    pts = [(float(box[0]), float(box[1])), (float(box[2]), float(box[3]))] if box and len(box) == 4 else [(float(x), float(y))]
+    px = [to @ np.array([a, b, 1.0]) for a, b in pts]
+    xs = sorted(int(min(max(p[0], 0), w - 1)) for p in px)
+    ys = sorted(int(min(max(p[1], 0), h - 1)) for p in px)
+    r = 2 if len(pts) == 1 else 0
+    patch = depth[max(0, ys[0] - r):ys[-1] + r + 1, max(0, xs[0] - r):xs[-1] + r + 1]
+    far = float(1.0 - np.median(patch))
+    spread = float(np.percentile(patch, 90) - np.percentile(patch, 10)) if patch.size > 4 else 0.0
+    focus = round(far * 100.0, 1)
+    rng = round(min(100.0, max(5.0, spread * 200.0)), 1) if len(pts) > 1 else None
+    if apply:
+        with cat().change("Lens Blur Focus") as ch:
+            new = json.loads(json.dumps(dev))
+            lb = new.setdefault("lensBlur", {})
+            lb["focalDistance"] = focus
+            if rng is not None:
+                lb["focalRange"] = rng
+            store(ch, pid, new, "Lens Blur Focus")
+        after([pid])
+    return {"id": pid, "focalDistance": focus, "focalRange": rng}
+
+
 @command("develop.sampleColor", "Sample Color", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}}, mutates=False)
 def sample_color(x: float, y: float, id: int | None = None, settings: dict | None = None) -> dict:
     import numpy as np

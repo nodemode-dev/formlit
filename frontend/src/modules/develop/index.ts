@@ -13,6 +13,7 @@ import { MaskTool } from './masks';
 import { DEFAULT_OFF, GROUPS } from './groups';
 import { DevelopPanels } from './panels';
 import { openProfileBrowser } from './profile-browser';
+import { LensBlurTool } from './lensblur-tool';
 import { CropTool, FringePickerTool, GuidedTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
 import { DevelopView, type Compare, type Tool } from './view';
 
@@ -90,6 +91,7 @@ class DevelopModule {
       this.tools.set('wb', new WbPickerTool(host));
       this.tools.set('fringe', new FringePickerTool(host));
       this.tools.set('guided', new GuidedTool(host));
+      this.tools.set('lensblur', new LensBlurTool(host));
       this.tools.set('point', new PointColorTool(host));
       this.tat = new TatTool(host);
       this.tools.set('tat', this.tat);
@@ -314,6 +316,8 @@ class DevelopModule {
       { id: 'develop.zoom', label: 'Toggle Zoom', keys: ['Z'], run: () => { if (ctx.module() === 'develop') this.view.toggleZoom(); else ctx.run('view.zoomToggle'); } },
       { id: 'develop.aiDenoise', label: 'Denoise...', keys: ['Alt+Mod+D'], run: () => ctx.run('photo.enhance'), enabled: has },
       { id: 'develop.lensBlurDepth', label: 'Build Depth Map', run: () => this.run('ai.depth', {}, () => toast('Depth map ready')), enabled: has },
+      { id: 'develop.lensBlurRefine', label: 'Lens Blur Focus and Brushes', run: tool('lensblur'), checked: () => this.toolId === 'lensblur' },
+      { id: 'develop.visualizeDepth', label: 'Visualize Depth', run: () => { this.view.depth = !this.view.depth; this.view.schedule(); }, checked: () => this.view.depth },
     );
   }
 
