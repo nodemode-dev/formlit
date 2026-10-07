@@ -1,6 +1,6 @@
 import type { Ctx } from '../../app';
 import { clone, develop } from '../../state/develop';
-import { el, q, setClass, setText } from '../../ui/dom';
+import { el, q, setClass, setHidden, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
 import type { DevelopView, Pt, Tool } from './view';
@@ -478,12 +478,12 @@ export class SpotTool implements Tool {
   }
 }
 
-interface Eye { center: [number, number]; rx: number; ry: number; pupilSize: number; darken: number; pet?: boolean }
+interface Eye { center: [number, number]; rx: number; ry: number; pupilSize: number; darken: number; pet?: boolean; catchlight?: [number, number] }
 
 export class RedEyeTool implements Tool {
   readonly id = 'redeye';
   cursor = 'crosshair';
-  private drag: { start: Pt; i: number } | null = null;
+  private drag: { start: Pt; i: number; light?: boolean } | null = null;
   private pet = false;
   private readonly root: HTMLElement;
   private sel = -1;
@@ -491,7 +491,7 @@ export class RedEyeTool implements Tool {
   private readonly sDark: Slider;
 
   constructor(private readonly host: ToolHost) {
-    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('redEye', 14)} Red Eye Correction</div><div class="fl-row"><span class="fl-row-label">Type</span><div class="cv-seg fl-seg-sm fl-grow"><button type="button" data-t="red">Red Eye</button><button type="button" data-t="pet">Pet Eye</button></div></div><div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Drag across an eye.</span><button class="cv-btn fl-btn-sm" type="button" data-a="clear">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('redEye', 14)} Red Eye Correction</div><div class="fl-row"><span class="fl-row-label">Type</span><div class="cv-seg fl-seg-sm fl-grow"><button type="button" data-t="red">Red Eye</button><button type="button" data-t="pet">Pet Eye</button></div></div><label class="fl-check-sm fl-eye-cl" hidden><input type="checkbox"> Add Catchlight (drag the dot to place it)</label><div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Drag across an eye.</span><button class="cv-btn fl-btn-sm" type="button" data-a="clear">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
     const upd = (k: 'pupilSize' | 'darken') => (v: number, phase: 'drag' | 'end') => {
       const eyes = this.eyes();
       if (this.sel >= 0 && eyes[this.sel]) { eyes[this.sel][k] = v; develop.patch('redEye', eyes, phase, 'Red Eye'); }
@@ -507,16 +507,34 @@ export class RedEyeTool implements Tool {
       if (a === 'clear') develop.patch('redEye', null, 'end', 'Reset Red Eye');
       if (a === 'done') this.host.done();
     });
+    q<HTMLInputElement>(this.root, '.fl-eye-cl input').addEventListener('change', (e) => {
+      const eyes = this.eyes();
+      const eye = eyes[this.sel];
+      if (!eye) return;
+      if ((e.target as HTMLInputElement).checked) {
+        const info = develop.info;
+        const long = info ? Math.max(info.width, info.height) : 1;
+        eye.catchlight = [eye.center[0] - (0.3 * eye.rx * long) / (info?.width || long), eye.center[1] - (0.3 * eye.ry * long) / (info?.height || long)];
+      } else delete eye.catchlight;
+      develop.patch('redEye', eyes, 'end', 'Catchlight');
+    });
   }
 
   activate(): void { this.host.drawer.replaceChildren(this.root); this.sync(); }
 
-  private sync(): void { for (const b of Array.from(this.root.querySelectorAll<HTMLElement>('[data-t]'))) setClass(b, 'is-on', (b.dataset.t === 'pet') === this.pet); }
+  private sync(): void {
+    for (const b of Array.from(this.root.querySelectorAll<HTMLElement>('[data-t]'))) setClass(b, 'is-on', (b.dataset.t === 'pet') === this.pet);
+    const eye = this.eyes()[this.sel];
+    setHidden(q(this.root, '.fl-eye-cl'), !(this.pet || eye?.pet));
+    q<HTMLInputElement>(this.root, '.fl-eye-cl input').checked = !!eye?.catchlight;
+  }
 
   private eyes(): Eye[] { return clone((develop.settings.redEye as Eye[] | undefined) ?? []); }
 
   down(p: Pt): boolean {
     const eyes = this.eyes();
+    const hit = eyes.findIndex((e) => { if (!e.catchlight) return false; const [x, y] = this.host.view.normToStage(e.catchlight[0], e.catchlight[1]); return Math.hypot(x - p.sx, y - p.sy) < 8; });
+    if (hit >= 0) { this.sel = hit; this.drag = { start: p, i: hit, light: true }; this.sync(); return true; }
     eyes.push({ center: [p.nx, p.ny], rx: 0.01, ry: 0.008, pupilSize: 50, darken: 50, pet: this.pet || undefined });
     this.sel = eyes.length - 1;
     this.drag = { start: p, i: this.sel };
@@ -530,6 +548,7 @@ export class RedEyeTool implements Tool {
     const eyes = this.eyes();
     const e = eyes[d.i];
     if (!e) return;
+    if (d.light) { e.catchlight = [p.nx, p.ny]; develop.patch('redEye', eyes, 'drag', 'Catchlight'); return; }
     const k = this.host.view.pxPerLong();
     const rx = Math.max(0.003, Math.abs(p.sx - d.start.sx) / k);
     const ry = Math.max(0.003, Math.abs(p.sy - d.start.sy) / k);
@@ -554,6 +573,7 @@ export class RedEyeTool implements Tool {
       const [x, y] = view.normToStage(e.center[0], e.center[1]);
       c.lineWidth = i === this.sel ? 2 : 1;
       c.beginPath(); c.ellipse(x, y, Math.max(3, e.rx * k), Math.max(3, e.ry * k), 0, 0, Math.PI * 2); c.stroke();
+      if (e.catchlight) { const [lx, ly] = view.normToStage(e.catchlight[0], e.catchlight[1]); c.beginPath(); c.arc(lx, ly, 4, 0, Math.PI * 2); c.stroke(); }
     });
     c.restore();
   }

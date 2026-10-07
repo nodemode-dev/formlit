@@ -1,4 +1,5 @@
 import type { Ctx } from '../../app';
+import { catalog } from '../../state/catalog';
 import { library } from '../../state/library';
 import { askForm } from '../../ui/askform';
 import { pickFolder } from '../../ui/folder-picker';
@@ -43,6 +44,20 @@ function example(template: string, custom: string, start: number): string {
 export function registerPhotoDialogs(ctx: Ctx): void {
   const has = () => library.targets().length > 0;
   ctx.commands.add(
+    {
+      id: 'library.labelSet', label: 'Edit Color Label Set...',
+      run: async () => {
+        const labels: Array<[string, string]> = [['red', 'Red'], ['yellow', 'Yellow'], ['green', 'Green'], ['blue', 'Blue'], ['purple', 'Purple']];
+        const v = await askForm('Edit Color Label Set', 'Name what each color means in your workflow. The names show in menus, filters and tooltips.', labels.map(([k, l]) => ({ path: k, label: l, kind: 'text' as const })),
+          Object.fromEntries(labels.map(([k]) => [k, catalog.labelName(k)])), 'Save');
+        if (!v) return;
+        try {
+          await ctx.api.cmd('library.labelNames', { names: Object.fromEntries(labels.map(([k, l]) => [k, String(v[k] ?? '').trim() || l])) });
+          await catalog.refresh();
+          toast('Color label set saved');
+        } catch (err) { ctx.fail(err); }
+      },
+    },
     {
       id: 'library.locate', label: 'Locate Missing Photo...', enabled: () => !!library.photo(library.active)?.miss,
       run: async () => {
