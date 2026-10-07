@@ -45,12 +45,22 @@ def _alt(node: ET.Element, tag: str) -> str:
     return (n.text or "").strip() if n is not None and n.text else ""
 
 
+def _profile_desc(root: ET.Element) -> ET.Element | None:
+    rdf = root if root.tag == f"{{{RDF}}}RDF" else root.find(f"{{{RDF}}}RDF")
+    for d in rdf.findall(f"{{{RDF}}}Description") if rdf is not None else []:
+        if d.get(f"{{{CRS}}}PresetType", "Look") == "Look" and (d.get(f"{{{CRS}}}RGBTable") or d.get(f"{{{CRS}}}LookTable")):
+            return d
+    return None
+
+
 def is_profile(path: Path) -> bool:
     try:
         head = Path(path).read_text(encoding="utf-8", errors="ignore")
-    except OSError:
+        if not (("RGBTable" in head or "LookTable" in head) and "Table_" in head):
+            return False
+        return _profile_desc(ET.parse(path).getroot()) is not None
+    except (OSError, ET.ParseError):
         return False
-    return ("RGBTable" in head or "LookTable" in head) and "Table_" in head
 
 
 def _block(desc: ET.Element, attr: str) -> bytes | None:
@@ -62,16 +72,20 @@ def _block(desc: ET.Element, attr: str) -> bytes | None:
     if len(data) < 5:
         raise ValueError("The profile's table is empty")
     size = struct.unpack("<I", data[:4])[0]
+    if not 16 <= size <= 32 << 20:
+        raise ValueError("The profile's table has an unexpected size")
     try:
-        block = zlib.decompress(data[4:])
+        block = zlib.decompressobj().decompress(data[4:], size + 1)
     except zlib.error as exc:
         raise ValueError("The profile's table is not valid compressed data") from exc
-    if len(block) != size or size < 16:
+    if len(block) != size:
         raise ValueError("The profile's table did not decompress to its stated size")
     return block
 
 
 def _look(block: bytes) -> dict:
+    if len(block) < 20:
+        raise ValueError("The profile's look table is truncated")
     kind, version, hd, sd, vd = struct.unpack("<5I", block[:20])
     if kind != LOOK_TABLE or version not in (1, 2):
         raise ValueError("The profile's look table has a type or version formlit does not know")
@@ -92,12 +106,11 @@ def _look(block: bytes) -> dict:
 
 
 def read(path: Path) -> dict:
-    root = ET.parse(path).getroot()
-    desc = None
-    for d in root.iter(f"{{{RDF}}}Description"):
-        if d.get(f"{{{CRS}}}RGBTable") or d.get(f"{{{CRS}}}LookTable"):
-            desc = d
-            break
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as exc:
+        raise ValueError("This XMP is not well-formed XML") from exc
+    desc = _profile_desc(root)
     if desc is None:
         raise ValueError("This XMP is not a profile with a colour table (no crs:RGBTable or crs:LookTable)")
     look_block = _block(desc, "LookTable")
@@ -173,8 +186,8 @@ def stem_of(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9 ._-]+", "", name).strip().replace(" ", "_")[:80] or "Profile"
 
 
-def write_cube(prof: dict, dst_dir: Path) -> Path:
-    stem = stem_of(prof["name"])
+def write_cube(prof: dict, dst_dir: Path, stem: str = "") -> Path:
+    stem = stem or stem_of(prof["name"])
     lut = to_srgb(prof)
     lines = [f'TITLE "{prof["name"]}"', f"LUT_3D_SIZE {lut.shape[0]}"]
     lines += [f"{px[0]:.6f} {px[1]:.6f} {px[2]:.6f}" for px in lut.reshape(-1, 3)]
