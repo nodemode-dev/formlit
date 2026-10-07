@@ -151,7 +151,7 @@ def _pick(prof: dict, a: str, b: str, g: float) -> np.ndarray | None:
 
 def needs_exposure(prof: dict) -> bool:
     dims = prof.get("lookDims")
-    return bool(prof.get("look") and dims and (int(dims[2]) > 1 or int((prof.get("lookEncoding") or (0,))[0]) == 1))
+    return prof.get("look") is not None and bool(dims) and (int(dims[2]) > 1 or int((prof.get("lookEncoding") or (0,))[0]) == 1)
 
 
 def to_prophoto(prof: dict, info: dict, wb: tuple[float, float]) -> np.ndarray:
@@ -176,27 +176,55 @@ def to_prophoto(prof: dict, info: dict, wb: tuple[float, float]) -> np.ndarray:
     return colour.from_xyz("prophoto") @ colour.bradford(xy, colour.D50) @ np.linalg.inv(cm) @ np.diag(neutral) @ from_cam
 
 
-def apply_linear(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tuple[float, float] = (6500.0, 0.0), ev: float = 0.0,
-                 rows: int = 256) -> np.ndarray:
+def _pp_matrix() -> np.ndarray:
     from app.develop import colour
+    return colour.from_xyz("prophoto") @ colour.bradford(colour.D65, colour.D50) @ colour.to_xyz("rec2020")
+
+
+def lookup(rgb: np.ndarray, dims, table, srgb_value: bool, vscale: float = 1.0) -> np.ndarray:
+    hd, sd, vd = (int(x) for x in dims[:3])
+    try:
+        from app.develop import dcp_kernel
+    except ImportError:
+        return _apply_table(rgb, dims, table, srgb_value, vscale)
+    deltas = np.ascontiguousarray(np.asarray(table, np.float64).reshape(max(1, vd), hd, sd, 3))
+    flat = np.ascontiguousarray(rgb.reshape(-1, 3), np.float64)
+    return dcp_kernel.table(flat, deltas, bool(srgb_value), float(vscale)).reshape(rgb.shape)
+
+
+def apply_camera(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tuple[float, float] = (6500.0, 0.0), rows: int = 512) -> np.ndarray:
     info = info or {}
     to_pp = to_prophoto(prof, info, wb)
-    back = np.linalg.inv(colour.from_xyz("prophoto") @ colour.bradford(colour.D65, colour.D50) @ colour.to_xyz("rec2020"))
+    back = np.linalg.inv(_pp_matrix())
     gain = float(info.get("sensorGain") or 2.0 ** SENSOR_EV)
     offset = 2.0 ** float((prof.get("baselineExposureOffset") or (0.0,))[0])
-    g = weight1(prof, float(wb[0]))
-    hsm = _pick(prof, "hsm1", "hsm2", g)
-    look_scale = 2.0 ** (float(ev) - SENSOR_EV)
+    hsm = _pick(prof, "hsm1", "hsm2", weight1(prof, float(wb[0])))
     out = np.empty_like(lin)
     for y0 in range(0, lin.shape[0], rows):
         pp = np.maximum(lin[y0:y0 + rows].astype(np.float64), 0.0) @ to_pp.T
         if prof.get("hsmDims") and hsm is not None:
-            pp = _apply_table(pp, prof["hsmDims"], hsm, int((prof.get("hsmEncoding") or (0,))[0]) == 1, 1.0 / gain)
-        pp = pp * offset
-        if prof.get("lookDims") and prof.get("look"):
-            pp = _apply_table(pp, prof["lookDims"], prof["look"], int((prof.get("lookEncoding") or (0,))[0]) == 1, look_scale)
+            pp = lookup(pp, prof["hsmDims"], hsm, int((prof.get("hsmEncoding") or (0,))[0]) == 1, 1.0 / gain)
+        out[y0:y0 + rows] = np.maximum((pp * offset) @ back.T, 0.0)
+    return out
+
+
+def apply_look(lin: np.ndarray, prof: dict, ev: float = 0.0, rows: int = 512) -> np.ndarray:
+    if not (prof.get("lookDims") and prof.get("look") is not None):
+        return lin
+    to_pp = _pp_matrix()
+    back = np.linalg.inv(to_pp)
+    scale = 2.0 ** (float(ev) - SENSOR_EV)
+    srgb = int((prof.get("lookEncoding") or (0,))[0]) == 1
+    out = np.empty_like(lin)
+    for y0 in range(0, lin.shape[0], rows):
+        pp = np.maximum(lin[y0:y0 + rows].astype(np.float64), 0.0) @ to_pp.T
+        pp = lookup(pp, prof["lookDims"], prof["look"], srgb, scale)
         out[y0:y0 + rows] = np.maximum(pp @ back.T, 0.0)
     return out
+
+
+def apply_linear(lin: np.ndarray, prof: dict, info: dict | None = None, wb: tuple[float, float] = (6500.0, 0.0), ev: float = 0.0) -> np.ndarray:
+    return apply_look(apply_camera(lin, prof, info, wb), prof, ev)
 
 
 def tone_knots(prof: dict) -> list | None:
