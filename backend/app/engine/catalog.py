@@ -149,6 +149,9 @@ class Change:
         self.ops.append(("insert", table, enc))
         if table == "photos":
             self.added.append(int(enc["id"]))
+            from app.services import previews
+            previews.drop_source(int(enc["id"]))
+            previews.clear(int(enc["id"]))
         self.touch(table, enc.get("id") if table == "photos" else None, enc.keys())
         if table == "photo_keywords":
             self.touch("photos", enc["photo_id"], {"keywords"})
