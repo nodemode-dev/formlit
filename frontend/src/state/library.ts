@@ -41,6 +41,7 @@ export interface Filter {
   lenses?: string[];
   keywords?: number[];
   dates?: string[];
+  meta?: Record<string, Array<string | number>>;
 }
 export interface Sort { by: string; desc: boolean }
 
@@ -48,6 +49,9 @@ type Fn = () => void;
 type IdsFn = (ids: number[]) => void;
 
 const VIEW_KEY = 'formlit_library_view';
+const LOCK_KEY = 'formlit_filter_lock';
+const PER_SOURCE_KEY = 'formlit_source_filters';
+const sourceKey = (s: Source): string => `${s.kind}:${s.id ?? ''}:${s.value ?? ''}`;
 const FIELDS_THAT_FILTER = new Set(['rating', 'flag', 'label', 'edited', 'kind', 'capture_time', 'file_name', 'stack_id', 'stack_pos', 'folder_id', 'missing']);
 
 export function sameSource(a: Source, b: Source): boolean {
@@ -137,8 +141,24 @@ export class Library {
     this.refreshTimer = window.setTimeout(() => { void this.refresh().catch(() => undefined); }, ms);
   }
 
+  get filterLock(): boolean {
+    try { return localStorage.getItem(LOCK_KEY) === '1'; } catch { return false; }
+  }
+
+  setFilterLock(on: boolean): void {
+    try { localStorage.setItem(LOCK_KEY, on ? '1' : '0'); } catch { return; }
+  }
+
   setSource(source: Source): void {
     if (sameSource(source, this.source) && source.recursive === this.source.recursive) return;
+    if (!this.filterLock && !sameSource(source, this.source)) {
+      try {
+        const per = JSON.parse(localStorage.getItem(PER_SOURCE_KEY) || '{}') as Record<string, Filter>;
+        per[sourceKey(this.source)] = this.filter;
+        this.filter = per[sourceKey(source)] ?? {};
+        localStorage.setItem(PER_SOURCE_KEY, JSON.stringify(per));
+      } catch { this.filter = {}; }
+    }
     this.source = source;
     this.selection.clear();
     this.active = null;

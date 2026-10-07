@@ -285,7 +285,7 @@ class DevelopModule {
       { id: 'develop.softProof', label: 'Soft Proofing', run: () => { this.proofOn = !this.proofOn; this.applyProof(); }, checked: () => this.proofOn },
       { id: 'develop.gamutWarning', label: 'Destination Gamut Warning', run: () => { this.gamut = !this.gamut; if (!this.proofOn) this.proofOn = true; this.applyProof(); }, checked: () => this.proofOn && this.gamut },
       { id: 'develop.beforeAfter', label: 'Before/After Left/Right', keys: ['Y'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'lr' ? 'off' : 'lr'); }, checked: () => this.view.compare === 'lr' },
-      { id: 'develop.before', label: 'Show Before', keys: ['\\'], run: () => this.setCompare(this.view.compare === 'before' ? 'off' : 'before'), checked: () => this.view.compare === 'before' },
+      { id: 'develop.before', label: 'Show Before', keys: ['\\'], run: () => { if (ctx.module() === 'develop') this.setCompare(this.view.compare === 'before' ? 'off' : 'before'); else ctx.run('view.filterBar'); }, checked: () => this.view.compare === 'before' },
       { id: 'develop.loupe', label: 'Loupe', run: () => this.setCompare('off') },
       { id: 'develop.tool.crop', label: 'Crop and Straighten', keys: ['R'], run: tool('crop'), checked: () => this.toolId === 'crop' },
       { id: 'develop.tool.spot', label: 'Healing', keys: ['Q'], run: tool('spot'), checked: () => this.toolId === 'spot' },

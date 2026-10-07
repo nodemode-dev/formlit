@@ -1,13 +1,21 @@
 import type { Ctx } from '../../app';
 import { library, type Filter } from '../../state/library';
-import { el, escapeHtml, patchList, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
+import { askForm } from '../../ui/askform';
+import { el, escapeHtml, patchList, q, setClass, setHidden, setStyleVar, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { LABELS } from '../shared/actions';
 
 interface Facet { value: string | number; name?: string; count: number }
 type Facets = Record<string, Facet[]>;
+interface FilterPreset { name: string; builtin?: boolean; tab?: string; columns?: string[]; filter: Filter }
 
-const COLUMNS: Array<[string, string, keyof Filter]> = [['dates', 'Date', 'dates'], ['cameras', 'Camera', 'cameras'], ['lenses', 'Lens', 'lenses'], ['keywords', 'Keyword', 'keywords']];
+const COLS_KEY = 'formlit_filter_columns';
+const DEFAULT_COLS = ['date', 'camera', 'lens', 'label'];
+const MAX_COLS = 8;
+
+function readCols(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(COLS_KEY) || 'null') as string[] | null; return Array.isArray(v) && v.length ? v.slice(0, MAX_COLS) : DEFAULT_COLS.slice(); } catch { return DEFAULT_COLS.slice(); }
+}
 
 export class FilterBar {
   readonly root: HTMLElement;
@@ -17,12 +25,17 @@ export class FilterBar {
   private readonly meta: HTMLElement;
   private readonly textRow: HTMLElement;
   private facets: Facets = {};
+  private cols = readCols();
+  private available: Array<[string, string]> = [];
+  private presets: FilterPreset[] = [];
+  private readonly presetSel: HTMLSelectElement;
+  private readonly lock: HTMLElement;
 
   constructor(private readonly ctx: Ctx) {
     this.root = el(`<div class="fl-filterbar" hidden>
 <div class="fl-fb-tabs"><span class="fl-fb-title">Library Filter:</span>
 <button type="button" data-tab="text">Text</button><button type="button" data-tab="attribute">Attribute</button><button type="button" data-tab="metadata">Metadata</button><button type="button" data-tab="">None</button>
-<span class="fl-tb-spacer"></span><button class="cv-btn cv-btn-ghost fl-fb-off" type="button">Filters Off</button></div>
+<span class="fl-tb-spacer"></span><select class="cv-select fl-fb-preset" aria-label="Filter preset"><option value="">Custom Filter</option></select><button class="cv-icon-btn fl-fb-lock" type="button" title="Lock the filter so it stays when you change source"><span data-on hidden>${icon('lock', 14)}</span><span data-off>${icon('unlock', 14)}</span></button><button class="cv-btn cv-btn-ghost fl-fb-off" type="button">Filters Off</button></div>
 <div class="fl-fb-text" hidden><span class="fl-tb-label">Any Searchable Field</span><input class="cv-input" type="search" placeholder="Search: words, or field:value like camera:canon rating>=3" spellcheck="false"></div>
 <div class="fl-fb-attr" hidden></div>
 <div class="fl-fb-meta" hidden></div>
@@ -31,6 +44,16 @@ export class FilterBar {
     this.textRow = q(this.root, '.fl-fb-text');
     this.attr = q(this.root, '.fl-fb-attr');
     this.meta = q(this.root, '.fl-fb-meta');
+    this.presetSel = q<HTMLSelectElement>(this.root, '.fl-fb-preset');
+    this.lock = q(this.root, '.fl-fb-lock');
+    this.lock.addEventListener('click', () => { library.setFilterLock(!library.filterLock); this.sync(); });
+    this.presetSel.addEventListener('change', () => {
+      const v = this.presetSel.value;
+      if (v.startsWith('#')) this.presetSel.value = '';
+      this.presetSel.blur();
+      void this.pickPreset(v);
+    });
+    void this.loadPresets();
     this.buildAttr();
     q(this.root, '.fl-fb-tabs').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
@@ -40,18 +63,35 @@ export class FilterBar {
     let t = 0;
     this.text.addEventListener('input', () => { window.clearTimeout(t); t = window.setTimeout(() => library.setFilter({ text: this.text.value }), 180); });
     this.meta.addEventListener('click', (e) => {
-      const row = (e.target as HTMLElement).closest<HTMLElement>('[data-v]');
+      const t = e.target as HTMLElement;
+      const colBtn = t.closest<HTMLElement>('[data-col-act]');
+      if (colBtn) { this.colAction(colBtn.dataset.colAct as string, Number(colBtn.closest<HTMLElement>('[data-i]')?.dataset.i ?? -1)); return; }
+      const row = t.closest<HTMLElement>('[data-v]');
       if (!row) return;
-      const key = row.dataset.k as keyof Filter;
+      const key = row.dataset.k as string;
       const raw = row.dataset.v as string;
-      const v: string | number = key === 'keywords' ? Number(raw) : raw;
-      const cur = ((library.filter[key] as Array<string | number> | undefined) ?? []).slice();
+      const v: string | number = ['keyword', 'collection', 'person'].includes(key) ? Number(raw) : raw;
+      const meta = { ...(library.filter.meta ?? {}) };
+      const cur = (meta[key] ?? []).slice();
       const mod = (e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey;
       const has = cur.includes(v);
       const next = mod ? (has ? cur.filter((x) => x !== v) : [...cur, v]) : (has && cur.length === 1 ? [] : [v]);
-      library.setFilter({ [key]: next } as Partial<Filter>);
+      if (next.length) meta[key] = next; else delete meta[key];
+      if (!mod) for (const k of this.cols.slice(this.cols.indexOf(key) + 1)) delete meta[k];
+      library.setFilter({ meta: Object.keys(meta).length ? meta : undefined });
     });
-    library.listen('list', () => { this.sync(); if (this.tab === 'metadata') void this.loadFacets(); });
+    this.meta.addEventListener('change', (e) => {
+      const s = (e.target as HTMLElement).closest<HTMLSelectElement>('select[data-i]');
+      if (!s) return;
+      const i = Number(s.dataset.i);
+      const old = this.cols[i];
+      this.cols[i] = s.value;
+      this.saveCols();
+      const meta = { ...(library.filter.meta ?? {}) };
+      if (old && meta[old]) { delete meta[old]; library.setFilter({ meta: Object.keys(meta).length ? meta : undefined }); }
+      void this.loadFacets();
+    });
+    library.listen('list', () => this.sync());
     this.sync();
   }
 
@@ -118,28 +158,104 @@ export class FilterBar {
     for (const b of Array.from(this.attr.querySelectorAll<HTMLElement>('[data-kind]'))) setClass(b, 'is-on', (f.kinds ?? []).includes(b.dataset.kind ?? ''));
     setValue(q<HTMLSelectElement>(this.attr, '.fl-fb-op'), f.ratingOp ?? '>=');
     setClass(q(this.root, '.fl-fb-off'), 'is-on', library.hasFilter());
-    if (this.tab === 'metadata') this.renderFacets();
+    const locked = library.filterLock;
+    setClass(this.lock, 'is-on', locked);
+    setHidden(q(this.lock, '[data-on]'), !locked);
+    setHidden(q(this.lock, '[data-off]'), locked);
+    const match = this.presets.find((p) => JSON.stringify(p.filter) === JSON.stringify(f) && (!p.columns || p.columns.join() === this.cols.join()));
+    setValue(this.presetSel, match?.name ?? '');
+    if (this.tab === 'metadata') void this.loadFacets();
   }
 
+  private async loadPresets(): Promise<void> {
+    try { this.presets = (await this.ctx.api.cmd<{ presets: FilterPreset[] }>('library.filterPresets')).presets; } catch { return; }
+    const opts = ['<option value="">Custom Filter</option>', ...this.presets.map((p) => `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`), '<option value="#save">Save Current Settings as New Preset...</option>'];
+    const mine = this.presets.filter((p) => !p.builtin);
+    if (mine.length) opts.push(...mine.map((p) => `<option value="#del:${escapeHtml(p.name)}">Delete Preset "${escapeHtml(p.name)}"</option>`));
+    const html = opts.join('');
+    if (this.presetSel.dataset.key !== html) { this.presetSel.dataset.key = html; this.presetSel.innerHTML = html; }
+    this.sync();
+  }
+
+  private async pickPreset(v: string): Promise<void> {
+    if (v === '#save') {
+      const got = await askForm('New Filter Preset', 'Saves the current filter and metadata columns.', [{ path: 'name', label: 'Preset Name', kind: 'text' }], { name: '' }, 'Create');
+      const name = String(got?.name ?? '').trim();
+      if (name) {
+        try { await this.ctx.api.cmd('library.filterPresetSave', { name, filter: library.filter, columns: this.tab === 'metadata' ? this.cols : undefined, tab: this.tab }); } catch (err) { this.ctx.fail(err); }
+      }
+      await this.loadPresets();
+      return;
+    }
+    if (v.startsWith('#del:')) {
+      try { await this.ctx.api.cmd('library.filterPresetDelete', { name: v.slice(5) }); } catch (err) { this.ctx.fail(err); }
+      await this.loadPresets();
+      return;
+    }
+    const p = this.presets.find((x) => x.name === v);
+    if (!p) return;
+    if (p.columns?.length) { this.cols = p.columns.slice(0, MAX_COLS); this.saveCols(); }
+    library.setFilter({ ...p.filter }, true);
+    if (p.tab !== undefined) this.setTab(p.tab);
+  }
+
+  private saveCols(): void {
+    try { localStorage.setItem(COLS_KEY, JSON.stringify(this.cols)); } catch { return; }
+  }
+
+  private colAction(act: string, i: number): void {
+    if (act === 'add' && this.cols.length < MAX_COLS) {
+      const next = this.available.find(([k]) => !this.cols.includes(k));
+      if (next) this.cols.push(next[0]);
+    } else if (act === 'remove' && this.cols.length > 1 && i >= 0) {
+      const [gone] = this.cols.splice(i, 1);
+      const meta = { ...(library.filter.meta ?? {}) };
+      if (meta[gone]) { delete meta[gone]; library.setFilter({ meta: Object.keys(meta).length ? meta : undefined }); }
+    }
+    this.saveCols();
+    void this.loadFacets();
+  }
+
+  private facetSeq = 0;
+
   private async loadFacets(): Promise<void> {
-    try { this.facets = await this.ctx.api.cmd<Facets>('library.facets', { source: library.source }); } catch { return; }
+    const seq = ++this.facetSeq;
+    const { meta, ...rest } = library.filter;
+    let r: { columns: Facets; available: Array<[string, string]> };
+    try { r = await this.ctx.api.cmd('library.facetColumns', { source: library.source, columns: this.cols, meta: meta ?? {}, filter: rest }); } catch { return; }
+    if (seq !== this.facetSeq) return;
+    this.facets = r.columns;
+    this.available = r.available;
     this.renderFacets();
   }
 
   private renderFacets(): void {
-    if (!this.meta.childElementCount) {
-      for (const [k, label] of COLUMNS) this.meta.appendChild(el(`<div class="fl-fb-col" data-col="${k}"><div class="fl-fb-col-head">${label}</div><div class="fl-fb-col-list"></div></div>`));
-    }
-    for (const [k, , fk] of COLUMNS) {
-      const list = q(this.meta, `[data-col="${k}"] .fl-fb-col-list`);
-      const rows = (this.facets[k] ?? []).map((f) => ({ v: String(f.value), name: f.name ?? String(f.value), count: f.count }));
-      const sel = new Set(((library.filter[fk] as Array<string | number> | undefined) ?? []).map(String));
-      patchList(list, rows, {
-        key: (r) => r.v,
-        create: (r) => { const n = el(`<button class="fl-fb-row" type="button" data-k="${fk}" data-v="${escapeHtml(r.v)}"><span></span><em></em></button>`); return n; },
-        update: (n, r) => { setText(q(n, 'span'), r.name); setText(q(n, 'em'), String(r.count)); setClass(n, 'is-on', sel.has(r.v)); },
+    setStyleVar(this.meta, '--fl-fb-cols', String(this.cols.length));
+    const sel = library.filter.meta ?? {};
+    const optsHtml = this.available.map(([k, l]) => `<option value="${k}">${escapeHtml(l)}</option>`).join('');
+    const fillCol = (n: HTMLElement, c: { k: string; i: number }) => {
+      const pick = q<HTMLSelectElement>(n, 'select');
+      if (pick.dataset.opts !== optsHtml) { pick.dataset.opts = optsHtml; pick.innerHTML = optsHtml; pick.value = c.k; }
+      setValue(pick, c.k);
+      setHidden(q(n, '.fl-fb-col-add'), c.i !== this.cols.length - 1 || this.cols.length >= MAX_COLS);
+      setHidden(q(n, '.fl-fb-col-x'), this.cols.length <= 1);
+      const on = new Set((sel[c.k] ?? []).map(String));
+      const rows = (this.facets[c.k] ?? []).map((f) => ({ v: String(f.value), name: f.name ?? String(f.value), count: f.count }));
+      const fillRow = (row: HTMLElement, r: { v: string; name: string; count: number }) => { row.dataset.k = c.k; setText(q(row, 'span'), r.name); setText(q(row, 'em'), String(r.count)); setClass(row, 'is-on', on.has(r.v)); };
+      patchList(q(n, '.fl-fb-col-list'), rows, {
+        key: (r) => `${c.k}|${r.v}`,
+        create: (r) => { const row = el(`<button class="fl-fb-row" type="button" data-v="${escapeHtml(r.v)}"><span></span><em></em></button>`); fillRow(row, r); return row; },
+        update: fillRow,
       });
-      for (const n of Array.from(list.children) as HTMLElement[]) { const r = rows.find((x) => x.v === n.dataset.v); if (r) { setText(q(n, 'span'), r.name); setText(q(n, 'em'), String(r.count)); setClass(n, 'is-on', sel.has(r.v)); } }
-    }
+    };
+    patchList(this.meta, this.cols.map((k, i) => ({ k, i })), {
+      key: (c) => String(c.i),
+      create: (c) => {
+        const n = el(`<div class="fl-fb-col" data-i="${c.i}"><div class="fl-fb-col-head"><select class="fl-fb-col-pick" data-i="${c.i}" aria-label="Column"></select><button class="cv-icon-btn fl-fb-col-x" type="button" data-col-act="remove" aria-label="Remove column">${icon('close', 10)}</button><button class="cv-icon-btn fl-fb-col-add" type="button" data-col-act="add" aria-label="Add column">${icon('add', 12)}</button></div><div class="fl-fb-col-list"></div></div>`);
+        fillCol(n, c);
+        return n;
+      },
+      update: fillCol,
+    });
   }
 }

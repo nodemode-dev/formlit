@@ -62,6 +62,53 @@ def facets(source: dict | None = None) -> dict:
     return query.facets(cat(), source)
 
 
+@command("library.facetColumns", "Metadata Filter Columns", {"source": {"type": "object"}, "columns": {"type": "array", "description": "facet ids, left to right; each column counts photos that match the selections in the columns to its left"}, "meta": {"type": "object"}, "filter": {"type": "object"}}, mutates=False)
+def facet_columns(columns: list | None = None, source: dict | None = None, meta: dict | None = None, filter: dict | None = None) -> dict:
+    cols = [str(c) for c in (columns or ["date", "camera", "lens", "label"])]
+    return {"columns": query.facet_columns(cat(), source, cols, meta, filter), "available": [[k, v[0]] for k, v in query.FACETS.items()]}
+
+
+DEFAULT_FILTER_PRESETS = [
+    {"name": "Default Columns", "builtin": True, "tab": "metadata", "columns": ["date", "camera", "lens", "label"], "filter": {}},
+    {"name": "Exposure Info", "builtin": True, "tab": "metadata", "columns": ["focal", "shutter", "aperture", "iso"], "filter": {}},
+    {"name": "Location Columns", "builtin": True, "tab": "metadata", "columns": ["country", "state", "city", "location"], "filter": {}},
+    {"name": "Flagged", "builtin": True, "tab": "attribute", "filter": {"flags": ["pick"]}},
+    {"name": "Rated", "builtin": True, "tab": "attribute", "filter": {"rating": 1, "ratingOp": ">="}},
+    {"name": "Unrated", "builtin": True, "tab": "attribute", "filter": {"rating": 0, "ratingOp": "="}},
+    {"name": "Edited", "builtin": True, "tab": "attribute", "filter": {"edited": True}},
+    {"name": "Unedited", "builtin": True, "tab": "attribute", "filter": {"edited": False}},
+    {"name": "Filters Off", "builtin": True, "tab": "", "filter": {}},
+]
+
+
+@command("library.filterPresets", "Library Filter Presets", mutates=False)
+def filter_presets() -> dict:
+    from app.core import prefs
+    return {"presets": DEFAULT_FILTER_PRESETS + list(prefs.load().get("filterPresets") or [])}
+
+
+@command("library.filterPresetSave", "Save Library Filter Preset", {"name": {"type": "string"}, "filter": {"type": "object"}, "columns": {"type": "array"}, "tab": {"type": "string"}})
+def filter_preset_save(name: str, filter: dict | None = None, columns: list | None = None, tab: str = "") -> dict:
+    from app.core import prefs
+    name = name.strip()
+    if not name or any(p["name"] == name for p in DEFAULT_FILTER_PRESETS):
+        raise ValueError("choose a name that is not a built-in preset")
+    mine = [p for p in (prefs.load().get("filterPresets") or []) if p.get("name") != name]
+    entry = {"name": name, "tab": tab, "filter": filter or {}}
+    if columns:
+        entry["columns"] = [str(c) for c in columns if str(c) in query.FACETS]
+    prefs.update({"filterPresets": mine + [entry]})
+    return {"saved": name}
+
+
+@command("library.filterPresetDelete", "Delete Library Filter Preset", {"name": {"type": "string"}})
+def filter_preset_delete(name: str) -> dict:
+    from app.core import prefs
+    mine = [p for p in (prefs.load().get("filterPresets") or []) if p.get("name") != name]
+    prefs.update({"filterPresets": mine})
+    return {"deleted": name}
+
+
 @command("photo.get", "Photo Details", {"id": {"type": "integer"}}, mutates=False)
 def get_photo(id: int | None = None) -> dict:
     pid = id if id is not None else resolve_ids("active")[0]

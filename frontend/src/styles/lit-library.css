@@ -109,9 +109,17 @@
 .fl-fb-stars button, .fl-tb-stars button { display: inline-grid; place-items: center; width: 20px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--line-3); cursor: pointer; }
 .fl-fb-stars button:hover, .fl-tb-stars button:hover { color: var(--text-secondary); }
 .fl-fb-stars button.is-on { color: var(--fl-star); }
-.fl-fb-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; height: 150px; }
+.fl-fb-meta { display: grid; grid-template-columns: repeat(var(--fl-fb-cols, 4), minmax(0, 1fr)); gap: 6px; height: 150px; }
 .fl-fb-col { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line-1); border-radius: 6px; background: var(--surface-0); overflow: hidden; }
-.fl-fb-col-head { flex: none; padding: 4px 8px; border-bottom: 1px solid var(--line-1); background: var(--group-head); color: var(--text-secondary); font-size: var(--fs-11); font-weight: 600; }
+.fl-fb-col-head { flex: none; display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px 0 2px; border-bottom: 1px solid var(--line-1); background: var(--group-head); color: var(--text-secondary); font-size: var(--fs-11); font-weight: 600; }
+.fl-fb-col-pick { flex: 1; min-width: 0; height: 20px; padding: 0 4px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.fl-fb-col-head .cv-icon-btn { width: 18px; height: 18px; opacity: 0; }
+.fl-fb-col:hover .fl-fb-col-head .cv-icon-btn { opacity: 1; }
+.fl-fb-col-head .cv-icon-btn[hidden] { display: none; }
+.fl-fb-preset { height: 24px; max-width: 170px; margin-right: 4px; font-size: var(--fs-11); }
+.fl-fb-lock { width: 24px; height: 24px; margin-right: 4px; }
+.fl-fb-lock.is-on { color: var(--accent-color); }
+.fl-fb-lock [hidden] { display: none; }
 .fl-fb-col-list { flex: 1; overflow-y: auto; }
 .fl-fb-row { display: flex; width: 100%; gap: 6px; padding: 2px 8px; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-11); text-align: left; cursor: pointer; }
 .fl-fb-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

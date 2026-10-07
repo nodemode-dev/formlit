@@ -28,6 +28,101 @@ SORTS = {
 }
 FLAGS = {"pick": 1, "picked": 1, "reject": -1, "rejected": -1, "unflagged": 0, "none": 0}
 
+FACETS: dict[str, tuple[str, str]] = {
+    "date": ("Date", "substr(p.capture_time, 1, 10)"),
+    "year": ("Year", "substr(p.capture_time, 1, 4)"),
+    "month": ("Month", "substr(p.capture_time, 1, 7)"),
+    "fileType": ("File Type", "upper(p.format)"),
+    "camera": ("Camera", "p.camera"),
+    "serial": ("Camera Serial Number", "json_extract(p.exif, '$.serial')"),
+    "lens": ("Lens", "p.lens"),
+    "focal": ("Focal Length", "CASE WHEN p.focal IS NULL THEN NULL ELSE CAST(ROUND(p.focal) AS INTEGER) || ' mm' END"),
+    "shutter": ("Shutter Speed", "CASE WHEN p.shutter IS NULL OR p.shutter <= 0 THEN NULL WHEN p.shutter >= 0.4 THEN printf('%g sec', ROUND(p.shutter, 1)) ELSE '1/' || CAST(ROUND(1.0 / p.shutter) AS INTEGER) || ' sec' END"),
+    "aperture": ("Aperture", "CASE WHEN p.aperture IS NULL THEN NULL ELSE printf('f / %.1f', p.aperture) END"),
+    "iso": ("ISO Speed", "CASE WHEN p.iso IS NULL THEN NULL ELSE 'ISO ' || p.iso END"),
+    "flash": ("Flash State", "CASE WHEN p.flash IS NULL THEN NULL WHEN p.flash THEN 'Did fire' ELSE 'Did not fire' END"),
+    "label": ("Label", "CASE WHEN p.label = '' THEN 'No Label' ELSE p.label END"),
+    "rating": ("Rating", "CASE p.rating WHEN 0 THEN 'Unrated' WHEN 1 THEN '1 star' ELSE p.rating || ' stars' END"),
+    "flag": ("Pick Flag", "CASE p.flag WHEN 1 THEN 'Flagged' WHEN -1 THEN 'Rejected' ELSE 'Unflagged' END"),
+    "edited": ("Has Adjustments", "CASE WHEN p.edited THEN 'Edited' ELSE 'Unedited' END"),
+    "treatment": ("Treatment", "CASE WHEN json_extract(p.develop, '$.treatment') = 'bw' THEN 'Black & White' ELSE 'Color' END"),
+    "preset": ("Develop Preset", "COALESCE((SELECT substr(h.name, 9) FROM history h WHERE h.photo_id = p.id AND h.name LIKE 'Preset: %' ORDER BY h.id DESC LIMIT 1), 'Default')"),
+    "aspect": ("Aspect Ratio", "CASE WHEN p.width = 0 OR p.height = 0 THEN NULL WHEN p.width > p.height * 1.02 THEN 'Landscape' WHEN p.height > p.width * 1.02 THEN 'Portrait' ELSE 'Square' END"),
+    "kind": ("Media Type", "CASE p.kind WHEN 'video' THEN 'Video' ELSE 'Photo' END"),
+    "smartPreview": ("Smart Preview Status", "CASE WHEN p.smart_preview THEN 'Has Smart Preview' ELSE 'No Smart Preview' END"),
+    "gps": ("GPS Data", "CASE WHEN p.gps_lat IS NULL THEN 'No Coordinates' ELSE 'Coordinates' END"),
+    "creator": ("Creator", "json_extract(p.meta, '$.creator')"),
+    "copyrightStatus": ("Copyright Status", "COALESCE(NULLIF(json_extract(p.meta, '$.copyrightStatus'), ''), 'Unknown')"),
+    "job": ("Job", "json_extract(p.meta, '$.jobId')"),
+    "country": ("Country", "json_extract(p.meta, '$.country')"),
+    "state": ("State / Province", "json_extract(p.meta, '$.state')"),
+    "city": ("City", "json_extract(p.meta, '$.city')"),
+    "location": ("Location", "COALESCE(NULLIF(json_extract(p.meta, '$.sublocation'), ''), json_extract(p.meta, '$.location'))"),
+    "folder": ("Folder", "f.path"),
+    "keyword": ("Keyword", ""),
+    "collection": ("Collection", ""),
+    "person": ("People", ""),
+}
+JOIN_FACETS = {
+    "keyword": ("SELECT k.id AS v, k.name AS n, COUNT(DISTINCT p.id) AS c FROM photo_keywords pk JOIN keywords k ON k.id = pk.keyword_id JOIN photos p ON p.id = pk.photo_id JOIN folders f ON f.id = p.folder_id WHERE {w} GROUP BY k.id ORDER BY k.name COLLATE NOCASE",
+                "EXISTS (SELECT 1 FROM photo_keywords pk WHERE pk.photo_id = p.id AND pk.keyword_id IN ({q}))"),
+    "collection": ("SELECT c.id AS v, c.name AS n, COUNT(DISTINCT p.id) AS c FROM collection_photos cp JOIN collections c ON c.id = cp.collection_id JOIN photos p ON p.id = cp.photo_id JOIN folders f ON f.id = p.folder_id WHERE {w} AND c.kind = 'collection' GROUP BY c.id ORDER BY c.name COLLATE NOCASE",
+                   "EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id = p.id AND cp.collection_id IN ({q}))"),
+    "person": ("SELECT pe.id AS v, pe.name AS n, COUNT(DISTINCT p.id) AS c FROM faces fc JOIN people pe ON pe.id = fc.person_id JOIN photos p ON p.id = fc.photo_id JOIN folders f ON f.id = p.folder_id WHERE {w} GROUP BY pe.id ORDER BY pe.name COLLATE NOCASE",
+               "EXISTS (SELECT 1 FROM faces fc WHERE fc.photo_id = p.id AND fc.person_id IN ({q}))"),
+}
+UNKNOWN = "Unknown"
+
+
+def meta_clause(meta: dict, args: list, upto: list[str] | None = None) -> str:
+    parts: list[str] = []
+    for name, vals in meta.items():
+        if not vals or name not in FACETS or (upto is not None and name not in upto):
+            continue
+        if name in JOIN_FACETS:
+            ids = [int(v) for v in vals]
+            args.extend(ids)
+            parts.append(JOIN_FACETS[name][1].format(q=",".join("?" * len(ids))))
+            continue
+        expr = FACETS[name][1]
+        named = [v for v in vals if v != UNKNOWN]
+        sub = []
+        if named:
+            args.extend(named)
+            sub.append(f"({expr}) IN ({','.join('?' * len(named))})")
+        if UNKNOWN in vals:
+            sub.append(f"COALESCE(({expr}), '') = ''")
+        parts.append("(" + " OR ".join(sub) + ")")
+    return " AND ".join(parts) if parts else "1"
+
+
+def facet_columns(cat: Catalog, source: dict | None, columns: list[str], meta: dict | None = None, flt: dict | None = None) -> dict:
+    meta = meta or {}
+    out: dict[str, list[dict]] = {}
+    for i, name in enumerate(columns):
+        if name not in FACETS:
+            continue
+        args: list = []
+        src_sql, _ = source_clause(cat, source or {"kind": "all"}, args)
+        flt_sql = filter_clause({k: v for k, v in (flt or {}).items() if k != "meta"}, args)
+        left = meta_clause(meta, args, columns[:i])
+        w = f"({src_sql}) AND ({flt_sql}) AND ({left})"
+        if name in JOIN_FACETS:
+            rows = cat.rows(JOIN_FACETS[name][0].format(w=w), tuple(args))
+            out[name] = [{"value": int(r["v"]), "name": r["n"], "count": int(r["c"])} for r in rows]
+            continue
+        expr = FACETS[name][1]
+        rows = cat.rows(f"SELECT COALESCE(NULLIF(({expr}), ''), '{UNKNOWN}') AS v, COUNT(*) AS c FROM photos p JOIN folders f ON f.id = p.folder_id WHERE {w} GROUP BY 1", tuple(args))
+        items = [{"value": r["v"], "count": int(r["c"])} for r in rows]
+        if name in ("date", "year", "month"):
+            items.sort(key=lambda x: ("" if x["value"] == UNKNOWN else str(x["value"])), reverse=True)
+        elif name in ("focal", "iso", "aperture"):
+            items.sort(key=lambda x: (x["value"] == UNKNOWN, float(re.sub(r"[^0-9.]", "", str(x["value"])) or 0)))
+        else:
+            items.sort(key=lambda x: (x["value"] == UNKNOWN, str(x["value"]).lower()))
+        out[name] = items
+    return out
+
 
 def _flag_value(v: Any) -> int:
     if isinstance(v, (int, float)):
@@ -279,6 +374,8 @@ def filter_clause(flt: dict, args: list) -> str:
         parts.append("(" + " OR ".join(sub) + ")")
     if flt.get("rules"):
         parts.append(compile_rules(flt["rules"], args))
+    if flt.get("meta"):
+        parts.append(meta_clause(flt["meta"], args))
     return " AND ".join(parts) if parts else "1"
 
 
