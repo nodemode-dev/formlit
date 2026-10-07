@@ -315,17 +315,51 @@ def printers() -> list[dict]:
     return out
 
 
-def send_to_printer(path: Path, printer: str = "", copies: int = 1) -> str:
+def printer_options(printer: str) -> dict:
+    if sys.platform == "win32":
+        return {"options": [], "dialog": True}
+    if not shutil.which("lpoptions"):
+        return {"options": [], "dialog": False}
+    try:
+        r = subprocess.run(["lpoptions", *(["-p", printer] if printer else []), "-l"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return {"options": [], "dialog": False}
+    out = []
+    for line in r.stdout.splitlines():
+        head, _, rest = line.partition(":")
+        if not rest:
+            continue
+        key, _, label = head.partition("/")
+        choices = rest.split()
+        current = next((c[1:] for c in choices if c.startswith("*")), "")
+        out.append({"key": key.strip(), "label": (label or key).strip(), "choices": [c.lstrip("*") for c in choices], "current": current})
+    return {"options": out, "dialog": False}
+
+
+def printer_dialog(printer: str) -> bool:
+    if sys.platform != "win32" or not printer:
+        return False
+    subprocess.Popen(["rundll32", "printui.dll,PrintUIEntry", "/e", "/n", printer])
+    return True
+
+
+def send_to_printer(path: Path, printer: str = "", copies: int = 1, options: dict | None = None) -> str:
     if sys.platform == "win32":
         import os
         for _ in range(max(1, copies)):
-            os.startfile(str(path), "print")
-        return "Sent to the default printer"
+            if printer:
+                os.startfile(str(path), "printto", f'"{printer}"')
+            else:
+                os.startfile(str(path), "print")
+        return f"Sent to {printer or 'the default printer'}"
     if not shutil.which("lp"):
         raise RuntimeError("No print system found (CUPS lp is not installed)")
     cmd = ["lp", "-n", str(max(1, copies))]
     if printer:
         cmd += ["-d", printer]
+    for k, v in (options or {}).items():
+        if k and v not in (None, "") and all(ch.isalnum() or ch in "-_." for ch in str(k)):
+            cmd += ["-o", f"{k}={v}"]
     r = subprocess.run(cmd + [str(path)], capture_output=True, text=True, timeout=30)
     if r.returncode:
         raise RuntimeError(r.stderr.strip() or "The printer refused the job")

@@ -250,6 +250,16 @@ def print_printers() -> dict:
     return {"printers": pages.printers()}
 
 
+@command("print.printerOptions", "Printer Settings", {"printer": {"type": "string"}}, mutates=False)
+def print_printer_options(printer: str = "") -> dict:
+    return pages.printer_options(printer)
+
+
+@command("print.printerDialog", "Printer Preferences", {"printer": {"type": "string"}}, mutates=False)
+def print_printer_dialog(printer: str) -> dict:
+    return {"opened": pages.printer_dialog(printer)}
+
+
 @command("print.run", "Print", {"settings": {"type": "object"}, "ids": {"type": "array"}, "collection": {"type": "integer"},
                                 "output": {"type": "string", "enum": ["pdf", "jpeg", "tiff", "printer"]}, "path": {"type": "string"}, "name": {"type": "string"}, "wait": {"type": "boolean"}})
 def print_run(settings: dict | None = None, ids: Any = None, collection: int | None = None, output: str | None = None, path: str | None = None,
@@ -267,7 +277,7 @@ def print_run(settings: dict | None = None, ids: Any = None, collection: int | N
         res: dict = {"path": str(pdf), "pages": len(lay["pages"])}
         if out == "printer":
             j = lay["settings"].get("job") or {}
-            res["printer"] = pages.send_to_printer(pdf, j.get("printer", ""), int(j.get("copies", 1)))
+            res["printer"] = pages.send_to_printer(pdf, j.get("printer", ""), int(j.get("copies", 1)), j.get("driver") or {})
         return res
     return _wait(tasks.start("print", "Printing" if out == "printer" else f"Rendering {len(lay['pages'])} {'page' if len(lay['pages']) == 1 else 'pages'}", job), wait)
 

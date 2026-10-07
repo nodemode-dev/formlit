@@ -1,3 +1,4 @@
+import { askForm } from '../../ui/askform';
 import { el, setClass, setDisabled, setHidden, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
@@ -94,7 +95,7 @@ class PrintModule extends OutputModule {
       { path: 'caption.custom', label: 'Custom', kind: 'text', placeholder: '{title} by {creator}', show: () => !!this.get('caption.on') && this.get('caption.field') === 'custom' },
       { path: 'caption.size', label: 'Font size', kind: 'range', min: 5, max: 24, unit: ' pt', show: () => !!this.get('caption.on') },
     ]);
-    this.formPanel(right, 'job', 'Print Job', [
+    const job = this.formPanel(right, 'job', 'Print Job', [
       { path: 'job.output', label: 'Print to', kind: 'seg', options: [['printer', 'Printer'], ['pdf', 'PDF'], ['jpeg', 'JPEG'], ['tiff', 'TIFF']] },
       { path: 'job.bits', label: 'Bit depth', kind: 'seg', options: [['8', '8 bit'], ['16', '16 bit']], show: () => this.get('job.output') === 'tiff' },
       { path: 'job.printer', label: 'Printer', kind: 'select', options: () => [['', 'System default'], ...this.printers.map((p) => [p.name, p.default ? `${p.name} (default)` : p.name] as [string, string])], show: () => this.get('job.output') === 'printer' },
@@ -105,6 +106,12 @@ class PrintModule extends OutputModule {
       { path: 'job.sharpen.for', label: 'Media type', kind: 'select', options: [['matte', 'Matte'], ['glossy', 'Glossy']], show: () => !!this.get('job.sharpen.on') },
       { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100, show: () => this.get('job.output') === 'jpeg' || this.get('job.output') === 'pdf' },
     ]);
+    const driver = el('<div class="fl-row fl-row-end fl-print-driver"><button class="cv-btn fl-btn-sm" type="button" data-driver="page">Page Setup...</button><button class="cv-btn fl-btn-sm" type="button" data-driver="all">Printer Settings...</button></div>');
+    driver.addEventListener('click', (e) => {
+      const k = (e.target as HTMLElement).closest<HTMLElement>('[data-driver]')?.dataset.driver;
+      if (k) void this.driverDialog(k === 'page');
+    });
+    job.body.appendChild(driver);
     this.formPanel(right, 'color', 'Color Management', [
       { path: 'job.profile', label: 'Profile', kind: 'select', options: () => [['', 'Managed by Printer'], ...this.profiles.map((p) => [p.path, p.name] as [string, string])] },
       { path: 'job.space', label: 'Color space', kind: 'select', options: [['srgb', 'sRGB'], ['adobergb', 'Adobe RGB (1998)'], ['p3', 'Display P3']], show: () => !this.get('job.profile') },
@@ -123,6 +130,29 @@ class PrintModule extends OutputModule {
       if (b) void this.print(b.dataset.act === 'one');
     });
     right.appendChild(row);
+  }
+
+  private async driverDialog(page: boolean): Promise<void> {
+    const printer = String(this.get('job.printer') || '') || this.printers.find((p) => p.default)?.name || '';
+    let r: { options: Array<{ key: string; label: string; choices: string[]; current: string }>; dialog: boolean };
+    try { r = await this.ctx.api.cmd('print.printerOptions', { printer }); } catch (err) { this.ctx.fail(err); return; }
+    if (r.dialog) {
+      if (!printer) { toast('Choose a printer first'); return; }
+      await this.ctx.api.cmd('print.printerDialog', { printer }).catch((err) => this.ctx.fail(err));
+      toast(`Opened the ${printer} preferences; formlit prints with what you set there`);
+      return;
+    }
+    const pageKeys = /^(PageSize|PageRegion|MediaType|InputSlot|Duplex|media|Orientation)/i;
+    const opts = r.options.filter((o) => (page ? pageKeys.test(o.key) : true) && o.choices.length > 1);
+    if (!opts.length) { toast(printer ? `${printer} reports no driver settings` : 'No printer driver found'); return; }
+    const saved = (this.get('job.driver') as Record<string, string> | undefined) ?? {};
+    const values: Record<string, unknown> = {};
+    for (const o of opts) values[o.key] = saved[o.key] ?? o.current;
+    const v = await askForm(page ? 'Page Setup' : 'Printer Settings', `${printer || 'Default printer'}: these go to the printer driver with every print job.`,
+      opts.map((o) => ({ path: o.key, label: o.label, kind: 'select' as const, options: o.choices.map((c) => [c, c] as [string, string]) })), values, 'OK');
+    if (!v) return;
+    this.set('job.driver', { ...saved, ...Object.fromEntries(Object.entries(v).map(([k, x]) => [k, String(x)])) }, 'change');
+    if (page && typeof v.PageSize === 'string') toast(`Paper ${v.PageSize} goes to the driver; set the layout paper to match`);
   }
 
   protected onOptions(): void {
