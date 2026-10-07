@@ -56,6 +56,7 @@ export class DevelopView {
   photo: Photo | null = null;
   geo: Geo | null = null;
   zoom: Zoom = 'fit';
+  grid = 0;
   cx = 0.5;
   cy = 0.5;
   compare: Compare = 'off';
@@ -389,7 +390,25 @@ export class DevelopView {
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, this.canvas.width, this.canvas.height);
     c.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    if (this.grid > 0) {
+      const r = this.displayRect();
+      const step = Math.max(12, Math.min(r.w, r.h) / this.grid);
+      c.save();
+      c.strokeStyle = 'rgba(255,255,255,0.28)';
+      c.lineWidth = 1;
+      c.beginPath();
+      for (let x = r.x + step; x < r.x + r.w - 1; x += step) { c.moveTo(Math.round(x) + 0.5, r.y); c.lineTo(Math.round(x) + 0.5, r.y + r.h); }
+      for (let y = r.y + step; y < r.y + r.h - 1; y += step) { c.moveTo(r.x, Math.round(y) + 0.5); c.lineTo(r.x + r.w, Math.round(y) + 0.5); }
+      c.stroke();
+      c.restore();
+    }
     this.tool?.draw?.(c, this);
+  }
+
+  setGrid(n: number): void {
+    if (this.grid === n) return;
+    this.grid = n;
+    this.draw();
   }
 
   private pointer(): void {

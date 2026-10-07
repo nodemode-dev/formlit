@@ -214,17 +214,20 @@ export class DevelopPanels {
       s('optics.defringeGreen'), s('optics.defringeGreenHueLo'), s('optics.defringeGreenHueHi'));
 
     const pGeo = this.panel('dev.geometry', 'Transform', 'geometry');
-    const upright = el(`<div class="fl-row"><span class="fl-row-label">Upright</span><div class="cv-seg fl-seg-sm fl-grow">${['off', 'auto', 'level', 'vertical', 'full'].map((m) => `<button type="button" data-up="${m}">${m === 'off' ? 'Off' : m.charAt(0).toUpperCase() + m.slice(1)}</button>`).join('')}</div></div>`);
+    const upright = el(`<div class="fl-row"><span class="fl-row-label">Upright</span><div class="cv-seg fl-seg-sm fl-grow">${['off', 'auto', 'guided', 'level', 'vertical', 'full'].map((m) => `<button type="button" data-up="${m}">${m === 'off' ? 'Off' : m.charAt(0).toUpperCase() + m.slice(1)}</button>`).join('')}</div></div>`);
     upright.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-up]');
-      if (b) void this.upright(b.dataset.up as string);
+      if (b?.dataset.up === 'guided') this.ctx.run('develop.tool.guided');
+      else if (b) void this.upright(b.dataset.up as string);
     });
     const constrain = el(`<label class="fl-check"><input type="checkbox" data-constrain> Constrain Crop</label>`);
     q<HTMLInputElement>(constrain, 'input').addEventListener('change', (e) => develop.patch('geometry.constrainCrop', (e.target as HTMLInputElement).checked || null, 'end', 'Constrain Crop'));
-    pGeo.body.append(upright, s('geometry.vertical'), s('geometry.horizontal'), s('geometry.rotate'), s('geometry.aspect'), s('geometry.scale'), s('geometry.offsetX', 'X Offset'), s('geometry.offsetY', 'Y Offset'), constrain);
+    const gridRow = el('<label class="fl-check"><input type="checkbox"> Show Grid</label>');
+    q<HTMLInputElement>(gridRow, 'input').addEventListener('change', (e) => this.view.setGrid((e.target as HTMLInputElement).checked ? 8 : 0));
+    pGeo.body.append(upright, s('geometry.vertical'), s('geometry.horizontal'), s('geometry.rotate'), s('geometry.aspect'), s('geometry.scale'), s('geometry.offsetX', 'X Offset'), s('geometry.offsetY', 'Y Offset'), constrain, gridRow);
 
     const pFx = this.panel('dev.effects', 'Effects', 'effects');
-    const style = el<HTMLSelectElement>('<select class="cv-select fl-grow"><option value="highlightPriority">Highlight Priority</option><option value="colorPriority">Color Priority</option><option value="paint">Paint Overlay</option></select>');
+    const style = el<HTMLSelectElement>('<select class="cv-select fl-grow"><option value="highlightPriority">Highlight Priority</option><option value="colorPriority">Color Priority</option><option value="paintOverlay">Paint Overlay</option></select>');
     style.addEventListener('change', () => develop.patch('vignette.style', style.value === 'highlightPriority' ? null : style.value, 'end', 'Vignette Style'));
     style.dataset.path = 'vignette.style';
     const styleRow = el('<div class="fl-row"><span class="fl-row-label">Style</span></div>');

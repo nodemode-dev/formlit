@@ -13,7 +13,7 @@ import { MaskTool } from './masks';
 import { DEFAULT_OFF, GROUPS } from './groups';
 import { DevelopPanels } from './panels';
 import { openProfileBrowser } from './profile-browser';
-import { CropTool, FringePickerTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
+import { CropTool, FringePickerTool, GuidedTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
 import { DevelopView, type Compare, type Tool } from './view';
 
 class GroupsDialog extends Dialog {
@@ -89,6 +89,7 @@ class DevelopModule {
       this.tools.set('masks', new MaskTool(host));
       this.tools.set('wb', new WbPickerTool(host));
       this.tools.set('fringe', new FringePickerTool(host));
+      this.tools.set('guided', new GuidedTool(host));
       this.tools.set('point', new PointColorTool(host));
       this.tat = new TatTool(host);
       this.tools.set('tat', this.tat);
@@ -293,6 +294,7 @@ class DevelopModule {
       { id: 'develop.wbPicker', label: 'White Balance Selector', keys: ['W'], run: tool('wb'), checked: () => this.toolId === 'wb' },
       { id: 'develop.pointColor', label: 'Point Color', run: tool('point'), checked: () => this.toolId === 'point' },
       { id: 'develop.fringePicker', label: 'Fringe Color Selector', run: tool('fringe'), checked: () => this.toolId === 'fringe' },
+      { id: 'develop.tool.guided', label: 'Guided Upright', keys: ['Shift+T'], run: tool('guided'), checked: () => this.toolId === 'guided' },
       { id: 'develop.profileBrowser', label: 'Profile Browser...', run: () => openProfileBrowser(this.ctx) },
       ...([['curve', 'Tone Curve', 'T'], ['hue', 'Hue', 'H'], ['sat', 'Saturation', 'S'], ['lum', 'Luminance', 'L'], ['bw', 'B&W Mix', 'G']] as Array<[TatMode, string, string]>).map(([m, l, k]) => ({
         id: `develop.tat.${m}`, label: `Targeted Adjustment: ${l}`, keys: [`Alt+Shift+Mod+${k}`],

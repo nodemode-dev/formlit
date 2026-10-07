@@ -286,6 +286,54 @@ def upright_cmd(mode: str = "auto", ids: Any = None) -> dict:
     return {"ids": pids, "mode": mode}
 
 
+@command("develop.uprightGuides", "Guided Upright", {"id": {"type": "integer"}, "add": {"type": "array"}, "remove": {"type": "integer"}, "clear": {"type": "boolean"}})
+def upright_guides(id: int | None = None, add: list[float] | None = None, remove: int | None = None, clear: bool = False, read: bool = False) -> dict:
+    import numpy as np
+    from app.develop.geometry import Frame
+    from app.develop.render import effective
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, _ = current(pid)
+    img, _ = previews.source(pid)
+    sh, sw = img.shape[:2]
+    fr = Frame(sw, sh, effective(dev), True)
+    half = max(fr.ow, fr.oh) / 2
+    geo = dev.get("geometry") or {}
+    guides = [list(map(float, x)) for x in geo.get("uprightGuides") or []] if geo.get("upright") == "guided" else []
+    new = dev
+    if not read:
+        if clear:
+            guides = []
+        if remove is not None and 0 <= int(remove) < len(guides):
+            guides.pop(int(remove))
+        if add and len(add) == 4:
+            pts: list[float] = []
+            for i in (0, 2):
+                x, y = fr.to_corrected(np.array([float(add[i]) * fr.ow]), np.array([float(add[i + 1]) * fr.oh]))
+                pts += [float((x[0] - fr.ow / 2) / half), float((y[0] - fr.oh / 2) / half)]
+            guides.append(pts)
+        guides = guides[-4:]
+        new = copy.deepcopy(dev)
+        g = new.setdefault("geometry", {})
+        if guides:
+            h = upright_mod.guided(np.array(guides, np.float64))
+            g.update(upright="guided", uprightGuides=[[round(v, 6) for v in s] for s in guides], uprightTransform=[round(float(v), 7) for v in h.reshape(-1)], constrainCrop=True)
+        else:
+            for k in ("upright", "uprightGuides", "uprightTransform"):
+                g.pop(k, None)
+        with cat().change("Guided Upright") as ch:
+            store(ch, pid, new, "Guided Upright")
+        after([pid])
+    fr2 = Frame(sw, sh, effective(new), True)
+    shown = []
+    for s in guides:
+        seg = []
+        for i in (0, 2):
+            p = fr2.persp @ np.array([s[i], s[i + 1], 1.0])
+            seg += [round(float((p[0] / p[2] * half + fr2.ow / 2) / fr2.ow), 6), round(float((p[1] / p[2] * half + fr2.oh / 2) / fr2.oh), 6)]
+        shown.append(seg)
+    return {"guides": shown, "count": len(guides)}
+
+
 @command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}})
 def remove_fill(spot: dict, id: int | None = None) -> dict:
     from app.develop.render import plan

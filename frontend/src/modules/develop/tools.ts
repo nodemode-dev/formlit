@@ -609,6 +609,103 @@ export class WbPickerTool implements Tool {
   }
 }
 
+export class GuidedTool implements Tool {
+  readonly id = 'guided';
+  cursor = 'crosshair';
+  private readonly root: HTMLElement;
+  private readonly note: HTMLElement;
+  private guides: number[][] = [];
+  private drag: { a: Pt; b: Pt } | null = null;
+  private sel = -1;
+
+  constructor(private readonly host: ToolHost) {
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('upright', 14)} Guided Upright</div><div class="fl-muted fl-wb-read">Draw two to four guides along lines that should be vertical or horizontal. Click a guide and press Delete to remove it.</div><label class="fl-check-sm"><input type="checkbox" data-grid> Show Grid</label><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="clear">Clear Guides</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.note = q(this.root, '.fl-wb-read');
+    this.root.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === 'done') this.host.done();
+      if (a === 'clear') void this.send({ clear: true });
+    });
+    q<HTMLInputElement>(this.root, '[data-grid]').addEventListener('change', (e) => this.host.view.setGrid((e.target as HTMLInputElement).checked ? 8 : 0));
+  }
+
+  activate(): void {
+    this.host.drawer.replaceChildren(this.root);
+    q<HTMLInputElement>(this.root, '[data-grid]').checked = this.host.view.grid > 0;
+    this.sel = -1;
+    void this.send({ read: true });
+  }
+
+  private async send(params: Record<string, unknown>): Promise<void> {
+    const id = develop.id;
+    if (id === null) return;
+    try {
+      if (!params.read) await develop.flush();
+      const r = await this.host.ctx.api.cmd<{ guides: number[][]; count: number }>('develop.uprightGuides', { id, ...params });
+      this.guides = r.guides;
+      if (this.sel >= this.guides.length) this.sel = -1;
+      setText(this.note, r.count ? `${r.count} guide${r.count === 1 ? '' : 's'}${r.count < 2 ? ': add another to correct perspective' : ''}. Click a guide and press Delete to remove it.` : 'Draw two to four guides along lines that should be vertical or horizontal.');
+      this.host.view.draw();
+    } catch (err) { this.host.ctx.fail(err); }
+  }
+
+  private hit(p: Pt): number {
+    const v = this.host.view;
+    let best = -1, bestD = 8;
+    this.guides.forEach((g, i) => {
+      const [x1, y1] = v.normToStage(g[0], g[1]);
+      const [x2, y2] = v.normToStage(g[2], g[3]);
+      const dx = x2 - x1, dy = y2 - y1;
+      const t = Math.max(0, Math.min(1, ((p.sx - x1) * dx + (p.sy - y1) * dy) / Math.max(1e-6, dx * dx + dy * dy)));
+      const d = Math.hypot(p.sx - (x1 + t * dx), p.sy - (y1 + t * dy));
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
+
+  down(p: Pt): boolean {
+    const i = this.hit(p);
+    if (i >= 0) { this.sel = i; this.host.view.draw(); return true; }
+    this.sel = -1;
+    this.drag = { a: p, b: p };
+    return true;
+  }
+
+  move(p: Pt): void { if (this.drag) this.drag.b = p; }
+
+  up(p: Pt): void {
+    const d = this.drag;
+    this.drag = null;
+    if (!d) return;
+    if (Math.hypot(p.sx - d.a.sx, p.sy - d.a.sy) < 16) { this.host.view.draw(); return; }
+    void this.send({ add: [d.a.nx, d.a.ny, p.nx, p.ny] });
+  }
+
+  key(_e: KeyboardEvent, combo: string): boolean {
+    if ((combo === 'Backspace' || combo === 'Delete') && this.sel >= 0) { const i = this.sel; this.sel = -1; void this.send({ remove: i }); return true; }
+    if (combo === 'Escape') { this.host.done(); return true; }
+    return false;
+  }
+
+  draw(c: CanvasRenderingContext2D, view: DevelopView): void {
+    c.save();
+    c.lineWidth = 2;
+    this.guides.forEach((g, i) => {
+      const [x1, y1] = view.normToStage(g[0], g[1]);
+      const [x2, y2] = view.normToStage(g[2], g[3]);
+      c.strokeStyle = i === this.sel ? 'rgba(255,170,60,0.95)' : 'rgba(255,255,255,0.9)';
+      c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+      for (const [x, y] of [[x1, y1], [x2, y2]]) { c.beginPath(); c.arc(x, y, 3.5, 0, Math.PI * 2); c.stroke(); }
+    });
+    if (this.drag) {
+      c.setLineDash([5, 4]);
+      c.strokeStyle = 'rgba(255,255,255,0.9)';
+      c.beginPath(); c.moveTo(this.drag.a.sx, this.drag.a.sy); c.lineTo(this.drag.b.sx, this.drag.b.sy); c.stroke();
+    }
+    c.restore();
+  }
+}
+
 export class FringePickerTool implements Tool {
   readonly id = 'fringe';
   cursor = 'crosshair';
