@@ -105,6 +105,22 @@ export function registerCatalogCommands(ctx: Ctx): void {
       },
     },
     {
+      id: 'library.buildSmartPreviews', label: 'Build Smart Previews',
+      run: async () => {
+        const ids = library.selected().length ? library.selected() : library.ids.slice();
+        try {
+          const r = await ctx.api.cmd<{ task: number }>('library.buildSmartPreviews', { ids });
+          const done = await whenDone(r.task);
+          toast(`Built ${String(done.built ?? 0)} smart previews: these photos stay editable when their originals are offline`);
+        } catch (err) { ctx.fail(err); }
+      },
+    },
+    {
+      id: 'library.discardSmartPreviews', label: 'Discard Smart Previews',
+      run: () => void ctx.api.cmd('library.discardSmartPreviews', { ids: library.targets() }).then(() => toast('Discarded smart previews'), (err) => ctx.fail(err)),
+      enabled: () => library.targets().length > 0,
+    },
+    {
       id: 'library.findMissing', label: 'Find Missing Photos',
       run: async () => {
         try {

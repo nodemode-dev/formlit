@@ -214,6 +214,8 @@
 .fl-model-row .fl-meta-val { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .fl-ok { color: var(--text-secondary); font-style: normal; }
 
+.fl-mp { margin: 0 0 8px; }
+.fl-mp .cv-select { height: 24px; }
 .fl-kwset { display: flex; flex-direction: column; gap: 6px; }
 .fl-kwset-head { display: flex; gap: 6px; }
 .fl-kwset-head .cv-select { flex: 1; min-width: 0; height: 24px; }

@@ -964,6 +964,42 @@ def catalog_create(folder: str, name: str = "formlit") -> dict:
     return _switch_catalog(target.resolve())
 
 
+@command("library.buildSmartPreviews", "Build Smart Previews", {"ids": {"type": "array"}, "wait": {"type": "boolean"}})
+def build_smart_previews(ids: Any = None, wait: bool = False) -> dict:
+    pids = _ids(ids) if ids is not None else [int(r["id"]) for r in cat().rows("SELECT id FROM photos WHERE kind != 'video' AND missing=0")]
+
+    def job(progress):
+        done = []
+        for i, pid in enumerate(pids):
+            if progress.cancelled:
+                break
+            try:
+                previews.source(pid)
+                done.append(pid)
+            except (FileNotFoundError, OSError, ValueError):
+                continue
+            progress(i + 1, len(pids), f"Smart preview {i + 1} of {len(pids)}")
+        with cat().change("Build Smart Previews", undoable=False) as ch:
+            for pid in done:
+                ch.update("photos", pid, smart_preview=1)
+        return {"built": len(done)}
+    tid = tasks.start("smartPreviews", "Building smart previews", job)
+    if not wait:
+        return {"task": tid}
+    t = tasks.wait(tid, 7200) or {}
+    return {"task": tid, **(t.get("result") or {})}
+
+
+@command("library.discardSmartPreviews", "Discard Smart Previews", {"ids": {"type": "array"}})
+def discard_smart_previews(ids: Any = None) -> dict:
+    pids = _ids(ids)
+    with cat().change("Discard Smart Previews", undoable=False) as ch:
+        for pid in pids:
+            previews.drop_source(pid)
+            ch.update("photos", pid, smart_preview=0)
+    return {"ids": pids}
+
+
 @command("autoImport.get", "Auto Import Settings", mutates=False)
 def auto_import_get() -> dict:
     from app.services import watch

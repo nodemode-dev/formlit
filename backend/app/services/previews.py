@@ -106,9 +106,12 @@ def source(pid: int, long: int | None = PREVIEW, full: bool = False) -> tuple[np
         if key in _sources:
             _sources.move_to_end(key)
             return _sources[key]
-    if not path.is_file():
-        raise FileNotFoundError(f"The original is missing: {path}")
     disk = source_path(int(master))
+    if not path.is_file():
+        if not disk.is_file():
+            raise FileNotFoundError(f"The original is missing: {path}")
+        full, long = False, PREVIEW
+        key = (int(master), int(PREVIEW))
     img: np.ndarray | None = None
     info: dict = {}
     if not full and long == PREVIEW and disk.is_file():
@@ -123,6 +126,8 @@ def source(pid: int, long: int | None = PREVIEW, full: bool = False) -> tuple[np
         except (OSError, ValueError):
             img = None
     if img is None:
+        if not path.is_file():
+            raise FileNotFoundError(f"The original is missing and its smart preview is out of date: {path}")
         img, info = decode.load_linear(path, None if full else long, full=full)
         if not full and long == PREVIEW:
             import json

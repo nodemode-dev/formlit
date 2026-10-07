@@ -9,6 +9,7 @@ import { thumbUrl } from '../../ui/thumbs';
 import { toast } from '../../ui/toast';
 import { Tree, type TreeNode } from '../../ui/tree';
 import { KeywordSets, rememberKeywords } from './keyword-sets';
+import { MetadataPresets } from './metadata-presets';
 
 export interface PhotoDetail {
   id: number;
@@ -126,7 +127,7 @@ export class InspectPanels {
 
     const pMeta = new Panel('lib.metadata', 'Metadata');
     this.meta = el('<div class="fl-meta"></div>');
-    pMeta.body.appendChild(this.meta);
+    pMeta.body.append(new MetadataPresets(ctx).root, this.meta);
     this.buildMeta();
 
     host.append(pHist.root, pQuick.root, pKw.root, pList.root, pMeta.root);

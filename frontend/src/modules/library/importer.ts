@@ -4,6 +4,7 @@ import { Dialog } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
+import { loadMetaPresets, type MetaPresets } from './metadata-presets';
 
 interface Root { name: string; path: string; kind: string }
 interface ScanFile { path: string; name: string; size: number; mtime: number; kind: string; duplicate: boolean; inCatalog: boolean }
@@ -21,6 +22,7 @@ function readPrefs(): Prefs {
 
 class ImportDialog extends Dialog {
   private prefs = readPrefs();
+  private metaPresets: MetaPresets = {};
   private path = '';
   private files: ScanFile[] = [];
   private readonly checked = new Set<string>();
@@ -52,6 +54,7 @@ class ImportDialog extends Dialog {
 <label class="fl-opt"><span>Custom Text</span><input class="cv-input" type="text" data-custom placeholder="Shoot name"></label>
 <div class="fl-sub">Apply During Import</div>
 <label class="fl-opt"><span>Develop Settings</span><select class="cv-select" data-pref="preset"><option value="">None</option></select></label>
+<label class="fl-opt"><span>Metadata</span><select class="cv-select" data-metapreset><option value="">None</option></select></label>
 <label class="fl-opt"><span>Creator</span><input class="cv-input" type="text" data-pref="creator" spellcheck="false"></label>
 <label class="fl-opt"><span>Copyright</span><input class="cv-input" type="text" data-pref="copyright" spellcheck="false"></label>
 <label class="fl-opt"><span>Keywords</span><input class="cv-input" type="text" data-keywords placeholder="comma separated" spellcheck="false"></label>
@@ -116,6 +119,12 @@ class ImportDialog extends Dialog {
     const presets = await this.ctx.api.cmd<{ presets: Array<{ id: string; name: string; group: string }> }>('preset.list').catch(() => ({ presets: [] }));
     const sel = q<HTMLSelectElement>(this.body, '[data-pref="preset"]');
     if (sel.options.length <= 1) for (const p of presets.presets) sel.add(new Option(`${p.group} / ${p.name}`, p.id));
+    this.metaPresets = await loadMetaPresets(this.ctx);
+    const mp = q<HTMLSelectElement>(this.body, '[data-metapreset]');
+    const keep = mp.value;
+    mp.length = 1;
+    for (const n of Object.keys(this.metaPresets).sort()) mp.add(new Option(n, n));
+    mp.value = keep in this.metaPresets ? keep : '';
     const cols = q<HTMLSelectElement>(this.body, '[data-collection]');
     cols.length = 1;
     for (const c of catalog.tree.collections.filter((x) => x.kind === 'collection')) cols.add(new Option(c.name, String(c.id)));
@@ -204,7 +213,8 @@ class ImportDialog extends Dialog {
     if (!paths.length) return;
     const keywords = q<HTMLInputElement>(this.body, '[data-keywords]').value.split(',').map((s) => s.trim()).filter(Boolean);
     const col = q<HTMLSelectElement>(this.body, '[data-collection]').value;
-    const metadata: Record<string, string> = {};
+    const metaName = q<HTMLSelectElement>(this.body, '[data-metapreset]').value;
+    const metadata: Record<string, string> = { ...(metaName ? this.metaPresets[metaName] ?? {} : {}) };
     if (this.prefs.creator) metadata.creator = this.prefs.creator;
     if (this.prefs.copyright) metadata.copyright = this.prefs.copyright;
     const params = {
