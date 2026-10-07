@@ -20,6 +20,7 @@ _bg = ThreadPoolExecutor(max_workers=max(1, config.workers() - 1), thread_name_p
 _fg = ThreadPoolExecutor(max_workers=2, thread_name_prefix="formlit-fg")
 _inflight: dict[str, Future] = {}
 _inflight_lock = threading.Lock()
+_full_lock = threading.Lock()
 _sources: "OrderedDict[tuple, tuple[np.ndarray, dict]]" = OrderedDict()
 _sources_lock = threading.Lock()
 SOURCE_CACHE_ENTRIES = 6
@@ -181,7 +182,13 @@ def rendered(pid: int, size: str) -> Path:
     if out.is_file():
         return out
     long = {"t": THUMB, "p": PREVIEW}.get(size, 0)
-    rgb8 = render_rgb8(pid, long)
+    if long:
+        rgb8 = render_rgb8(pid, long)
+    else:
+        with _full_lock:
+            if out.is_file():
+                return out
+            rgb8 = render_rgb8(pid, long)
     write_atomic(out, encode_jpeg(rgb8, {"t": 82, "p": 88}.get(size, 92)))
     for old in cache_dir(pid).glob(f"{pid}-*-{size}.jpg"):
         if old != out:

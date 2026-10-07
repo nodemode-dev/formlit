@@ -37,6 +37,8 @@ class LibraryModule {
   private survey!: HTMLElement;
   private empty!: HTMLElement;
   private candidate: number | null = null;
+  private linked = true;
+  private compareBar!: HTMLElement;
   private painter!: Painter;
   private menu!: PopupMenu;
   private active = false;
@@ -95,13 +97,22 @@ class LibraryModule {
     this.compareB = new Viewer('fl-compare-b');
     this.compareA.onClick = () => { if (this.compareA.photo) library.setActive(this.compareA.photo.id); };
     this.compareB.onClick = () => { if (this.compareB.photo) this.candidate = this.compareB.photo.id; };
+    this.compareA.onView = (z, x, y) => { if (this.linked) this.compareB.follow(z, x, y); this.syncCompareBar(); };
+    this.compareB.onView = (z, x, y) => { if (this.linked) this.compareA.follow(z, x, y); this.syncCompareBar(); };
     const gridWrap = el('<div class="fl-lib-view fl-lib-grid"></div>');
     gridWrap.append(this.filter.root, this.grid.root);
     const loupeWrap = el('<div class="fl-lib-view fl-lib-loupe" hidden></div>');
     loupeWrap.appendChild(this.loupe.root);
-    const compareWrap = el(`<div class="fl-lib-view fl-lib-compare" hidden><div class="fl-compare-pane"><div class="fl-compare-tag">Select</div></div><div class="fl-compare-pane"><div class="fl-compare-tag">Candidate</div></div></div>`);
+    const compareWrap = el(`<div class="fl-lib-view fl-lib-compare" hidden><div class="fl-compare-pane"><div class="fl-compare-tag">Select</div></div><div class="fl-compare-pane"><div class="fl-compare-tag">Candidate</div></div><div class="fl-compare-bar"><button class="cv-icon-btn is-on" type="button" data-cmp="link" aria-label="Link Focus" title="Link Focus: zoom and pan both photos together">${icon('link', 15)}</button><div class="cv-seg fl-seg-sm" data-cmp-zoom><button type="button" data-z="fit">Fit</button><button type="button" data-z="fill">Fill</button><button type="button" data-z="1">1:1</button><button type="button" data-z="2">2:1</button></div><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.swapCompare">Swap</button><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.makeSelect">Make Select</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-cmd="view.loupe">Done</button></div></div>`);
     compareWrap.children[0].appendChild(this.compareA.root);
     compareWrap.children[1].appendChild(this.compareB.root);
+    this.compareBar = q(compareWrap, '.fl-compare-bar');
+    this.compareBar.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('[data-cmp="link"]')) { this.linked = !this.linked; if (this.linked) this.compareB.follow(this.compareA.zoom, ...this.compareA.center()); this.syncCompareBar(); return; }
+      const z = t.closest<HTMLElement>('[data-z]')?.dataset.z;
+      if (z) { const zoom = z === 'fit' || z === 'fill' ? z : Number(z); this.compareA.setZoom(zoom); if (!this.linked) this.compareB.setZoom(zoom); }
+    });
     this.survey = el('<div class="fl-lib-view fl-lib-survey" hidden></div>');
     this.survey.addEventListener('click', (e) => {
       const tile = (e.target as HTMLElement).closest<HTMLElement>('.fl-survey-tile');
@@ -185,12 +196,22 @@ class LibraryModule {
       { id: 'view.find', label: 'Find...', keys: ['Mod+F'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.focusText(); } },
       { id: 'view.zoomIn', label: 'Zoom In', keys: ['Mod+='], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.min(8, this.loupe.scale() * 1.5)); } },
       { id: 'view.zoomOut', label: 'Zoom Out', keys: ['Mod+-'], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.max(0.05, this.loupe.scale() / 1.5)); } },
-      { id: 'view.zoomToggle', label: 'Toggle Zoom View', keys: ['Z'], run: () => { if (this.view !== 'loupe') this.setView('loupe'); this.loupe.toggleZoom(); } },
+      { id: 'view.zoomToggle', label: 'Toggle Zoom View', keys: ['Z'], run: () => { if (this.view === 'compare') { ctx.run('library.compareZoom'); return; } if (this.view !== 'loupe') this.setView('loupe'); this.loupe.toggleZoom(); } },
       { id: 'view.info', label: 'Cycle Info Overlay', keys: ['I'], run: () => this.loupe.setInfo((this.loupe.infoMode + 1) % 2) },
       { id: 'library.import', label: 'Import Photos and Videos...', keys: ['Shift+Mod+I'], run: () => openImport(ctx) },
       { id: 'library.filterPicks', label: 'Show Picks Only', run: () => library.setFilter({ flags: library.filter.flags?.length ? [] : ['pick'] }), checked: () => !!library.filter.flags?.includes('pick') },
       { id: 'library.filterOff', label: 'Filters Off', keys: ['Mod+L'], run: () => library.setFilter({}, true), enabled: () => library.hasFilter() },
       { id: 'library.swapCompare', label: 'Swap Select and Candidate', run: () => { const a = library.active; library.setActive(this.candidate); this.candidate = a; this.renderCompare(); } },
+      { id: 'library.makeSelect', label: 'Make Candidate the Select', run: () => {
+        const c = this.candidate;
+        if (c === null) return;
+        library.setActive(c);
+        const pool = library.selection.size > 1 ? library.ids.filter((id) => library.selection.has(id)) : library.ids;
+        const i = pool.indexOf(c);
+        this.candidate = pool[i + 1] ?? pool.find((id) => id !== c) ?? null;
+        this.renderCompare();
+      }, enabled: () => this.view === 'compare' && this.candidate !== null },
+      { id: 'library.compareZoom', label: 'Toggle Compare Zoom', run: () => { const z = this.compareA.zoom === 'fit' ? 1 : 'fit'; this.compareA.setZoom(z); if (!this.linked) this.compareB.setZoom(z); } },
       { id: 'library.syncMetadata', label: 'Sync Metadata', run: () => void this.syncMetadata(), enabled: () => library.targets().length > 1 },
     );
   }
@@ -235,6 +256,12 @@ class LibraryModule {
     const n = library.selected().length;
     this.ctx.shell.setSelection(n > 1 ? `${n} selected` : p ? p.file : '');
     this.ctx.shell.setCount(`${library.ids.length} photo${library.ids.length === 1 ? '' : 's'}`);
+  }
+
+  private syncCompareBar(): void {
+    setClass(q(this.compareBar, '[data-cmp="link"]'), 'is-on', this.linked);
+    const z = String(this.compareA.zoom);
+    for (const b of Array.from(this.compareBar.querySelectorAll<HTMLElement>('[data-z]'))) setClass(b, 'is-on', b.dataset.z === z);
   }
 
   private renderCompare(): void {

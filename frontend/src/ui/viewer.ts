@@ -28,6 +28,7 @@ export class Viewer {
   private loadSeq = 0;
   private hiFor = '';
   onZoom: ((z: Zoom) => void) | null = null;
+  onView: ((z: Zoom, cx: number, cy: number) => void) | null = null;
   onClick: ((e: MouseEvent) => void) | null = null;
   infoMode = 1;
 
@@ -85,6 +86,18 @@ export class Viewer {
     this.place();
     this.maybeHi();
     this.onZoom?.(z);
+    this.onView?.(this.zoom, this.cx, this.cy);
+  }
+
+  center(): [number, number] { return [this.cx, this.cy]; }
+
+  follow(z: Zoom, cx: number, cy: number): void {
+    if (this.zoom === z && this.cx === cx && this.cy === cy) return;
+    this.zoom = z;
+    this.cx = cx;
+    this.cy = cy;
+    this.place();
+    this.maybeHi();
   }
 
   scale(): number {
@@ -165,6 +178,7 @@ export class Viewer {
       this.cy = Math.min(1, Math.max(0, oy - dy / (h * s)));
       setClass(this.root, 'is-panning', true);
       this.place();
+      this.onView?.(this.zoom, this.cx, this.cy);
     });
     this.root.addEventListener('pointerup', (e) => {
       if (!down) return;
