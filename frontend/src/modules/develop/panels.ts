@@ -149,8 +149,30 @@ export class DevelopPanels {
         }, () => undefined);
       }
     });
+    const caRow = el('<div class="fl-row"><label class="fl-check-sm"><input type="checkbox"> Remove Chromatic Aberration</label><span class="fl-muted fl-grow fl-ca-note"></span></div>');
+    const caBox = q<HTMLInputElement>(caRow, 'input');
+    caBox.addEventListener('change', () => {
+      const id = develop.id;
+      if (id === null) return;
+      const on = caBox.checked;
+      setText(q(caRow, '.fl-ca-note'), on ? 'Measuring...' : '');
+      const done = (vals: { autoCaRed: number; autoCaBlue: number }) => {
+        if (develop.id !== id) return;
+        const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}), removeCa: on, ...vals };
+        develop.patch('optics', opt, 'end', on ? 'Remove Chromatic Aberration' : 'Keep Chromatic Aberration');
+        setText(q(caRow, '.fl-ca-note'), on && !vals.autoCaRed && !vals.autoCaBlue ? 'None found' : '');
+      };
+      if (!on) { done({ autoCaRed: 0, autoCaBlue: 0 }); return; }
+      void this.ctx.api.cmd<{ autoCaRed: number; autoCaBlue: number }>('develop.autoCa', { id }).then(done, (err) => { caBox.checked = false; setText(q(caRow, '.fl-ca-note'), ''); this.ctx.fail(err); });
+    });
+    develop.listen((why) => {
+      if (why === 'drag') return;
+      const on = !!(develop.settings.optics as Record<string, unknown> | undefined)?.removeCa;
+      if (caBox.checked !== on) caBox.checked = on;
+    });
+    const fringeHead = el(`<div class="fl-row"><span class="fl-sub-inline fl-grow">Defringe</span><button class="cv-icon-btn" type="button" data-cmd="develop.fringePicker" aria-label="Fringe Color Selector">${icon('eyeDropper', 14)}</button></div>`);
     pOptics.body.append(el('<div class="fl-sub">Profile</div>'), lensRow, s('optics.profileDistortion'), s('optics.profileVignetting'), el('<div class="fl-sub">Manual</div>'), s('optics.distortion'), s('optics.vignetting'), s('optics.vignettingMidpoint'),
-      el('<div class="fl-sub">Chromatic Aberration</div>'), s('optics.caRed'), s('optics.caBlue'), el('<div class="fl-sub">Defringe</div>'), s('optics.defringePurple'), s('optics.defringePurpleHueLo'), s('optics.defringePurpleHueHi'),
+      el('<div class="fl-sub">Chromatic Aberration</div>'), caRow, s('optics.caRed'), s('optics.caBlue'), fringeHead, s('optics.defringePurple'), s('optics.defringePurpleHueLo'), s('optics.defringePurpleHueHi'),
       s('optics.defringeGreen'), s('optics.defringeGreenHueLo'), s('optics.defringeGreenHueHi'));
 
     const pGeo = this.panel('dev.geometry', 'Transform', 'geometry');

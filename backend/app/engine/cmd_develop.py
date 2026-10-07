@@ -114,6 +114,27 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
             "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
+@command("develop.autoCa", "Measure Chromatic Aberration", {"id": {"type": "integer"}}, mutates=False)
+def auto_ca(id: int | None = None) -> dict:
+    from app.develop import fringe
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    img, _ = previews.source(pid)
+    red, blue = fringe.estimate_ca(img)
+    return {"autoCaRed": red, "autoCaBlue": blue}
+
+
+@command("develop.fringeHue", "Defringe Color Selector", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}}, mutates=False)
+def fringe_hue(x: float, y: float, id: int | None = None) -> dict:
+    from app.develop import fringe
+    s = sample_color(x, y, id)
+    deg = fringe.degrees(s["lab"])
+    kind = "purple" if fringe.PURPLE_BASE - 20 <= deg <= fringe.PURPLE_BASE + 140 else "green" if fringe.GREEN_BASE - 30 <= deg <= fringe.GREEN_BASE + 130 else ""
+    if not kind or s["chroma"] < 0.02:
+        return {"kind": "", "hue": round(deg, 1), "chroma": s["chroma"]}
+    centre = fringe.slider_for_hue(kind, deg)
+    return {"kind": kind, "hue": round(deg, 1), "lo": round(max(0.0, centre - 15)), "hi": round(min(100.0, centre + 15)), "chroma": s["chroma"]}
+
+
 @command("develop.proofProfiles", "Soft Proofing Profiles", mutates=False)
 def proof_profiles() -> dict:
     from app.output import icc

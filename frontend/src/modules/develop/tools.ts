@@ -609,6 +609,44 @@ export class WbPickerTool implements Tool {
   }
 }
 
+export class FringePickerTool implements Tool {
+  readonly id = 'fringe';
+  cursor = 'crosshair';
+  private readonly root: HTMLElement;
+  private readonly readout: HTMLElement;
+
+  constructor(private readonly host: ToolHost) {
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('eyeDropper', 14)} Fringe Color Selector</div><div class="fl-muted fl-wb-read">Zoom in and click a purple or green fringe along an edge.</div><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.readout = q(this.root, '.fl-wb-read');
+    this.root.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[data-a="done"]')) this.host.done(); });
+  }
+
+  activate(): void { this.host.drawer.replaceChildren(this.root); }
+
+  down(p: Pt): boolean {
+    const id = develop.id;
+    if (id === null || p.u < 0 || p.u > 1 || p.v < 0 || p.v > 1) return true;
+    void develop.flush().then(() => this.host.ctx.api.cmd<{ kind: string; lo?: number; hi?: number }>('develop.fringeHue', { id, x: p.nx, y: p.ny })).then((r) => {
+      if (!r.kind) { setText(this.readout, 'That color is not a purple or green fringe. Try a pixel right on the colored edge.'); return; }
+      const name = r.kind === 'purple' ? 'Purple' : 'Green';
+      const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}) };
+      const amt = Number(opt[`defringe${name}`] ?? 0);
+      opt[`defringe${name}`] = amt > 0 ? amt : 5;
+      opt[`defringe${name}HueLo`] = r.lo;
+      opt[`defringe${name}HueHi`] = r.hi;
+      develop.patch('optics', opt, 'end', `Defringe ${name}`);
+      setText(this.readout, `${name} fringe: hue ${r.lo} to ${r.hi}`);
+      if (!p.e.shiftKey) this.host.done();
+    }, (err) => this.host.ctx.fail(err));
+    return true;
+  }
+
+  key(_e: KeyboardEvent, combo: string): boolean {
+    if (combo === 'Escape') { this.host.done(); return true; }
+    return false;
+  }
+}
+
 interface PointColor { hue: number; chroma: number; lum: number; hueShift: number; satShift: number; lumShift: number; variance: number; range: number }
 
 const POINT_SLIDERS: Array<[keyof PointColor, string, number, number]> = [['hueShift', 'Hue Shift', -100, 100], ['satShift', 'Sat Shift', -100, 100], ['lumShift', 'Lum Shift', -100, 100], ['variance', 'Variance', -100, 100], ['range', 'Range', 0, 100]];
