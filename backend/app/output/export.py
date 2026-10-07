@@ -350,6 +350,19 @@ def _video(rec: dict, s: dict, dest: Path) -> Path:
     return out
 
 
+def in_private_location(rec: dict) -> bool:
+    lat, lon = rec.get("gpsLat"), rec.get("gpsLon")
+    if lat is None or lon is None:
+        return False
+    for r in catalog_mod.get().rows("SELECT lat, lon, radius FROM locations WHERE private=1"):
+        p1, p2 = np.radians(float(lat)), np.radians(float(r["lat"]))
+        dl = np.radians(float(r["lon"]) - float(lon))
+        a = np.sin((p2 - p1) / 2) ** 2 + np.cos(p1) * np.cos(p2) * np.sin(dl / 2) ** 2
+        if 2 * 6371.0088 * np.arcsin(min(1.0, float(np.sqrt(a)))) <= float(r["radius"]):
+            return True
+    return False
+
+
 def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | None:
     rec = _record(pid)
     f = s["file"]
@@ -358,7 +371,7 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
     stem = target_name(rec, s, seq)
     existing = s["destination"].get("existing", "unique")
     m = s["metadata"]
-    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")), kw_filter if kw_filter is not None else _export_keywords())
+    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")) or in_private_location(rec), kw_filter if kw_filter is not None else _export_keywords())
     if rec.get("kind") == "video":
         if not s["video"].get("include", True):
             return None
