@@ -15,7 +15,7 @@ export function infoLine(p: Photo): string {
 
 export class Viewer {
   readonly root: HTMLElement;
-  private readonly box: HTMLElement;
+  readonly box: HTMLElement;
   private readonly img: HTMLImageElement;
   private readonly hi: HTMLImageElement;
   private readonly info: HTMLElement;

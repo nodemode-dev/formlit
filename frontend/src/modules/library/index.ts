@@ -15,6 +15,7 @@ import { registerModule, type ModuleHosts } from '../registry';
 import { FilterBar } from './filterbar';
 import { importDropped, openImport } from './importer';
 import { InspectPanels } from './inspect';
+import { FaceRegions } from './face-regions';
 import { Painter } from './painter';
 import { PeoplePanel } from './people';
 import { PublishPanel } from './publish';
@@ -33,6 +34,7 @@ class LibraryModule {
   private view: View = 'grid';
   private grid!: ThumbGrid;
   private loupe!: Viewer;
+  private faces!: FaceRegions;
   private compareA!: Viewer;
   private compareB!: Viewer;
   private filter!: FilterBar;
@@ -112,6 +114,8 @@ class LibraryModule {
     gridWrap.append(this.filter.root, this.grid.root);
     const loupeWrap = el('<div class="fl-lib-view fl-lib-loupe" hidden></div>');
     loupeWrap.appendChild(this.loupe.root);
+    this.faces = new FaceRegions(this.ctx, this.loupe);
+    loupeWrap.appendChild(this.faces.bar);
     const compareWrap = el(`<div class="fl-lib-view fl-lib-compare" hidden><div class="fl-compare-pane"><div class="fl-compare-tag">Select</div></div><div class="fl-compare-pane"><div class="fl-compare-tag">Candidate</div></div><div class="fl-compare-bar"><button class="cv-icon-btn is-on" type="button" data-cmp="link" aria-label="Link Focus" title="Link Focus: zoom and pan both photos together">${icon('link', 15)}</button><div class="cv-seg fl-seg-sm" data-cmp-zoom><button type="button" data-z="fit">Fit</button><button type="button" data-z="fill">Fill</button><button type="button" data-z="1">1:1</button><button type="button" data-z="2">2:1</button></div><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.swapCompare">Swap</button><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.makeSelect">Make Select</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-cmd="view.loupe">Done</button></div></div>`);
     compareWrap.children[0].appendChild(this.compareA.root);
     compareWrap.children[1].appendChild(this.compareB.root);
@@ -207,6 +211,8 @@ class LibraryModule {
       { id: 'view.zoomOut', label: 'Zoom Out', keys: ['Mod+-'], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.max(0.05, this.loupe.scale() / 1.5)); } },
       { id: 'view.zoomToggle', label: 'Toggle Zoom View', keys: ['Z'], run: () => { if (this.view === 'compare') { ctx.run('library.compareZoom'); return; } if (this.view !== 'loupe') this.setView('loupe'); this.loupe.toggleZoom(); } },
       { id: 'view.info', label: 'Cycle Info Overlay', keys: ['I'], run: () => this.loupe.setInfo((this.loupe.infoMode + 1) % 2) },
+      { id: 'view.faceRegions', label: 'Show Face Regions', run: () => { toLib('loupe')(); this.faces.toggle(); this.faces.show(library.active); }, checked: () => this.faces.visible },
+      { id: 'library.drawFace', label: 'Draw Face Region', run: () => { toLib('loupe')(); this.faces.show(library.active); this.faces.setDrawing(true); } },
       { id: 'library.import', label: 'Import Photos and Videos...', keys: ['Shift+Mod+I'], run: () => openImport(ctx) },
       { id: 'library.filterPicks', label: 'Show Picks Only', run: () => library.setFilter({ flags: library.filter.flags?.length ? [] : ['pick'] }), checked: () => !!library.filter.flags?.includes('pick') },
       { id: 'library.filterOff', label: 'Filters Off', keys: ['Mod+L'], run: () => library.setFilter({}, true), enabled: () => library.hasFilter() },
@@ -259,7 +265,7 @@ class LibraryModule {
   private selectionChanged(): void {
     if (!this.active && this.ctx.module() !== 'library') return;
     const p = library.photo(library.active) ?? null;
-    if (this.view === 'loupe') void this.loupe.show(p);
+    if (this.view === 'loupe') { void this.loupe.show(p); this.faces.show(p?.id ?? null); }
     if (this.view === 'compare') this.renderCompare();
     if (this.view === 'survey') this.renderSurvey();
     const n = library.selected().length;

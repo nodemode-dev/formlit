@@ -512,6 +512,83 @@ def people_unassign(faces: list[int]) -> dict:
     return {"faces": faces}
 
 
+def _face_maps(pid: int):
+    from app.develop.render import plan
+    dev, _ = current(pid)
+    eff = effective(dev or {})
+    img, _ = previews.source(pid)
+    sh, sw = img.shape[:2]
+    view = {k: v for k, v in eff.items() if k not in VIEW_DROP}
+    full, fw, fh, _ = plan(sw, sh, view, 1024, None, False)
+    crop, cw, ch_, _ = plan(sw, sh, eff, 1024, None, True)
+    to_view = np.diag([1 / cw, 1 / ch_, 1.0]) @ crop.norm_to_out(cw, ch_) @ full.out_to_norm(fw, fh) @ np.diag([float(fw), float(fh), 1.0])
+
+    def apply(m: np.ndarray, x: float, y: float, w: float, h: float) -> list[float]:
+        pts = np.array([[x, y, 1.0], [x + w, y, 1.0], [x, y + h, 1.0], [x + w, y + h, 1.0]]) @ m.T
+        pts = pts[:, :2] / pts[:, 2:3]
+        x0, y0 = pts.min(axis=0)
+        x1, y1 = pts.max(axis=0)
+        return [round(float(x0), 5), round(float(y0), 5), round(float(x1 - x0), 5), round(float(y1 - y0), 5)]
+    return (lambda *b: apply(to_view, *b)), (lambda *b: apply(np.linalg.inv(to_view), *b))
+
+
+@command("faces.forPhoto", "Face Regions", {"id": {"type": "integer"}}, mutates=False)
+def faces_for_photo(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    rows = cat().rows("SELECT f.id, f.x, f.y, f.w, f.h, f.person_id, f.confirmed, p.name FROM faces f LEFT JOIN people p ON p.id=f.person_id WHERE f.photo_id=? ORDER BY f.x", (pid,))
+    if not rows:
+        return {"id": pid, "faces": [], "names": [r["name"] for r in cat().rows("SELECT name FROM people ORDER BY name COLLATE NOCASE")]}
+    to_view, _ = _face_maps(pid)
+    faces = [{"id": int(r["id"]), "box": to_view(float(r["x"]), float(r["y"]), float(r["w"]), float(r["h"])), "person": r["person_id"], "name": r["name"] or "",
+              "confirmed": bool(r["confirmed"])} for r in rows]
+    return {"id": pid, "faces": faces, "names": [r["name"] for r in cat().rows("SELECT name FROM people ORDER BY name COLLATE NOCASE")]}
+
+
+@command("faces.add", "Draw Face Region", {"id": {"type": "integer"}, "box": {"type": "array", "description": "[x, y, w, h], 0 to 1 across the cropped photo as shown"}, "name": {"type": "string"}})
+def faces_add(box: list[float], id: int | None = None, name: str = "") -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    if len(box) != 4 or box[2] <= 0.002 or box[3] <= 0.002:
+        raise CommandError("box is [x, y, w, h] with a size")
+    _, to_full = _face_maps(pid)
+    x, y, w, h = to_full(*(float(v) for v in box))
+    emb = None
+    try:
+        rgb8 = view_rgb8(pid, None, 1280)
+        if models.ready("faces"):
+            H, W = rgb8.shape[:2]
+            found = nets.faces(rgb8)
+            best = max(found, key=lambda f: _overlap(f["box"], [x, y, x + w, y + h]), default=None)
+            if best is not None and _overlap(best["box"], [x, y, x + w, y + h]) > 0.3:
+                emb = np.asarray(best["embedding"], np.float32).tobytes()
+    except Exception:
+        rgb8 = None
+    with cat().change("Add Face Region") as ch:
+        fid = int(ch.insert("faces", photo_id=pid, x=x, y=y, w=w, h=h, score=1.0, embedding=emb, person_id=None, confirmed=0))
+    if rgb8 is not None:
+        _save_face(fid, rgb8, [x, y, x + w, y + h])
+    if name.strip():
+        people_name([fid], name)
+    return {"face": fid, "matched": emb is not None}
+
+
+def _overlap(a: list[float], b: list[float]) -> float:
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+@command("faces.delete", "Delete Face Region", {"faces": {"type": "array"}})
+def faces_delete(faces: list[int]) -> dict:
+    with cat().change("Delete Face Region") as ch:
+        for fid in faces:
+            ch.delete("faces", id=int(fid))
+    for fid in faces:
+        (config.faces_dir() / f"{int(fid)}.jpg").unlink(missing_ok=True)
+    return {"deleted": faces}
+
+
 @command("people.rename", "Rename Person", {"person": {"type": "integer"}, "name": {"type": "string"}})
 def people_rename(person: int, name: str) -> dict:
     with cat().change("Rename Person") as ch:
