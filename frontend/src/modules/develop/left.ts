@@ -50,6 +50,7 @@ export class LeftPanels {
     this.navBox = el('<div class="fl-nav fl-nav-fit"><img alt="" draggable="false"><div class="fl-nav-rect"></div></div>');
     this.navImg = q<HTMLImageElement>(this.navBox, 'img');
     this.navRect = q(this.navBox, '.fl-nav-rect');
+    this.navImg.addEventListener('load', () => this.navSync());
     this.navBox.addEventListener('pointerdown', (e) => {
       const move = (ev: PointerEvent) => {
         const r = this.navImg.getBoundingClientRect();

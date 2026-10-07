@@ -77,6 +77,7 @@ export class DevelopView {
   private beforeFor = '';
   private pending: Disposer | null = null;
   private aspect = 1.5;
+  private shown: number | null = null;
   onRendered: ((img: HTMLImageElement) => void) | null = null;
   onZoom: ((z: Zoom) => void) | null = null;
   onError: ((err: unknown) => void) | null = null;
@@ -184,7 +185,9 @@ export class DevelopView {
 
   private place(): void {
     const r = this.displayRect();
-    for (const [k, v] of [['--x', r.x], ['--y', r.y], ['--w', r.w], ['--h', r.h]] as Array<[string, number]>) setStyleVar(this.box, k, `${Math.round(v)}px`);
+    if (this.shown === (this.photo?.id ?? null) || !this.base.el.classList.contains('is-loaded')) {
+      for (const [k, v] of [['--x', r.x], ['--y', r.y], ['--w', r.w], ['--h', r.h]] as Array<[string, number]>) setStyleVar(this.box, k, `${Math.round(v)}px`);
+    }
     const p = this.panes();
     const before = this.compare === 'lr' || this.compare === 'tb' || this.compare === 'before' || this.compare === 'split';
     setHidden(this.beforeBox, !before);
@@ -258,6 +261,7 @@ export class DevelopView {
       const blob = await r.blob();
       if (seq === this.seq && p.id === this.photo?.id) {
         if (await this.base.swap(blob)) {
+          this.shown = p.id;
           if (geo) this.geo = geo;
           this.aspect = geo ? geo.w / Math.max(1, geo.h) : this.aspect;
           setClass(this.base.el, 'is-loaded', true);
