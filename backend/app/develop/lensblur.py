@@ -109,15 +109,19 @@ def apply(lin: np.ndarray, dev: dict, frame: Frame, w: int, h: int, ppl: float, 
     coc, _ = coc_map(dev, frame, w, h, photo_id, lin)
     coc = coc * (LEVELS - 1)
     coc = cv2.GaussianBlur(coc.astype(np.float32), (0, 0), max(1.0, max_r * 0.25))
-    hl = np.maximum(lin, 0.0)
-    boost = 1.0 + bokeh * 3.0 * np.clip((hl.max(axis=2, keepdims=True) - 1.0), 0.0, 4.0)
-    src = hl * boost
-    levels = [src] + [_shaped(src, max_r * k / (LEVELS - 1), bokeh, shape) for k in range(1, LEVELS)]
+    src = np.maximum(lin, 0.0)
+    src *= 1.0 + bokeh * 3.0 * np.clip((src.max(axis=2, keepdims=True) - 1.0), 0.0, 4.0)
     i0 = np.clip(np.floor(coc).astype(np.int32), 0, LEVELS - 2)
-    t = (coc - i0)[..., None]
+    t = (coc - i0).astype(np.float32)
+    del coc
     out = np.zeros_like(lin)
+    prev = src
     for k in range(LEVELS - 1):
-        m = (i0 == k)[..., None]
-        out = np.where(m, levels[k] * (1 - t) + levels[k + 1] * t, out)
+        nxt = _shaped(src, max_r * (k + 1) / (LEVELS - 1), bokeh, shape)
+        m = i0 == k
+        if m.any():
+            tk = t[m][:, None]
+            out[m] = prev[m] * (1 - tk) + nxt[m] * tk
+        prev = nxt
     out = out / np.maximum(1.0 + bokeh * 3.0 * np.clip(out.max(axis=2, keepdims=True) - 1.0, 0.0, 4.0), 1.0)
     return out.astype(np.float32)
