@@ -220,6 +220,8 @@ def import_presets(paths: list[str]) -> dict:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(f.read_bytes())
                 made.append(dst.stem)
+            elif f.suffix.lower() == ".xmp" and adobe_profile.look_table_only(f):
+                raise CommandError(f"{f.name}: this profile stores its look as an HSV look table, which formlit cannot read yet; profiles with an RGB table import")
             elif f.suffix.lower() == ".xmp" and adobe_profile.is_profile(f):
                 from app.develop.profiles import import_profile_xmp
                 try:

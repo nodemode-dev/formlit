@@ -301,7 +301,8 @@ def info(id: int | None = None, settings: dict | None = None) -> dict:
     t, ti = effective_wb(img, src, dev, pid)
     return {"id": pid, "kind": kind, "raw": bool(src.get("raw")), "asShotTemp": round(float(src.get("asShotTemp", 6500))), "asShotTint": round(float(src.get("asShotTint", 0))),
             "temp": round(t), "tint": round(ti), "relativeWb": bool(src.get("relativeWb")), "cameraLook": "cameraLook" in src,
-            "width": src.get("fullWidth"), "height": src.get("fullHeight"), "profiles": profiles.catalogue(str(src.get("camera") or ""))}
+            "width": src.get("fullWidth"), "height": src.get("fullHeight"), "profiles": profiles.catalogue(str(src.get("camera") or ""), str((dev.get("profile") or {}).get("id", ""))),
+            "cameraStyle": src.get("cameraStyle")}
 
 
 @command("develop.set", "Develop", {"ids": {"type": "array"}, "values": {"type": "object"}, "delta": {"type": "boolean"}})

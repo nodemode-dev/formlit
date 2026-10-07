@@ -87,8 +87,8 @@ def from_crs(crs: dict, aspect: float = 1.5) -> dict:
         if pid:
             dev["profile"] = {"id": pid, **({"amount": round(float(amount.group(1)) * 100)} if amount and float(amount.group(1)) != 1.0 else {})}
     elif str(crs.get("CameraProfile", "")).startswith("Camera "):
-        variant = str(crs.get("CameraProfile", ""))[7:].strip().lower()
-        dev["profile"] = {"id": f"fl.camera.{variant}" if variant in ("neutral", "vivid", "portrait", "landscape") else "fl.camera"}
+        from app.develop.camera_styles import id_for_name
+        dev["profile"] = {"id": id_for_name(str(crs.get("CameraProfile", "")))}
     spots = []
     for item in [s for s in str(crs.get("RetouchInfo") or "").split("|") if "centerX" in s]:
         kv = {k.strip(): v.strip() for k, _, v in (p.partition("=") for p in item.split(","))}
@@ -139,7 +139,11 @@ def to_crs(dev: dict) -> dict:
         l, t, r, b = crop["rect"]
         out.update(HasCrop="True", CropLeft=f"{l:.6f}", CropTop=f"{t:.6f}", CropRight=f"{r:.6f}", CropBottom=f"{b:.6f}", CropAngle=f"{float(crop.get('angle', 0)):.4f}")
     prof = (dev.get("profile") or {}).get("id", "fl.color")
-    out["CameraProfile"] = ("Camera " + (prof.split(".")[2].title() if prof.count(".") == 2 else "Standard")) if str(prof).startswith("fl.camera") else "Adobe Standard"
+    if str(prof).startswith("fl.camera"):
+        from app.develop.camera_styles import crs_name
+        out["CameraProfile"] = crs_name(str(prof))
+    else:
+        out["CameraProfile"] = "Adobe Standard"
     optics = dev.get("optics") or {}
     lp = optics.get("profile") or {}
     out["LensProfileEnable"] = "1" if lp.get("enabled") else "0"

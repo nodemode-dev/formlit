@@ -52,6 +52,14 @@ def is_profile(path: Path) -> bool:
     return "RGBTable" in head and "Table_" in head
 
 
+def look_table_only(path: Path) -> bool:
+    try:
+        head = Path(path).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+    return "LookTable" in head and "Table_" in head and "RGBTable" not in head
+
+
 def read(path: Path) -> dict:
     root = ET.parse(path).getroot()
     desc = None
