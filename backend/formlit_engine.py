@@ -20,8 +20,18 @@ def selfcheck() -> int:
     info["formlit"] = __version__
     info["dist_bundled"] = os.path.isdir(os.path.join(resource_dir(), "frontend_dist"))
     info["shared_bundled"] = os.path.isdir(os.path.join(resource_dir(), "shared"))
+    import importlib
+
+    from app.engine.boot import COMMAND_MODULES
+    missing = []
+    for name in [*COMMAND_MODULES, "app.output.services.s3", "app.output.services.webdav", "app.develop.makernotes", "app.develop.dcp_kernel"]:
+        try:
+            importlib.import_module(name)
+        except Exception as exc:
+            missing.append(f"{name}: {exc}")
+    info["modules_missing"] = missing
     print(json.dumps(info))
-    return 0
+    return 1 if missing else 0
 
 
 def main() -> int:
