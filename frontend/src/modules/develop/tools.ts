@@ -466,13 +466,6 @@ export class SpotTool implements Tool {
       const d = (e.target as HTMLElement).closest<HTMLElement>('[data-distract]')?.dataset.distract;
       if (d) { e.stopPropagation(); void this.distraction(d); }
     });
-    this.sRefl = slider('reflections.amount', 'Reflections', -100, 100, 0, this.reflection(), (v, phase) => {
-      this.host.view.setDragging(phase === 'drag');
-      develop.patch('reflections', v ? { amount: v } : null, phase, 'Remove Reflections');
-    });
-    this.sRefl.root.title = 'Positive values remove reflections in glass; negative values show only the reflection';
-    this.removeRow.appendChild(this.sRefl.root);
-    develop.listen((why) => { if (why !== 'drag') this.sRefl.set(this.reflection()); });
     this.sVis = slider('spot.visualize', 'Threshold', 0, 100, 50, 50, (v) => { this.visLevel = v; this.host.view.schedule(); });
     const visCheck = q<HTMLInputElement>(this.visRow, 'input');
     visCheck.addEventListener('change', () => this.setVisualize(visCheck.checked));
@@ -502,8 +495,6 @@ export class SpotTool implements Tool {
   activate(): void { this.host.drawer.replaceChildren(this.root); this.syncOpts(); }
 
   private detect = false;
-  private readonly sRefl: Slider;
-  private reflection(): number { return Number((develop.settings.reflections as { amount?: number } | undefined)?.amount ?? 0); }
   private readonly removeRow = el('<div class="fl-spot-remove"><label class="fl-check fl-check-sm" data-only="remove"><input type="checkbox" data-detect> Detect Objects</label><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
 
   private async distraction(kind: string): Promise<void> {
