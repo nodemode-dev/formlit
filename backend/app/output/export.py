@@ -1,0 +1,369 @@
+import copy
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any, Callable
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+from app.core import config
+from app.develop import render as render_mod
+from app.develop.geometry import Frame
+from app.engine import catalog as catalog_mod
+from app.engine.records import detail, loads
+from app.output import encode
+from app.services import previews, rename
+
+DEFAULTS: dict = {
+    "destination": {"folder": "", "subfolder": "", "useSubfolder": False, "sameAsOriginal": False, "existing": "unique", "addToCatalog": False, "stack": False},
+    "naming": {"rename": False, "template": "{name}", "custom": "", "start": 1, "case": "keep"},
+    "file": {"format": "jpeg", "quality": 85, "limitKB": 0, "depth": 8, "compression": "none", "space": "srgb"},
+    "size": {"resize": False, "mode": "long", "w": 2048, "h": 2048, "value": 2048, "mp": 12.0, "percent": 50, "noEnlarge": True, "ppi": 240},
+    "sharpen": {"on": False, "for": "screen", "amount": "standard"},
+    "metadata": {"include": "all", "removePerson": True, "removeLocation": False},
+    "watermark": {"on": False, "kind": "text", "text": "{copyright}", "image": "", "size": 0.035, "opacity": 0.7, "anchor": "br", "inset": 0.025, "color": "#ffffff", "shadow": True},
+    "video": {"include": True, "format": "original", "quality": "high"},
+    "post": {"action": "none", "app": ""},
+}
+BUILTIN = [
+    {"id": "builtin.web", "name": "JPEG for Web (2048 px)", "settings": {"file": {"format": "jpeg", "quality": 82, "space": "srgb"}, "size": {"resize": True, "mode": "long", "value": 2048},
+                                                                         "sharpen": {"on": True, "for": "screen", "amount": "standard"}, "metadata": {"include": "copyright"}}},
+    {"id": "builtin.full", "name": "Full Size JPEG", "settings": {"file": {"format": "jpeg", "quality": 92, "space": "srgb"}, "metadata": {"include": "all"}}},
+    {"id": "builtin.email", "name": "For Email (1200 px)", "settings": {"file": {"format": "jpeg", "quality": 75, "space": "srgb"}, "size": {"resize": True, "mode": "long", "value": 1200},
+                                                                       "sharpen": {"on": True, "for": "screen", "amount": "low"}, "metadata": {"include": "copyright"}}},
+    {"id": "builtin.tiff", "name": "16-bit TIFF, ProPhoto RGB", "settings": {"file": {"format": "tiff", "depth": 16, "compression": "zip", "space": "prophoto"}, "metadata": {"include": "all"}}},
+    {"id": "builtin.print", "name": "Print, 300 ppi Adobe RGB", "settings": {"file": {"format": "tiff", "depth": 16, "compression": "zip", "space": "adobergb"}, "size": {"ppi": 300},
+                                                                            "sharpen": {"on": True, "for": "matte", "amount": "standard"}}},
+    {"id": "builtin.original", "name": "Original Files", "settings": {"file": {"format": "original"}}},
+    {"id": "builtin.dng", "name": "DNG with Edits", "settings": {"file": {"format": "dng"}}},
+]
+SHARPEN = {"screen": (0.6, {"low": 0.35, "standard": 0.6, "high": 0.9}), "matte": (1.0, {"low": 0.55, "standard": 0.85, "high": 1.25}),
+           "glossy": (0.8, {"low": 0.4, "standard": 0.65, "high": 1.0})}
+ANCHORS = {"tl": (0, 0), "t": (0.5, 0), "tr": (1, 0), "l": (0, 0.5), "c": (0.5, 0.5), "r": (1, 0.5), "bl": (0, 1), "b": (0.5, 1), "br": (1, 1)}
+
+
+def merged(settings: dict | None) -> dict:
+    out = copy.deepcopy(DEFAULTS)
+    for k, v in (settings or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k].update(v)
+        else:
+            out[k] = v
+    if not out["destination"]["folder"]:
+        out["destination"]["folder"] = str(config.exports_dir())
+    return out
+
+
+def presets_dir() -> Path:
+    p = config.presets_dir() / "Export"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def list_presets() -> list[dict]:
+    out = [dict(p, builtin=True) for p in BUILTIN]
+    for f in sorted(presets_dir().glob("*.json")):
+        try:
+            d = json.loads(f.read_text())
+            out.append({"id": f"user.{f.stem}", "name": d.get("name", f.stem), "settings": d.get("settings", {}), "builtin": False})
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def find_preset(pid: str) -> dict | None:
+    return next((p for p in list_presets() if p["id"] == pid), None)
+
+
+def save_preset(name: str, settings: dict) -> dict:
+    stem = rename.safe(name).replace(" ", "-").lower()
+    (presets_dir() / f"{stem}.json").write_text(json.dumps({"name": name, "settings": settings}, indent=1))
+    return {"id": f"user.{stem}", "name": name}
+
+
+def delete_preset(pid: str) -> bool:
+    if not pid.startswith("user."):
+        return False
+    f = presets_dir() / f"{pid[5:]}.json"
+    if f.is_file():
+        f.unlink()
+        return True
+    return False
+
+
+def scale_for(nw: float, nh: float, size: dict) -> float:
+    if not size.get("resize"):
+        return 1.0
+    mode = size.get("mode", "long")
+    long_, short_ = max(nw, nh), min(nw, nh)
+    if mode == "long":
+        s = float(size.get("value", 2048)) / long_
+    elif mode == "short":
+        s = float(size.get("value", 2048)) / short_
+    elif mode == "wh":
+        s = min(float(size.get("w", 2048)) / nw, float(size.get("h", 2048)) / nh)
+    elif mode == "dims":
+        a, b = float(size.get("w", 2048)), float(size.get("h", 2048))
+        s = min(max(a, b) / long_, min(a, b) / short_)
+    elif mode == "mp":
+        s = (float(size.get("mp", 12)) * 1e6 / max(1.0, nw * nh)) ** 0.5
+    elif mode == "percent":
+        s = float(size.get("percent", 100)) / 100.0
+    else:
+        s = 1.0
+    return min(s, 1.0) if size.get("noEnlarge", True) else s
+
+
+def render_photo(pid: int, size: dict, space: str, dev: dict | None = None) -> np.ndarray:
+    cat = catalog_mod.get()
+    if dev is None:
+        dev = loads(cat.scalar("SELECT develop FROM photos WHERE id=?", (pid,)), {})
+    eff = render_mod.effective(dev)
+    pimg, pinfo = previews.source(pid)
+    ph, pw = pimg.shape[:2]
+    full_long = max(int(pinfo.get("fullWidth") or pw), int(pinfo.get("fullHeight") or ph))
+    ratio = max(1.0, full_long / max(pw, ph))
+    nw, nh = Frame(pw, ph, eff, True).native_size()
+    s = scale_for(nw * ratio, nh * ratio, size)
+    tw, th = max(1, round(nw * ratio * s)), max(1, round(nh * ratio * s))
+    if max(tw, th) <= max(nw, nh) * 1.001:
+        return render_mod.render(pimg, pinfo, dev, size=(tw, th), space=space, photo_id=pid)
+    img, info = previews.source(pid, None, full=True)
+    return render_mod.render(img, info, dev, size=(tw, th), space=space, photo_id=pid, src_long=max(img.shape[:2]))
+
+
+def sharpen(out: np.ndarray, opts: dict, ppi: int) -> np.ndarray:
+    if not opts.get("on"):
+        return out
+    base, amounts = SHARPEN.get(opts.get("for", "screen"), SHARPEN["screen"])
+    sigma = base if opts.get("for", "screen") == "screen" else base * max(0.5, ppi / 300.0)
+    amt = amounts.get(opts.get("amount", "standard"), 0.6)
+    y = out @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    blur = cv2.GaussianBlur(y, (0, 0), sigma)
+    d = np.clip((y - blur) * amt, -0.25, 0.25)
+    return np.clip(out + d[..., None], 0.0, 1.0)
+
+
+def _tokens(text: str, rec: dict) -> str:
+    meta = rec.get("meta") or {}
+    year = (rec.get("captureTime") or "")[:4] or time.strftime("%Y")
+    for k, v in {"copyright": meta.get("copyright") or "", "creator": meta.get("creator") or "", "title": meta.get("title") or "",
+                 "name": Path(rec.get("fileName") or "").stem, "year": year, "caption": meta.get("caption") or ""}.items():
+        text = text.replace("{" + k + "}", str(v))
+    return text.strip()
+
+
+def _hex(c: str) -> tuple[float, float, float]:
+    c = c.lstrip("#")
+    if len(c) != 6:
+        return 1.0, 1.0, 1.0
+    return tuple(int(c[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+
+def watermark(out: np.ndarray, wm: dict, rec: dict) -> np.ndarray:
+    if not wm.get("on"):
+        return out
+    h, w = out.shape[:2]
+    long_ = max(w, h)
+    inset = int(float(wm.get("inset", 0.025)) * long_)
+    opacity = float(wm.get("opacity", 0.7))
+    if wm.get("kind") == "image" and wm.get("image") and Path(wm["image"]).is_file():
+        src = Image.open(wm["image"]).convert("RGBA")
+        tw = max(8, int(float(wm.get("size", 0.15)) * long_))
+        th = max(1, round(src.height * tw / src.width))
+        src = src.resize((tw, th), Image.Resampling.LANCZOS)
+        rgba = np.asarray(src, np.float32) / 255.0
+        color, alpha = rgba[..., :3], rgba[..., 3] * opacity
+        shadow = None
+    else:
+        text = _tokens(str(wm.get("text", "")), rec)
+        if not text:
+            return out
+        px = max(8, int(float(wm.get("size", 0.035)) * long_))
+        font = ImageFont.load_default(size=px)
+        x0, y0, x1, y1 = font.getbbox(text)
+        tw, th = x1 - x0 + 4, y1 - y0 + 4
+        mask = Image.new("L", (tw, th), 0)
+        ImageDraw.Draw(mask).text((2 - x0, 2 - y0), text, font=font, fill=255)
+        a = np.asarray(mask, np.float32) / 255.0
+        color = np.broadcast_to(np.array(_hex(str(wm.get("color", "#ffffff"))), np.float32), (th, tw, 3))
+        alpha = a * opacity
+        shadow = cv2.GaussianBlur(a, (0, 0), max(1.0, px / 18)) * opacity * 0.55 if wm.get("shadow", True) else None
+    ah, aw = alpha.shape[:2]
+    fx, fy = ANCHORS.get(wm.get("anchor", "br"), (1, 1))
+    x = int(round(inset + (w - aw - 2 * inset) * fx))
+    y = int(round(inset + (h - ah - 2 * inset) * fy))
+    x, y = max(0, min(w - aw, x)), max(0, min(h - ah, y))
+    if aw > w or ah > h:
+        return out
+    region = out[y:y + ah, x:x + aw]
+    if shadow is not None:
+        off = max(1, ah // 24)
+        sh = np.zeros_like(shadow)
+        sh[off:, off:] = shadow[:-off, :-off]
+        region = region * (1 - sh[..., None])
+    out = out.copy()
+    out[y:y + ah, x:x + aw] = region * (1 - alpha[..., None]) + color * alpha[..., None]
+    return out
+
+
+def target_name(rec: dict, s: dict, seq: int) -> str:
+    n = s["naming"]
+    base = rename.expand(n.get("template") or "{name}", rec, seq, n.get("custom", "")) if n.get("rename") else Path(rec["fileName"]).stem
+    if rec.get("copyName") and not n.get("rename"):
+        base = f"{base}-{rename.safe(rec['copyName'])}"
+    case = n.get("case", "keep")
+    return base.lower() if case == "lower" else base.upper() if case == "upper" else base
+
+
+def folder_for(rec: dict, s: dict) -> Path:
+    d = s["destination"]
+    base = Path(rec["folderPath"]) if d.get("sameAsOriginal") else Path(d.get("folder") or config.exports_dir()).expanduser()
+    if d.get("useSubfolder") and d.get("subfolder"):
+        base = base / rename.expand(d["subfolder"], rec, 1)
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def place(path: Path, existing: str) -> Path | None:
+    if not path.exists() or existing == "overwrite":
+        return path
+    if existing == "skip":
+        return None
+    return rename.unique(path)
+
+
+def _record(pid: int) -> dict:
+    rec = detail(catalog_mod.get(), pid)
+    if rec is None:
+        raise FileNotFoundError(f"No photo with id {pid}")
+    return rec
+
+
+def _export_keywords() -> set[str] | None:
+    cat = catalog_mod.get()
+    hidden = {int(r["id"]) for r in cat.rows("SELECT id FROM keywords WHERE export=0")}
+    if not hidden:
+        return None
+    return {cat.keyword_path(int(r["id"])) for r in cat.rows("SELECT id FROM keywords WHERE export=1")}
+
+
+def _video(rec: dict, s: dict, dest: Path) -> Path:
+    v = s["video"]
+    src = Path(rec["path"])
+    if v.get("format") == "original" or not shutil.which("ffmpeg"):
+        shutil.copy2(src, dest.with_suffix(src.suffix.lower()))
+        return dest.with_suffix(src.suffix.lower())
+    out = dest.with_suffix(".mp4")
+    crf = {"max": "16", "high": "20", "medium": "24", "low": "28"}.get(v.get("quality", "high"), "20")
+    scale = ["-vf", "scale='min(1920,iw)':-2"] if v.get("quality") in ("medium", "low") else []
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), *scale, "-c:v", "libx264", "-preset", "medium", "-crf", crf,
+                    "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)], check=True)
+    return out
+
+
+def export_one(pid: int, s: dict, seq: int, kw_filter: set[str] | None) -> Path | None:
+    rec = _record(pid)
+    f = s["file"]
+    fmt = f.get("format", "jpeg")
+    folder = folder_for(rec, s)
+    stem = target_name(rec, s, seq)
+    existing = s["destination"].get("existing", "unique")
+    m = s["metadata"]
+    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")), kw_filter)
+    if rec.get("kind") == "video":
+        if not s["video"].get("include", True):
+            return None
+        dest = place(folder / f"{stem}{Path(rec['fileName']).suffix.lower()}", existing)
+        return None if dest is None else _video(rec, s, dest)
+    if fmt == "original":
+        src = Path(rec["path"])
+        dest = place(folder / f"{stem}{src.suffix}", existing)
+        if dest is None:
+            return None
+        shutil.copy2(src, dest)
+        from app.services import metadata
+        full = dict(meta_rec, develop=json.dumps(rec.get("develop") or {}, separators=(",", ":")))
+        metadata.write_sidecar(dest, full)
+        return dest
+    if fmt == "dng":
+        from app.ai import dng
+        from app.services import metadata
+        dest = place(folder / f"{stem}.dng", existing)
+        if dest is None:
+            return None
+        img, info = previews.source(pid, None, full=True)
+        make = meta_rec.get("make") or (rec.get("exif") or {}).get("make") or ""
+        dng.write_linear_dng(dest, img, info, make, rec.get("camera") or "", rec.get("captureTime"))
+        metadata.write_sidecar(dest, dict(meta_rec, develop=json.dumps(rec.get("develop") or {}, separators=(",", ":"))))
+        return dest
+    ext = encode.FORMATS.get(fmt, encode.FORMATS["jpeg"])["ext"]
+    dest = place(folder / f"{stem}.{ext}", existing)
+    if dest is None:
+        return None
+    ppi = int(s["size"].get("ppi", 240))
+    space = f.get("space", "srgb")
+    out = render_photo(pid, s["size"], space)
+    out = sharpen(out, s["sharpen"], ppi)
+    out = watermark(out, s["watermark"], rec)
+    data = encode.encode(out, fmt, space, int(f.get("quality", 85)), int(f.get("depth", 8)), ppi, meta_rec, f.get("compression", "none"), int(f.get("limitKB", 0)))
+    tmp = dest.with_name(dest.name + ".part")
+    tmp.write_bytes(data)
+    os.replace(tmp, dest)
+    return dest
+
+
+def reveal(path: Path) -> None:
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        return
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", "-R", str(path)])
+        elif sys.platform == "win32":
+            subprocess.Popen(["explorer", "/select,", str(path)])
+        else:
+            subprocess.Popen(["xdg-open", str(path.parent)])
+    except OSError:
+        return
+
+
+def open_with(app: str, paths: list[Path]) -> bool:
+    if not app or not paths:
+        return False
+    try:
+        if sys.platform == "darwin" and app.endswith(".app"):
+            subprocess.Popen(["open", "-a", app, *map(str, paths)])
+        else:
+            subprocess.Popen([app, *map(str, paths)])
+        return True
+    except OSError:
+        return False
+
+
+def run(pids: list[int], settings: dict, progress: Callable[..., Any] | None = None) -> dict:
+    s = merged(settings)
+    written: list[str] = []
+    skipped: list[int] = []
+    failed: list[dict] = []
+    kw_filter = _export_keywords()
+    start = int(s["naming"].get("start", 1))
+    for i, pid in enumerate(pids):
+        if progress is not None and getattr(progress, "cancelled", False):
+            break
+        try:
+            p = export_one(pid, s, start + i, kw_filter)
+            if p is None:
+                skipped.append(pid)
+            else:
+                written.append(str(p))
+        except Exception as exc:
+            failed.append({"id": pid, "error": str(exc)})
+        if progress is not None:
+            progress(i + 1, len(pids), f"Exporting {i + 1} of {len(pids)}")
+    return {"paths": written, "skipped": skipped, "failed": failed, "folder": str(Path(written[0]).parent) if written else s["destination"]["folder"], "settings": s}

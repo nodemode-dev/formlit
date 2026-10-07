@@ -14,6 +14,8 @@ from app.engine.commands import SESSION, CommandError, command, resolve_ids
 from app.services import importer, metadata, previews, rename
 
 FLAG_NAMES = {"pick": 1, "reject": -1, "none": 0, "unflag": 0, "unflagged": 0}
+COLLECTION_KINDS = {"collection": "Collection", "set": "Collection Set", "smart": "Smart Collection", "book": "Book", "print": "Print",
+                    "slideshow": "Slideshow", "web": "Web Gallery", "published": "Published Collection"}
 
 
 def cat():
@@ -589,25 +591,27 @@ def _quick_id(ch) -> int:
     return int(r["id"]) if r else ch.insert("collections", name="Quick Collection", kind="quick", position=-1)
 
 
-@command("collection.create", "New Collection", {"name": {"type": "string"}, "kind": {"type": "string", "enum": ["collection", "set", "smart"]}, "parent": {"type": "integer"}, "ids": {"type": "array"}, "rules": {"type": "object"}})
-def collection_create(name: str, kind: str = "collection", parent: int | None = None, ids: list[int] | None = None, rules: dict | None = None, target: bool = False) -> dict:
-    if kind not in ("collection", "set", "smart"):
-        raise CommandError("kind is collection, set or smart")
+@command("collection.create", "New Collection", {"name": {"type": "string"}, "kind": {"type": "string", "enum": list(COLLECTION_KINDS)}, "parent": {"type": "integer"}, "ids": {"type": "array"}, "rules": {"type": "object"}, "settings": {"type": "object"}, "service": {"type": "integer"}})
+def collection_create(name: str, kind: str = "collection", parent: int | None = None, ids: list[int] | None = None, rules: dict | None = None, target: bool = False,
+                      settings: dict | None = None, service: int | None = None) -> dict:
+    if kind not in COLLECTION_KINDS:
+        raise CommandError("kind is " + ", ".join(COLLECTION_KINDS))
     c = cat()
-    with c.change(f"New {'Smart Collection' if kind == 'smart' else 'Collection Set' if kind == 'set' else 'Collection'}") as ch:
+    with c.change(f"New {COLLECTION_KINDS[kind]}") as ch:
         pos = int(c.db.execute("SELECT COALESCE(MAX(position), 0) FROM collections").fetchone()[0]) + 1
-        cid = ch.insert("collections", name=name.strip() or "Untitled", kind=kind, parent_id=parent, rules=rules or ({"match": "all", "rules": []} if kind == "smart" else None), position=pos)
+        cid = ch.insert("collections", name=name.strip() or "Untitled", kind=kind, parent_id=parent, rules=rules or ({"match": "all", "rules": []} if kind == "smart" else None), position=pos,
+                        settings=settings, service_id=service)
         if target:
             for o in c.db.execute("SELECT id FROM collections WHERE target=1").fetchall():
                 ch.update("collections", int(o["id"]), target=0)
             ch.update("collections", cid, target=1)
-        if kind == "collection":
+        if kind not in ("set", "smart"):
             for i, pid in enumerate(ids or []):
                 ch.insert("collection_photos", collection_id=cid, photo_id=int(pid), position=i)
     return {"id": cid}
 
 
-@command("collection.update", "Edit Collection", {"id": {"type": "integer"}, "name": {"type": "string"}, "parent": {"type": "integer"}, "rules": {"type": "object"}})
+@command("collection.update", "Edit Collection", {"id": {"type": "integer"}, "name": {"type": "string"}, "parent": {"type": "integer"}, "rules": {"type": "object"}, "settings": {"type": "object"}, "cover": {"type": "integer"}})
 def collection_update(id: int, name: str | None = None, parent: int | None = -1, rules: dict | None = None, settings: dict | None = None, cover: int | None = None) -> dict:
     c = cat()
     fields: dict = {}

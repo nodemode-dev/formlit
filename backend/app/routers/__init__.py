@@ -1,7 +1,7 @@
 from app.engine import boot
-from app.routers import commands, events, faces, files, photos, system
+from app.routers import commands, events, faces, files, output, photos, system
 
-ROUTERS = [system.router, commands.router, photos.router, events.router, files.router, faces.router]
+ROUTERS = [system.router, commands.router, photos.router, events.router, files.router, faces.router, output.router]
 STARTUP = [boot.start]
 SHUTDOWN = [boot.stop]
 
