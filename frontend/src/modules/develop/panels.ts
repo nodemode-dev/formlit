@@ -68,7 +68,7 @@ export class DevelopPanels {
     this.profileSel = el<HTMLSelectElement>('<select class="cv-select fl-grow"></select>');
     this.profileSel.addEventListener('change', () => develop.patch('profile', { id: this.profileSel.value, amount: develop.value('profile.amount') }, 'end', `Profile: ${this.profileSel.selectedOptions[0]?.text ?? ''}`));
     const profRow = el('<div class="fl-row"><span class="fl-row-label">Profile</span></div>');
-    profRow.appendChild(this.profileSel);
+    profRow.append(this.profileSel, el(`<button class="cv-icon-btn" type="button" data-cmd="develop.profileBrowser" aria-label="Profile Browser">${icon('viewGridLit', 15)}</button>`));
     this.wbSel = el<HTMLSelectElement>('<select class="cv-select fl-grow"></select>');
     for (const p of develop.doc?.wbPresets ?? []) this.wbSel.add(new Option(p.label, p.id));
     this.wbSel.addEventListener('change', () => this.setWbMode(this.wbSel.value));
