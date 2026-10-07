@@ -1,0 +1,32 @@
+:root {
+  --fl-left-w: 256px;
+  --fl-right-w: 312px;
+  --fl-filmstrip-h: 116px;
+  --fl-toolbar-h: 40px;
+  --fl-panel-head-h: 34px;
+  --fl-thumb-gap: 8px;
+  --fl-pick: #f5f5f5;
+  --fl-reject: var(--danger);
+  --fl-label-red: #e5484d;
+  --fl-label-yellow: #f2c037;
+  --fl-label-green: #46a758;
+  --fl-label-blue: #3e7bfa;
+  --fl-label-purple: #8e4ec6;
+  --fl-star: #f5c84b;
+  --fl-clip-shadow: #2f6bff;
+  --fl-clip-highlight: #ff3b3b;
+  --fl-mask-overlay: #ff3b3b;
+  --fl-matte: #0c0c0e;
+  --fl-paper: #ffffff;
+  --fl-ink: #000000;
+  --fl-on-photo: #ffffff;
+  --fl-neutral-grey: #808080;
+  --fl-map-ground: #d9d4cc;
+  --fl-map-pin: #d9822b;
+  --fl-map-pin-ring: #fff8e6;
+  --fl-map-attr-ink: #333333;
+  --fl-map-attr-bg: rgba(255, 255, 255, 0.78);
+  --fl-map-loc-line: rgba(40, 90, 200, 0.7);
+  --fl-map-loc-fill: rgba(60, 120, 230, 0.12);
+  --fl-map-loc-label: rgba(20, 30, 60, 0.8);
+}

@@ -119,10 +119,10 @@
 .fl-mark.is-multi { left: -14px; top: -14px; width: 28px; height: 28px; }
 .fl-mark.is-multi::before { left: 0; width: 24px; height: 24px; border-radius: 50%; transform: none; }
 .fl-mark-n { position: relative; color: var(--fl-on-photo); font-size: 10px; font-weight: 600; }
-.fl-loc { position: absolute; left: 0; top: 0; width: var(--d); height: var(--d); border: 2px solid rgba(40, 90, 200, 0.7); border-radius: 50%; background: rgba(60, 120, 230, 0.12); pointer-events: none; }
+.fl-loc { position: absolute; left: 0; top: 0; width: var(--d); height: var(--d); border: 2px solid var(--fl-map-loc-line); border-radius: 50%; background: var(--fl-map-loc-fill); pointer-events: none; }
 .fl-loc.is-private { border-style: dashed; }
-.fl-loc span { position: absolute; left: 50%; top: -18px; padding: 1px 6px; border-radius: 4px; background: rgba(20, 30, 60, 0.8); color: var(--fl-on-photo); font-size: 10px; white-space: nowrap; transform: translateX(-50%); }
-.fl-map-attr { position: absolute; right: 0; bottom: 0; padding: 2px 6px; background: rgba(255, 255, 255, 0.78); color: var(--fl-map-attr-ink); font-size: 10px; }
+.fl-loc span { position: absolute; left: 50%; top: -18px; padding: 1px 6px; border-radius: 4px; background: var(--fl-map-loc-label); color: var(--fl-on-photo); font-size: 10px; white-space: nowrap; transform: translateX(-50%); }
+.fl-map-attr { position: absolute; right: 0; bottom: 0; padding: 2px 6px; background: var(--fl-map-attr-bg); color: var(--fl-map-attr-ink); font-size: 10px; }
 .fl-map-zoom { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 2px; padding: 3px; border: 1px solid var(--glass-border); border-radius: 9px; background: var(--glass-bg); }
 
 .fl-pub { display: flex; flex-direction: column; gap: 1px; padding: 0 4px 8px; }
