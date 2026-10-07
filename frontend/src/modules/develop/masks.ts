@@ -1,4 +1,5 @@
 import { clone, develop } from '../../state/develop';
+import { promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setHidden } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
@@ -8,7 +9,23 @@ import type { DevelopView, Pt, Tool } from './view';
 type Vec = [number, number];
 interface Shape { kind: string; [k: string]: unknown }
 interface Component { shape: Shape; op: 'add' | 'subtract' | 'intersect'; invert?: boolean }
-interface Mask { id: number; name: string; visible?: boolean; components: Component[]; adjust: Record<string, number>; invert?: boolean; refine?: number }
+interface LocalPoint { hue: number; chroma: number; lum: number; hueShift: number; satShift: number; lumShift: number; variance: number; range: number }
+interface Mask { id: number; name: string; visible?: boolean; components: Component[]; adjust: Record<string, unknown>; invert?: boolean; refine?: number }
+interface EffectPreset { name: string; adjust: Record<string, unknown>; builtin?: boolean }
+
+const EFFECT_PRESETS: EffectPreset[] = [
+  { name: 'Burn (Darken)', adjust: { exposure: -0.3 }, builtin: true },
+  { name: 'Dodge (Lighten)', adjust: { exposure: 0.25 }, builtin: true },
+  { name: 'Iris Enhance', adjust: { exposure: 0.35, clarity: 40, saturation: 40 }, builtin: true },
+  { name: 'Soften Skin', adjust: { clarity: -100, texture: -60, sharpness: 25 }, builtin: true },
+  { name: 'Teeth Whitening', adjust: { exposure: 0.4, saturation: -60 }, builtin: true },
+  { name: 'Clarity', adjust: { clarity: 50 }, builtin: true },
+  { name: 'Sharpness', adjust: { sharpness: 50 }, builtin: true },
+  { name: 'Haze Removal', adjust: { dehaze: 40 }, builtin: true },
+  { name: 'Darken Sky', adjust: { exposure: -0.4, highlights: -40, saturation: 15 }, builtin: true },
+  { name: 'Brighten Subject', adjust: { exposure: 0.3, shadows: 20, texture: 10 }, builtin: true },
+];
+const POINT_KEYS: Array<[keyof LocalPoint, string, number, number]> = [['hueShift', 'Hue Shift', -100, 100], ['satShift', 'Sat Shift', -100, 100], ['lumShift', 'Lum Shift', -100, 100], ['range', 'Range', 0, 100]];
 
 const AI_KINDS: Array<[string, string, string]> = [['subject', 'Subject', 'maskSubject'], ['sky', 'Sky', 'maskSky'], ['background', 'Background', 'maskBackground'], ['people', 'People', 'maskPeople'], ['object', 'Objects', 'maskObject']];
 const MANUAL: Array<[string, string, string]> = [['brush', 'Brush', 'maskBrush'], ['linear', 'Linear Gradient', 'maskLinear'], ['radial', 'Radial Gradient', 'maskRadial']];
@@ -32,6 +49,91 @@ export class MaskTool implements Tool {
   private readonly compOpts: HTMLElement;
   private readonly brushOpts: HTMLElement;
   private seq = 0;
+  private readonly points: HTMLElement;
+  private readonly pointSliders = new Map<string, Slider>();
+  private readonly effect: HTMLSelectElement;
+  private effects: EffectPreset[] = EFFECT_PRESETS;
+  private pointIdx = 0;
+  private pickPoint = false;
+
+  private localPoints(m: Mask | undefined): LocalPoint[] { return ((m?.adjust?.pointColors as LocalPoint[] | undefined) ?? []).slice(); }
+
+  private setPoint(k: keyof LocalPoint, v: number, phase: 'drag' | 'end'): void {
+    const { masks, m } = this.current();
+    const pts = this.localPoints(m);
+    if (!m || !pts[this.pointIdx]) return;
+    pts[this.pointIdx] = { ...pts[this.pointIdx], [k]: v };
+    m.adjust = { ...m.adjust, pointColors: pts };
+    this.host.view.setDragging(phase === 'drag');
+    develop.patch('masks', masks, phase, 'Mask Point Color');
+  }
+
+  private paintPoints(m: Mask | undefined): void {
+    setHidden(this.points, !m);
+    const pts = this.localPoints(m);
+    if (this.pointIdx >= pts.length) this.pointIdx = Math.max(0, pts.length - 1);
+    const html = pts.map((p, i) => {
+      const a = p.chroma * Math.cos((p.hue * Math.PI) / 180), b = p.chroma * Math.sin((p.hue * Math.PI) / 180);
+      return `<button class="fl-point-sw${i === this.pointIdx ? ' is-on' : ''}" type="button" data-pt="${i}" style="background: oklab(${(p.lum * 100).toFixed(1)}% ${a.toFixed(4)} ${b.toFixed(4)})" aria-label="Point ${i + 1}"></button>`;
+    }).join('') || `<span class="fl-muted">${this.pickPoint ? 'Click a colour in the photo' : 'Press the eyedropper, then click a colour'}</span>`;
+    const sw = q(this.points, '.fl-point-swatches');
+    if (sw.dataset.key !== html) { sw.dataset.key = html; sw.innerHTML = html; }
+    setClass(q(this.points, '[data-a="pickpoint"]'), 'is-on', this.pickPoint);
+    setHidden(q(this.points, '.fl-mask-point-sliders'), !pts.length);
+    const cur = pts[this.pointIdx];
+    for (const [k, s] of this.pointSliders) s.set(cur ? Number(cur[k as keyof LocalPoint] ?? (k === 'range' ? 50 : 0)) : (k === 'range' ? 50 : 0));
+  }
+
+  private async addPoint(p: Pt): Promise<void> {
+    const id = develop.id;
+    if (id === null) return;
+    try {
+      const r = await this.host.ctx.api.cmd<{ lab: [number, number, number] }>('develop.sampleColor', { id, x: p.nx, y: p.ny, settings: develop.settings });
+      const { masks, m } = this.current();
+      if (!m) return;
+      const pts = this.localPoints(m);
+      if (pts.length >= 8) { this.host.ctx.fail(new Error('A mask holds eight point colours; remove one first')); return; }
+      const [l, a, b] = r.lab;
+      pts.push({ lum: l, chroma: Math.hypot(a, b), hue: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360, hueShift: 0, satShift: 0, lumShift: 0, variance: 0, range: 50 });
+      m.adjust = { ...m.adjust, pointColors: pts };
+      this.pointIdx = pts.length - 1;
+      if (!p.e.shiftKey) this.pickPoint = false;
+      this.write(masks, 'end', 'Mask Point Color');
+    } catch (err) { this.host.ctx.fail(err, 'Point Color'); }
+  }
+
+  private async loadEffects(): Promise<void> {
+    try {
+      const p = await this.host.ctx.api.cmd<Record<string, unknown>>('prefs.get');
+      this.effects = [...EFFECT_PRESETS, ...((p.maskEffects as EffectPreset[] | undefined) ?? [])];
+    } catch { this.effects = EFFECT_PRESETS; }
+    const mine = this.effects.filter((e) => !e.builtin);
+    const html = [`<option value="">Custom</option>`, ...this.effects.map((e, i) => `<option value="${i}">${escapeHtml(e.name)}</option>`), '<option value="#save">Save Current Settings as New Preset...</option>', ...mine.map((e) => `<option value="#del:${escapeHtml(e.name)}">Delete Preset "${escapeHtml(e.name)}"</option>`)].join('');
+    if (this.effect.dataset.key !== html) { this.effect.dataset.key = html; this.effect.innerHTML = html; }
+  }
+
+  private async pickEffect(v: string): Promise<void> {
+    const { masks, m } = this.current();
+    const mine = this.effects.filter((e) => !e.builtin);
+    if (v === '#save') {
+      if (!m) return;
+      const name = (await promptName('New Mask Effect Preset', 'My Effect', 'Create'))?.trim();
+      if (!name) return;
+      const adjust = Object.fromEntries(Object.entries(m.adjust ?? {}).filter(([k]) => k !== 'amount'));
+      await this.host.ctx.api.cmd('prefs.set', { values: { maskEffects: [...mine.filter((e) => e.name !== name), { name, adjust }] } }).catch((err) => this.host.ctx.fail(err));
+      await this.loadEffects();
+      return;
+    }
+    if (v.startsWith('#del:')) {
+      await this.host.ctx.api.cmd('prefs.set', { values: { maskEffects: mine.filter((e) => e.name !== v.slice(5)) } }).catch((err) => this.host.ctx.fail(err));
+      await this.loadEffects();
+      return;
+    }
+    const preset = this.effects[Number(v)];
+    if (!m || !preset || v === '') return;
+    m.adjust = { ...(m.adjust?.amount !== undefined ? { amount: m.adjust.amount } : {}), ...clone(preset.adjust) };
+    this.write(masks, 'end', `Mask Effect: ${preset.name}`);
+  }
 
   constructor(private readonly host: ToolHost) {
     const btn = ([k, l, ic]: [string, string, string]) => `<button class="fl-mask-new" type="button" data-new="${k}" title="${l}">${icon(ic, 16)}<span>${l}</span></button>`;
@@ -42,7 +144,8 @@ export class MaskTool implements Tool {
 <div class="fl-mask-grid">${AI_KINDS.map(btn).join('')}${MANUAL.map(btn).join('')}${RANGES.map(btn).join('')}</div>
 <div class="fl-mask-comp"></div>
 <div class="fl-mask-brush" hidden></div>
-<div class="fl-mask-adjust" hidden><div class="fl-sub">Adjustments</div></div>
+<div class="fl-mask-adjust" hidden><div class="fl-sub">Adjustments</div><div class="fl-row"><span class="fl-row-label">Effect</span><select class="cv-select fl-grow" data-effect aria-label="Effect preset"></select></div></div>
+<div class="fl-mask-points" hidden><div class="fl-sub">Point Color<span class="fl-grow"></span><button class="cv-icon-btn" type="button" data-a="pickpoint" title="Pick a colour in the photo">${icon('eyeDropper', 14)}</button></div><div class="fl-point-swatches"></div><div class="fl-mask-point-sliders"></div></div>
 <div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="invert">Invert</button><button class="cv-btn fl-btn-sm" type="button" data-a="dup">Duplicate</button><button class="cv-btn fl-btn-sm" type="button" data-a="delete">Delete</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div>
 </div>`);
     this.list = q(this.root, '.fl-mask-list');
@@ -59,6 +162,15 @@ export class MaskTool implements Tool {
     this.sliders.set('colorSat', tint);
     this.sliders.set('colorHue', tintHue);
     this.adjust.append(tintHue.root, tint.root);
+    this.points = q(this.root, '.fl-mask-points');
+    for (const [k, label, min, max] of POINT_KEYS) {
+      const s = new Slider({ id: k, label, min, max, default: k === 'range' ? 50 : 0, step: 1, decimals: 0 }, { input: (id, v, phase) => this.setPoint(id as keyof LocalPoint, v, phase) });
+      this.pointSliders.set(k, s);
+      q(this.points, '.fl-mask-point-sliders').appendChild(s.root);
+    }
+    this.effect = q<HTMLSelectElement>(this.root, '[data-effect]');
+    this.effect.addEventListener('change', () => { const v = this.effect.value; this.effect.value = ''; this.effect.blur(); void this.pickEffect(v); });
+    void this.loadEffects();
     this.buildBrush();
     this.root.addEventListener('click', (e) => this.click(e));
     q<HTMLInputElement>(this.root, '[data-overlay]').addEventListener('change', (e) => { this.showOverlay = (e.target as HTMLInputElement).checked; this.host.view.schedule(); });
@@ -113,6 +225,14 @@ export class MaskTool implements Tool {
     const t = e.target as HTMLElement;
     const nw = t.closest<HTMLElement>('[data-new]')?.dataset.new;
     if (nw) { void this.create(nw, 'new'); return; }
+    const pt = t.closest<HTMLElement>('[data-pt]');
+    if (pt) { this.pointIdx = Number(pt.dataset.pt); this.paintPoints(this.current().m); return; }
+    if (t.closest('[data-a="pickpoint"]')) {
+      this.pickPoint = !this.pickPoint;
+      this.host.ctx.shell.setHint(this.pickPoint ? 'Click a colour in the photo to shift it inside this mask. Shift-click to keep picking.' : '');
+      this.paintPoints(this.current().m);
+      return;
+    }
     const addTo = t.closest<HTMLElement>('[data-addop]');
     if (addTo) { void this.create(addTo.dataset.kind as string, addTo.dataset.addop as 'add' | 'subtract' | 'intersect'); return; }
     const row = t.closest<HTMLElement>('[data-mask]');
@@ -222,6 +342,7 @@ export class MaskTool implements Tool {
     if (m) {
       for (const [id, s] of this.sliders) s.set(Number(m.adjust?.[id] ?? (id === 'amount' ? 100 : 0)));
     }
+    this.paintPoints(m);
     setHidden(this.brushOpts, c?.shape.kind !== 'brush');
     const ops = c ? `<div class="fl-row"><span class="fl-row-label">Component</span><div class="cv-seg fl-seg-sm fl-grow">${(['add', 'subtract', 'intersect'] as const).map((o) => `<button type="button" data-compop="${o}" class="${c.op === o ? 'is-on' : ''}">${o.charAt(0).toUpperCase() + o.slice(1)}</button>`).join('')}</div></div><div class="fl-row fl-mask-addrow"><span class="fl-row-label">Add</span>${[...MANUAL, ...RANGES, ...AI_KINDS].slice(0, 6).map(([k, l, ic]) => `<button class="cv-icon-btn" type="button" data-addop="add" data-kind="${k}" title="Add ${l}">${icon(ic, 14)}</button>`).join('')}</div>${this.shapeControls(c.shape)}` : '';
     if (this.compOpts.dataset.html !== ops) {
@@ -286,6 +407,10 @@ export class MaskTool implements Tool {
   }
 
   down(p: Pt): boolean {
+    if (this.pickPoint && this.current().m) {
+      void this.addPoint(p).then(() => { if (!this.pickPoint) this.host.ctx.shell.setHint(''); });
+      return true;
+    }
     if (this.pendingKind === 'object') {
       this.box = { a: p, b: p };
       return true;

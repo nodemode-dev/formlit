@@ -133,7 +133,9 @@
 .fl-mask-new .icon { color: var(--accent-color); }
 .fl-mask-comp { display: flex; flex-direction: column; gap: 2px; }
 .fl-mask-addrow .cv-icon-btn { width: 24px; height: 24px; }
-.fl-mask-brush[hidden], .fl-mask-adjust[hidden] { display: none; }
+.fl-mask-brush[hidden], .fl-mask-adjust[hidden], .fl-mask-points[hidden], .fl-mask-point-sliders[hidden] { display: none; }
+.fl-mask-points .fl-sub { display: flex; align-items: center; }
+.fl-mask-points .cv-icon-btn.is-on { color: var(--accent-color); background: var(--accent-soft); }
 .fl-masks:not(.has-mask) .fl-row-end [data-a="invert"], .fl-masks:not(.has-mask) .fl-row-end [data-a="dup"], .fl-masks:not(.has-mask) .fl-row-end [data-a="delete"] { display: none; }
 
 .fl-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; margin-bottom: 8px; }
