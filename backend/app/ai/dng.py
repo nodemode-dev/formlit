@@ -28,7 +28,7 @@ def write_linear_dng(path: Path, lin: np.ndarray, info: dict | None = None, make
     for v in xyz_to_cam.reshape(-1):
         cm.extend(_srational(float(v)))
     b = _srational(baseline)
-    keep = {k: info[k] for k in ("cameraTone", "cameraLook", "asShotTemp", "asShotTint") if k in info}
+    keep = {k: info[k] for k in ("cameraTone", "cameraLook", "asShotTemp", "asShotTint", "ownBaseline") if k in info}
     desc = TAG_PREFIX + json.dumps({**keep, "source": info.get("source", "")}, separators=(",", ":"))
     tags = [
         (50706, "B", 4, (1, 4, 0, 0), True),
