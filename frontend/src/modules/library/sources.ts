@@ -3,6 +3,7 @@ import { catalog, type CollectionRow, type FolderRow } from '../../state/catalog
 import { library, type Source } from '../../state/library';
 import { promptName, confirmAction } from '../../ui/dialogs';
 import { el } from '../../ui/dom';
+import { folderOf, pickFolder } from '../../ui/folder-picker';
 import { icon } from '../../ui/icons';
 import { PopupMenu } from '../../ui/menu';
 import { Panel } from '../../ui/panel';
@@ -72,7 +73,9 @@ export class SourcePanels {
     this.folders = new Tree({
       id: 'folders', empty: 'Import photos to see their folders here',
       onPick: (n) => { const r = n.data as FolderRow; library.setSource({ kind: 'folder', id: r.id, label: r.name, recursive: true }); },
-      onContext: (n, e) => this.context(n, e, ['lib.folderShow', 'lib.folderSync', 'lib.folderRename', 'lib.folderCreate', '-', 'lib.folderRemove']),
+      onContext: (n, e) => this.context(n, e, ['lib.folderShow', 'lib.folderSync', 'lib.folderRename', 'lib.folderCreate', 'lib.folderMove', 'lib.folderRelocate', '-', 'lib.folderRemove']),
+      canDrop: (n) => (n.data as FolderRow).online !== false,
+      onDrop: (n, ids) => void this.movePhotos(n.data as FolderRow, ids),
     });
     this.collections = new Tree({
       id: 'collections', empty: 'Drag photos here, or press + to make a collection',
@@ -108,6 +111,15 @@ export class SourcePanels {
 
   private node<T>(): T | null { return (this.ctxNode?.data as T) ?? null; }
 
+  private async movePhotos(f: FolderRow, ids: number[]): Promise<void> {
+    const n = ids.length;
+    if (!await confirmAction('Move Photos', `Move ${n} photo${n === 1 ? '' : 's'} into "${f.name}" on disk? Their sidecars move with them.`, 'Move')) return;
+    try {
+      const r = await this.ctx.api.cmd<{ moved: number[]; skipped: number[] }>('photo.move', { ids, folder: f.id });
+      toast(`Moved ${r.moved.length} photo${r.moved.length === 1 ? '' : 's'} to ${f.name}${r.skipped.length ? ` · ${r.skipped.length} missing` : ''}`);
+    } catch (err) { this.ctx.fail(err); }
+  }
+
   private commands(): void {
     const ctx = this.ctx;
     const fail = (e: unknown) => ctx.fail(e);
@@ -119,6 +131,8 @@ export class SourcePanels {
       { id: 'lib.folderSync', label: 'Synchronize Folder...', run: () => { const f = folder(); if (f) void ctx.api.cmd<{ added: number; missing: number }>('folder.synchronize', { id: f.id, importNew: true }).then((r) => toast(`Synchronized: ${r.added ?? 0} new, ${r.missing ?? 0} missing`), fail); } },
       { id: 'lib.folderRename', label: 'Rename...', run: async () => { const f = folder(); if (!f) return; const name = await promptName('Rename Folder', f.name, 'Rename'); if (name && name !== f.name) await ctx.api.cmd('folder.update', { id: f.id, name }).catch(fail); } },
       { id: 'lib.folderCreate', label: 'Create Folder inside...', run: async () => { const f = folder(); if (!f) return; const name = await promptName('New Folder', 'Untitled', 'Create'); if (name) await ctx.api.cmd('folder.create', { parent: f.id, name }).catch(fail); } },
+      { id: 'lib.folderRelocate', label: 'Update Folder Location...', run: async () => { const f = folder(); if (!f) return; const to = await pickFolder('Update Folder Location', `Where is "${f.name}" now? Photos in it are found again by name.`, folderOf(f.path), 'Choose'); if (to) { const r = await ctx.api.cmd<{ found: number }>('folder.relocate', { id: f.id, path: to }).catch(fail); if (r) toast(`Found ${r.found} photo${r.found === 1 ? '' : 's'} in ${to}`); } } },
+      { id: 'lib.folderMove', label: 'Move Folder Into...', run: async () => { const f = folder(); if (!f) return; const into = await pickFolder('Move Folder', `Move "${f.name}" and everything in it on disk. Choose a folder that is already in the catalog.`, folderOf(f.path), 'Move'); if (!into) return; const t = catalog.tree.folders.find((x) => x.path === into); if (!t) { toast('Choose a folder that is in the catalog (import or create it first)'); return; } await ctx.api.cmd('folder.move', { id: f.id, into: t.id }).catch(fail); } },
       { id: 'lib.folderRemove', label: 'Remove from Catalog...', run: async () => { const f = folder(); if (!f) return; if (await confirmAction('Remove Folder', `Remove "${f.name}" and its photos from the catalog? Files on disk stay where they are.`, 'Remove', true)) await ctx.api.cmd('folder.remove', { id: f.id }).catch(fail); } },
       { id: 'lib.colTarget', label: 'Set as Target Collection', run: () => { const c = col(); if (c) void ctx.api.cmd('collection.setTarget', { id: c.target ? null : c.id }).catch(fail); }, checked: () => !!col()?.target, enabled: () => col()?.kind === 'collection' },
       { id: 'lib.colRename', label: 'Rename...', run: async () => { const c = col(); if (!c) return; const name = await promptName('Rename', c.name, 'Rename'); if (name && name !== c.name) await ctx.api.cmd('collection.update', { id: c.id, name }).catch(fail); }, enabled: () => !!col() },

@@ -207,7 +207,7 @@ class LibraryModule {
   }
 
   private context(e: MouseEvent): void {
-    this.menu.setItems(['photo.pick', 'photo.reject', 'photo.unflag', '-', { label: 'Set Rating', items: ['photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5'] }, { label: 'Set Color Label', items: ['photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none'] }, '-', 'module.develop', 'library.export', '-', 'photo.virtualCopy', 'photo.quick', 'photo.target', { label: 'Stacking', items: ['photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.stackTop', 'photo.autoStack'] }, 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.saveMetadata', 'photo.reveal', '-', 'photo.remove']);
+    this.menu.setItems(['photo.pick', 'photo.reject', 'photo.unflag', '-', { label: 'Set Rating', items: ['photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5'] }, { label: 'Set Color Label', items: ['photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none'] }, '-', 'module.develop', 'library.export', '-', 'photo.virtualCopy', 'photo.quick', 'photo.target', { label: 'Stacking', items: ['photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.stackTop', 'photo.autoStack'] }, 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.saveMetadata', 'photo.reveal', 'library.locate', '-', 'photo.remove']);
     this.menu.openAt(e.clientX, e.clientY);
   }
 

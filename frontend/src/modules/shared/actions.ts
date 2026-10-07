@@ -77,6 +77,7 @@ export function registerPhotoActions(ctx: Ctx): void {
     { id: 'photo.virtualCopy', label: 'Create Virtual Copy', keys: ["Mod+'"], run: () => void act(ctx, 'photo.virtualCopy', {}), enabled: has },
     { id: 'photo.setMaster', label: 'Set Copy as Master', run: () => { const id = library.active; if (id !== null) void ctx.api.cmd('photo.setMasterCopy', { id }).catch((e) => ctx.fail(e)); }, enabled: () => !!library.photo(library.active)?.m },
     { id: 'photo.quick', label: 'Add to Quick Collection', keys: ['B'], run: () => void act(ctx, 'quick.toggle', {}), enabled: has },
+    { id: 'photo.quickClear', label: 'Clear Quick Collection', keys: ['Shift+Mod+B'], run: () => void ctx.api.cmd('quick.clear').then(() => toast('Quick Collection cleared'), (e) => ctx.fail(e)), enabled: () => catalog.tree.catalog.quick > 0 },
     { id: 'photo.target', label: 'Add to Target Collection', keys: ['Shift+B'], run: () => { const t = catalog.targetCollection(); if (t) void act(ctx, 'collection.addPhotos', { id: t.id }); else toast('Set a target collection first (right-click a collection)'); }, enabled: has },
     { id: 'photo.stack', label: 'Group into Stack', keys: ['Mod+G'], run: () => void act(ctx, 'stack.group', {}), enabled: () => library.targets().length > 1 },
     { id: 'photo.unstack', label: 'Unstack', keys: ['Shift+Mod+G'], run: () => void act(ctx, 'stack.ungroup', {}), enabled: has },

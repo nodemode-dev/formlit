@@ -8,6 +8,7 @@ import { Panel } from '../../ui/panel';
 import { thumbUrl } from '../../ui/thumbs';
 import { toast } from '../../ui/toast';
 import { Tree, type TreeNode } from '../../ui/tree';
+import { KeywordListMenu } from './keyword-list';
 import { KeywordSets, rememberKeywords } from './keyword-sets';
 import { MetadataPresets } from './metadata-presets';
 
@@ -132,10 +133,14 @@ export class InspectPanels {
       if (b) void this.run('photo.addKeywords', { keywords: [b.dataset.kw] });
     });
 
-    const pList = new Panel('lib.keywordList', 'Keyword List');
+    const kwMenu = new KeywordListMenu(ctx);
+    const kwNew = el<HTMLButtonElement>(`<button class="cv-icon-btn" type="button" title="Create Keyword Tag" aria-label="Create Keyword Tag">${icon('plus', 14)}</button>`);
+    kwNew.addEventListener('click', () => { const r = kwNew.getBoundingClientRect(); kwMenu.openFor(null, r.left, r.bottom + 4); });
+    const pList = new Panel('lib.keywordList', 'Keyword List', { tools: [kwNew] });
     this.kwSearch = el<HTMLInputElement>('<input class="cv-input fl-kw-search" type="search" placeholder="Filter Keywords" spellcheck="false">');
     this.kwTree = new Tree({
       id: 'keywords', empty: 'Keywords you add appear here',
+      onContext: (n, e) => kwMenu.openFor(n.data as KeywordRow, e.clientX, e.clientY),
       onPick: (n, e) => {
         const k = n.data as KeywordRow;
         if ((e.target as HTMLElement).closest('.fl-tree-icon')) { void this.toggleKeyword(k); return; }

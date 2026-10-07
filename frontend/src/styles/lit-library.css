@@ -20,6 +20,8 @@
 .fl-grid-x { overflow-x: auto; overflow-y: hidden; }
 .fl-grid-track { position: relative; min-width: 1px; min-height: 1px; }
 .fl-grid-x .fl-grid-track { height: 100%; }
+.fl-grid-drop { position: absolute; left: 0; top: 0; z-index: var(--z-raised); width: 2px; border-radius: 1px; background: var(--accent-color); pointer-events: none; }
+.fl-grid-drop[hidden] { display: none; }
 .fl-cell { position: absolute; top: 0; left: 0; width: var(--fl-cell); height: var(--fl-cell); border-radius: 6px; background: var(--surface-1); border: 1px solid var(--line-1); cursor: default; contain: layout paint; }
 .fl-cell[hidden] { display: none; }
 .fl-grid-x .fl-cell { top: 6px; height: calc(var(--fl-cell) - 2px); width: var(--fl-cell); }
@@ -197,6 +199,10 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-imp-row { display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 6px; border: 0; border-radius: 5px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-12); text-align: left; cursor: pointer; }
 .fl-imp-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fl-imp-row:hover { background: var(--surface-2); color: var(--text-primary); }
+.fl-fp { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px; height: 300px; margin-bottom: 10px; }
+.fl-fp-roots, .fl-fp-dirs { overflow-y: auto; padding: 4px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-1); }
+.fl-fp-path { width: 100%; }
+.fl-fp-lead:empty { display: none; }
 .fl-imp-row.is-on { background: var(--accent-soft); color: var(--text-primary); }
 .fl-imp-dirs { max-height: 40vh; overflow-y: auto; }
 .fl-imp-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--canvas-bg); }

@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import shutil
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -292,6 +293,9 @@ def remove(ids: Any = None) -> dict:
                 if int(vc["id"]) not in pids:
                     ch.update("photos", int(vc["id"]), master_id=None)
             ch.delete("photos", id=pid)
+    for pid in pids:
+        previews.drop_source(pid)
+        previews.clear(pid)
     with SESSION.lock:
         SESSION.selection = [i for i in SESSION.selection if i not in pids]
         if SESSION.active in pids:
@@ -415,9 +419,26 @@ def reveal(id: int | None = None) -> dict:
 
 
 @command("photo.relink", "Locate Missing Photo", {"id": {"type": "integer"}, "path": {"type": "string"}})
-def relink(id: int, path: str) -> dict:
+def relink(id: int, path: str, nearby: bool = True) -> dict:
     c = cat()
     p = Path(path).expanduser()
+    if p.is_dir():
+        row = c.row("SELECT p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.id=?", (int(id),))
+        if row is None:
+            raise CommandError("No such photo")
+        old_dir = row["path"]
+        hit = next((q for q in [p / row["file_name"], *p.glob(f"*/{row['file_name']}")] if q.is_file()), None)
+        if hit is None:
+            raise CommandError(f"{row['file_name']} is not in {p}")
+        relink(int(id), str(hit), False)
+        found = [int(id)]
+        if nearby:
+            for o in c.rows("SELECT p.id, p.file_name FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? AND p.missing=1 AND p.master_id IS NULL AND p.id!=?", (old_dir, int(id))):
+                cand = hit.parent / o["file_name"]
+                if cand.is_file():
+                    relink(int(o["id"]), str(cand), False)
+                    found.append(int(o["id"]))
+        return {"id": int(id), "found": found}
     if not p.is_file():
         raise CommandError(f"No file at {p}")
     with c.change("Locate Photo") as ch:
@@ -776,6 +797,27 @@ def keyword_merge(ids: list[int], into: int) -> dict:
     return {"into": int(into)}
 
 
+@command("keyword.purge", "Purge Unused Keywords")
+def keyword_purge() -> dict:
+    c = cat()
+    parent = {int(r["id"]): r["parent_id"] for r in c.rows("SELECT id, parent_id FROM keywords")}
+    used = {int(r["keyword_id"]) for r in c.rows("SELECT DISTINCT keyword_id FROM photo_keywords")}
+    used |= {int(r["keyword_id"]) for r in c.rows("SELECT keyword_id FROM people WHERE keyword_id IS NOT NULL")}
+    keep: set[int] = set()
+    for kid in used:
+        k: int | None = kid
+        while k is not None and k not in keep:
+            keep.add(k)
+            p = parent.get(k)
+            k = int(p) if p is not None else None
+    gone = [kid for kid in parent if kid not in keep]
+    if gone:
+        with c.change("Purge Unused Keywords") as ch:
+            for kid in gone:
+                ch.delete("keywords", id=kid)
+    return {"deleted": len(gone)}
+
+
 @command("keyword.suggest", "Keyword Suggestions", {"ids": {"type": "array"}}, mutates=False)
 def keyword_suggest(ids: Any = None, limit: int = 9) -> dict:
     c = cat()
@@ -866,6 +908,100 @@ def folder_remove(id: int) -> dict:
         for f in c.db.execute("SELECT id FROM folders WHERE path=? OR path LIKE ?", (r["path"], r["path"] + os.sep + "%")).fetchall():
             ch.delete("folders", id=int(f["id"]))
     return {"removed": ids}
+
+
+def _repath(ch, fid: int, old: Path, new: Path) -> None:
+    c = cat()
+    for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ?", (str(old), str(old) + os.sep + "%")).fetchall():
+        p = str(new) + f["path"][len(str(old)):]
+        ch.update("folders", int(f["id"]), path=p, name=Path(p).name)
+    up = c.row("SELECT id FROM folders WHERE path=?", (str(new.parent),))
+    ch.update("folders", int(fid), parent_id=int(up["id"]) if up else None)
+
+
+def _recheck(root: Path) -> int:
+    c = cat()
+    found = 0
+    with c.change("Check Files", undoable=False) as ch:
+        for p in c.db.execute("SELECT p.id, p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? OR f.path LIKE ?", (str(root), str(root) + os.sep + "%")).fetchall():
+            ok = (Path(p["path"]) / p["file_name"]).is_file()
+            ch.update("photos", int(p["id"]), missing=0 if ok else 1)
+            found += int(ok)
+            previews.drop_source(int(p["id"]))
+    return found
+
+
+@command("folder.relocate", "Update Folder Location", {"id": {"type": "integer"}, "path": {"type": "string"}})
+def folder_relocate(id: int, path: str) -> dict:
+    c = cat()
+    r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
+    if r is None:
+        raise CommandError("No such folder")
+    new = Path(path).expanduser()
+    if not new.is_dir():
+        raise CommandError(f"No folder at {new}")
+    other = c.row("SELECT id FROM folders WHERE path=?", (str(new),))
+    if other and int(other["id"]) != int(id):
+        raise CommandError(f"{new} is already a folder in this catalog")
+    with c.change("Update Folder Location") as ch:
+        _repath(ch, int(id), Path(r["path"]), new)
+    return {"id": int(id), "path": str(new), "found": _recheck(new)}
+
+
+@command("folder.move", "Move Folder", {"id": {"type": "integer"}, "into": {"type": "integer"}})
+def folder_move(id: int, into: int) -> dict:
+    c = cat()
+    r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
+    t = c.row("SELECT path FROM folders WHERE id=?", (int(into),))
+    if r is None or t is None:
+        raise CommandError("No such folder")
+    old = Path(r["path"])
+    new = Path(t["path"]) / old.name
+    if new == old or str(new).startswith(str(old) + os.sep):
+        raise CommandError("A folder cannot move inside itself")
+    if new.exists():
+        raise CommandError(f"{new} already exists")
+    shutil.move(str(old), str(new))
+    with c.change("Move Folder", undoable=False) as ch:
+        _repath(ch, int(id), old, new)
+    return {"id": int(id), "path": str(new)}
+
+
+@command("photo.move", "Move Photos", {"ids": {"type": "array"}, "folder": {"type": "integer"}})
+def photo_move(ids: Any = None, folder: int = 0) -> dict:
+    pids = _ids(ids)
+    c = cat()
+    r = c.row("SELECT path FROM folders WHERE id=?", (int(folder),))
+    if r is None:
+        raise CommandError("No such folder")
+    dest = Path(r["path"])
+    if not dest.is_dir():
+        raise CommandError(f"The folder {dest} is offline")
+    masters = []
+    for row in c.rows(f"SELECT id, master_id FROM photos WHERE id IN ({','.join('?' * len(pids))})", tuple(pids)):
+        mid = int(row["master_id"] or row["id"])
+        if mid not in masters:
+            masters.append(mid)
+    moved: list[int] = []
+    skipped: list[int] = []
+    with c.change("Move Photos", undoable=False) as ch:
+        for mid in masters:
+            m = c.row("SELECT p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.id=?", (mid,))
+            if m is None or Path(m["path"]) == dest:
+                continue
+            src = Path(m["path"]) / m["file_name"]
+            if not src.is_file():
+                skipped.append(mid)
+                continue
+            target = rename.unique(dest / src.name)
+            shutil.move(str(src), str(target))
+            side = metadata.sidecar_path(src)
+            if side.is_file():
+                shutil.move(str(side), str(metadata.sidecar_path(target)))
+            for pid in [mid] + [int(v["id"]) for v in c.db.execute("SELECT id FROM photos WHERE master_id=?", (mid,)).fetchall()]:
+                ch.update("photos", pid, folder_id=int(folder), file_name=target.name)
+            moved.append(mid)
+    return {"moved": moved, "skipped": skipped, "folder": str(dest)}
 
 
 @command("library.labelNames", "Edit Color Label Set", {"names": {"type": "object"}})

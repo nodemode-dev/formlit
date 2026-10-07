@@ -1,5 +1,7 @@
+import { api } from '../io/api';
+import { catalog } from '../state/catalog';
 import { library, type Photo } from '../state/library';
-import { el, setStyleVar } from './dom';
+import { el, setHidden, setStyleVar } from './dom';
 import { bump, ThumbCell } from './thumbs';
 
 export interface GridOptions {
@@ -26,6 +28,7 @@ export class ThumbGrid {
   private viewH = 0;
   private raf = 0;
   private visible = false;
+  private readonly marker: HTMLElement;
 
   constructor(private readonly opts: GridOptions) {
     this.root = el(`<div class="fl-grid fl-grid-${opts.axis} ${opts.cls}" tabindex="-1" role="grid" aria-label="Photos"><div class="fl-grid-track"></div></div>`);
@@ -50,6 +53,30 @@ export class ThumbGrid {
       if (!library.selection.has(id)) library.select(id, 'only');
       e.dataTransfer.setData('application/x-formlit-ids', JSON.stringify(library.selected()));
       e.dataTransfer.effectAllowed = 'copyMove';
+    });
+    this.marker = el('<div class="fl-grid-drop" hidden></div>');
+    this.track.appendChild(this.marker);
+    this.root.addEventListener('dragover', (e) => {
+      if (!this.canReorder() || !e.dataTransfer?.types.includes('application/x-formlit-ids')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.showMarker(this.dropIndex(e));
+    });
+    this.root.addEventListener('dragleave', (e) => { if (!this.root.contains(e.relatedTarget as Node | null)) setHidden(this.marker, true); });
+    this.root.addEventListener('dragend', () => setHidden(this.marker, true));
+    this.root.addEventListener('drop', (e) => {
+      setHidden(this.marker, true);
+      const raw = e.dataTransfer?.getData('application/x-formlit-ids');
+      if (!raw || !this.canReorder()) return;
+      e.preventDefault();
+      const moving = (JSON.parse(raw) as number[]).filter((id) => library.ids.includes(id));
+      const at = this.dropIndex(e);
+      const order = [...library.ids.slice(0, at).filter((id) => !moving.includes(id)), ...moving, ...library.ids.slice(at).filter((id) => !moving.includes(id))];
+      const src = library.source as { id?: number };
+      const desc = library.sort.by === 'userOrder' && library.sort.desc;
+      void api.cmd('collection.reorder', { id: src.id, ids: desc ? order.slice().reverse() : order }).then(() => {
+        if (library.sort.by !== 'userOrder') library.setSort({ by: 'userOrder', desc: false });
+      }, () => undefined);
     });
     library.listen('list', () => this.layout());
     library.listen('selection', () => this.syncState());
@@ -210,4 +237,31 @@ export class ThumbGrid {
   }
 
   photoAt(i: number): Photo | undefined { return library.photos.get(library.ids[i]); }
+
+  private canReorder(): boolean {
+    const src = library.source as { kind: string; id?: number };
+    return src.kind === 'collection' && catalog.tree.collections.some((c) => c.id === src.id && c.kind === 'collection');
+  }
+
+  private dropIndex(e: DragEvent): number {
+    const r = this.track.getBoundingClientRect();
+    const step = this.extent() + this.gap;
+    const n = library.ids.length;
+    if (this.opts.axis === 'x') return Math.max(0, Math.min(n, Math.round((e.clientX - r.left - this.gap) / step)));
+    const col = Math.max(0, Math.min(this.cols, Math.round((e.clientX - r.left - this.gap) / step)));
+    const row = Math.max(0, Math.floor((e.clientY - r.top - this.gap / 2) / step));
+    return Math.max(0, Math.min(n, row * this.cols + col));
+  }
+
+  private showMarker(at: number): void {
+    const step = this.extent() + this.gap;
+    let col = this.opts.axis === 'x' ? at : at % this.cols;
+    let row = this.opts.axis === 'x' ? 0 : Math.floor(at / this.cols);
+    if (this.opts.axis === 'y' && col === 0 && at > 0 && at === library.ids.length) { row -= 1; col = this.cols; }
+    const x = this.gap + col * step - this.gap / 2 - 1;
+    const y = this.opts.axis === 'x' ? 0 : this.gap + row * step;
+    setStyleVar(this.marker, 'transform', `translate(${x}px, ${y}px)`);
+    setStyleVar(this.marker, 'height', `${this.extent()}px`);
+    setHidden(this.marker, false);
+  }
 }

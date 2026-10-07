@@ -1,6 +1,7 @@
 import type { Ctx } from '../../app';
 import { library } from '../../state/library';
 import { askForm } from '../../ui/askform';
+import { pickFolder } from '../../ui/folder-picker';
 import { toast } from '../../ui/toast';
 import { whenDone } from './tasks';
 
@@ -42,6 +43,20 @@ function example(template: string, custom: string, start: number): string {
 export function registerPhotoDialogs(ctx: Ctx): void {
   const has = () => library.targets().length > 0;
   ctx.commands.add(
+    {
+      id: 'library.locate', label: 'Locate Missing Photo...', enabled: () => !!library.photo(library.active)?.miss,
+      run: async () => {
+        const id = library.active;
+        const p = id !== null ? library.photo(id) : undefined;
+        if (id === null || !p) return;
+        const dir = await pickFolder('Locate Missing Photo', `Choose the folder that now holds ${p.file}. Other missing photos from its old folder are found there too.`, '', 'Locate');
+        if (!dir) return;
+        try {
+          const r = await ctx.api.cmd<{ found: number[] }>('photo.relink', { id, path: dir, nearby: true });
+          toast(r.found.length > 1 ? `Found ${p.file} and ${r.found.length - 1} more` : `Found ${p.file}`);
+        } catch (err) { ctx.fail(err); }
+      },
+    },
     {
       id: 'library.editIn', label: 'Edit In...', keys: ['Mod+E'], enabled: has,
       run: async () => {
