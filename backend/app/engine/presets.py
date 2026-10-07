@@ -1,0 +1,166 @@
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+from app.core import config
+from app.develop import settings as S
+from app.engine import catalog as catalog_mod
+from app.engine.cmd_develop import after, current, store
+from app.engine.commands import CommandError, command, resolve_ids
+
+BUILTIN: list[dict] = [
+    {"group": "Color", "name": "Clean Punch", "settings": {"light": {"contrast": 18, "highlights": -20, "shadows": 18, "whites": 8, "blacks": -6}, "effects": {"clarity": 8}, "color": {"vibrance": 18}}},
+    {"group": "Color", "name": "Soft Bright", "settings": {"light": {"exposure": 0.25, "contrast": -12, "highlights": -30, "shadows": 30}, "color": {"vibrance": 8, "saturation": -4}}},
+    {"group": "Color", "name": "Rich Shadows", "settings": {"light": {"shadows": -14, "blacks": -18, "contrast": 14}, "color": {"vibrance": 12}}},
+    {"group": "Film", "name": "Golden Negative", "settings": {"profile": {"id": "fl.film.warm"}, "grain": {"amount": 18, "size": 30, "roughness": 55}}},
+    {"group": "Film", "name": "Faded Print", "settings": {"profile": {"id": "fl.film.faded"}, "vignette": {"amount": -12, "midpoint": 40}}},
+    {"group": "Film", "name": "Chrome Slide", "settings": {"profile": {"id": "fl.film.slide"}, "grain": {"amount": 10}}},
+    {"group": "Cinematic", "name": "Teal Night", "settings": {"profile": {"id": "fl.cine.teal"}, "light": {"exposure": -0.2}, "vignette": {"amount": -18}}},
+    {"group": "Cinematic", "name": "Warm Glow", "settings": {"profile": {"id": "fl.cine.golden"}, "effects": {"clarity": -10}, "light": {"highlights": -20}}},
+    {"group": "B&W", "name": "Classic Grain", "settings": {"profile": {"id": "fl.monochrome"}, "grain": {"amount": 24, "size": 22, "roughness": 60}}},
+    {"group": "B&W", "name": "Hard Light", "settings": {"profile": {"id": "fl.bw.punch"}, "vignette": {"amount": -20}}},
+    {"group": "B&W", "name": "Sepia Tone", "settings": {"profile": {"id": "fl.bw.sepia"}}},
+    {"group": "B&W", "name": "Selenium Tone", "settings": {"profile": {"id": "fl.bw.selenium"}}},
+    {"group": "B&W", "name": "Infrared Dream", "settings": {"profile": {"id": "fl.bw.ir"}, "effects": {"clarity": -15}, "grain": {"amount": 12}}},
+    {"group": "Portrait", "name": "Soft Skin", "settings": {"effects": {"texture": -18, "clarity": -6}, "mixer": {"orange": {"lum": 8, "sat": -6}}, "light": {"shadows": 10}}},
+    {"group": "Portrait", "name": "Warm Portrait", "settings": {"profile": {"id": "fl.portrait"}, "grading": {"highlights": {"hue": 40, "sat": 12}}}},
+    {"group": "Landscape", "name": "Crisp Landscape", "settings": {"profile": {"id": "fl.landscape"}, "effects": {"dehaze": 12, "clarity": 12}, "light": {"highlights": -35, "shadows": 25}}},
+    {"group": "Landscape", "name": "Blue Hour", "settings": {"wb": {"mode": "custom", "temp": 4600, "tint": 6}, "grading": {"shadows": {"hue": 220, "sat": 16}}, "light": {"contrast": 10}}},
+    {"group": "Landscape", "name": "Haze Cut", "settings": {"effects": {"dehaze": 30}, "light": {"blacks": -10}, "color": {"vibrance": 10}}},
+    {"group": "Urban", "name": "Concrete", "settings": {"color": {"saturation": -30}, "effects": {"clarity": 22}, "light": {"contrast": 16}}},
+    {"group": "Urban", "name": "Neon", "settings": {"color": {"vibrance": 30}, "mixer": {"blue": {"hue": 10, "sat": 20}, "magenta": {"sat": 20}}, "light": {"blacks": -14}}},
+    {"group": "Style", "name": "Matte Fade", "settings": {"profile": {"id": "fl.film.matte"}}},
+    {"group": "Style", "name": "Pastel Day", "settings": {"profile": {"id": "fl.muted.pastel"}, "light": {"exposure": 0.2}}},
+    {"group": "Style", "name": "Earth Tones", "settings": {"profile": {"id": "fl.muted.earth"}}},
+    {"group": "Style", "name": "Vintage Vignette", "settings": {"profile": {"id": "fl.film.faded"}, "vignette": {"amount": -35, "midpoint": 30, "feather": 70}, "grain": {"amount": 20}}},
+]
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+def user_dir() -> Path:
+    d = config.presets_dir() / "Develop"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def all_presets() -> list[dict]:
+    out = [{"id": f"builtin:{_slug(p['group'])}/{_slug(p['name'])}", "group": p["group"], "name": p["name"], "builtin": True, "settings": p["settings"]} for p in BUILTIN]
+    favs = set(catalog_mod.get().get_meta("favoritePresets", []) or [])
+    for f in sorted(user_dir().rglob("*.flpreset")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        rel = f.relative_to(user_dir())
+        out.append({"id": f"user:{rel.as_posix()}", "group": data.get("group") or (rel.parent.as_posix() if rel.parent != Path(".") else "User Presets"),
+                    "name": data.get("name", f.stem), "builtin": False, "settings": data.get("settings", {}), "groups": data.get("groups")})
+    for p in out:
+        p["favorite"] = p["id"] in favs
+    return out
+
+
+def settings_of(pid: str) -> dict:
+    for p in all_presets():
+        if p["id"] == pid or p["name"].lower() == pid.lower():
+            return p["settings"]
+    raise CommandError(f"No preset {pid}")
+
+
+@command("preset.list", "Presets", mutates=False)
+def list_presets() -> dict:
+    return {"presets": [{k: v for k, v in p.items() if k != "settings"} for p in all_presets()]}
+
+
+@command("preset.get", "Preset Settings", {"id": {"type": "string"}}, mutates=False)
+def get_preset(id: str) -> dict:
+    return {"id": id, "settings": settings_of(id)}
+
+
+@command("preset.apply", "Apply Preset", {"ids": {"type": "array"}, "preset": {"type": "string"}, "amount": {"type": "number"}})
+def apply(preset: str, ids: Any = None, amount: float = 100.0) -> dict:
+    pids = resolve_ids(ids)
+    src = settings_of(preset)
+    name = next((p["name"] for p in all_presets() if p["id"] == preset or p["name"].lower() == preset.lower()), preset)
+    groups = sorted({g for g, keys in S.GROUPS.items() for k in src if k in keys}) or None
+    with catalog_mod.get().change(f"Preset: {name}") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            store(ch, pid, S.apply_groups(dev, src, groups, amount / 100.0), f"Preset: {name}")
+    after(pids)
+    return {"ids": pids, "preset": name}
+
+
+@command("preset.create", "New Develop Preset", {"name": {"type": "string"}, "group": {"type": "string"}, "id": {"type": "integer"}, "groups": {"type": "array"}})
+def create(name: str, group: str = "User Presets", id: int | None = None, groups: list[str] | None = None, settings: dict | None = None) -> dict:
+    if settings is None:
+        pid = int(id) if id is not None else resolve_ids("active")[0]
+        dev, _ = current(pid)
+        settings = S.pick_groups(dev, groups or [g for g in S.GROUPS if g not in ("crop", "masks", "spots", "redEye")])
+    folder = user_dir() / _slug(group or "User Presets")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{_slug(name) or 'preset'}.flpreset"
+    path.write_text(json.dumps({"name": name, "group": group, "groups": groups, "settings": settings}, indent=1), encoding="utf-8")
+    return {"id": f"user:{path.relative_to(user_dir()).as_posix()}"}
+
+
+@command("preset.delete", "Delete Preset", {"id": {"type": "string"}})
+def delete(id: str) -> dict:
+    if not id.startswith("user:"):
+        raise CommandError("Built-in presets cannot be deleted")
+    p = user_dir() / id[5:]
+    if p.is_file():
+        p.unlink()
+    return {"id": id}
+
+
+@command("preset.update", "Update Preset with Current Settings", {"id": {"type": "string"}, "photo": {"type": "integer"}})
+def update(id: str, photo: int | None = None, name: str | None = None) -> dict:
+    if not id.startswith("user:"):
+        raise CommandError("Built-in presets cannot be changed")
+    p = user_dir() / id[5:]
+    data = json.loads(p.read_text(encoding="utf-8"))
+    if photo is not None or name is None:
+        dev, _ = current(int(photo) if photo is not None else resolve_ids("active")[0])
+        data["settings"] = S.pick_groups(dev, data.get("groups") or [g for g in S.GROUPS if g not in ("crop", "masks", "spots", "redEye")])
+    if name:
+        data["name"] = name
+    p.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    return {"id": id}
+
+
+@command("preset.favorite", "Favorite Preset", {"id": {"type": "string"}, "on": {"type": "boolean"}})
+def favorite(id: str, on: bool = True) -> dict:
+    c = catalog_mod.get()
+    favs = set(c.get_meta("favoritePresets", []) or [])
+    favs = favs | {id} if on else favs - {id}
+    with c.change("Favorite Preset", undoable=False) as ch:
+        ch.set_meta("favoritePresets", sorted(favs))
+    return {"id": id, "favorite": on}
+
+
+@command("preset.import", "Import Presets", {"paths": {"type": "array"}})
+def import_presets(paths: list[str]) -> dict:
+    from app.services import xmp_presets
+    made = []
+    for raw in paths:
+        p = Path(raw).expanduser()
+        files = [p] if p.is_file() else sorted(p.rglob("*")) if p.is_dir() else []
+        for f in files:
+            if f.suffix.lower() == ".flpreset":
+                dst = user_dir() / "Imported" / f.name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(f.read_bytes())
+                made.append(dst.stem)
+            elif f.suffix.lower() in (".xmp", ".lrtemplate"):
+                conv = xmp_presets.convert(f)
+                if conv:
+                    create(conv["name"], conv.get("group") or "Imported", settings=conv["settings"])
+                    made.append(conv["name"])
+            elif f.suffix.lower() == ".cube":
+                from app.develop.profiles import import_cube
+                made.append(import_cube(f))
+    return {"imported": made}

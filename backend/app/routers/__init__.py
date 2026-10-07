@@ -1,8 +1,9 @@
-from app.routers import system
+from app.engine import boot
+from app.routers import commands, events, files, photos, system
 
-ROUTERS = [system.router]
-STARTUP = []
-SHUTDOWN = []
+ROUTERS = [system.router, commands.router, photos.router, events.router, files.router]
+STARTUP = [boot.start]
+SHUTDOWN = [boot.stop]
 
 
 async def startup() -> None:

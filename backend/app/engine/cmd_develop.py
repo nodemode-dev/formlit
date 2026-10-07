@@ -1,0 +1,381 @@
+import copy
+import json
+from typing import Any
+
+from app.develop import settings as S
+from app.engine import catalog as catalog_mod
+from app.engine import records
+from app.engine.catalog import Change, now_iso
+from app.engine.commands import SESSION, CommandError, command, resolve_ids
+from app.services import previews
+
+HISTORY_KEEP = 400
+
+
+def cat():
+    return catalog_mod.get()
+
+
+def current(pid: int) -> tuple[dict, str]:
+    r = cat().row("SELECT develop, kind FROM photos WHERE id=?", (pid,))
+    if r is None:
+        raise CommandError(f"No photo with id {pid}", 404)
+    return records.loads(r["develop"], {}), r["kind"]
+
+
+def store(ch: Change, pid: int, dev: dict, label: str, history: bool = True) -> None:
+    c = ch.cat
+    r = c.db.execute("SELECT develop, develop_rev, kind FROM photos WHERE id=?", (pid,)).fetchone()
+    if r is None:
+        return
+    new = S.prune(dev)
+    if json.dumps(new, sort_keys=True) == json.dumps(records.loads(r["develop"], {}), sort_keys=True):
+        return
+    ch.update("photos", pid, develop=new, develop_rev=int(r["develop_rev"]) + 1, edit_time=now_iso(), edited=1 if S.edited(new, r["kind"]) else 0)
+    if history:
+        ch.insert("history", photo_id=pid, name=label, settings=json.dumps(new, separators=(",", ":")), time=now_iso())
+
+
+def after(pids: list[int]) -> None:
+    for pid in pids:
+        previews.request(pid, "t")
+
+
+def _apply_values(dev: dict, values: dict, delta: bool) -> dict:
+    out = copy.deepcopy(dev)
+    for cid, v in values.items():
+        if cid not in S.controls():
+            raise CommandError(f"Unknown control {cid}; list them with develop.controls")
+        base = S.get(out, cid) if delta else 0.0
+        S.put(out, cid, base + float(v))
+        if cid in ("wb.temp", "wb.tint"):
+            out.setdefault("wb", {})["mode"] = "custom"
+    return out
+
+
+@command("develop.controls", "Develop Controls", mutates=False)
+def controls() -> dict:
+    d = S.doc()
+    return {"controls": d["controls"], "local": d["local"], "panels": d["panels"], "wbPresets": d["wbPresets"], "mixerBands": d["mixerBands"], "aspects": d["aspects"]}
+
+
+@command("develop.get", "Develop Settings", {"id": {"type": "integer"}}, mutates=False)
+def get(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, kind = current(pid)
+    vals = {cid: S.get(dev, cid) for cid in S.controls()}
+    return {"id": pid, "settings": dev, "values": vals, "kind": kind}
+
+
+@command("develop.set", "Develop", {"ids": {"type": "array"}, "values": {"type": "object"}, "delta": {"type": "boolean"}})
+def set_values(ids: Any = None, values: dict | None = None, delta: bool = False, label: str = "") -> dict:
+    pids = resolve_ids(ids)
+    values = values or {}
+    if not values:
+        raise CommandError("values is empty: pass {control id: value}")
+    c = cat()
+    name = label or (S.controls()[next(iter(values))]["label"] if len(values) == 1 and next(iter(values)) in S.controls() else "Develop Settings")
+    with c.change(name) as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            store(ch, pid, _apply_values(dev, values, delta), name)
+    after(pids)
+    return {"ids": pids}
+
+
+def deep_patch(dev: dict, patch: dict) -> dict:
+    out = copy.deepcopy(dev)
+    for k, v in patch.items():
+        if v is None:
+            out.pop(k, None)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict) and not k.startswith("="):
+            out[k] = deep_patch(out[k], v)
+        else:
+            out[k.lstrip("=")] = copy.deepcopy(v)
+    return out
+
+
+@command("develop.update", "Develop", {"ids": {"type": "array"}, "patch": {"type": "object"}, "label": {"type": "string"}})
+def update(ids: Any = None, patch: dict | None = None, label: str = "Develop", replace: bool = False) -> dict:
+    pids = resolve_ids(ids)
+    c = cat()
+    with c.change(label) as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            store(ch, pid, copy.deepcopy(patch or {}) if replace else deep_patch(dev, patch or {}), label)
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.reset", "Reset", {"ids": {"type": "array"}, "groups": {"type": "array"}})
+def reset(ids: Any = None, groups: list[str] | None = None, controls: list[str] | None = None) -> dict:
+    pids = resolve_ids(ids)
+    c = cat()
+    with c.change("Reset") as ch:
+        for pid in pids:
+            dev, kind = current(pid)
+            if controls:
+                new = copy.deepcopy(dev)
+                for cid in controls:
+                    S.put(new, cid, S.controls()[cid]["default"])
+            elif groups:
+                new = S.apply_groups(dev, S.defaults_for(kind), groups)
+            else:
+                new = S.defaults_for(kind)
+            store(ch, pid, new, "Reset")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.auto", "Auto Settings", {"ids": {"type": "array"}})
+def auto(ids: Any = None) -> dict:
+    from app.develop.auto import auto_tone
+    pids = resolve_ids(ids)
+    c = cat()
+    out = {}
+    with c.change("Auto Settings") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            img, info = previews.source(pid)
+            a = auto_tone(img, info, dev)
+            new = S.merge(dev, a)
+            store(ch, pid, new, "Auto Settings")
+            out[pid] = a
+    after(pids)
+    return {"ids": pids, "values": out}
+
+
+@command("develop.autoWhiteBalance", "Auto White Balance", {"ids": {"type": "array"}})
+def auto_wb(ids: Any = None) -> dict:
+    from app.develop.auto import auto_wb as compute
+    pids = resolve_ids(ids)
+    c = cat()
+    with c.change("Auto White Balance") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            img, info = previews.source(pid)
+            t, tint = compute(img, info)
+            new = copy.deepcopy(dev)
+            new["wb"] = {"mode": "auto", "temp": t, "tint": tint}
+            store(ch, pid, new, "Auto White Balance")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.whiteBalancePreset", "White Balance", {"ids": {"type": "array"}, "mode": {"type": "string"}})
+def wb_preset(ids: Any = None, mode: str = "asShot") -> dict:
+    if mode == "auto":
+        return auto_wb(ids)
+    pids = resolve_ids(ids)
+    c = cat()
+    with c.change(f"White Balance: {mode}") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            new = copy.deepcopy(dev)
+            from app.develop.render import WB_PRESETS
+            new["wb"] = {"mode": mode}
+            if mode in WB_PRESETS:
+                new["wb"].update(temp=WB_PRESETS[mode][0], tint=WB_PRESETS[mode][1])
+            store(ch, pid, new, "White Balance")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.whiteBalancePick", "White Balance Selector", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}})
+def wb_pick(x: float, y: float, id: int | None = None, apply: bool = True) -> dict:
+    from app.develop import auto as auto_mod
+    from app.develop.render import effective, plan
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, _ = current(pid)
+    img, info = previews.source(pid)
+    eff = effective(dev)
+    sh, sw = img.shape[:2]
+    frame, w, h, ppl = plan(sw, sh, eff, 1024)
+    sampled = frame.sample(img, w, h)
+    to_out = frame.norm_to_out(w, h)
+    import numpy as np
+    p = to_out @ np.array([float(x), float(y), 1.0])
+    px, py = int(p[0]), int(p[1])
+    r = max(1, int(min(w, h) * 0.004))
+
+    def patch(_x: float, _y: float):
+        return sampled[max(0, py - r):py + r + 1, max(0, px - r):px + r + 1]
+    t, tint = auto_mod.pick_wb(img, info, eff, x, y, patch)
+    if apply:
+        with cat().change("White Balance Selector") as ch:
+            new = copy.deepcopy(dev)
+            new["wb"] = {"mode": "custom", "temp": t, "tint": tint}
+            store(ch, pid, new, "White Balance Selector")
+        after([pid])
+    return {"temp": t, "tint": tint}
+
+
+@command("develop.autoBw", "Auto B&W Mix", {"ids": {"type": "array"}})
+def auto_bw(ids: Any = None) -> dict:
+    from app.develop.auto import auto_bw as compute
+    pids = resolve_ids(ids)
+    with cat().change("Auto B&W Mix") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            img, info = previews.source(pid)
+            new = copy.deepcopy(dev)
+            new["bw"] = compute(img, info, dev)
+            new["treatment"] = "bw"
+            store(ch, pid, new, "Auto B&W Mix")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.copy", "Copy Settings", {"id": {"type": "integer"}, "groups": {"type": "array"}}, mutates=False)
+def copy_settings(id: int | None = None, groups: list[str] | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, _ = current(pid)
+    with SESSION.lock:
+        SESSION.clipboard = {"settings": copy.deepcopy(dev), "groups": groups, "from": pid}
+    return {"groups": groups or [], "from": pid}
+
+
+@command("develop.paste", "Paste Settings", {"ids": {"type": "array"}, "amount": {"type": "number"}})
+def paste(ids: Any = None, groups: list[str] | None = None, amount: float = 1.0) -> dict:
+    pids = resolve_ids(ids)
+    with SESSION.lock:
+        clip = copy.deepcopy(SESSION.clipboard)
+    if not clip:
+        raise CommandError("Nothing copied: develop.copy first")
+    g = groups if groups is not None else clip["groups"]
+    with cat().change("Paste Settings") as ch:
+        for pid in pids:
+            dev, _ = current(pid)
+            store(ch, pid, S.apply_groups(dev, clip["settings"], g, amount), "Paste Settings")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.sync", "Sync Settings", {"ids": {"type": "array"}, "from": {"type": "integer"}, "groups": {"type": "array"}})
+def sync(ids: Any = None, groups: list[str] | None = None, **kw: Any) -> dict:
+    src = kw.get("from") or SESSION.active
+    if not src:
+        raise CommandError("No source photo: pass from, or make a photo active")
+    pids = [p for p in resolve_ids(ids) if p != int(src)]
+    dev, _ = current(int(src))
+    with cat().change("Sync Settings") as ch:
+        for pid in pids:
+            target, _ = current(pid)
+            store(ch, pid, S.apply_groups(target, dev, groups), "Sync Settings")
+    after(pids)
+    return {"ids": pids, "from": int(src)}
+
+
+@command("develop.pastePrevious", "Paste Settings from Previous", {"ids": {"type": "array"}})
+def paste_previous(ids: Any = None) -> dict:
+    prev = SESSION.previous_photo
+    if not prev:
+        raise CommandError("No previous photo")
+    return sync(ids, None, **{"from": prev})
+
+
+@command("develop.matchExposure", "Match Total Exposures", {"ids": {"type": "array"}})
+def match_exposure(ids: Any = None) -> dict:
+    import math
+    pids = resolve_ids(ids)
+    ref = SESSION.active or pids[0]
+    c = cat()
+
+    def ev_of(pid: int) -> float | None:
+        r = c.row("SELECT shutter, iso, aperture FROM photos WHERE id=?", (pid,))
+        if not r or not r["shutter"] or not r["iso"] or not r["aperture"]:
+            return None
+        return math.log2(float(r["shutter"]) * float(r["iso"]) / (float(r["aperture"]) ** 2))
+    base = ev_of(ref)
+    if base is None:
+        raise CommandError("The active photo has no exposure data")
+    ref_dev, _ = current(ref)
+    ref_exp = S.get(ref_dev, "light.exposure")
+    with c.change("Match Total Exposures") as ch:
+        for pid in pids:
+            e = ev_of(pid)
+            if e is None or pid == ref:
+                continue
+            dev, _ = current(pid)
+            new = copy.deepcopy(dev)
+            S.put(new, "light.exposure", ref_exp + (base - e))
+            store(ch, pid, new, "Match Total Exposures")
+    after(pids)
+    return {"ids": pids}
+
+
+@command("develop.history", "History", {"id": {"type": "integer"}}, mutates=False)
+def history(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    rows = cat().rows("SELECT id, name, time FROM history WHERE photo_id=? ORDER BY id DESC LIMIT ?", (pid, HISTORY_KEEP))
+    return {"id": pid, "steps": [{"id": int(r["id"]), "name": r["name"], "time": r["time"]} for r in rows]}
+
+
+@command("develop.historyRestore", "Go to History Step", {"id": {"type": "integer"}, "step": {"type": "integer"}})
+def history_restore(step: int, id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    r = cat().row("SELECT settings, name FROM history WHERE id=? AND photo_id=?", (int(step), pid))
+    if r is None:
+        raise CommandError("No such history step")
+    with cat().change(f"History: {r['name']}") as ch:
+        store(ch, pid, json.loads(r["settings"]), f"History: {r['name']}", history=False)
+    after([pid])
+    return {"id": pid}
+
+
+@command("develop.historyClear", "Clear History", {"id": {"type": "integer"}})
+def history_clear(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    with cat().change("Clear History") as ch:
+        ch.delete("history", photo_id=pid)
+    return {"id": pid}
+
+
+@command("snapshot.create", "New Snapshot", {"id": {"type": "integer"}, "name": {"type": "string"}})
+def snapshot_create(name: str = "", id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev, _ = current(pid)
+    with cat().change("New Snapshot") as ch:
+        sid = ch.insert("snapshots", photo_id=pid, name=name or now_iso().replace("T", " "), settings=json.dumps(dev, separators=(",", ":")), time=now_iso())
+    return {"id": sid}
+
+
+@command("snapshot.list", "Snapshots", {"id": {"type": "integer"}}, mutates=False)
+def snapshot_list(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    rows = cat().rows("SELECT id, name, time FROM snapshots WHERE photo_id=? ORDER BY name COLLATE NOCASE", (pid,))
+    return {"id": pid, "snapshots": [{"id": int(r["id"]), "name": r["name"], "time": r["time"]} for r in rows]}
+
+
+@command("snapshot.apply", "Apply Snapshot", {"snapshot": {"type": "integer"}})
+def snapshot_apply(snapshot: int) -> dict:
+    r = cat().row("SELECT photo_id, settings, name FROM snapshots WHERE id=?", (int(snapshot),))
+    if r is None:
+        raise CommandError("No such snapshot")
+    with cat().change(f"Snapshot: {r['name']}") as ch:
+        store(ch, int(r["photo_id"]), json.loads(r["settings"]), f"Snapshot: {r['name']}")
+    after([int(r["photo_id"])])
+    return {"id": int(r["photo_id"])}
+
+
+@command("snapshot.update", "Update Snapshot", {"snapshot": {"type": "integer"}, "name": {"type": "string"}})
+def snapshot_update(snapshot: int, name: str | None = None, settings: bool = False) -> dict:
+    r = cat().row("SELECT photo_id FROM snapshots WHERE id=?", (int(snapshot),))
+    if r is None:
+        raise CommandError("No such snapshot")
+    fields: dict = {}
+    if name is not None:
+        fields["name"] = name
+    if settings:
+        dev, _ = current(int(r["photo_id"]))
+        fields["settings"] = json.dumps(dev, separators=(",", ":"))
+    with cat().change("Update Snapshot") as ch:
+        ch.update("snapshots", int(snapshot), **fields)
+    return {"snapshot": int(snapshot)}
+
+
+@command("snapshot.delete", "Delete Snapshot", {"snapshot": {"type": "integer"}})
+def snapshot_delete(snapshot: int) -> dict:
+    with cat().change("Delete Snapshot") as ch:
+        ch.delete("snapshots", id=int(snapshot))
+    return {"snapshot": int(snapshot)}
