@@ -63,6 +63,9 @@ export class DevelopView {
   split = 0.5;
   clipping = false;
   depth = false;
+  hdr: '' | 'display' | 'sdr' | 'visualize' = '';
+  hdrBins: number[] | null = null;
+  hdrStops = 0;
   proof: { space: string; gamut: boolean; paper: string; intent?: string } | null = null;
   tool: Tool | null = null;
   private inflight = false;
@@ -234,7 +237,8 @@ export class DevelopView {
     if (this.proof) overlay.proof = this.proof;
     const t = this.tool?.overlay?.();
     if (t) Object.assign(overlay, t);
-    return { settings: develop.settings, view: 'develop', crop: !this.tool?.uncropped, quality: this.dragging ? 80 : 90, overlay: Object.keys(overlay).length ? overlay : undefined, ...extra };
+    const hdr = this.hdr === 'display' && (this.dragging || 'region' in extra || t) ? '' : this.hdr;
+    return { settings: develop.settings, view: 'develop', crop: !this.tool?.uncropped, quality: this.dragging ? 80 : 90, overlay: Object.keys(overlay).length ? overlay : undefined, ...(hdr ? { hdr } : {}), ...extra };
   }
 
   private async run(): Promise<void> {
@@ -249,6 +253,8 @@ export class DevelopView {
       const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.body({ long: this.renderLong() })) });
       if (!r.ok) throw new Error(`render ${r.status}`);
       const geo = JSON.parse(r.headers.get('X-Geometry') || 'null') as Geo | null;
+      const hh = r.headers.get('X-HDR-Hist');
+      if (hh !== null || !this.dragging) { this.hdrBins = hh ? hh.split(',').map(Number) : null; this.hdrStops = Number(r.headers.get('X-HDR-Stops') || 0); }
       const blob = await r.blob();
       if (seq === this.seq && p.id === this.photo?.id) {
         if (await this.base.swap(blob)) {

@@ -245,7 +245,7 @@ def pq(nits: np.ndarray) -> np.ndarray:
     return np.power((c1 + c2 * y) / (1.0 + c3 * y), m2).astype(np.float32)
 
 
-def encode_hdr(fmt: str, lin709: np.ndarray, quality: int = 90, ppi: int = 240, rec: dict | None = None) -> bytes:
+def encode_hdr(fmt: str, lin709: np.ndarray, quality: int = 90, ppi: int = 240, rec: dict | None = None, speed: int = 8) -> bytes:
     r = rec or {}
     rgb = np.maximum(lin709.reshape(-1, 3) @ M709_2020.T, 0.0).reshape(lin709.shape).astype(np.float32)
     h, w = rgb.shape[:2]
@@ -259,7 +259,7 @@ def encode_hdr(fmt: str, lin709: np.ndarray, quality: int = 90, ppi: int = 240, 
     if fmt == "avif":
         import imagecodecs
         A = imagecodecs.AVIF
-        return bytes(imagecodecs.avif_encode((e * 1023.0 + 0.5).astype(np.uint16), level=int(quality), speed=8, bitspersample=10, pixelformat=A.PIXEL_FORMAT.YUV444,
+        return bytes(imagecodecs.avif_encode((e * 1023.0 + 0.5).astype(np.uint16), level=int(quality), speed=int(speed), bitspersample=10, pixelformat=A.PIXEL_FORMAT.YUV444,
                                              primaries=A.COLOR_PRIMARIES.BT2020, transfer=A.TRANSFER_CHARACTERISTICS.PQ, matrix=A.MATRIX_COEFFICIENTS.BT2020_NCL))
     raise ValueError(f"No HDR encoding for {fmt}; choose JPEG (Ultra HDR), AVIF, JPEG XL or TIFF")
 

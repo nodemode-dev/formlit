@@ -107,6 +107,7 @@ class DevelopModule {
       window.clearTimeout(this.histTimer);
       this.histTimer = window.setTimeout(() => {
         if (!this.panels) return;
+        this.panels.histogram.setHdr(this.view.hdr === 'display' ? this.view.hdrBins : null, this.view.hdrStops);
         this.panels.histogram.fromImage(img);
         const c = document.createElement('canvas');
         const s = Math.min(1, 200 / Math.max(img.naturalWidth, img.naturalHeight));

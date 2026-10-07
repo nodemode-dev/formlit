@@ -7,6 +7,7 @@ import { Panel } from '../../ui/panel';
 import { Slider } from '../../ui/slider';
 import { whenDone } from '../shared/tasks';
 import { CurveEditor } from './curve';
+import { HdrSection } from './hdr';
 import type { DevelopView } from './view';
 import { ColorWheel } from './wheel';
 
@@ -78,7 +79,7 @@ export class DevelopPanels {
     const wbRow = el('<div class="fl-row"><span class="fl-row-label">WB</span></div>');
     wbRow.append(this.wbSel, picker);
     const auto = el(`<div class="fl-row fl-row-end"><span class="fl-sub-inline">Tone</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.auto">Auto</button></div>`);
-    pBasic.body.append(this.treat, profRow, s('profile.amount'), el('<div class="fl-sub">White Balance</div>'), wbRow, s('wb.temp'), s('wb.tint'), auto,
+    pBasic.body.append(this.treat, new HdrSection(this.view).root, profRow, s('profile.amount'), el('<div class="fl-sub">White Balance</div>'), wbRow, s('wb.temp'), s('wb.tint'), auto,
       s('light.exposure'), s('light.contrast'), s('light.highlights'), s('light.shadows'), s('light.whites'), s('light.blacks'),
       el('<div class="fl-sub">Presence</div>'), s('effects.texture'), s('effects.clarity'), s('effects.dehaze'), s('color.vibrance'), s('color.saturation'));
 

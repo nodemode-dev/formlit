@@ -113,6 +113,11 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
                 ensure_masks(pid, dev)
             except Exception:
                 pass
+    from app.output import gainmap
+    hdr_mode = str(body.get("hdr") or "") if gainmap.hdr_on(dev) else ""
+    hdr_dev = dev
+    if hdr_mode == "sdr":
+        dev = gainmap.sdr_settings(dev)
     long = int(body.get("long") or previews.PREVIEW)
     size = body.get("size")
     region = body.get("region")
@@ -132,6 +137,26 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
         out = render_mod.render(img, info, dev, max_long=None if size else long, size=tuple(size) if size else None, space=body.get("space", "srgb"),
                                 photo_id=pid, apply_crop=bool(body.get("crop", True)), overlay=body.get("overlay"), slot=slot,
                                 src_long=max(img.shape[:2]) if full else None)
+    hdr_body = None
+    if hdr_mode in ("display", "visualize") and not region:
+        stops = gainmap.headroom(hdr_dev)
+        under = render_mod.render(img, info, gainmap.under_settings(hdr_dev, stops), max_long=None if size else long, size=tuple(size) if size else None,
+                                  photo_id=pid, apply_crop=bool(body.get("crop", True)), slot=(pid, view + "-under", "full" if full else "p") if view else None,
+                                  src_long=max(img.shape[:2]) if full else None)
+        if under.shape != out.shape:
+            import cv2
+            under = cv2.resize(under, (out.shape[1], out.shape[0]), interpolation=cv2.INTER_AREA)
+        gain = gainmap.gain_from(out, under, stops)
+        if hdr_mode == "visualize":
+            out = gainmap.visualize(out, gain)
+        else:
+            from app.output import encode
+            hdr = gainmap.hdr_linear(out, gain)
+            y = np.log2(np.maximum(hdr @ np.array([0.2126, 0.7152, 0.0722], np.float32), 1e-6))
+            bins, _ = np.histogram(y[y > 0.0], bins=32, range=(0.0, stops))
+            extra["X-HDR-Hist"] = ",".join(str(int(b)) for b in bins)
+            extra["X-HDR-Stops"] = f"{stops:.2f}"
+            hdr_body = encode.encode_hdr("avif", hdr, int(body.get("quality", 85)), 72, {}, speed=10)
     rgb8 = render_mod.to_u8(out)
     eff = render_mod.effective(dev)
     sh, sw = img.shape[:2]
@@ -144,7 +169,9 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
            "angle": fr.angle, "flipH": fr.flip_h, "flipV": fr.flip_v}
     headers = {"Cache-Control": "no-store", "X-Render-Ms": f"{(time.perf_counter() - started) * 1000:.0f}", "X-Width": str(rgb8.shape[1]),
                "X-Height": str(rgb8.shape[0]), "X-Geometry": json.dumps(geo, separators=(",", ":")),
-               "Access-Control-Expose-Headers": "X-Render-Ms, X-Width, X-Height, X-Histogram, X-Region, X-Full, X-Geometry", **extra}
+               "Access-Control-Expose-Headers": "X-Render-Ms, X-Width, X-Height, X-Histogram, X-Region, X-Full, X-Geometry, X-HDR-Hist, X-HDR-Stops", **extra}
     if body.get("histogram"):
         headers["X-Histogram"] = json.dumps(render_mod.histogram(out, 64), separators=(",", ":"))
+    if hdr_body is not None:
+        return Response(hdr_body, media_type="image/avif", headers=headers)
     return Response(previews.encode_jpeg(rgb8, int(body.get("quality", 90))), media_type="image/jpeg", headers=headers)

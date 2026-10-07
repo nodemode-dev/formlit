@@ -16,6 +16,10 @@
 .fl-seg-sm button { height: 22px; padding: 0 8px; font-size: var(--fs-11); white-space: nowrap; }
 .fl-seg-sm button.is-on { background: var(--accent-soft); color: var(--accent-color); }
 .fl-check-sm { margin: 0; font-size: var(--fs-11); }
+.fl-hdr-toggle.is-on { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-color); }
+.fl-hdr-body { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; padding: 6px 8px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-0); }
+.fl-hdr-body[hidden], .fl-hdr-sdr[hidden] { display: none; }
+.fl-tool-opts .cv-btn.is-on { border-color: var(--accent-line); color: var(--accent-color); }
 
 .fl-sl { display: grid; grid-template-columns: minmax(0, 1fr) 54px; grid-template-rows: 16px 16px; align-items: center; column-gap: 8px; padding: 2px 0; }
 .fl-sl[hidden] { display: none; }

@@ -408,9 +408,11 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
         return None
     ppi = int(s["size"].get("ppi", 240))
     space = f.get("space", "srgb")
+    from app.output import gainmap
+    dev = rec.get("develop") or {}
+    stops = gainmap.headroom(dev, float(f.get("hdrStops", 2)))
     if fmt == "jpeg" and f.get("hdr"):
-        from app.output import gainmap
-        sdr, gain = gainmap.render_pair(pid, s["size"], rec.get("develop") or {}, max(0.5, min(4.0, float(f.get("hdrStops", 2)))))
+        sdr, gain = gainmap.render_pair(pid, s["size"], dev, stops)
         sdr = watermark(sharpen(sdr, s["sharpen"], ppi), s["watermark"], rec)
         data = gainmap.ultrahdr(sdr, gain, int(f.get("quality", 85)), ppi, encode.exif_bytes(meta_rec, sdr.shape[1], sdr.shape[0], ppi))
         tmp = dest.with_name(dest.name + ".part")
@@ -418,15 +420,14 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
         os.replace(tmp, dest)
         return dest
     if f.get("hdr") and fmt in ("avif", "jxl", "tiff"):
-        from app.output import gainmap
-        sdr, gain = gainmap.render_pair(pid, s["size"], rec.get("develop") or {}, max(0.5, min(4.0, float(f.get("hdrStops", 2)))))
+        sdr, gain = gainmap.render_pair(pid, s["size"], dev, stops)
         sdr = watermark(sharpen(sdr, s["sharpen"], ppi), s["watermark"], rec)
         data = encode.encode_hdr(fmt, gainmap.hdr_linear(sdr, gain), int(f.get("quality", 85)), ppi, meta_rec)
         tmp = dest.with_name(dest.name + ".part")
         tmp.write_bytes(data)
         os.replace(tmp, dest)
         return dest
-    out = render_photo(pid, s["size"], "prophoto" if space.startswith("icc:") else space)
+    out = render_photo(pid, s["size"], "prophoto" if space.startswith("icc:") else space, gainmap.sdr_settings(dev) if gainmap.hdr_on(dev) else None)
     out = sharpen(out, s["sharpen"], ppi)
     out = watermark(out, s["watermark"], rec)
     if space.startswith("icc:"):

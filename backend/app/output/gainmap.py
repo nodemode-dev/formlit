@@ -34,6 +34,48 @@ def gain_from(sdr: np.ndarray, under: np.ndarray, stops: float) -> np.ndarray:
     return cv2.GaussianBlur(g.astype(np.float32), (0, 0), max(1.0, max(g.shape) / 1200.0))
 
 
+BANDS = np.array([[0.25, 0.55, 1.0], [0.3, 0.85, 0.45], [1.0, 0.85, 0.25], [1.0, 0.35, 0.3]], np.float32)
+
+
+def hdr_on(dev: dict | None) -> bool:
+    return bool(((dev or {}).get("hdr") or {}).get("enabled"))
+
+
+def headroom(dev: dict | None, fallback: float = 2.0) -> float:
+    h = (dev or {}).get("hdr") or {}
+    return max(0.5, min(4.0, float(h.get("headroom", fallback) if h.get("enabled") else fallback)))
+
+
+def sdr_settings(dev: dict) -> dict:
+    out = copy.deepcopy({k: v for k, v in (dev or {}).items() if k != "hdr"})
+    sdr = ((dev or {}).get("hdr") or {}).get("sdr") or {}
+    light, effects, color = out.setdefault("light", {}), out.setdefault("effects", {}), out.setdefault("color", {})
+    light["exposure"] = float(light.get("exposure", 0)) + float(sdr.get("brightness", 0)) / 50.0
+    light["contrast"] = max(-100.0, min(100.0, float(light.get("contrast", 0)) + float(sdr.get("contrast", 0))))
+    effects["clarity"] = max(-100.0, min(100.0, float(effects.get("clarity", 0)) + float(sdr.get("clarity", 0))))
+    color["saturation"] = max(-100.0, min(100.0, float(color.get("saturation", 0)) + float(sdr.get("saturation", 0))))
+    return out
+
+
+def under_settings(dev: dict, stops: float) -> dict:
+    lo = copy.deepcopy({k: v for k, v in (dev or {}).items() if k != "hdr"})
+    light = lo.setdefault("light", {})
+    light["exposure"] = float(light.get("exposure", 0)) - stops
+    return lo
+
+
+def gain_between(base: np.ndarray, hdr: np.ndarray, stops: float) -> np.ndarray:
+    ratio = (_luma(hdr) + OFFSET) / (_luma(_decode(base)) + OFFSET)
+    return np.clip(np.log2(np.maximum(ratio, 1e-6)), 0.0, stops).astype(np.float32)
+
+
+def visualize(out: np.ndarray, gain: np.ndarray) -> np.ndarray:
+    band = np.clip(np.floor(gain), 0, 3).astype(np.int32)
+    a = np.clip(gain * 4.0, 0.0, 1.0)[..., None] * 0.65
+    grey = np.repeat((out @ np.array([0.2126, 0.7152, 0.0722], np.float32))[..., None] * 0.6, 3, axis=2)
+    return (grey * (1 - a) + BANDS[band] * a).astype(np.float32)
+
+
 def hdr_linear(sdr: np.ndarray, gain: np.ndarray) -> np.ndarray:
     g = gain if gain.shape[:2] == sdr.shape[:2] else cv2.resize(gain, (sdr.shape[1], sdr.shape[0]), interpolation=cv2.INTER_LINEAR)
     return (_decode(sdr) * np.exp2(g)[..., None]).astype(np.float32)
@@ -41,14 +83,19 @@ def hdr_linear(sdr: np.ndarray, gain: np.ndarray) -> np.ndarray:
 
 def render_pair(pid: int, size: dict, dev: dict, stops: float) -> tuple[np.ndarray, np.ndarray]:
     from app.output import export
-    sdr = export.render_photo(pid, size, "srgb", dev)
-    lo = copy.deepcopy(dev or {})
-    light = lo.setdefault("light", {})
-    light["exposure"] = float(light.get("exposure", 0)) - stops
-    under = export.render_photo(pid, size, "srgb", lo)
+    main_dev = {k: v for k, v in (dev or {}).items() if k != "hdr"}
+    sdr = export.render_photo(pid, size, "srgb", main_dev)
+    under = export.render_photo(pid, size, "srgb", under_settings(dev, stops))
     if under.shape != sdr.shape:
         under = cv2.resize(under, (sdr.shape[1], sdr.shape[0]), interpolation=cv2.INTER_AREA)
-    return sdr, gain_from(sdr, under, stops)
+    gain = gain_from(sdr, under, stops)
+    if not hdr_on(dev):
+        return sdr, gain
+    hdr = hdr_linear(sdr, gain)
+    base = export.render_photo(pid, size, "srgb", sdr_settings(dev))
+    if base.shape != sdr.shape:
+        base = cv2.resize(base, (sdr.shape[1], sdr.shape[0]), interpolation=cv2.INTER_AREA)
+    return base, gain_between(base, hdr, stops)
 
 
 def _segments(jpeg: bytes) -> list[tuple[int, bytes]]:
