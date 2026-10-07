@@ -218,7 +218,7 @@ export class LeftPanels {
   }
 
   private pickPresetFiles(): void {
-    const input = el<HTMLInputElement>('<input type="file" multiple accept=".xmp,.lrtemplate,.flpreset,.cube" hidden>');
+    const input = el<HTMLInputElement>('<input type="file" multiple accept=".xmp,.lrtemplate,.flpreset,.cube,.dcp" hidden>');
     input.addEventListener('change', () => {
       const files = Array.from(input.files ?? []);
       input.remove();

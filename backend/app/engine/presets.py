@@ -185,4 +185,13 @@ def import_presets(paths: list[str]) -> dict:
             elif f.suffix.lower() == ".cube":
                 from app.develop.profiles import import_cube
                 made.append(import_cube(f))
+            elif f.suffix.lower() == ".dcp":
+                from app.develop import dcp
+                from app.develop.profiles import load_cube
+                try:
+                    dst, _ = dcp.to_cube(f, config.profiles_dir())
+                except ValueError as exc:
+                    raise CommandError(f"{f.name}: {exc}") from exc
+                load_cube.cache_clear()
+                made.append(f"lut:{dst.stem}")
     return {"imported": made}
