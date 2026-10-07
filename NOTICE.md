@@ -29,6 +29,8 @@ The formlit mark is original.
 | tifffile | BSD-3-Clause | 16-bit and float TIFF |
 | reportlab | BSD-3-Clause | Book and Print PDF output |
 | onnxruntime | MIT | local AI models |
+| numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
+| ffmpeg | LGPL or GPL builds | not bundled; used as an external program for slideshow video and video export when it is installed |
 
 ## Downloaded on first use, never bundled
 
@@ -46,4 +48,4 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 
 ## Map tiles
 
-The Map module shows OpenStreetMap tiles. Map data copyright OpenStreetMap contributors, available under the Open Database License; the attribution is drawn on the map.
+The Map module shows OpenStreetMap tiles. Map data copyright OpenStreetMap contributors, available under the Open Database License; the attribution is drawn on the map. The Terrain style shows OpenTopoMap tiles (CC-BY-SA, with SRTM elevation data), also attributed on the map. Tiles are fetched while the Map module is open and are not stored in the repository. Look Up Address asks the OpenStreetMap Nominatim service for place names (one request per second, only when the user runs it); results are data from OpenStreetMap contributors under the ODbL.

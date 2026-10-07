@@ -339,7 +339,8 @@ class MapModule implements LitModule {
     this.coord.innerHTML = `<div class="fl-form-row"><span class="fl-form-label">Latitude</span><div class="fl-form-ctl"><input class="cv-input" type="number" step="0.000001" data-c="lat"></div></div>
 <div class="fl-form-row"><span class="fl-form-label">Longitude</span><div class="fl-form-ctl"><input class="cv-input" type="number" step="0.000001" data-c="lon"></div></div>
 <p class="cv-note fl-coord-note"></p>
-<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-c="center">Use Map Centre</button><button class="cv-btn fl-btn-sm" type="button" data-c="clear">Remove Location</button></div>`;
+<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-c="center">Use Map Centre</button><button class="cv-btn fl-btn-sm" type="button" data-c="clear">Remove Location</button></div>
+<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Fills City, State and Country from OpenStreetMap.</span><button class="cv-btn fl-btn-sm" type="button" data-c="lookup">Look Up Address</button></div>`;
     pc.body.appendChild(this.coord);
     this.coord.addEventListener('change', (e) => {
       const i = (e.target as HTMLElement).closest<HTMLInputElement>('input[data-c]');
@@ -351,7 +352,8 @@ class MapModule implements LitModule {
       const b = (e.target as HTMLElement).closest<HTMLElement>('button[data-c]');
       const ids = library.targets();
       if (!b || !ids.length) return;
-      if (b.dataset.c === 'center') void this.ctx.api.cmd('photo.setGps', { ids, lat: Number(this.map.lat.toFixed(7)), lon: Number(this.map.lon.toFixed(7)) }).catch((err) => this.ctx.fail(err));
+      if (b.dataset.c === 'lookup') void this.ctx.api.cmd<{ photos: number; places: number }>('gps.lookupAddress', { ids, wait: true }).then((r) => toast(`Filled addresses for ${r.photos} ${r.photos === 1 ? 'photo' : 'photos'} from ${r.places} ${r.places === 1 ? 'place' : 'places'}`), (err) => this.ctx.fail(err));
+      else if (b.dataset.c === 'center') void this.ctx.api.cmd('photo.setGps', { ids, lat: Number(this.map.lat.toFixed(7)), lon: Number(this.map.lon.toFixed(7)) }).catch((err) => this.ctx.fail(err));
       else void this.ctx.api.cmd('photo.setGps', { ids }).then(() => toast(`Removed the location from ${ids.length} ${ids.length === 1 ? 'photo' : 'photos'}`), (err) => this.ctx.fail(err));
     });
     this.hosts.right.appendChild(pc.root);

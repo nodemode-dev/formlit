@@ -411,6 +411,44 @@ def photo_set_gps(ids: Any = None, lat: float | None = None, lon: float | None =
     return {"ids": pids, "lat": lat, "lon": lon}
 
 
+@command("gps.lookupAddress", "Look Up Addresses", {"ids": {"type": "array"}, "overwrite": {"type": "boolean"}, "wait": {"type": "boolean"}})
+def gps_lookup(ids: Any = None, overwrite: bool = False, wait: bool = True) -> dict:
+    import time as _time
+    import httpx
+    from app import __version__
+    pids = resolve_ids(ids)
+    rows = [r for r in cat().rows(f"SELECT id, gps_lat, gps_lon, meta FROM photos WHERE id IN ({','.join('?' * len(pids))}) AND gps_lat IS NOT NULL", tuple(pids))] if pids else []
+
+    def job(progress):
+        groups: dict[tuple, list] = {}
+        for r in rows:
+            groups.setdefault((round(float(r["gps_lat"]), 4), round(float(r["gps_lon"]), 4)), []).append(r)
+        filled = 0
+        with httpx.Client(headers={"User-Agent": f"formlit/{__version__} (desktop photo library; address lookup)", "Accept-Language": "en"}, timeout=20) as client:
+            for i, ((la, lo), members) in enumerate(groups.items()):
+                if progress.cancelled:
+                    break
+                resp = client.get("https://nominatim.openstreetmap.org/reverse", params={"lat": la, "lon": lo, "format": "jsonv2", "zoom": 16, "addressdetails": 1})
+                if resp.status_code == 200:
+                    a = (resp.json() or {}).get("address") or {}
+                    found = {"city": a.get("city") or a.get("town") or a.get("village") or a.get("hamlet") or a.get("municipality") or "",
+                             "state": a.get("state") or a.get("region") or a.get("county") or "", "country": a.get("country") or "",
+                             "isoCountryCode": (a.get("country_code") or "").upper(),
+                             "sublocation": a.get("road") or a.get("neighbourhood") or a.get("suburb") or ""}
+                    with cat().change("Look Up Addresses") as ch:
+                        for r in members:
+                            meta = loads(r["meta"], {})
+                            for k, v in found.items():
+                                if v and (overwrite or not meta.get(k)):
+                                    meta[k] = v
+                            ch.update("photos", int(r["id"]), meta=meta)
+                            filled += 1
+                progress(i + 1, len(groups), f"Looking up {i + 1} of {len(groups)} places")
+                _time.sleep(1.05)
+        return {"photos": filled, "places": len(groups), "attribution": "Data from OpenStreetMap contributors, ODbL 1.0"}
+    return _wait(tasks.start("geocode", "Looking up addresses", job), wait)
+
+
 @command("location.list", "Saved Locations", mutates=False)
 def location_list() -> dict:
     out = []
