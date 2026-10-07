@@ -419,14 +419,15 @@ export class MaskTool implements Tool {
   sync(): void {
     const masks = this.masks();
     const items = masks.map((m, i) => ({ m, i }));
+    const update = (node: HTMLElement, x: { m: (typeof masks)[number]; i: number }) => {
+      const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : 'Intersect: '}${escapeHtml(String(c.shape.label ?? NAMES[c.shape.kind] ?? c.shape.kind))}</span></button>`).join('');
+      const html = `<div class="fl-mask-head${x.i === this.sel ? ' is-on' : ''}" data-mask="${x.i}"><button class="cv-icon-btn" type="button" data-eye aria-label="Show or hide">${icon(x.m.visible === false ? 'eyeOff' : 'eye', 13)}</button><span class="fl-grow">${escapeHtml(x.m.name)}${x.m.invert ? ' (inverted)' : ''}</span></div>${x.i === this.sel ? comps : ''}`;
+      if (node.dataset.html !== html) { node.dataset.html = html; node.innerHTML = html; }
+    };
     patchList(this.list, items, {
       key: (x) => String(x.m.id),
-      create: () => el('<div class="fl-mask-row"></div>'),
-      update: (node, x) => {
-        const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : 'Intersect: '}${escapeHtml(String(c.shape.label ?? NAMES[c.shape.kind] ?? c.shape.kind))}</span></button>`).join('');
-        const html = `<div class="fl-mask-head${x.i === this.sel ? ' is-on' : ''}" data-mask="${x.i}"><button class="cv-icon-btn" type="button" data-eye aria-label="Show or hide">${icon(x.m.visible === false ? 'eyeOff' : 'eye', 13)}</button><span class="fl-grow">${escapeHtml(x.m.name)}${x.m.invert ? ' (inverted)' : ''}</span></div>${x.i === this.sel ? comps : ''}`;
-        if (node.dataset.html !== html) { node.dataset.html = html; node.innerHTML = html; }
-      },
+      create: (x) => { const n = el('<div class="fl-mask-row"></div>'); update(n, x); return n; },
+      update,
     });
     const { m, c } = this.current();
     setHidden(this.adjust, !m);
