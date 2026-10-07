@@ -1,6 +1,6 @@
 # formlit parity with Lightroom Classic 15
 
-How close formlit v0.2.0 comes to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
+How close formlit v0.3.0 comes to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
 
 - **Full** (1): the Lightroom capability is implemented and wired from the interface through to rendering or export.
 - **Partial** (0.5): it exists, but a meaningful part of Lightroom's version is missing or it cannot be reached from the interface.
@@ -18,6 +18,7 @@ How close formlit v0.2.0 comes to Adobe Lightroom Classic 15, row by row. The me
 | Focused re-audit of rows 16, 42 and 54 after their fixes (v0.1.0) | 57 / 58 (98.3%) | all three Full |
 | Focused audit of rows 29 and 46 (v0.2.0 work in progress) | 57 / 58 | both Partial: four profile gaps and two defects; the classical reflection filter made photos worse and was withdrawn |
 | Focused re-audit of row 29 after its fixes (v0.2.0) | 57.5 / 58 (99.1%) | row 29 Full |
+| Independent audit of the v0.3.0 changes | 57.5 / 58 (99.1%) | no row changed grade; 11 defects found in the new code (one high: presets with an embedded look imported as profiles) and fixed before release |
 
 Each audit was made by a separate agent that had not seen the work being produced, reading the code only. Paths below are relative to the repo root: **B** is `backend/app`, **F** is `frontend/src`.
 

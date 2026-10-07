@@ -31,6 +31,7 @@
 - Scalars travel in a float64 `params` array and on/off states in an int64 `flags` array; hue-based tables (mixer, B and W) are precomputed lookup tables with 4096 entries.
 - Per-pixel temporaries are allocated per row, not per pixel.
 - `NUMBA_CACHE_DIR` is set under the data folder so compiled kernels survive restarts; the PyInstaller build collects llvmlite and numba submodules.
+- Every call into a `parallel=True` kernel (`kernel.run`, `dcp_kernel.table`) holds `app.develop.pool.LOCK`. numba's default `workqueue` layer aborts the engine process when two request threads launch parallel kernels at once; a new parallel kernel takes the same lock.
 
 ## Camera Look
 
@@ -42,6 +43,7 @@ For raws, `camera_look.fit` fits a 32-knot tone curve (and, for the Camera Look 
 - Built-in looks are baked by `profiles.table_of(pid, base)` (a 33-point lattice run through the numpy finish with the look's per-pixel deltas). Clarity, Texture and Dehaze deltas and a B&W look's `bw.*` mix stay offsets (`offset_key`); a B&W look is the treatment, those offsets and a table for its tone and toning.
 - The table runs after the tone curve and before grain, in the output space's terms: `lut_of(dev, space)` returns `in_space(table, space)`, re-expressed for P3, Adobe RGB, ProPhoto or Rec.2020.
 - Any id starting `fl.camera` turns on the fitted Camera Look (`finish.camera_matrix_look`). Maker sets live in `camera_styles.py`; `render.effective(dev, info)` adds the as-shot style (`info.cameraStyle`) as `profile.base`, and `_delta` builds each style relative to it.
-- Adobe creative profiles (`.xmp` with `crs:RGBTable`) are read by `adobe_profile.read`, resampled to sRGB and stored as `lut:[name]` with a JSON sidecar (name, group, grayscale). Look-table-only profiles are refused.
-- DCPs are stored as files and applied in the linear stage (`dcp.apply_linear` with the source `info`, the white balance and, for 3D look tables, Exposure), never baked; their tone curve replaces the camera tone in `finish.camera_tone`. The decoder records `camToRec2020`, `sensorGain` and `cameraStyle`; `previews.source` adds `camera`.
+- Adobe creative profiles (`.xmp`, a top-level description with `crs:RGBTable`, `crs:LookTable` or both) are read by `adobe_profile.read`: an RGB table is resampled to sRGB and stored as `lut:[name].cube`; a look table (HSV deltas, DCP layout) is stored in the JSON sidecar (name, group, grayscale, look). Imports of different kinds never share a stem (`profiles._stem_for`), and every import calls `profiles._changed`, which clears the caches and drops the render stages.
+- The linear stage is two cached steps in `render._stage_render`: `st.base` (white balance, a DCP's matrices and hue/saturation map via `dcp.apply_camera`, noise reduction, defringe, lens blur) and `st.lin` (the look step, `dcp.apply_look`, for a DCP look table or an Adobe look table scaled by Amount from `profiles.look_of`). Exposure joins the look key only when the table depends on value.
+- DCPs are stored as files and never baked; their tone curve replaces the camera tone in `finish.camera_tone`, scaled by `dcp.baseline_gain` when the raw has no BaselineExposure of its own (`info.ownBaseline`). The decoder records `camToRec2020`, `sensorGain`, `ownBaseline` and `cameraStyle` (from `makernotes.picture_style`, seven makers); `previews.source` adds `camera`.
 - Changing the finish means `table_of`'s cache (`lru_cache`) holds stale tables until the engine restarts; uvicorn's reload does that in development.

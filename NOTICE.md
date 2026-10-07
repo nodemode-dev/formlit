@@ -13,6 +13,8 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 
 The formlit mark is original.
 
+Material used only to test this build on the developer's machine is not included in the repository or any bundle: raw sample files from raw.pixls.us (CC0) and camera DCPs from RawTherapee (used to check DCP rendering, not distributed).
+
 ## Format and method references (no code copied)
 
 | Reference | License | Used for |

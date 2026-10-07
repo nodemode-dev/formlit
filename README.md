@@ -14,7 +14,7 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,400 of TypeScript, 2,100 of CSS, 15,900 of Python, 130 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,500 of TypeScript, 2,100 of CSS, 16,300 of Python, 130 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
 **Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
@@ -126,8 +126,8 @@ Release history: `CHANGELOG.md`. What is not verified yet:
 - **Desktop app.** The Tauri shell follows formvis's sidecar template; the desktop workflow has not run, so treat desktop bundles as untested until the first `desktop.yml` run passes.
 - **Hardware.** Tethering was exercised against a simulated gphoto2; the digiCamControl adapter on Windows and real cameras are untested. Printing to a real printer and its driver dialogs are untested.
 - **Video in the browser.** Playback of H.264 clips depends on the webview; the open-source Chromium used for testing plays WebM but not H.264.
-- **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data. Camera-matching styles are formlit's own approximations built on a per-photo fit to the camera's JPEG; the style a raw was shot in is read from Canon CR2 only so far.
-- **Profiles.** DCP and Adobe creative profile support was verified with synthetic profiles built to the published layouts, not yet with Adobe-made or camera-maker files; Adobe profiles that hold only an HSV look table are refused.
+- **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data. Camera-matching styles are formlit's own approximations built on a per-photo fit to the camera's JPEG; the style a raw was shot in is read from Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus and OM System, and Pentax raws (checked against exiftool on 13 files).
+- **Profiles.** DCPs were checked with RawTherapee's camera DCPs on matching raws, and Adobe creative profiles (RGB tables and HSV look tables) with profiles built to the published layouts; not yet with Adobe-made files. The look-table layout is read strictly and a file that does not match it is refused with a message.
 - **Reflections.** Distraction Removal has People and Dust; reflection removal waits for a learned model (`docs/PARITY.md`, row 46).
 
 ## Contributors
