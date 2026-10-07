@@ -15,7 +15,7 @@ pyinstaller --noconfirm --clean --onefile --name formlit-engine \
   --add-data "$FORMLIT_ROOT/frontend/dist${sep}frontend_dist" \
   --add-data "$FORMLIT_ROOT/shared${sep}shared" \
   --collect-submodules app --collect-submodules uvicorn --collect-all rawpy --collect-all llvmlite --collect-submodules numba --hidden-import cv2 \
-  --collect-all reportlab --collect-all onnxruntime --hidden-import tifffile \
+  --collect-all reportlab --collect-all onnxruntime --hidden-import tifffile --collect-all imagecodecs \
   --exclude-module pillow_heif \
   "$FORMLIT_ROOT/backend/formlit_engine.py"
 mkdir -p "$FORMLIT_ROOT/src-tauri/binaries"
