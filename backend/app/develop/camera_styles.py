@@ -82,9 +82,6 @@ RENAME = {
 }
 MAKES = {"canon": "canon", "nikon": "nikon", "sony": "sony", "fujifilm": "fujifilm", "fuji": "fujifilm", "panasonic": "panasonic", "lumix": "panasonic",
          "olympus": "olympus", "om": "olympus", "pentax": "pentax", "ricoh": "pentax"}
-CANON_STYLE = {0x81: "fl.camera.standard", 0x82: "fl.camera.portrait", 0x83: "fl.camera.landscape", 0x84: "fl.camera.neutral",
-               0x85: "fl.camera.canon.faithful", 0x86: "fl.camera.monochrome", 0x87: "fl.camera.standard", 0x88: "fl.camera.canon.finedetail",
-               0x01: "fl.camera.standard", 0x02: "fl.camera.portrait", 0x03: "fl.camera.vivid", 0x05: "fl.camera.neutral"}
 
 
 def make_of(camera: str) -> str:
@@ -113,14 +110,5 @@ def crs_name(pid: str) -> str:
 
 
 def as_shot(path) -> str | None:
-    if str(path).lower().endswith(".cr2"):
-        try:
-            import exifread
-            with open(path, "rb") as f:
-                tags = exifread.process_file(f, details=True, stop_tag="MakerNote Tag 0x00A0")
-            info = tags.get("MakerNote Tag 0x00A0")
-            vals = list(info.values) if info is not None else []
-            return CANON_STYLE.get(int(vals[10])) if len(vals) > 10 else None
-        except Exception:
-            return None
-    return None
+    from app.develop.makernotes import picture_style
+    return picture_style(path)
