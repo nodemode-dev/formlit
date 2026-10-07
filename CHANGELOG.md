@@ -4,7 +4,7 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 
 ## v0.1.0 · 2026-10-07
 
-The first release: a Lightroom Classic alternative in the form family, graded at 57 of 58 parity rows (`docs/PARITY.md`).
+The first release: a Lightroom Classic alternative in the form family, graded at 57 of 58 parity rows (`docs/PARITY.md`). The version reads 0.1.0 in `frontend/package.json`, `frontend/package-lock.json`, `frontend/src/version.ts`, `backend/app/__init__.py`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`; tag `v0.1.0` builds the desktop bundles.
 
 ### Added
 
