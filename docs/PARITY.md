@@ -1,6 +1,6 @@
 # formlit parity with Lightroom Classic 15
 
-How close formlit v0.1.0 comes to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
+How close formlit v0.2.0 comes to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
 
 - **Full** (1): the Lightroom capability is implemented and wired from the interface through to rendering or export.
 - **Partial** (0.5): it exists, but a meaningful part of Lightroom's version is missing or it cannot be reached from the interface.
@@ -9,13 +9,15 @@ How close formlit v0.1.0 comes to Adobe Lightroom Classic 15, row by row. The me
 
 ## Score
 
-**57 of 58 (98.3%)**: 56 rows Full, 2 rows Partial, 0 None.
+**57.5 of 58 (99.1%)**: 57 rows Full, 1 row Partial, 0 None.
 
 | Audit | Score | Notes |
 | --- | --- | --- |
-| First independent audit | 48.5 / 58 (83.6%) | 39 Full, 19 Partial |
-| Second independent audit, whole table | 55.5 / 58 (95.7%) | 53 Full, 5 Partial (16, 29, 42, 46, 54) |
-| Focused re-audit of rows 16, 42 and 54 after their fixes | 57 / 58 (98.3%) | all three Full |
+| First independent audit (v0.1.0) | 48.5 / 58 (83.6%) | 39 Full, 19 Partial |
+| Second independent audit, whole table (v0.1.0) | 55.5 / 58 (95.7%) | 53 Full, 5 Partial (16, 29, 42, 46, 54) |
+| Focused re-audit of rows 16, 42 and 54 after their fixes (v0.1.0) | 57 / 58 (98.3%) | all three Full |
+| Focused audit of rows 29 and 46 (v0.2.0 work in progress) | 57 / 58 | both Partial: four profile gaps and two defects; the classical reflection filter made photos worse and was withdrawn |
+| Focused re-audit of row 29 after its fixes (v0.2.0) | 57.5 / 58 (99.1%) | row 29 Full |
 
 Each audit was made by a separate agent that had not seen the work being produced, reading the code only. Paths below are relative to the repo root: **B** is `backend/app`, **F** is `frontend/src`.
 
@@ -66,7 +68,7 @@ Each audit was made by a separate agent that had not seen the work being produce
 | 26 | Colour mixer and point colour | Full | B/develop/colorops.py `ColorOps.apply`, `point_k`, `point_weight`; F/modules/develop/tools.ts point colour picker | |
 | 27 | Colour grading | Full | B/develop/colorops.py `wheel`, grading with blending and balance; F/modules/develop/wheel.ts | |
 | 28 | B&W | Full | colorops.py B&W mix; finish.py `is_bw`; `develop.autoBw` | |
-| 29 | Profiles and browser | Partial | B/develop/profiles.py `PROFILES`, `effective`, `import_cube`; B/develop/dcp.py; B/develop/camera_look.py; F/modules/develop/profile-browser.ts | Built-in profiles are formlit's own looks applied as setting offsets under the sliders, not 3D colour tables. One fitted Camera Look stands in for per-camera matching sets. Adobe-format XMP creative profiles cannot be imported (.cube and .dcp can). A .dcp is baked to a display-referred table rather than applied in camera space. |
+| 29 | Profiles and browser | Full | B/develop/profiles.py `table_of` (looks and B&W looks as 3D tables with Amount 0 to 200), `in_space`, `effective`, `catalogue`, `import_profile_xmp`, `import_dcp`; B/develop/camera_styles.py (camera-matching styles per maker, relative to the as-shot style); B/develop/adobe_profile.py (RGBTable .xmp); B/develop/dcp.py `apply_linear`, `to_prophoto`, `tone_knots` (matrices, both illuminants, look after exposure, tone curve); B/develop/camera_look.py; F/modules/develop/profile-browser.ts (groups, Color and B&W filters, thumbnails, favourites), panels.ts | The camera styles are formlit's approximations on a per-photo fit, since Adobe's camera DCPs cannot be shipped (real DCPs import and apply in full); the as-shot style is read from Canon CR2 only so far, other raws assume Standard and the browser says so; look-table-only .xmp profiles are refused. |
 | 30 | Calibration | Full | colorops.py `calibration_matrix`, `calibrate` | |
 | 31 | Presets | Full | B/engine/presets.py `preset.apply` (amount, adaptive mask presets), `preset.import` (.xmp, .lrtemplate, .cube, .dcp), `preset.export`; F/modules/develop/left.ts hover preview | |
 | 32 | History, snapshots, reset | Full | `develop.history`, `develop.historyRestore`, `snapshot.*`, `develop.reset`; F/modules/develop/left.ts | |
@@ -98,7 +100,7 @@ Each audit was made by a separate agent that had not seen the work being produce
 | # | Row | Grade | Trace | Missing |
 | --- | --- | --- | --- | --- |
 | 45 | AI masks | Full | B/engine/cmd_ai.py `develop.aiMask`, `develop.aiParts`, `develop.aiPeople`, `adapt`, `ensure_masks`; B/ai/nets.py, parts.py, people.py | |
-| 46 | Generative and content-aware remove | Partial | `develop.removeFill` (LaMa, variations, Detect Objects), `develop.removePeople`, `develop.findDust`; retouch.py remove patches | Distraction Removal for reflections is missing; People and Dust exist. |
+| 46 | Generative and content-aware remove | Partial | `develop.removeFill` (LaMa, variations, Detect Objects), `develop.removePeople`, `develop.findDust`; retouch.py remove patches | Distraction Removal for reflections is missing; People and Dust exist. A classical reflection filter was built in v0.2.0, measured worse than doing nothing on real composites, and withdrawn before release. |
 | 47 | Denoise and super resolution | Full | B/ai/enhance.py; `ai.denoise`, `ai.superResolution`, `ai.rawDetails` | |
 | 48 | HDR and panorama merge | Full | B/ai/merge.py `hdr`, `pano`, boundary warp, fill edges; `ai.hdrMerge`, `ai.panoMerge`, `ai.hdrPanoMerge`, Create Stack | |
 | 49 | Lens blur | Full | B/develop/lensblur.py; `ai.depth`, `develop.lensBlurFocus`; F/modules/develop/lensblur-tool.ts | |
@@ -126,7 +128,6 @@ Each audit was made by a separate agent that had not seen the work being produce
 | Tablet and phone | Not built |
 | Cloud sync | Not built; formlit is local-first by design |
 
-## What the Partial rows would need
+## What the Partial row would need
 
-- **Row 29.** Decode Adobe-format creative profiles (their RGB tables) into 3D lookup tables with an amount, apply DCP hue and saturation maps in camera space before the tone curve, and offer more than one camera-matching look per camera.
-- **Row 46.** A reflection detector to feed the existing remove-and-fill pipeline; no permissively licensed model that does this was found for this release.
+- **Row 46.** A learned reflection separation model. Single-image gradient methods cannot tell a soft reflection from a soft background: the v0.2.0 attempt (Arvanitopoulos et al., CVPR 2017) moved the result further from the true scene in all 12 audit composites. A permissively licensed learned model exists (DSRNet, ICCV 2023, Apache-2.0), but its weights are published only on Google Drive as PyTorch files; using it means fetching them once, converting to ONNX and hosting the ONNX where formlit's model downloader can pin it. The engine plumbing for it (a whole-frame layer on a 1536 px proxy, warped into every render region) is recorded in the backend HASHOUT log.

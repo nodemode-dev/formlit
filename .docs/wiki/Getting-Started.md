@@ -43,4 +43,4 @@ On Windows use `formlit.bat` with the same commands.
 
 ## The data folder
 
-`~/Formlit` by default (`FORMLIT_DATA_DIR`). It holds `Catalog/formlit.fldb` (SQLite) with its `Previews/` and `Masks/` beside it, `Presets/`, `Profiles/` (imported .cube looks), `Plugins/` (publish plug-ins), `Models/` (local AI models, each pinned to its SHA-256) and `Exports/`. File > New Catalog and Open Catalog switch catalogs; each keeps its previews and masks in its own folder.
+`~/Formlit` by default (`FORMLIT_DATA_DIR`). It holds `Catalog/formlit.fldb` (SQLite) with its `Previews/` and `Masks/` beside it, `Presets/`, `Profiles/` (imported .cube and Adobe .xmp looks and .dcp camera profiles, each with a small JSON file for its name), `Plugins/` (publish plug-ins), `Models/` (local AI models, each pinned to its SHA-256) and `Exports/`. File > New Catalog and Open Catalog switch catalogs; each keeps its previews and masks in its own folder.

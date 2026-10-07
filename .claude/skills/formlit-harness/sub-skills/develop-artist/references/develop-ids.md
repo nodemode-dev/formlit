@@ -12,6 +12,8 @@ Profile · White balance and color · Light · Tone curve (parametric) · Color 
 | --- | --- | --- | --- | --- |
 | `profile.amount` | Amount | 0 | 200 | 100 |
 
+The profile itself is `{"profile": {"id": "...", "amount": 100}}` through `develop_patch`; `develop.info` lists every id with its group. Built-in ids start `fl.` (`fl.color` and the creative looks). Raws also get a Camera Matching set that depends on the maker: `fl.camera` (Camera Look, fitted to the camera's own JPEG, so it matches the photo as shot), `fl.camera.standard`, `fl.camera.neutral`, `fl.camera.vivid`, `fl.camera.portrait`, `fl.camera.landscape`, `fl.camera.monochrome` and maker styles such as `fl.camera.canon.faithful`, `fl.camera.nikon.flat` or `fl.camera.fujifilm.classicchrome`; `develop.info` lists the ones for the photo, and its `cameraStyle` says which style the raw was shot in when the raw records it. Looks, B&W looks included, are 3D tables, so Amount scales the look without moving any slider (Amount does nothing for Color, Camera Look and DCPs). Imported tables are `lut:[name]` (a `.cube`, or an Adobe creative profile `.xmp` with an RGB table, converted on import); imported DNG camera profiles are `dcp:[name]`, listed only for the camera they name, applied the way Camera Raw does (matrices for that camera, both illuminants, look table after exposure, the profile's tone curve). Import with `run_command` `preset.import` and `{"paths": [...]}`; the result lists the new ids.
+
 ## White balance and color
 
 | id | label | min | max | default |
@@ -237,7 +239,7 @@ More keys sit beside the sliders: `colorHue` and `colorSat` tint the masked area
 
 ## Sync and copy groups
 
-`sync_settings` and `develop.copy` take these group names: `whiteBalance` (wb), `basicTone` (light), `presence` (effects, color), `toneCurve` (curve), `colorMixer` (mixer), `pointColor`, `bwMix` (bw), `treatment`, `colorGrading` (grading), `detail`, `lensCorrections` (optics), `transform` (geometry), `effects` (vignette, grain), `calibration`, `profile`, `crop` (crop, orientation), `masks`, `spots`, `redEye`, `lensBlur`. With no groups, everything except crop, masks, spots and red eye is copied.
+`sync_settings` and `develop.copy` take these group names: `whiteBalance` (wb), `basicTone` (light), `presence` (effects, color), `toneCurve` (curve), `colorMixer` (mixer), `pointColor`, `bwMix` (bw), `treatment`, `colorGrading` (grading), `detail`, `lensCorrections` (optics), `transform` (geometry), `effects` (vignette, grain), `calibration`, `profile`, `crop` (crop, orientation), `masks`, `spots`, `redEye`, `lensBlur`, `hdr`. With no groups, everything except crop, masks, spots and red eye is copied.
 
 ## Crop aspects
 

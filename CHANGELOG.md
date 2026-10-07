@@ -2,6 +2,32 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.2.0 · 2026-10-07
+
+Profiles reach Lightroom parity: graded at 57.5 of 58 rows (`docs/PARITY.md`), with reflection removal the one Partial row. Raw sources are decoded once more on first open (source cache version 5).
+
+### Added
+
+- **Profiles as tables.** Every built-in look, B&W looks included, is a 3D colour table; Amount scales it from 0 to 200 without moving any slider, and it looks the same in sRGB, Display P3, Adobe RGB, ProPhoto and Rec.2020 exports.
+- **Camera matching per maker.** Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus and OM, Pentax and Ricoh raws list their maker's picture styles and film simulations, built on Camera Look (the fit to the camera's own JPEG) relative to the style the photo was shot in (read from Canon CR2 so far; other raws assume Standard, and the Profile Browser says which).
+- **Adobe creative profiles.** `.xmp` profiles with an RGB table import as tables, resampled from their own primaries and gamma, keeping name, group and the grayscale flag.
+- **DCPs in camera space.** An imported `.dcp` applies its forward or colour matrices for its own camera, blends both illuminants by white balance, runs the look table after exposure and uses its tone curve; Develop lists a DCP only for its camera.
+- **Profile Browser.** Color and B&W filters and a note about the as-shot style; Amount rests when a profile has nothing to scale; new imports appear without changing photos.
+
+### Fixed
+
+- The Profile Browser's first opening shifted every tile when favourites arrived; it now opens with them loaded.
+- The Navigator grew when a slow first decode finished and pushed the left panels down; it reserves the picture's shape.
+- Grain was reshaped by the profile table; the table now runs before grain.
+
+### Tried and withdrawn
+
+- A classical reflection-removal slider (gradient-threshold layer separation). An independent audit found it moved photos further from the true scene in all 12 test composites, so it was removed before release. A learned model is the way forward (see `docs/PARITY.md`, row 46).
+
+### Not verified yet
+
+- Real Adobe or camera-maker DCPs and creative profiles (verified with synthetic profiles built to the DNG and RGBTable layouts, and with profiles made by an independent MIT-licensed encoder); the as-shot style for raw formats other than CR2; the items still open from v0.1.0.
+
 ## v0.1.0 · 2026-10-07
 
 The first release: a Lightroom Classic alternative in the form family, graded at 57 of 58 parity rows (`docs/PARITY.md`). The version reads 0.1.0 in `frontend/package.json`, `frontend/package-lock.json`, `frontend/src/version.ts`, `backend/app/__init__.py`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`; tag `v0.1.0` builds the desktop bundles.

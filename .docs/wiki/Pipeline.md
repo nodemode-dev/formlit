@@ -6,10 +6,10 @@ The develop pipeline lives in `backend/app/develop/` and renders everything form
 
 1. **Geometry.** `geometry.py` builds a `Frame` from crop, angle, orientation, lens profile, Upright and transform, and samples the source through it at the output size.
 2. **Repairs.** Spots (heal, clone, remove fills) and red eye in `retouch.py`, on the sampled image.
-3. **White balance** as a Bradford adaptation from the as-shot illuminant in linear Rec.2020, then noise reduction (`planes.py`), defringe (`fringe.py`) and Lens Blur (`lensblur.py`).
+3. **White balance** as a Bradford adaptation from the as-shot illuminant in linear Rec.2020, then an imported DCP (`dcp.py`), then noise reduction (`planes.py`), defringe (`fringe.py`) and Lens Blur (`lensblur.py`).
 4. **Planes.** Log luminance, a guided-filter base, clarity, texture, dark channel and chroma planes, computed on a proxy with radii relative to the long edge so a region, a fit view and a full export match.
 5. **Masks.** `masks.py` evaluates every visible mask into an alpha and its terms (local sliders, tint, Point Color, curve).
-6. **Finish.** One per-pixel stage: dehaze, exposure, local terms, the tone LUT, calibration, colour operations in OkLCh (mixer, Point Color, vibrance, saturation, B&W), grading, vignette, gamut mapping, encoding, the point curves, grain and the profile LUT. Local mask curves apply after it through each mask's alpha.
+6. **Finish.** One per-pixel stage: dehaze, exposure, local terms, the tone LUT, calibration, colour operations in OkLCh (mixer, Point Color, vibrance, saturation, B&W), grading, vignette, gamut mapping, encoding, the point curves, the profile table and grain. Local mask curves apply after it through each mask's alpha.
 
 ## Two renderers
 
@@ -17,7 +17,7 @@ The develop pipeline lives in `backend/app/develop/` and renders everything form
 
 ## Settings
 
-`shared/controls.json` declares every control (id, label, section, range, default) and the local mask sliders; `settings.py` reads it, clamps values and groups them for copy and sync. Profiles (`profiles.py`) apply as offsets beneath the sliders, or as LUTs for imported .cube and .dcp looks. `render.effective` merges the profile and the treatment before rendering.
+`shared/controls.json` declares every control (id, label, section, range, default) and the local mask sliders; `settings.py` reads it, clamps values and groups them for copy and sync. Profiles (`profiles.py`) are 3D tables: built-in looks are baked from their settings once, imported .cube files and Adobe creative profiles (.xmp with an RGB table) are read as they are, and every table is re-expressed for the export's colour space. Clarity, Texture, Dehaze and a B&W look's mix stay offsets beneath the sliders. Camera-matching styles (`camera_styles.py`) are tables built on the fitted Camera Look, relative to the style the raw was shot in. Imported DCPs (`dcp.py`) apply in the linear stage, in linear ProPhoto, with the profile's matrices for its own camera, both illuminants, the look table after exposure and its tone curve as the base tone. `render.effective(dev, info)` merges the profile and the treatment before rendering.
 
 ## HDR
 

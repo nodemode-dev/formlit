@@ -13,6 +13,15 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 
 The formlit mark is original.
 
+## Format and method references (no code copied)
+
+| Reference | License | Used for |
+| --- | --- | --- |
+| CUBE TO XMP (github.com/OwenWhw/CUBE-to-XMP), Copyright (c) 2026 魏浩文 (Claw) | MIT | The byte layout of Adobe RGBTable creative profiles (base85 alphabet and order, the compressed block, delta encoding). formlit's reader in `backend/app/develop/adobe_profile.py` was written independently and checked against this project's encoder output. |
+| Adobe DNG specification and the published DNG SDK enumerations for RGB tables (primaries, gamma, gamut) | Specification | The meaning of the enum values in creative profiles and the DCP tag numbers read by `backend/app/develop/dcp.py`. No SDK source is included or ported. |
+
+Camera-matching profile names (for example Faithful, Velvia/Vivid, CLASSIC CHROME, ACROS, Cinelike, i-Enhance) are the names camera makers give to settings in their cameras. formlit uses them only to say which in-camera setting a profile approximates; they are trademarks of their owners, and formlit is not affiliated with or endorsed by any camera maker. The profiles themselves are formlit's own approximations, built on a per-photo fit to the camera's embedded JPEG; no maker or Adobe profile data is included.
+
 ## Distributed with the app
 
 | Package | License | Notes |

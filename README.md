@@ -6,7 +6,7 @@
 <img src="https://img.shields.io/badge/node-22-339933" alt="node 22">
 <img src="https://img.shields.io/badge/python-3.12-3776AB" alt="python 3.12">
 <img src="https://img.shields.io/badge/tauri-2-24C8DB" alt="tauri 2">
-<img src="https://img.shields.io/badge/lightroom%20parity-57%2F58-f97316" alt="Lightroom parity 57 of 58">
+<img src="https://img.shields.io/badge/lightroom%20parity-57.5%2F58-f97316" alt="Lightroom parity 57.5 of 58">
 <img src="https://img.shields.io/badge/license-Apache--2.0-lightgrey" alt="Apache 2.0 license">
 </p>
 
@@ -14,16 +14,16 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,400 of TypeScript, 2,100 of CSS, 15,400 of Python, 130 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,400 of TypeScript, 2,100 of CSS, 15,900 of Python, 130 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
-**Parity.** 57 of 58 Lightroom Classic 15 feature rows, traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
+**Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
 ## Highlights
 
 - **Catalog.** SQLite in WAL mode with one revision counter and undo for every change, people and agents alike. Import adds in place, copies, moves or copies as DNG, with rename and folder templates, develop and metadata presets, keywords, a second copy, duplicate detection and eject. Folders show their volumes, synchronize (new, missing, changed on disk, metadata), relocate and find missing files. Smart previews keep offline photos editable. Export as Catalog and Import from Another Catalog move work between catalogs.
 - **Formats.** Raw from over a thousand cameras through LibRaw, decoded to linear Rec.2020 with the camera's white balance; JPEG, TIFF (8, 16 and float, ICC aware), PNG, PSD (8 and 16-bit), HEIC, AVIF, WebP and JPEG XL; video with playback, trim and Capture Frame.
 - **Library.** Grid, Loupe with a Navigator, Compare with linked zoom, Survey, and a second window (Grid, Loupe normal, live or locked, Compare, Survey, Slideshow). Ratings, flags and colour labels with auto advance; collections, sets, smart collections with nested rules; hierarchical keywords with synonyms, suggestions, keyword sets and the Painter; metadata views and presets; stacks, virtual copies, batch rename and capture time; the filter bar with Text, Attribute and Metadata columns; faces found, clustered and named in People.
-- **Develop.** One pipeline rendered by the engine (numba kernel, numpy reference) for the screen, 1:1 regions and exports alike: white balance, Basic with Auto, presence, parametric and point curves with targeted adjustment, colour mixer and Point Color, colour grading, B&W mix, profiles with a browser (built-in looks, .cube and .dcp import), calibration, sharpening, noise reduction, lens profiles from Lensfun and DNG opcodes, chromatic aberration and defringe, Upright with guides, crop with seven overlays and a Straighten tool, vignette and grain, history, snapshots, a settable Before, copy, paste, sync and auto sync, presets with amount, hover preview and import of .xmp and .lrtemplate.
+- **Develop.** One pipeline rendered by the engine (numba kernel, numpy reference) for the screen, 1:1 regions and exports alike: white balance, Basic with Auto, presence, parametric and point curves with targeted adjustment, colour mixer and Point Color, colour grading, B&W mix, profiles with a browser (looks and B&W looks as 3D tables with Amount, camera-matching styles per maker, Adobe creative profile .xmp, .cube and .dcp import, DCPs applied in camera space), calibration, sharpening, noise reduction, lens profiles from Lensfun and DNG opcodes, chromatic aberration and defringe, Upright with guides, crop with seven overlays and a Straighten tool, vignette and grain, history, snapshots, a settable Before, copy, paste, sync and auto sync, presets with amount, hover preview and import of .xmp and .lrtemplate.
 - **Masks and retouching.** Brush, linear and radial gradients, colour, luminance and depth ranges, combined with add, subtract and intersect; AI masks for subject, sky, background, objects, people (each person on their own), people parts and landscape parts, recomputed for every photo a mask reaches by sync, paste, preset or virtual copy; 17 local sliders, a local tint, local Point Color and a local point curve with R, G and B. Heal, clone and generative Remove (LaMa) with variations and Detect Objects, Remove People, Find Dust and Visualize Spots; red eye and pet eye.
 - **AI and merges.** Denoise, Super Resolution and Raw Details; HDR, panorama and HDR panorama merges with deghosting, boundary warp, fill edges and Create Stack; Lens Blur from a depth map with five bokeh shapes; assisted culling by sharpness, exposure, eyes open and face focus. Every model runs locally on ONNX Runtime, downloads on first use, and is pinned to a SHA-256.
 - **HDR.** An HDR editing mode with headroom, Visualize HDR, an SDR rendition and an HDR histogram, previewed as PQ on HDR displays; Ultra HDR JPEG with a gain map, HDR AVIF, JPEG XL and float TIFF on export.
@@ -126,7 +126,9 @@ Release history: `CHANGELOG.md`. What is not verified yet:
 - **Desktop app.** The Tauri shell follows formvis's sidecar template; the desktop workflow has not run, so treat desktop bundles as untested until the first `desktop.yml` run passes.
 - **Hardware.** Tethering was exercised against a simulated gphoto2; the digiCamControl adapter on Windows and real cameras are untested. Printing to a real printer and its driver dialogs are untested.
 - **Video in the browser.** Playback of H.264 clips depends on the webview; the open-source Chromium used for testing plays WebM but not H.264.
-- **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data.
+- **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data. Camera-matching styles are formlit's own approximations built on a per-photo fit to the camera's JPEG; the style a raw was shot in is read from Canon CR2 only so far.
+- **Profiles.** DCP and Adobe creative profile support was verified with synthetic profiles built to the published layouts, not yet with Adobe-made or camera-maker files; Adobe profiles that hold only an HSV look table are refused.
+- **Reflections.** Distraction Removal has People and Dust; reflection removal waits for a learned model (`docs/PARITY.md`, row 46).
 
 ## Contributors
 
