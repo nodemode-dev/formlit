@@ -13,6 +13,34 @@ export interface ToolHost {
 }
 
 type Rect = [number, number, number, number];
+type XY = [number, number];
+
+const OVERLAYS: Array<[string, string]> = [['grid', 'Grid'], ['thirds', 'Thirds'], ['diagonal', 'Diagonal'], ['triangle', 'Triangle'], ['golden', 'Golden Ratio'], ['spiral', 'Golden Spiral'], ['aspects', 'Aspect Ratios']];
+const ASPECT_GUIDES = [1, 5 / 4, 7 / 5, 3 / 2, 16 / 9];
+
+function pref(key: string, fallback: string): string {
+  try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
+}
+
+function savePref(key: string, v: string): void {
+  try { localStorage.setItem(key, v); } catch { return; }
+}
+
+function spiralUV(): XY[] {
+  const out: XY[] = [];
+  let x = 0, y = 0, w = 1, h = 1;
+  const arc = (cx: number, cy: number, rx: number, ry: number, a0: number, a1: number) => {
+    for (let i = 0; i <= 12; i += 1) { const t = ((a0 + ((a1 - a0) * i) / 12) * Math.PI) / 180; out.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); }
+  };
+  for (let k = 0; k < 10; k += 1) {
+    const d = k % 4;
+    if (d === 0) { const s = w * 0.618; arc(x + s, y + h, s, h, 180, 270); x += s; w -= s; }
+    else if (d === 1) { const s = h * 0.618; arc(x, y + s, w, s, 270, 360); y += s; h -= s; }
+    else if (d === 2) { const s = w * 0.618; arc(x + w - s, y, s, h, 0, 90); w -= s; }
+    else { const s = h * 0.618; arc(x + w, y + h - s, w, s, 90, 180); h -= s; }
+  }
+  return out;
+}
 
 function rotPoint(x: number, y: number, ow: number, oh: number, angleDeg: number): [number, number] {
   const a = (-angleDeg * Math.PI) / 180;
@@ -60,9 +88,16 @@ export class CropTool implements Tool {
   private readonly angleSlider: Slider;
   private readonly aspectSel: HTMLSelectElement;
   private readonly root: HTMLElement;
+  private overlayKind = pref('formlit_crop_overlay', 'thirds');
+  private overlayShow = pref('formlit_crop_overlay_show', 'always');
+  private orient = 0;
+  private levelMode = false;
+  private levelLine: [Pt, Pt] | null = null;
+  private readonly overlaySel = el<HTMLSelectElement>(`<select class="cv-select fl-grow">${OVERLAYS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select>`);
+  private readonly showSeg = el('<div class="cv-seg fl-seg-sm fl-grow"><button type="button" data-show="always">Always</button><button type="button" data-show="auto">Auto</button><button type="button" data-show="never">Never</button></div>');
 
   constructor(private readonly host: ToolHost) {
-    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('crop', 14)} Crop and Straighten</div><div class="fl-row"><span class="fl-row-label">Aspect</span></div><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="auto">Auto Straighten</button><button class="cv-btn fl-btn-sm" type="button" data-a="swap">Swap (X)</button><button class="cv-btn fl-btn-sm" type="button" data-a="reset">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('crop', 14)} Crop and Straighten</div><div class="fl-row"><span class="fl-row-label">Aspect</span></div><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="level" title="Drag along a line that should be level or plumb. Ctrl-drag does the same.">Straighten</button><button class="cv-btn fl-btn-sm" type="button" data-a="auto">Auto Straighten</button><button class="cv-btn fl-btn-sm" type="button" data-a="swap">Swap (X)</button><button class="cv-btn fl-btn-sm" type="button" data-a="reset">Reset</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
     this.aspectSel = el<HTMLSelectElement>('<select class="cv-select fl-grow"></select>');
     for (const a of develop.doc?.aspects ?? []) this.aspectSel.add(new Option(a.label, a.id));
     q(this.root, '.fl-row').appendChild(this.aspectSel);
@@ -74,8 +109,19 @@ export class CropTool implements Tool {
       if (phase === 'end') this.commit('Straighten');
     }, 2, 0.05);
     this.root.insertBefore(this.angleSlider.root, this.root.lastElementChild);
+    const ovRow = el('<div class="fl-row"><span class="fl-row-label">Overlay</span></div>');
+    ovRow.appendChild(this.overlaySel);
+    const showRow = el('<div class="fl-row"><span class="fl-row-label">Show</span></div>');
+    showRow.appendChild(this.showSeg);
+    this.root.insertBefore(ovRow, this.root.lastElementChild);
+    this.root.insertBefore(showRow, this.root.lastElementChild);
+    this.overlaySel.addEventListener('change', () => this.setOverlay(this.overlaySel.value));
+    this.syncOverlay();
     this.root.addEventListener('click', (e) => {
+      const show = (e.target as HTMLElement).closest<HTMLElement>('[data-show]')?.dataset.show;
+      if (show) { this.overlayShow = show; savePref('formlit_crop_overlay_show', show); this.syncOverlay(); this.host.view.draw(); }
       const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === 'level') { this.levelMode = !this.levelMode; this.syncOverlay(); }
       if (a === 'reset') { this.rect = [0, 0, 1, 1]; this.angle = 0; this.angleSlider.set(0); this.setAspect('asShot'); this.commit('Reset Crop'); }
       if (a === 'swap') this.swap();
       if (a === 'auto') void this.autoStraighten();
@@ -85,6 +131,32 @@ export class CropTool implements Tool {
 
   private ow(): number { return this.host.view.geo?.ow ?? 1; }
   private oh(): number { return this.host.view.geo?.oh ?? 1; }
+
+  private setOverlay(kind: string): void {
+    this.overlayKind = kind;
+    savePref('formlit_crop_overlay', kind);
+    this.syncOverlay();
+    this.host.view.draw();
+  }
+
+  private syncOverlay(): void {
+    if (this.overlaySel.value !== this.overlayKind) this.overlaySel.value = this.overlayKind;
+    for (const b of Array.from(this.showSeg.children) as HTMLElement[]) setClass(b, 'is-on', b.dataset.show === this.overlayShow);
+    const lv = this.root.querySelector<HTMLElement>('[data-a="level"]');
+    if (lv) setClass(lv, 'is-on', this.levelMode);
+  }
+
+  private straightenTo(a: Pt, b: Pt): void {
+    const dx = b.sx - a.sx, dy = b.sy - a.sy;
+    if (Math.hypot(dx, dy) < 8) return;
+    let t = (Math.atan2(dy, dx) * 180) / Math.PI;
+    while (t > 45) t -= 90;
+    while (t < -45) t += 90;
+    this.angle = Math.max(-45, Math.min(45, -t));
+    this.angleSlider.set(Number(this.angle.toFixed(2)));
+    this.rect = shrinkToFit(this.rect, this.ow(), this.oh(), this.angle);
+    this.commit('Straighten');
+  }
 
   activate(): void {
     const crop = (develop.settings.crop as Record<string, unknown> | undefined) ?? {};
@@ -194,12 +266,15 @@ export class CropTool implements Tool {
 
   hover(p: Pt | null): void {
     if (!p) return;
+    if (this.levelMode || p.e.ctrlKey || p.e.metaKey) { this.host.view.root.style.cursor = 'crosshair'; return; }
     const k = this.hit(p);
     this.host.view.root.style.cursor = k === 'move' ? 'move' : k === 'rotate' ? 'alias' : k === 'n' || k === 's' ? 'ns-resize' : k === 'e' || k === 'w' ? 'ew-resize' : k === 'nw' || k === 'se' ? 'nwse-resize' : 'nesw-resize';
   }
 
   down(p: Pt): boolean {
-    this.drag = { kind: this.hit(p), start: p, rect: [...this.rect] as Rect, angle: this.angle };
+    const level = this.levelMode || p.e.ctrlKey || p.e.metaKey;
+    this.drag = { kind: level ? 'level' : this.hit(p), start: p, rect: [...this.rect] as Rect, angle: this.angle };
+    if (level) this.levelLine = [p, p];
     return true;
   }
 
@@ -207,6 +282,7 @@ export class CropTool implements Tool {
     const d = this.drag;
     if (!d) return;
     const ow = this.ow(), oh = this.oh();
+    if (d.kind === 'level') { this.levelLine = [d.start, p]; return; }
     if (d.kind === 'rotate') {
       const c = this.host.view.normToStage(0.5, 0.5);
       const a0 = Math.atan2(d.start.sy - c[1], d.start.sx - c[0]);
@@ -249,13 +325,73 @@ export class CropTool implements Tool {
     if (!this.drag) return;
     const kind = this.drag.kind;
     this.drag = null;
+    if (kind === 'level') {
+      const line = this.levelLine;
+      this.levelLine = null;
+      this.levelMode = false;
+      this.syncOverlay();
+      if (line) this.straightenTo(line[0], line[1]);
+      this.host.view.draw();
+      return;
+    }
     this.commit(kind === 'rotate' ? 'Straighten' : 'Crop');
   }
 
   key(_e: KeyboardEvent, combo: string): boolean {
     if (combo === 'X') { this.swap(); return true; }
-    if (combo === 'Enter' || combo === 'Escape') { this.host.done(); return true; }
+    if (combo === 'O') { const i = OVERLAYS.findIndex(([id]) => id === this.overlayKind); this.setOverlay(OVERLAYS[(i + 1) % OVERLAYS.length][0]); return true; }
+    if (combo === 'Shift+O') { this.orient = (this.orient + 1) % 4; this.host.view.draw(); return true; }
+    if (combo === 'Enter' || (combo === 'Escape' && !this.levelMode)) { this.host.done(); return true; }
+    if (combo === 'Escape') { this.levelMode = false; this.levelLine = null; this.syncOverlay(); this.host.view.draw(); return true; }
     return false;
+  }
+
+  private drawOverlay(c: CanvasRenderingContext2D, cs: XY[]): void {
+    const P = (u: number, v: number): XY => {
+      const fu = this.orient & 1 ? 1 - u : u, fv = this.orient & 2 ? 1 - v : v;
+      return [cs[0][0] + (cs[1][0] - cs[0][0]) * fu + (cs[3][0] - cs[0][0]) * fv, cs[0][1] + (cs[1][1] - cs[0][1]) * fu + (cs[3][1] - cs[0][1]) * fv];
+    };
+    const line = (a: XY, b: XY) => { c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); };
+    const W = Math.hypot(cs[1][0] - cs[0][0], cs[1][1] - cs[0][1]), H = Math.hypot(cs[3][0] - cs[0][0], cs[3][1] - cs[0][1]);
+    const k = this.overlayKind;
+    if (k === 'grid' || k === 'thirds' || k === 'golden') {
+      const cuts = k === 'thirds' ? [1 / 3, 2 / 3] : k === 'golden' ? [0.382, 0.618] : [];
+      const nx = k === 'grid' ? Math.max(4, Math.round(W / 48)) : 0, ny = k === 'grid' ? Math.max(4, Math.round(H / 48)) : 0;
+      const us = k === 'grid' ? Array.from({ length: nx - 1 }, (_, i) => (i + 1) / nx) : cuts;
+      const vs = k === 'grid' ? Array.from({ length: ny - 1 }, (_, i) => (i + 1) / ny) : cuts;
+      for (const u of us) line(P(u, 0), P(u, 1));
+      for (const v of vs) line(P(0, v), P(1, v));
+      return;
+    }
+    if (k === 'diagonal') {
+      const m = Math.min(W, H);
+      for (const [u, v, su, sv] of [[0, 0, 1, 1], [1, 0, -1, 1], [1, 1, -1, -1], [0, 1, 1, -1]]) line(P(u, v), P(u + (su * m) / W, v + (sv * m) / H));
+      return;
+    }
+    if (k === 'triangle') {
+      const a = P(0, 0), b = P(1, 1);
+      line(a, b);
+      const dx = b[0] - a[0], dy = b[1] - a[1], len2 = dx * dx + dy * dy || 1;
+      for (const q0 of [P(1, 0), P(0, 1)]) { const t = ((q0[0] - a[0]) * dx + (q0[1] - a[1]) * dy) / len2; line(q0, [a[0] + dx * t, a[1] + dy * t]); }
+      return;
+    }
+    if (k === 'spiral') {
+      const pts = spiralUV().map(([u, v]) => P(u, v));
+      c.beginPath();
+      pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+      c.stroke();
+      return;
+    }
+    if (k === 'aspects') {
+      const land = W >= H;
+      for (const r of ASPECT_GUIDES) {
+        const a = land ? r : 1 / r;
+        const [w, h] = a > W / H ? [1, W / a / H] : [(H * a) / W, 1];
+        const x0 = (1 - w) / 2, y0 = (1 - h) / 2;
+        const q4 = [P(x0, y0), P(x0 + w, y0), P(x0 + w, y0 + h), P(x0, y0 + h)];
+        c.beginPath(); q4.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.stroke();
+      }
+    }
   }
 
   draw(c: CanvasRenderingContext2D, view: DevelopView): void {
@@ -277,16 +413,18 @@ export class CropTool implements Tool {
     c.closePath();
     c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.35)';
-    for (const t of [1 / 3, 2 / 3]) {
-      const a = [cs[0][0] + (cs[1][0] - cs[0][0]) * t, cs[0][1] + (cs[1][1] - cs[0][1]) * t];
-      const b = [cs[3][0] + (cs[2][0] - cs[3][0]) * t, cs[3][1] + (cs[2][1] - cs[3][1]) * t];
-      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-      const e = [cs[0][0] + (cs[3][0] - cs[0][0]) * t, cs[0][1] + (cs[3][1] - cs[0][1]) * t];
-      const f = [cs[1][0] + (cs[2][0] - cs[1][0]) * t, cs[1][1] + (cs[2][1] - cs[1][1]) * t];
-      c.beginPath(); c.moveTo(e[0], e[1]); c.lineTo(f[0], f[1]); c.stroke();
-    }
+    if (this.overlayShow === 'always' || (this.overlayShow === 'auto' && this.drag && this.drag.kind !== 'level')) this.drawOverlay(c, cs);
     c.fillStyle = '#fff';
     for (const [x, y] of cs) c.fillRect(x - 4, y - 4, 8, 8);
+    const lv = this.levelLine;
+    if (lv) {
+      c.strokeStyle = '#fff';
+      c.lineWidth = 1.5;
+      c.shadowColor = 'rgba(0,0,0,0.7)';
+      c.shadowBlur = 3;
+      c.beginPath(); c.moveTo(lv[0].sx, lv[0].sy); c.lineTo(lv[1].sx, lv[1].sy); c.stroke();
+      for (const p of lv) { c.beginPath(); c.arc(p.sx, p.sy, 3, 0, Math.PI * 2); c.fill(); }
+    }
     c.restore();
   }
 }
@@ -322,6 +460,12 @@ export class SpotTool implements Tool {
     this.root.insertBefore(this.sFeather.root, this.sOpacity.root);
     this.root.insertBefore(this.sSize.root, this.sFeather.root);
     this.root.insertBefore(this.variantsRow, this.root.lastElementChild);
+    this.sVis = slider('spot.visualize', 'Threshold', 0, 100, 50, 50, (v) => { this.visLevel = v; this.host.view.schedule(); });
+    const visCheck = q<HTMLInputElement>(this.visRow, 'input');
+    visCheck.addEventListener('change', () => this.setVisualize(visCheck.checked));
+    this.root.insertBefore(this.visRow, this.root.lastElementChild);
+    this.root.insertBefore(this.sVis.root, this.root.lastElementChild);
+    setHidden(this.sVis.root, true);
     this.variantsRow.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-var]');
       if (!b || this.sel < 0) return;
@@ -344,7 +488,21 @@ export class SpotTool implements Tool {
 
   activate(): void { this.host.drawer.replaceChildren(this.root); this.syncOpts(); }
 
-  private readonly variantsRow = el('<div class="fl-row fl-spot-vars" hidden><span class="fl-row-label">Variations</span><div class="cv-seg fl-seg-sm fl-grow"></div><button class="cv-btn fl-btn-sm" type="button" data-var="more" title="Make three new fills">Refresh</button></div>');
+  private visualize = false;
+  private visLevel = 50;
+  private readonly sVis: Slider;
+  private readonly visRow = el('<label class="fl-check fl-spot-vis"><input type="checkbox"> Visualize Spots <kbd class="cv-kbd">A</kbd></label>');
+
+  private setVisualize(on: boolean): void {
+    this.visualize = on;
+    q<HTMLInputElement>(this.visRow, 'input').checked = on;
+    setHidden(this.sVis.root, !on);
+    this.host.view.schedule();
+  }
+
+  overlay(): Record<string, unknown> | null { return this.visualize ? { spots: this.visLevel } : null; }
+
+  private readonly variantsRow =el('<div class="fl-row fl-spot-vars" hidden><span class="fl-row-label">Variations</span><div class="cv-seg fl-seg-sm fl-grow"></div><button class="cv-btn fl-btn-sm" type="button" data-var="more" title="Make three new fills">Refresh</button></div>');
 
   private syncVariants(): void {
     const s = this.spots()[this.sel];
@@ -473,6 +631,7 @@ export class SpotTool implements Tool {
       return true;
     }
     if (combo === 'Escape') { this.host.done(); return true; }
+    if (combo === 'A') { this.setVisualize(!this.visualize); return true; }
     return false;
   }
 

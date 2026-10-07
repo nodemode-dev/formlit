@@ -29,6 +29,7 @@ export class LeftPanels {
   private menu: PopupMenu;
   private ctxPreset: Preset | null = null;
   private ctxSnap: number | null = null;
+  private ctxStep: number | null = null;
   private presetDialog: PresetDialog | null = null;
   private hoverTimer = 0;
   private hoverSeq = 0;
@@ -99,7 +100,7 @@ export class LeftPanels {
       if (!row) return;
       e.preventDefault();
       this.ctxSnap = Number(row.dataset.snap);
-      this.menu.setItems(['dev.snapUpdate', 'dev.snapRename', '-', 'dev.snapDelete']);
+      this.menu.setItems(['dev.snapUpdate', 'dev.snapRename', 'dev.snapBefore', '-', 'dev.snapDelete']);
       this.menu.openAt(e.clientX, e.clientY);
     });
     pSnap.body.appendChild(this.snaps);
@@ -117,6 +118,14 @@ export class LeftPanels {
     this.history.addEventListener('click', (e) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>('[data-step]');
       if (row && develop.id !== null) void develop.flush().then(() => this.ctx.api.cmd('develop.historyRestore', { id: develop.id, step: Number(row.dataset.step) })).catch((err) => this.ctx.fail(err));
+    });
+    this.history.addEventListener('contextmenu', (e) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>('[data-step]');
+      if (!row) return;
+      e.preventDefault();
+      this.ctxStep = Number(row.dataset.step);
+      this.menu.setItems(['dev.histBefore', '-', 'develop.copyAfterToBefore', 'develop.resetBefore']);
+      this.menu.openAt(e.clientX, e.clientY);
     });
     pHist.body.appendChild(this.history);
 
@@ -151,6 +160,8 @@ export class LeftPanels {
       { id: 'preset.importFiles', label: 'Import Develop Profiles and Presets...', run: () => this.pickPresetFiles() },
       { id: 'dev.snapUpdate', label: 'Update with Current Settings', run: () => { const s = this.ctxSnap; if (s) void develop.flush().then(() => ctx.api.cmd('snapshot.update', { snapshot: s, settings: true })).then(() => toast('Snapshot updated'), (e) => ctx.fail(e)); }, enabled: () => this.ctxSnap !== null },
       { id: 'dev.snapRename', label: 'Rename...', run: async () => { const s = this.ctxSnap; if (s === null) return; const row = this.snaps.querySelector<HTMLElement>(`[data-snap="${s}"] span`); const name = await promptName('Rename Snapshot', row?.textContent ?? '', 'Rename'); if (name) { await ctx.api.cmd('snapshot.update', { snapshot: s, name }).catch((e) => ctx.fail(e)); this.loadSnaps(); } }, enabled: () => this.ctxSnap !== null },
+      { id: 'dev.snapBefore', label: 'Copy Snapshot Settings to Before', run: () => { const s = this.ctxSnap; if (s !== null && develop.id !== null) void ctx.api.cmd('develop.setBefore', { id: develop.id, source: 'snapshot', snapshot: s }).then(() => toast('Before now shows the snapshot'), (e) => ctx.fail(e)); }, enabled: () => this.ctxSnap !== null },
+      { id: 'dev.histBefore', label: 'Copy History Step Settings to Before', run: () => { const s = this.ctxStep; if (s !== null && develop.id !== null) void ctx.api.cmd('develop.setBefore', { id: develop.id, source: 'history', step: s }).then(() => toast('Before now shows that history step'), (e) => ctx.fail(e)); }, enabled: () => this.ctxStep !== null },
       { id: 'dev.snapDelete', label: 'Delete', run: () => { const s = this.ctxSnap; if (s !== null) void ctx.api.cmd('snapshot.delete', { snapshot: s }).then(() => this.loadSnaps(), (e) => ctx.fail(e)); }, enabled: () => this.ctxSnap !== null },
       { id: 'develop.snapshot', label: 'New Snapshot...', keys: ['Mod+N'], run: async () => {
         if (develop.id === null) return;

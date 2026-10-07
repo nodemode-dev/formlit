@@ -274,9 +274,14 @@ export class DevelopView {
   private async renderBefore(p: Photo): Promise<void> {
     this.beforeFor = `${p.id}:${p.rev}`;
     try {
-      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ defaults: true, long: this.renderLong(), view: 'before', crop: true }) });
+      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ before: true, long: this.renderLong(), view: 'before', crop: true }) });
       if (r.ok) await this.before.swap(await r.blob());
     } catch { this.beforeFor = ''; }
+  }
+
+  beforeChanged(): void {
+    this.beforeFor = '';
+    if (this.compare !== 'off' && this.photo) void this.renderBefore(this.photo);
   }
 
   private scheduleRegion(ms: number): void {

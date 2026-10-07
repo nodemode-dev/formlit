@@ -88,7 +88,10 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
     if row is None:
         return _missing(pid)
     dev = body.get("settings")
-    if body.get("defaults"):
+    if body.get("before"):
+        from app.engine.cmd_develop import before_of
+        dev = before_of(pid)
+    elif body.get("defaults"):
         from app.develop.settings import defaults_for
         dev = defaults_for(str(cat.scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or ""))
     elif dev is None:

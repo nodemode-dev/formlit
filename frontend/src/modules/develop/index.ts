@@ -1,4 +1,5 @@
 import type { Ctx } from '../../app';
+import { events } from '../../io/events';
 import { develop } from '../../state/develop';
 import { library } from '../../state/library';
 import { Dialog } from '../../ui/dialogs';
@@ -77,6 +78,7 @@ class DevelopModule {
     this.hosts = hosts;
     this.view = new DevelopView();
     hosts.stage.appendChild(this.view.root);
+    events.on('before', (e) => { if (Number(e.id) === develop.id) this.view.beforeChanged(); });
     this.drawer = el('<div class="fl-drawer" hidden></div>');
     const strip = toolStrip();
     void develop.init().then(() => {
@@ -289,6 +291,10 @@ class DevelopModule {
       { id: 'develop.beforeAfter', label: 'Before/After Left/Right', keys: ['Y'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'lr' ? 'off' : 'lr'); }, checked: () => this.view.compare === 'lr' },
       { id: 'develop.before', label: 'Show Before', keys: ['\\'], run: () => { if (ctx.module() === 'develop') this.setCompare(this.view.compare === 'before' ? 'off' : 'before'); else ctx.run('view.filterBar'); }, checked: () => this.view.compare === 'before' },
       { id: 'develop.loupe', label: 'Loupe', run: () => this.setCompare('off') },
+      { id: 'develop.copyAfterToBefore', label: "Copy After's Settings to Before", keys: ['Alt+Shift+Mod+Left'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.setBefore', { id: develop.id, source: 'after' })).then(() => toast('Before now matches After'), (e) => ctx.fail(e)); }, enabled: has },
+      { id: 'develop.copyBeforeToAfter', label: "Copy Before's Settings to After", keys: ['Alt+Shift+Mod+Right'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.beforeToAfter', { id: develop.id })).catch((e) => ctx.fail(e)); }, enabled: has },
+      { id: 'develop.swapBeforeAfter', label: 'Swap Before and After Settings', keys: ['Alt+Shift+Mod+Up'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.beforeToAfter', { id: develop.id, swap: true })).catch((e) => ctx.fail(e)); }, enabled: has },
+      { id: 'develop.resetBefore', label: 'Reset Before to Defaults', run: () => { if (develop.id !== null) void ctx.api.cmd('develop.setBefore', { id: develop.id, source: 'defaults' }).catch((e) => ctx.fail(e)); }, enabled: has },
       { id: 'develop.tool.crop', label: 'Crop and Straighten', keys: ['R'], run: tool('crop'), checked: () => this.toolId === 'crop' },
       { id: 'develop.tool.spot', label: 'Healing', keys: ['Q'], run: tool('spot'), checked: () => this.toolId === 'spot' },
       { id: 'develop.tool.redeye', label: 'Red Eye Correction', keys: ['Shift+E'], run: tool('redeye'), checked: () => this.toolId === 'redeye' },

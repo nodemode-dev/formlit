@@ -628,3 +628,56 @@ def snapshot_delete(snapshot: int) -> dict:
     with cat().change("Delete Snapshot") as ch:
         ch.delete("snapshots", id=int(snapshot))
     return {"snapshot": int(snapshot)}
+
+
+def before_of(pid: int) -> dict:
+    got = cat().get_meta(f"before:{pid}", None)
+    if isinstance(got, dict):
+        return got
+    return S.defaults_for(str(cat().scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or ""))
+
+
+@command("develop.before", "Before Settings", {"id": {"type": "integer"}}, mutates=False)
+def before_get(id: int | None = None) -> dict:
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    return {"id": pid, "settings": before_of(pid), "custom": isinstance(cat().get_meta(f"before:{pid}", None), dict)}
+
+
+@command("develop.setBefore", "Set Before", {"id": {"type": "integer"}, "source": {"type": "string", "enum": ["after", "defaults", "history", "snapshot"]},
+                                             "step": {"type": "integer"}, "snapshot": {"type": "integer"}})
+def before_set(source: str = "after", id: int | None = None, step: int | None = None, snapshot: int | None = None) -> dict:
+    from app.engine import events
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    if source == "after":
+        dev, label = current(pid)[0], "Copy After to Before"
+    elif source == "history":
+        r = cat().row("SELECT settings, name FROM history WHERE id=? AND photo_id=?", (int(step or 0), pid))
+        if r is None:
+            raise CommandError("No such history step")
+        dev, label = json.loads(r["settings"]), f"Before: {r['name']}"
+    elif source == "snapshot":
+        r = cat().row("SELECT settings, name FROM snapshots WHERE id=? AND photo_id=?", (int(snapshot or 0), pid))
+        if r is None:
+            raise CommandError("No such snapshot")
+        dev, label = json.loads(r["settings"]), f"Before: {r['name']}"
+    else:
+        dev, label = None, "Reset Before"
+    with cat().change(label) as ch:
+        ch.set_meta(f"before:{pid}", dev)
+    events.publish("before", id=pid)
+    return {"id": pid, "label": label}
+
+
+@command("develop.beforeToAfter", "Copy Before to After", {"id": {"type": "integer"}, "swap": {"type": "boolean"}})
+def before_to_after(id: int | None = None, swap: bool = False) -> dict:
+    from app.engine import events
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    now = current(pid)[0]
+    label = "Swap Before and After" if swap else "Copy Before to After"
+    with cat().change(label) as ch:
+        store(ch, pid, copy.deepcopy(before_of(pid)), label)
+        if swap:
+            ch.set_meta(f"before:{pid}", now)
+    after([pid])
+    events.publish("before", id=pid)
+    return {"id": pid}
