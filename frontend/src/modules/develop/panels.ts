@@ -361,7 +361,14 @@ export class DevelopPanels {
     this.sliders.sync();
     const bw = develop.settings.treatment === 'bw';
     for (const b of Array.from(this.treat.querySelectorAll<HTMLElement>('[data-t]'))) setClass(b, 'is-on', (b.dataset.t === 'bw') === bw);
-    setValue(this.profileSel, String((getPath(develop.settings, 'profile.id') as string | undefined) ?? 'fl.color'));
+    const pid = String((getPath(develop.settings, 'profile.id') as string | undefined) ?? 'fl.color');
+    setValue(this.profileSel, pid);
+    const amount = this.sliders.sliders.get('profile.amount');
+    const fixed = !this.profiles.find((p) => p.id === pid)?.table;
+    if (amount && amount.root.inert !== fixed) {
+      amount.root.inert = fixed;
+      setClass(amount.root, 'is-inert', fixed);
+    }
     setValue(this.wbSel, develop.wbMode());
     for (const p of this.panels) p.sync();
     this.curve.sync();

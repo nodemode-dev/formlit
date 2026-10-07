@@ -25,7 +25,7 @@ export interface ControlsDoc {
   aspects: Array<{ id: string; label: string; ratio: [number, number] | null }>;
 }
 
-export interface Profile { id: string; group: string; name: string; mono: boolean; raw: boolean }
+export interface Profile { id: string; group: string; name: string; mono: boolean; raw: boolean; table?: boolean; dcp?: boolean }
 
 export interface DevInfo {
   id: number;
@@ -40,6 +40,7 @@ export interface DevInfo {
   width: number;
   height: number;
   profiles: Profile[];
+  cameraStyle?: string | null;
 }
 
 type Fn = (why: string) => void;

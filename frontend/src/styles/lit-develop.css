@@ -25,6 +25,7 @@
 .fl-spot-remove [hidden] { display: none; }
 
 .fl-sl { display: grid; grid-template-columns: minmax(0, 1fr) 54px; grid-template-rows: 16px 16px; align-items: center; column-gap: 8px; padding: 2px 0; }
+.fl-sl.is-inert { opacity: 0.4; }
 .fl-sl[hidden] { display: none; }
 .fl-sl-label { color: var(--text-secondary); font-size: var(--fs-11); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
 .fl-sl.is-changed .fl-sl-label { color: var(--text-primary); }
@@ -164,6 +165,8 @@
 .fl-pb-bar { display: flex; align-items: center; gap: 12px; }
 .fl-pb-filter { width: 160px; flex: none; }
 .fl-pb-hint, .fl-pb-status { color: var(--text-muted); font-size: var(--fs-11); }
+.fl-pb-note { color: var(--text-muted); font-size: var(--fs-11); margin-top: 6px; }
+.fl-pb-note.is-empty { display: none; }
 .fl-pb-status { margin-right: auto; font-variant-numeric: tabular-nums; }
 .fl-pb-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; height: min(60vh, 560px); overflow-y: auto; align-content: start; padding: 2px; }
 .fl-pb-head { grid-column: 1 / -1; padding: 6px 2px 0; color: var(--text-secondary); font-size: var(--fs-11); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }

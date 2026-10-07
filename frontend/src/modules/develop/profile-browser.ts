@@ -15,6 +15,7 @@ export class ProfileBrowser extends Dialog {
   private readonly filter = el<HTMLSelectElement>('<select class="cv-select fl-pb-filter" aria-label="Show profiles"></select>');
   private readonly grid = el('<div class="fl-pb-grid"></div>');
   private readonly status = el('<span class="fl-pb-status"></span>');
+  private readonly note = el('<div class="fl-pb-note"></div>');
   private readonly urls = new Map<string, string>();
   private favorites = new Set<string>();
   private stamp = '';
@@ -25,7 +26,7 @@ export class ProfileBrowser extends Dialog {
     q<HTMLElement>(this.scrim, '.cv-dialog').classList.add('fl-pb');
     const bar = el('<div class="fl-pb-bar"><span class="fl-pb-hint">Click a profile to apply it, double-click to apply and close. The star keeps it in Favorites.</span></div>');
     bar.prepend(this.filter);
-    this.body.append(bar, this.grid);
+    this.body.append(bar, this.note, this.grid);
     this.status.classList.add('cv-btn-apart');
     this.foot.appendChild(this.status);
     this.button('Close', 'primary', () => this.close());
@@ -53,6 +54,7 @@ export class ProfileBrowser extends Dialog {
     void this.ready.then(() => {
       if (this.isOpen) return;
       this.fillFilter();
+      this.writeNote();
       this.paint();
       this.open(this.filter);
       void this.renderAll();
@@ -68,18 +70,29 @@ export class ProfileBrowser extends Dialog {
     return String((develop.settings.profile as { id?: string } | undefined)?.id ?? 'fl.color');
   }
 
+  private writeNote(): void {
+    const info = develop.info;
+    const style = info?.cameraStyle ? info.profiles.find((p) => p.id === info.cameraStyle)?.name : undefined;
+    const text = !info?.raw ? '' : style ? `Camera Look matches this photo as it was shot (${style}); the other camera styles are built from it.`
+      : 'The camera styles assume this photo was shot in the camera\'s standard style; Camera Look always matches it as shot.';
+    setText(this.note, text);
+    setClass(this.note, 'is-empty', !text);
+  }
+
   private fillFilter(): void {
-    const groups = ['All', 'Favorites', ...new Set(this.profiles().map((p) => p.group))];
+    const groups = ['All', 'Favorites', 'type:color', 'type:bw', ...new Set(this.profiles().map((p) => p.group))];
     const have = Array.from(this.filter.options).map((o) => o.value).join('|');
     if (have === groups.join('|')) return;
     const keep = this.filter.value || 'All';
-    this.filter.replaceChildren(...groups.map((g) => new Option(g, g)));
+    const label = (g: string) => (g === 'type:color' ? 'Color profiles' : g === 'type:bw' ? 'B&W profiles' : g);
+    this.filter.replaceChildren(...groups.map((g) => new Option(label(g), g)));
     this.filter.value = groups.includes(keep) ? keep : 'All';
   }
 
   private rows(): Row[] {
-    const show = this.filter.value || 'All';
-    const list = this.profiles();
+    const kind = this.filter.value.startsWith('type:') ? this.filter.value : '';
+    const show = kind ? 'All' : this.filter.value || 'All';
+    const list = this.profiles().filter((p) => !kind || (kind === 'type:bw') === p.mono);
     const out: Row[] = [];
     const favs = list.filter((p) => this.favorites.has(p.id));
     if ((show === 'All' || show === 'Favorites') && favs.length) {
