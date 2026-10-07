@@ -146,7 +146,6 @@ Profile · White balance and color · Light · Tone curve (parametric) · Color 
 | `detail.nrColor` | Color Noise Reduction | 0 | 100 | 0 |
 | `detail.nrColorDetail` | Detail | 0 | 100 | 50 |
 | `detail.nrColorSmoothness` | Smoothness | 0 | 100 | 50 |
-| `detail.nrDenoise` | Denoise | 0 | 100 | 0 |
 
 ## Lens corrections
 
@@ -229,6 +228,8 @@ These keys go in the `adjust` object of `add_ai_mask` and `add_gradient_mask`. `
 | `moire` | Moire | -100 | 100 |
 | `defringe` | Defringe | -100 | 100 |
 | `amount` | Amount | 0 | 200 |
+
+More keys sit beside the sliders: `colorHue` and `colorSat` tint the masked area, `pointColors` takes up to eight local point colours shaped like the global ones, and `curve` takes a point curve `{"master": [[x, y], ...], "red": [...], "green": [...], "blue": [...]}` with x and y from 0 to 1, applied through the mask after the global tone.
 
 ## White balance presets
 
