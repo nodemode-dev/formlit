@@ -4,9 +4,16 @@ const FRONTEND_PORT = 5390;
 const BACKEND_PORT = 8390;
 const engine = { target: `http://127.0.0.1:${BACKEND_PORT}`, changeOrigin: true };
 
+const devFontPreloads = {
+  name: 'formlit-dev-font-preloads',
+  apply: 'serve' as const,
+  transformIndexHtml: (html: string) => html.replace(/\s*<link rel="preload" href="[^"]+\.woff2" as="font"[^>]*>/g, ''),
+};
+
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  plugins: [devFontPreloads],
   server: {
     fs: { allow: ['..'] },
     port: FRONTEND_PORT,
