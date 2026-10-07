@@ -648,13 +648,15 @@ def read_metadata(ids: Any = None) -> dict:
                 continue
             x = metadata.read_xmp(p)
             cols: dict = {}
-            r = c.row("SELECT kind, camera FROM photos WHERE id=?", (pid,))
+            r = c.row("SELECT kind, camera, capture_time, file_mtime, gps_lat, gps_lon, gps_alt, gps_dir FROM photos WHERE id=?", (pid,))
             e = metadata.read_exif(p) if r and not r["camera"] and r["kind"] != "video" else {}
             if e.get("camera"):
                 cols.update(camera=e["camera"], lens=e.get("lens", ""), focal=e.get("focal"), aperture=e.get("aperture"), shutter=e.get("shutter"),
-                            iso=e.get("iso"), bias=e.get("bias"), flash=e.get("flash"), gps_lat=e.get("gpsLat"), gps_lon=e.get("gpsLon"),
-                            gps_alt=e.get("gpsAlt"), gps_dir=e.get("gpsDir"), exif=e)
-                if e.get("captureTime"):
+                            iso=e.get("iso"), bias=e.get("bias"), flash=e.get("flash"), exif=e)
+                cols.update({col: e[key] for key, col in (("gpsLat", "gps_lat"), ("gpsLon", "gps_lon"), ("gpsAlt", "gps_alt"), ("gpsDir", "gps_dir"))
+                             if e.get(key) is not None and r[col] is None})
+                fallback = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(r["file_mtime"])) if r["file_mtime"] else None
+                if e.get("captureTime") and r["capture_time"] in (None, "", fallback):
                     cols["capture_time"] = e["captureTime"]
             if "rating" in x:
                 cols["rating"] = max(0, min(5, int(x["rating"])))
