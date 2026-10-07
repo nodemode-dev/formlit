@@ -23,7 +23,7 @@ from app.services import previews, rename
 DEFAULTS: dict = {
     "destination": {"folder": "", "subfolder": "", "useSubfolder": False, "sameAsOriginal": False, "existing": "unique", "addToCatalog": False, "stack": False},
     "naming": {"rename": False, "template": "{name}", "custom": "", "start": 1, "case": "keep"},
-    "file": {"format": "jpeg", "quality": 85, "limitKB": 0, "depth": 8, "compression": "none", "space": "srgb"},
+    "file": {"format": "jpeg", "quality": 85, "limitKB": 0, "depth": 8, "compression": "none", "space": "srgb", "hdr": False, "hdrStops": "2"},
     "size": {"resize": False, "mode": "long", "w": 2048, "h": 2048, "value": 2048, "mp": 12.0, "percent": 50, "noEnlarge": True, "ppi": 240},
     "sharpen": {"on": False, "for": "screen", "amount": "standard"},
     "metadata": {"include": "all", "removePerson": True, "removeLocation": False},
@@ -42,6 +42,8 @@ BUILTIN = [
                                                                             "sharpen": {"on": True, "for": "matte", "amount": "standard"}}},
     {"id": "builtin.original", "name": "Original Files", "settings": {"file": {"format": "original"}}},
     {"id": "builtin.dng", "name": "DNG with Edits", "settings": {"file": {"format": "dng"}}},
+    {"id": "builtin.hdr", "name": "Ultra HDR JPEG (gain map)", "settings": {"file": {"format": "jpeg", "quality": 90, "space": "srgb", "hdr": True, "hdrStops": "2"},
+                                                                     "size": {"resize": True, "mode": "long", "value": 3840}}},
 ]
 SHARPEN = {"screen": (0.6, {"low": 0.35, "standard": 0.6, "high": 0.9}), "matte": (1.0, {"low": 0.55, "standard": 0.85, "high": 1.25}),
            "glossy": (0.8, {"low": 0.4, "standard": 0.65, "high": 1.0})}
@@ -254,16 +256,30 @@ def _export_keywords() -> set[str] | None:
     return {cat.keyword_path(int(r["id"])) for r in cat.rows("SELECT id FROM keywords WHERE export=1")}
 
 
+def trim_args(rec: dict) -> list[str]:
+    t = (rec.get("develop") or {}).get("video") or {}
+    a, b = float(t.get("trimStart") or 0), float(t.get("trimEnd") or 0)
+    out = ["-ss", f"{a:.3f}"] if a > 0 else []
+    if b > a:
+        out += ["-t", f"{b - a:.3f}"]
+    return out
+
+
 def _video(rec: dict, s: dict, dest: Path) -> Path:
     v = s["video"]
     src = Path(rec["path"])
-    if v.get("format") == "original" or not shutil.which("ffmpeg"):
+    trim = trim_args(rec)
+    if not shutil.which("ffmpeg") or (v.get("format") == "original" and not trim):
         shutil.copy2(src, dest.with_suffix(src.suffix.lower()))
         return dest.with_suffix(src.suffix.lower())
+    if v.get("format") == "original":
+        out = dest.with_suffix(src.suffix.lower())
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *trim, "-i", str(src), "-c", "copy", "-map", "0", str(out)], check=True)
+        return out
     out = dest.with_suffix(".mp4")
     crf = {"max": "16", "high": "20", "medium": "24", "low": "28"}.get(v.get("quality", "high"), "20")
     scale = ["-vf", "scale='min(1920,iw)':-2"] if v.get("quality") in ("medium", "low") else []
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), *scale, "-c:v", "libx264", "-preset", "medium", "-crf", crf,
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *trim, "-i", str(src), *scale, "-c:v", "libx264", "-preset", "medium", "-crf", crf,
                     "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)], check=True)
     return out
 
@@ -309,6 +325,15 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: set[str] | None) -> Path 
         return None
     ppi = int(s["size"].get("ppi", 240))
     space = f.get("space", "srgb")
+    if fmt == "jpeg" and f.get("hdr"):
+        from app.output import gainmap
+        sdr, gain = gainmap.render_pair(pid, s["size"], rec.get("develop") or {}, max(0.5, min(4.0, float(f.get("hdrStops", 2)))))
+        sdr = watermark(sharpen(sdr, s["sharpen"], ppi), s["watermark"], rec)
+        data = gainmap.ultrahdr(sdr, gain, int(f.get("quality", 85)), ppi, encode.exif_bytes(meta_rec, sdr.shape[1], sdr.shape[0], ppi))
+        tmp = dest.with_name(dest.name + ".part")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
+        return dest
     out = render_photo(pid, s["size"], space)
     out = sharpen(out, s["sharpen"], ppi)
     out = watermark(out, s["watermark"], rec)

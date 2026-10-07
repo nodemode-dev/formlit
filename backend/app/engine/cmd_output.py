@@ -411,6 +411,53 @@ def publish_run(collection: int, wait: bool = False) -> dict:
     return _wait(tasks.start("publish", f"Publishing {name}", lambda progress: publish.run(int(collection), progress)), wait)
 
 
+@command("video.trim", "Trim Video", {"id": {"type": "integer"}, "start": {"type": "number", "description": "seconds"}, "end": {"type": "number", "description": "seconds, 0 for the end"}})
+def video_trim(id: int, start: float = 0.0, end: float = 0.0) -> dict:
+    from app.engine.cmd_develop import after, current, store
+    pid = int(id)
+    if (cat().scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or "") != "video":
+        raise CommandError("Trim works on videos")
+    start, end = max(0.0, float(start)), max(0.0, float(end))
+    if end and end <= start:
+        raise CommandError("The out point must come after the in point")
+    dev, _ = current(pid)
+    new = json.loads(json.dumps(dev))
+    if start or end:
+        new["video"] = {"trimStart": round(start, 3), "trimEnd": round(end, 3)}
+    else:
+        new.pop("video", None)
+    with cat().change("Trim Video") as ch:
+        store(ch, pid, new, "Trim Video")
+    after([pid])
+    return {"id": pid, "trimStart": start, "trimEnd": end}
+
+
+@command("video.captureFrame", "Capture Frame", {"id": {"type": "integer"}, "time": {"type": "number", "description": "seconds into the video"}})
+def video_capture_frame(id: int, time: float = 0.0) -> dict:
+    import subprocess
+    from app.engine.cmd_library import stack_group
+    from app.services import importer
+    pid = int(id)
+    src = cat().photo_path(pid)
+    if src is None or not src.is_file():
+        raise CommandError("The video file is missing")
+    if not shutil.which("ffmpeg"):
+        raise CommandError("Capture Frame needs ffmpeg installed")
+    t = max(0.0, float(time))
+    out = rename.unique(src.with_name(f"{src.stem}-frame-{int(t * 1000):07d}.jpg"))
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t:.3f}", "-i", str(src), "-frames:v", "1", "-q:v", "2", str(out)], capture_output=True, text=True)
+    if r.returncode or not out.is_file():
+        raise CommandError(f"ffmpeg could not read a frame at {t:.2f} s: {r.stderr.strip()[:200]}")
+    res = importer.import_files([str(out)], "add", "", "", "", "", None, None, None, None, False, False)
+    ids = [int(i) for i in res.get("ids") or []]
+    if ids:
+        try:
+            stack_group([pid] + ids)
+        except CommandError:
+            pass
+    return {"ids": ids, "path": str(out)}
+
+
 @command("photo.setGps", "Set Location", {"ids": {"type": "array"}, "lat": {"type": "number"}, "lon": {"type": "number"}, "alt": {"type": "number"}})
 def photo_set_gps(ids: Any = None, lat: float | None = None, lon: float | None = None, alt: float | None = None) -> dict:
     pids = resolve_ids(ids)

@@ -20,6 +20,7 @@ import { Painter } from './painter';
 import { PeoplePanel } from './people';
 import { PublishPanel } from './publish';
 import { SourcePanels } from './sources';
+import { VideoPlayer } from './video-player';
 
 type View = 'grid' | 'loupe' | 'compare' | 'survey';
 
@@ -35,6 +36,7 @@ class LibraryModule {
   private grid!: ThumbGrid;
   private loupe!: Viewer;
   private faces!: FaceRegions;
+  private video!: VideoPlayer;
   private compareA!: Viewer;
   private compareB!: Viewer;
   private filter!: FilterBar;
@@ -116,6 +118,8 @@ class LibraryModule {
     loupeWrap.appendChild(this.loupe.root);
     this.faces = new FaceRegions(this.ctx, this.loupe);
     loupeWrap.appendChild(this.faces.bar);
+    this.video = new VideoPlayer(this.ctx);
+    loupeWrap.appendChild(this.video.root);
     const compareWrap = el(`<div class="fl-lib-view fl-lib-compare" hidden><div class="fl-compare-pane"><div class="fl-compare-tag">Select</div></div><div class="fl-compare-pane"><div class="fl-compare-tag">Candidate</div></div><div class="fl-compare-bar"><button class="cv-icon-btn is-on" type="button" data-cmp="link" aria-label="Link Focus" title="Link Focus: zoom and pan both photos together">${icon('link', 15)}</button><div class="cv-seg fl-seg-sm" data-cmp-zoom><button type="button" data-z="fit">Fit</button><button type="button" data-z="fill">Fill</button><button type="button" data-z="1">1:1</button><button type="button" data-z="2">2:1</button></div><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.swapCompare">Swap</button><button class="cv-btn fl-btn-sm" type="button" data-cmd="library.makeSelect">Make Select</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-cmd="view.loupe">Done</button></div></div>`);
     compareWrap.children[0].appendChild(this.compareA.root);
     compareWrap.children[1].appendChild(this.compareB.root);
@@ -265,7 +269,7 @@ class LibraryModule {
   private selectionChanged(): void {
     if (!this.active && this.ctx.module() !== 'library') return;
     const p = library.photo(library.active) ?? null;
-    if (this.view === 'loupe') { void this.loupe.show(p); this.faces.show(p?.id ?? null); }
+    if (this.view === 'loupe') { void this.loupe.show(p); this.faces.show(p?.id ?? null); void this.video.show(p); } else void this.video.show(null);
     if (this.view === 'compare') this.renderCompare();
     if (this.view === 'survey') this.renderSurvey();
     const n = library.selected().length;
@@ -344,6 +348,7 @@ class LibraryModule {
   }
 
   onKey(_e: KeyboardEvent, combo: string): boolean {
+    if (this.view === 'loupe' && this.video.key(combo)) return true;
     if (this.view === 'grid' && (combo === 'Up' || combo === 'Down' || combo === 'Shift+Up' || combo === 'Shift+Down')) {
       const d = (combo.endsWith('Up') ? -1 : 1) * this.grid.columns;
       library.step(d, combo.startsWith('Shift'));
