@@ -16,7 +16,7 @@ from app.services import importer, metadata, previews, rename
 
 FLAG_NAMES = {"pick": 1, "reject": -1, "none": 0, "unflag": 0, "unflagged": 0}
 COLLECTION_KINDS = {"collection": "Collection", "set": "Collection Set", "smart": "Smart Collection", "book": "Book", "print": "Print",
-                    "slideshow": "Slideshow", "web": "Web Gallery", "published": "Published Collection"}
+                    "slideshow": "Slideshow", "web": "Web Gallery", "published": "Published Collection", "publishedSet": "Published Collection Set"}
 
 
 def cat():
@@ -721,7 +721,7 @@ def collection_create(name: str, kind: str = "collection", parent: int | None = 
             for o in c.db.execute("SELECT id FROM collections WHERE target=1").fetchall():
                 ch.update("collections", int(o["id"]), target=0)
             ch.update("collections", cid, target=1)
-        if kind not in ("set", "smart"):
+        if kind not in ("set", "smart", "publishedSet") and not rules:
             for i, pid in enumerate(ids or []):
                 ch.insert("collection_photos", collection_id=cid, photo_id=int(pid), position=i)
     return {"id": cid}
@@ -753,6 +753,7 @@ def collection_delete(id: int) -> dict:
         todo = [int(id)] + query.collection_descendants(c, int(id))
         for cid in todo:
             ch.delete("collection_photos", collection_id=cid)
+            ch.delete("published", collection_id=cid)
             ch.delete("collections", id=cid)
     return {"deleted": todo}
 

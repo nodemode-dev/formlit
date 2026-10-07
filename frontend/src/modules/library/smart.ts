@@ -58,10 +58,14 @@ class SmartDialog extends Dialog {
     this.button('Save', 'primary', () => void this.save());
   }
 
-  edit(c: CollectionRow | null, parent: number | null): void {
+  private extra: Record<string, unknown> = {};
+
+  edit(c: CollectionRow | null, parent: number | null, extra: Record<string, unknown> = {}): void {
     this.target = c;
     this.parent = parent;
-    this.setTitle(c ? `Edit Smart Collection: ${c.name}` : 'Create Smart Collection');
+    this.extra = extra;
+    const what = extra.kind === 'published' ? 'Smart Published Collection' : 'Smart Collection';
+    this.setTitle(c ? `Edit ${what}: ${c.name}` : `Create ${what}`);
     this.name.value = c?.name ?? 'Smart Collection';
     const rules = (c?.rules as { match?: string; rules?: Rule[] } | null) ?? { match: 'all', rules: [{ field: 'rating', op: '>=', value: 3 }] };
     this.match.value = rules.match ?? 'all';
@@ -113,7 +117,7 @@ class SmartDialog extends Dialog {
     const name = this.name.value.trim() || 'Smart Collection';
     try {
       if (this.target) await this.ctx.api.cmd('collection.update', { id: this.target.id, name, rules });
-      else await this.ctx.api.cmd('collection.create', { name, kind: 'smart', rules, parent: this.parent });
+      else await this.ctx.api.cmd('collection.create', { name, kind: 'smart', rules, parent: this.parent, ...this.extra });
       this.close();
     } catch (err) { this.ctx.fail(err); }
   }
@@ -121,7 +125,7 @@ class SmartDialog extends Dialog {
 
 let dialog: SmartDialog | null = null;
 
-export function openSmartCollection(ctx: Ctx, c: CollectionRow | null, parent: number | null = null): void {
+export function openSmartCollection(ctx: Ctx, c: CollectionRow | null, parent: number | null = null, extra: Record<string, unknown> = {}): void {
   dialog ??= new SmartDialog(ctx);
-  dialog.edit(c, parent);
+  dialog.edit(c, parent, extra);
 }

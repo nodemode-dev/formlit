@@ -16,9 +16,19 @@ def services() -> list[dict]:
     out = []
     for r in cat.rows("SELECT * FROM publish_services ORDER BY name COLLATE NOCASE"):
         sid = int(r["id"])
+        rows = cat.rows("SELECT id, name, kind, parent_id, rules FROM collections WHERE kind IN ('published', 'publishedSet') AND service_id=? ORDER BY kind='publishedSet' DESC, name COLLATE NOCASE", (sid,))
+        kids: dict = {}
+        for c in rows:
+            kids.setdefault(c["parent_id"], []).append(c)
         cols = []
-        for c in cat.rows("SELECT id, name FROM collections WHERE kind='published' AND service_id=? ORDER BY name COLLATE NOCASE", (sid,)):
-            cols.append(dict(status(int(c["id"])), id=int(c["id"]), name=c["name"]))
+
+        def walk(parent: Any, depth: int) -> None:
+            for c in kids.get(parent, []):
+                base = {"id": int(c["id"]), "name": c["name"], "depth": depth, "parent": c["parent_id"], "set": c["kind"] == "publishedSet",
+                        "smart": bool(c["rules"]), "rules": loads(c["rules"], None)}
+                cols.append(base if base["set"] else dict(status(int(c["id"])), **base))
+                walk(int(c["id"]), depth + 1)
+        walk(None, 0)
         st = loads(r["settings"], {})
         safe = {k: v for k, v in st.items() if k != "password"}
         out.append({"id": sid, "kind": r["kind"], "name": r["name"], "label": KINDS.get(r["kind"], r["kind"]), "settings": safe, "collections": cols})
@@ -27,7 +37,11 @@ def services() -> list[dict]:
 
 def status(cid: int) -> dict:
     cat = catalog_mod.get()
-    members = [int(r["photo_id"]) for r in cat.rows("SELECT photo_id FROM collection_photos WHERE collection_id=? ORDER BY position", (cid,))]
+    if cat.scalar("SELECT rules FROM collections WHERE id=?", (cid,)):
+        from app.engine import query
+        members = query.query(cat, {"kind": "collection", "id": cid}, stacks=False)["ids"]
+    else:
+        members = [int(r["photo_id"]) for r in cat.rows("SELECT photo_id FROM collection_photos WHERE collection_id=? ORDER BY position", (cid,))]
     pub = {int(r["photo_id"]): r for r in cat.rows("SELECT * FROM published WHERE collection_id=?", (cid,))}
     new, modified, done = [], [], []
     for pid in members:
@@ -43,6 +57,37 @@ def status(cid: int) -> dict:
             done.append(pid)
     removed = [pid for pid in pub if pid not in set(members)]
     return {"new": new, "modified": modified, "published": done, "removed": removed}
+
+
+def mark(cid: int, ids: list[int] | None, up_to_date: bool) -> list[int]:
+    cat = catalog_mod.get()
+    st = status(cid)
+    members = set(st["new"] + st["modified"] + st["published"])
+    targets = [p for p in ids if p in members] if ids else (st["new"] + st["modified"] if up_to_date else st["published"])
+    pub = {int(r["photo_id"]): r for r in cat.rows("SELECT * FROM published WHERE collection_id=?", (cid,))}
+    with cat.change("Mark as Up-to-Date" if up_to_date else "Mark to Republish", undoable=False) as ch:
+        for pid in targets:
+            old = pub.get(pid)
+            if not up_to_date and old is None:
+                continue
+            rev = int(cat.scalar("SELECT develop_rev FROM photos WHERE id=?", (pid,)) or 0) if up_to_date else -1
+            ch.delete("published", collection_id=cid, photo_id=pid)
+            ch.insert("published", collection_id=cid, photo_id=pid, rev=rev, remote=old["remote"] if old is not None else "",
+                      time=now_iso() if up_to_date or old is None else old["time"])
+    return targets
+
+
+def _names(cid: int) -> list[str]:
+    cat = catalog_mod.get()
+    out: list[str] = []
+    cur: Any = cid
+    while cur is not None and len(out) < 32:
+        r = cat.row("SELECT name, parent_id FROM collections WHERE id=?", (int(cur),))
+        if r is None:
+            break
+        out.insert(0, str(r["name"]).replace("/", "-").replace("\\", "-"))
+        cur = r["parent_id"]
+    return out
 
 
 def _service(cid: int) -> tuple[dict, dict]:
@@ -63,7 +108,8 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
     todo_state = status(cid)
     todo = todo_state["new"] + todo_state["modified"]
     settings = export.merged(st.get("export") or {})
-    staging = Path(st.get("folder") or export.merged({})["destination"]["folder"]).expanduser() / col["name"]
+    names = _names(cid) or [col["name"]]
+    staging = Path(st.get("folder") or export.merged({})["destination"]["folder"]).expanduser().joinpath(*names)
     if svc["kind"] == "ftp":
         from app.core import config
         staging = config.temp_dir() / "publish" / str(cid)
@@ -71,7 +117,7 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
     settings["destination"].update(folder=str(staging), useSubfolder=False, sameAsOriginal=False, existing="overwrite", addToCatalog=False)
     pub = {int(r["photo_id"]): r for r in cat.rows("SELECT * FROM published WHERE collection_id=?", (cid,))}
     ftp = web._ftp(st) if svc["kind"] == "ftp" else None
-    remote_root = posixpath.join(st.get("path") or "/", col["name"]) if ftp else ""
+    remote_root = posixpath.join(st.get("path") or "/", *names) if ftp else ""
     if ftp:
         web._mkdirs(ftp, remote_root)
     done, failed = [], []

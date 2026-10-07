@@ -269,15 +269,23 @@ def source_clause(cat: Catalog, source: dict, args: list) -> tuple[str, str | No
     if kind in ("collection", "quick"):
         cid = int(source["id"]) if kind == "collection" else int(cat.scalar("SELECT id FROM collections WHERE kind='quick'") or 0)
         crow = cat.row("SELECT kind, rules FROM collections WHERE id=?", (cid,))
-        if crow and crow["kind"] == "smart":
+        if crow and (crow["kind"] == "smart" or (crow["kind"] == "published" and crow["rules"])):
             import json
             return compile_rules(json.loads(crow["rules"] or "{}"), args), None
-        if crow and crow["kind"] == "set":
+        if crow and crow["kind"] in ("set", "publishedSet"):
+            import json
             kids = collection_descendants(cat, cid)
             if not kids:
                 return "0", None
-            args.extend(kids)
-            return f"EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id IN ({','.join('?' * len(kids))}))", None
+            smart = [(k, r["rules"]) for k in kids for r in [cat.row("SELECT kind, rules FROM collections WHERE id=?", (k,))] if r and r["rules"] and r["kind"] in ("smart", "published")]
+            plain = [k for k in kids if k not in {s[0] for s in smart}]
+            ors = []
+            if plain:
+                args.extend(plain)
+                ors.append(f"EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id IN ({','.join('?' * len(plain))}))")
+            for _, rules in smart:
+                ors.append(compile_rules(json.loads(rules or "{}"), args))
+            return "(" + " OR ".join(ors) + ")", None
         args.append(cid)
         return "EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id=?)", f"(SELECT position FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id={cid})"
     if kind == "keyword":

@@ -139,9 +139,11 @@
 
 .fl-pub { display: flex; flex-direction: column; gap: 1px; padding: 0 4px 8px; }
 .fl-pub-row { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 6px; border-radius: 5px; color: var(--text-secondary); font-size: var(--fs-11); }
+.fl-pub-row.is-set .cv-icon-btn { width: 20px; height: 20px; opacity: 0; }
+.fl-pub-row.is-set:hover .cv-icon-btn { opacity: 1; }
 .fl-pub-row .icon { flex: none; color: var(--text-muted); }
 .fl-pub-row.is-service { margin-top: 4px; color: var(--text-primary); font-weight: 500; }
-.fl-pub-row.is-col { padding-left: 20px; cursor: pointer; }
+.fl-pub-row.is-col { padding-left: calc(20px + var(--fl-depth, 0) * 14px); cursor: pointer; }
 .fl-pub-row.is-col:hover { background: var(--surface-2); }
 .fl-pub-row.is-active { background: var(--accent-soft); color: var(--text-primary); }
 .fl-pub-row.is-drop { box-shadow: inset 0 0 0 1px var(--accent-color); }

@@ -380,7 +380,7 @@ def publish_update_service(id: int, name: str | None = None, settings: dict | No
 @command("publish.deleteService", "Remove Publish Service", {"id": {"type": "integer"}})
 def publish_delete_service(id: int) -> dict:
     with cat().change("Remove Publish Service") as ch:
-        for r in cat().rows("SELECT id FROM collections WHERE kind='published' AND service_id=?", (int(id),)):
+        for r in cat().rows("SELECT id FROM collections WHERE kind IN ('published', 'publishedSet') AND service_id=?", (int(id),)):
             ch.delete("published", collection_id=int(r["id"]))
             ch.delete("collection_photos", collection_id=int(r["id"]))
             ch.delete("collections", id=int(r["id"]))
@@ -391,6 +391,18 @@ def publish_delete_service(id: int) -> dict:
 @command("publish.status", "Publish Status", {"collection": {"type": "integer"}}, mutates=False)
 def publish_status(collection: int) -> dict:
     return publish.status(int(collection))
+
+
+@command("publish.markRepublish", "Mark to Republish", {"collection": {"type": "integer"}, "ids": {"type": "array", "description": "photos to mark; omit for every published photo in the collection"}})
+def publish_mark_republish(collection: int, ids: Any = None) -> dict:
+    pids = resolve_ids(ids) if ids else None
+    return {"marked": publish.mark(int(collection), pids, False)}
+
+
+@command("publish.markUpToDate", "Mark as Up-to-Date", {"collection": {"type": "integer"}, "ids": {"type": "array", "description": "photos to mark; omit for every new and modified photo"}})
+def publish_mark_up_to_date(collection: int, ids: Any = None) -> dict:
+    pids = resolve_ids(ids) if ids else None
+    return {"marked": publish.mark(int(collection), pids, True)}
 
 
 @command("publish.run", "Publish", {"collection": {"type": "integer"}, "wait": {"type": "boolean"}})
