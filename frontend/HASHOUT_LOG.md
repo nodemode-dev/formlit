@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.0
-Last updated: 2026-10-07 · the Navigator keeps one 3:2 box and maps its rectangle onto the letterboxed picture, the dev server drops font preloads
+Current build version: v0.3.1
+Last updated: 2026-10-07 · relative white balance for rendered files; v0.3.0: the view holds the old picture's geometry until the new render arrives, the Navigator's 3:2 box, the dev font preloads
 
 ---
 
@@ -303,6 +303,13 @@ The filter's values are `All`, `Favorites`, `type:color`, `type:bw` and the grou
 - logged: v0.2.0 · 2026-10-07
 
 Profiles without a table (Color, Camera Look, DCPs) have nothing for Amount to scale, so the slider is made `inert` and dimmed (`.fl-sl.is-inert`) instead of hidden, which would move every slider under it. Both are written only when the state changes.
+
+### src/modules/develop/panels.ts · relative white balance
+- refers-to: src/modules/develop/panels.ts :: toRelativeWb, fromRelativeWb, SliderSet.makeRelativeWb, SliderSet.sync, RAW_ONLY_WB, DevelopPanels.sync; index.ts :: histogram info
+- kind: rationale
+- logged: v0.3.1 · 2026-10-07
+
+Lightroom shows Temp and Tint for JPEG, PNG, TIFF and other rendered files as -100 to +100 around as shot, and offers only As Shot, Auto and Custom, because a rendered file has no sensor white point to put a kelvin on. formlit showed kelvin (6500 as shot, 2000 to 50000) for them, which reads as a raw control and invites values like 15900. The engine is unchanged: `wb.temp` and `wb.tint` stay in kelvin and tint units, so history, presets, sync, XMP and agents keep one model. For photos the engine marks `relativeWb`, the panel swaps in a second pair of sliders of the same height (no layout movement) that map one step to 0.75 mired around as shot (+100 is about 12,700 K, -100 about 4,400 K) and tint one to one, label their history steps in those units, and hides the six raw-only presets. The histogram line drops "As shot 6500 K" for them. A photo edited in kelvin before this reads back clamped to the ends of the scale.
 
 ---
 

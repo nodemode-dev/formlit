@@ -8,7 +8,7 @@ Presets (`list_presets`, ids like `builtin:color/clean-punch`) are applied with 
 | --- | --- | --- |
 | Brighter, airy | `light.exposure` +0.4, `light.highlights` -30, `light.shadows` +40, `light.blacks` +10, `color.vibrance` +10 | keep whites under clipping: watch the preview's brightest areas |
 | Moody, darker | `light.exposure` -0.4, `light.contrast` +20, `light.highlights` -20, `light.blacks` -20, `color.saturation` -10, `effects.clarity` +10 | a radial mask with `invert: true`, `adjust: {"exposure": -0.4}` deepens the edges |
-| Warmer | `wb.temp` +600 to +1200 (from its current value), `wb.tint` +5 | raws: temperature is in kelvin; JPEGs follow the same scale relative to as shot |
+| Warmer | `wb.temp` +600 to +1200 (from its current value), `wb.tint` +5 | raws: temperature is in kelvin; JPEGs follow the same scale relative to as shot (6500). The interface shows non-raw photos as -100 to +100, 0.75 mired per step, but the settings and tools always take kelvin |
 | Cooler | `wb.temp` -600 to -1200 | |
 | Fix a dull sky | `add_ai_mask` kind `sky`, adjust `{"exposure": -0.5, "highlights": -30, "saturation": 15, "dehaze": 10}` | add a linear mask if the horizon is flat and the AI sky misses haze |
 | Make the subject pop | `add_ai_mask` kind `subject`, adjust `{"exposure": 0.3, "clarity": 10, "texture": 10}` | |

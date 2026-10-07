@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.3.1 · 2026-10-07
+
+### Fixed
+
+- **White balance on JPEG, PNG, TIFF and WebP.** Temp and Tint showed kelvin (6500 as shot, up to 50000) for rendered files, as if they were raws. They now read -100 to +100 around as shot, as in Lightroom, the WB menu offers As Shot, Auto and Custom only, history steps read "Temp +25", and the histogram line no longer claims "As shot 6500 K". Raws are unchanged. Settings, presets and agents still store kelvin, so nothing already saved changes.
+
 ## v0.3.0 · 2026-10-07
 
 A reliability release. The engine no longer dies when renders overlap, profiles gain Adobe look tables and the as-shot style for seven makers, and the desktop sidecar is built and checked. Parity stays at 57.5 of 58 (`docs/PARITY.md`).
