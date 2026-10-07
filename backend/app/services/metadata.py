@@ -273,6 +273,8 @@ def parse_xmp(text: str) -> dict:
                 name = tag.split("}")[1]
                 if len(child) == 0:
                     crs[name] = (child.text or "").strip()
+                elif name in ("Look", "MaskGroupBasedCorrections", "LensBlur"):
+                    crs[name] = ET.tostring(child, encoding="unicode")
                 else:
                     crs[name] = "|".join(_bag(child))
     if meta:
@@ -319,9 +321,12 @@ def build_xmp(record: dict) -> str:
             from app.services import xmp_presets
             dev = json.loads(record["develop"]) if isinstance(record["develop"], str) else record["develop"]
             attrs.extend(f'crs:{k}="{_esc(v)}"' for k, v in xmp_presets.to_crs(dev or {}).items())
+            crs_children = xmp_presets.crs_children(dev or {}, float(record.get("aspect") or 1.5))
         except (ValueError, TypeError):
-            pass
-    children = []
+            crs_children = []
+    else:
+        crs_children = []
+    children = list(crs_children)
     for key, tag in ALT.items():
         if meta.get(key):
             children.append(f'<{tag}><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta[key])}</rdf:li></rdf:Alt></{tag}>')

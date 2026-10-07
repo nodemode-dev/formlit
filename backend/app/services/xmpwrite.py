@@ -25,7 +25,7 @@ def record_of(pid: int) -> tuple[Path, dict] | None:
     if d is None or d.get("masterId"):
         return None
     rec = {"rating": d["r"], "label": d["l"], "meta": d["meta"], "keywords": d["keywords"], "captureTime": d["captureTime"],
-           "develop": json.dumps(d["develop"], separators=(",", ":")) if d["develop"] else ""}
+           "develop": json.dumps(d["develop"], separators=(",", ":")) if d["develop"] else "", "aspect": (d["w"] / d["h"]) if d.get("w") and d.get("h") else 1.5}
     return Path(d["path"]), rec
 
 

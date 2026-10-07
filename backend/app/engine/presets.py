@@ -200,7 +200,7 @@ def export_preset(id: str, folder: str = "") -> dict:
             f'  <rdf:Description rdf:about="" xmlns:crs="{M.NS["crs"]}" xmlns:fl="{M.NS["fl"]}" crs:PresetType="Normal" crs:Cluster="" '
             f'crs:UUID="{uuid.uuid4().hex.upper()}" crs:SupportsAmount="True" crs:SupportsColor="True" crs:SupportsMonochrome="True" '
             f'{attrs} fl:develop="{M._esc(json.dumps(p["settings"], separators=(",", ":")))}">\n'
-            f'   {alt("Name", p["name"])}\n   {alt("Group", p["group"])}\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n')
+            f'   {alt("Name", p["name"])}\n   {alt("Group", p["group"])}\n   {"".join(xmp_presets.crs_children(p["settings"]))}\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n')
     path = rename.unique(dest / f"{_slug(p['name']) or 'preset'}.xmp")
     path.write_text(text, encoding="utf-8")
     return {"path": str(path), "name": p["name"]}

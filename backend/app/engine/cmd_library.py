@@ -167,6 +167,9 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
                     ch.update("photos", pid, smart_preview=1)
         if eject:
             res["ejected"] = _eject(eject)
+        if res["ids"]:
+            from app.engine.cmd_ai import adapt
+            adapt(res["ids"])
         return res
     tid = tasks.start("import", "Importing photos", job)
     if wait:
@@ -653,7 +656,8 @@ def read_metadata(ids: Any = None) -> dict:
                 dev = records.loads(x["develop"], None)
             elif x.get("crs"):
                 from app.services import xmp_presets
-                dev = xmp_presets.from_crs(x["crs"])
+                wh = c.row("SELECT width, height FROM photos WHERE id=?", (pid,))
+                dev = xmp_presets.from_crs(x["crs"], (wh["width"] or 3) / max(1, wh["height"] or 2) if wh else 1.5)
             if isinstance(dev, dict):
                 from app.engine.cmd_develop import store
                 store(ch, pid, dev, "Read Metadata from File")
