@@ -3,6 +3,7 @@ import { promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setHidden, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
+import { CurveEditor } from './curve';
 import type { ToolHost } from './tools';
 import type { DevelopView, Pt, Tool } from './view';
 
@@ -57,6 +58,8 @@ export class MaskTool implements Tool {
   private readonly points: HTMLElement;
   private readonly pointSliders = new Map<string, Slider>();
   private readonly effect: HTMLSelectElement;
+  private readonly curveBox: HTMLElement;
+  private readonly curve: CurveEditor;
   private effects: EffectPreset[] = EFFECT_PRESETS;
   private pointIdx = 0;
   private pickPoint = false;
@@ -152,6 +155,7 @@ export class MaskTool implements Tool {
 <div class="fl-mask-brush" hidden></div>
 <div class="fl-mask-adjust" hidden><div class="fl-sub">Adjustments</div><div class="fl-row"><span class="fl-row-label">Effect</span><select class="cv-select fl-grow" data-effect aria-label="Effect preset"></select></div></div>
 <div class="fl-mask-points" hidden><div class="fl-sub">Point Color<span class="fl-grow"></span><button class="cv-icon-btn" type="button" data-a="pickpoint" title="Pick a colour in the photo">${icon('eyeDropper', 14)}</button></div><div class="fl-point-swatches"></div><div class="fl-mask-point-sliders"></div></div>
+<div class="fl-mask-curve" hidden><div class="fl-sub">Curve</div></div>
 <div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="invert">Invert</button><button class="cv-btn fl-btn-sm" type="button" data-a="dup">Duplicate</button><button class="cv-btn fl-btn-sm" type="button" data-a="delete">Delete</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div>
 </div>`);
     this.list = q(this.root, '.fl-mask-list');
@@ -174,6 +178,19 @@ export class MaskTool implements Tool {
       this.pointSliders.set(k, s);
       q(this.points, '.fl-mask-point-sliders').appendChild(s.root);
     }
+    this.curveBox = q(this.root, '.fl-mask-curve');
+    this.curve = new CurveEditor({
+      get: () => (this.current().m?.adjust?.curve as Record<string, unknown> | undefined) ?? {},
+      set: (curve, phase, label) => {
+        const { masks, m } = this.current();
+        if (!m) return;
+        m.adjust = { ...(m.adjust ?? {}) };
+        if (['master', 'red', 'green', 'blue'].some((k) => curve[k])) m.adjust.curve = curve; else delete m.adjust.curve;
+        this.host.view.setDragging(phase === 'drag');
+        develop.patch('masks', masks, phase, `Mask ${label}`);
+      },
+    }, false);
+    this.curveBox.appendChild(this.curve.root);
     this.effect = q<HTMLSelectElement>(this.root, '[data-effect]');
     this.effect.addEventListener('change', () => { const v = this.effect.value; this.effect.value = ''; this.effect.blur(); void this.pickEffect(v); });
     void this.loadEffects();
@@ -431,6 +448,8 @@ export class MaskTool implements Tool {
     });
     const { m, c } = this.current();
     setHidden(this.adjust, !m);
+    setHidden(this.curveBox, !m);
+    if (m) this.curve.sync();
     if (m) {
       for (const [id, s] of this.sliders) s.set(Number(m.adjust?.[id] ?? (id === 'amount' ? 100 : 0)));
     }
