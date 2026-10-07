@@ -114,3 +114,104 @@ export function askMerge(ctx: Ctx, kind: Kind, ids: number[]): Promise<Record<st
   dialog ??= new MergeDialog(ctx);
   return dialog.ask(kind, ids);
 }
+
+class EnhanceDialog extends Dialog {
+  private readonly prev = el('<div class="fl-enh-prev"><figure><img alt="" draggable="false"><figcaption>Before</figcaption></figure><figure><img alt="" draggable="false"><figcaption>After</figcaption></figure><span class="fl-merge-status">Building preview...</span></div>');
+  private readonly opts = el(`<div class="fl-merge-opts"><label class="fl-check"><input type="checkbox" data-k="denoise" checked> Denoise</label>
+<label class="fl-opt"><span>Amount</span><input class="cv-slider" type="range" min="0" max="100" value="50" data-k="amount"><em data-out="amount">50</em></label>
+<label class="fl-check"><input type="checkbox" data-k="rawDetails"> Raw Details (sharper demosaic, raw photos)</label>
+<label class="fl-check"><input type="checkbox" data-k="sr"> Super Resolution (twice the width and height)</label>
+<p class="cv-note">Each enhancement makes a new DNG next to the original and stacks the two. Your edits carry over.</p></div>`);
+  private readonly ok: HTMLButtonElement;
+  private id = 0;
+  private raw = false;
+  private seq = 0;
+  private timer = 0;
+  private resolve: ((v: Record<string, unknown> | null) => void) | null = null;
+
+  constructor(private readonly ctx: Ctx) {
+    super('Enhance', 720);
+    this.body.append(this.prev, this.opts);
+    this.button('Cancel', 'ghost', () => this.finish(null));
+    this.ok = this.button('Enhance', 'primary', () => this.finish(this.values()));
+    this.onClose = () => this.finish(null);
+    this.opts.addEventListener('input', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (i.dataset.k === 'amount') setText(q(this.opts, '[data-out="amount"]'), i.value);
+      if (i.dataset.k === 'denoise' && i.checked) q<HTMLInputElement>(this.opts, '[data-k="rawDetails"]').checked = false;
+      if (i.dataset.k === 'rawDetails' && i.checked) q<HTMLInputElement>(this.opts, '[data-k="denoise"]').checked = false;
+      this.sync();
+      if (i.dataset.k !== 'sr') this.soon(i.type === 'range' ? 500 : 100);
+    });
+  }
+
+  ask(id: number, raw: boolean, count: number): Promise<Record<string, unknown> | null> {
+    this.id = id;
+    this.raw = raw;
+    this.setTitle(count > 1 ? `Enhance ${count} Photos` : 'Enhance');
+    const rd = q<HTMLInputElement>(this.opts, '[data-k="rawDetails"]');
+    rd.disabled = !raw;
+    if (!raw) rd.checked = false;
+    this.sync();
+    this.open(this.ok);
+    this.soon(0);
+    return new Promise((r) => { this.resolve = r; });
+  }
+
+  private values(): Record<string, unknown> {
+    const v = (k: string) => q<HTMLInputElement>(this.opts, `[data-k="${k}"]`);
+    return { denoise: v('denoise').checked, amount: Number(v('amount').value), rawDetails: v('rawDetails').checked, sr: v('sr').checked };
+  }
+
+  private sync(): void {
+    const v = this.values();
+    setHidden(q(this.opts, '.fl-opt'), !v.denoise);
+    this.ok.disabled = !v.denoise && !v.rawDetails && !v.sr;
+  }
+
+  private soon(ms: number): void {
+    window.clearTimeout(this.timer);
+    this.timer = window.setTimeout(() => void this.preview(), ms);
+  }
+
+  private async preview(): Promise<void> {
+    const v = this.values();
+    const status = q(this.prev, '.fl-merge-status');
+    if (!v.denoise && !v.rawDetails) { setText(status, 'Super Resolution has no preview here; it doubles the pixel count.'); setHidden(status, false); return; }
+    const seq = ++this.seq;
+    setText(status, v.rawDetails ? 'Demosaicing the whole raw file for Raw Details...' : 'Building preview...');
+    setHidden(status, false);
+    setClass(this.prev, 'is-busy', true);
+    try {
+      const r = await this.ctx.api.cmd<{ before: string; after: string }>('ai.enhancePreview', { id: this.id, kind: v.rawDetails ? 'rawDetails' : 'denoise', amount: v.amount });
+      if (seq !== this.seq) return;
+      const imgs = this.prev.querySelectorAll<HTMLImageElement>('img');
+      const urls = [`data:image/jpeg;base64,${r.before}`, `data:image/jpeg;base64,${r.after}`];
+      await Promise.all(urls.map((u) => { const i = new Image(); i.src = u; return i.decode().catch(() => undefined); }));
+      if (seq !== this.seq) return;
+      imgs[0].src = urls[0];
+      imgs[1].src = urls[1];
+      setHidden(status, true);
+    } catch (err) {
+      if (seq === this.seq) { setText(status, err instanceof Error ? err.message : String(err)); setHidden(status, false); }
+    } finally {
+      if (seq === this.seq) setClass(this.prev, 'is-busy', false);
+    }
+  }
+
+  private finish(v: Record<string, unknown> | null): void {
+    const r = this.resolve;
+    this.resolve = null;
+    this.seq += 1;
+    window.clearTimeout(this.timer);
+    if (this.isOpen) this.close();
+    r?.(v);
+  }
+}
+
+let enhance: EnhanceDialog | null = null;
+
+export function askEnhance(ctx: Ctx, id: number, raw: boolean, count: number): Promise<Record<string, unknown> | null> {
+  enhance ??= new EnhanceDialog(ctx);
+  return enhance.ask(id, raw, count);
+}

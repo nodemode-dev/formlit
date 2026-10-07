@@ -218,6 +218,60 @@ def ai_superres(ids: Any = None, wait: bool = False) -> dict:
     return _maybe_wait(tasks.start("superres", "Super Resolution", job), wait)
 
 
+@command("ai.rawDetails", "Raw Details", {"ids": {"type": "array"}, "wait": {"type": "boolean"}})
+def ai_raw_details(ids: Any = None, wait: bool = False) -> dict:
+    pids = [p for p in resolve_ids(ids) if (cat().scalar("SELECT kind FROM photos WHERE id=?", (p,)) or "") == "raw"]
+    if not pids:
+        raise CommandError("Raw Details works on raw photos")
+
+    def job(progress):
+        made = []
+        for pid in pids:
+            path = cat().photo_path(pid)
+            if path is None:
+                continue
+            out, info = enhance.raw_details(path, progress)
+            target = _out_path(pid, "Enhanced-RD")
+            dng.write_linear_dng(target, out, {**info, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pid,)))
+            made.append(_derived(pid, target, "Raw Details", _settings_for(pid, ()), progress))
+        return {"ids": made}
+    return _maybe_wait(tasks.start("rawdetails", "Raw Details", job), wait)
+
+
+@command("ai.enhancePreview", "Enhance Preview", {"id": {"type": "integer"}, "kind": {"type": "string", "enum": ["denoise", "rawDetails"]}, "amount": {"type": "number"},
+                                                  "x": {"type": "number"}, "y": {"type": "number"}, "size": {"type": "integer"}}, mutates=False)
+def ai_enhance_preview(id: int | None = None, kind: str = "denoise", amount: float = 50.0, x: float = 0.5, y: float = 0.5, size: int = 360) -> dict:
+    import base64
+    from app.develop.output import to_u8
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    size = max(128, min(720, int(size)))
+    if kind == "rawDetails":
+        path = cat().photo_path(pid)
+        if path is None or (cat().scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or "") != "raw":
+            raise CommandError("Raw Details works on raw photos")
+        from app.services.decode import _raw_linear
+        img, _ = _raw_linear(path, None, True, "AHD")
+    else:
+        img, _ = previews.source(pid, None, full=True)
+    h, w = img.shape[:2]
+    cx, cy = int(min(max(x, 0.0), 1.0) * w), int(min(max(y, 0.0), 1.0) * h)
+    x0, y0 = max(0, min(w - size, cx - size // 2)), max(0, min(h - size, cy - size // 2))
+    crop = np.ascontiguousarray(img[y0:y0 + size, x0:x0 + size])
+    if kind == "rawDetails":
+        after_img, _ = enhance.raw_details(path)
+        after_crop = after_img[y0:y0 + size, x0:x0 + size]
+    else:
+        after_crop = enhance.denoise(crop, float(amount))
+    gain = 0.45 / max(1e-6, float(np.percentile(crop, 50)) + 1e-4)
+
+    def jpeg(a: np.ndarray) -> str:
+        e = np.clip(a * min(gain, 64.0), 0.0, 1.0)
+        e = np.where(e <= 0.0031308, e * 12.92, 1.055 * np.power(np.clip(e, 0.0031308, None), 1 / 2.4) - 0.055)
+        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(to_u8(e.astype(np.float32)), cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 92])
+        return base64.b64encode(buf.tobytes()).decode("ascii") if ok else ""
+    return {"before": jpeg(crop), "after": jpeg(after_crop), "x": x0 / w, "y": y0 / h, "size": size}
+
+
 def _maybe_wait(tid: int, wait: bool) -> dict:
     if not wait:
         return {"task": tid}

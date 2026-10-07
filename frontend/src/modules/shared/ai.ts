@@ -4,7 +4,7 @@ import { Dialog } from '../../ui/dialogs';
 import { el, q, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
-import { askMerge } from './merge-dialog';
+import { askEnhance, askMerge } from './merge-dialog';
 
 interface CullResult { photos: number; groups: number; best: number[]; blurry: number[]; duplicates: number[]; eyesClosed?: number[]; withFaces?: number; scores?: Record<string, { sharpness: number; exposure: number; eyesOpen: number | null }> }
 
@@ -55,14 +55,12 @@ export function registerAiCommands(ctx: Ctx): void {
   ctx.commands.add(
     { id: 'photo.enhance', label: 'Enhance...', keys: ['Alt+Shift+Mod+I'], enabled: has, run: async () => {
       const ids = library.targets();
-      const v = await ask('Enhance', `<p class="cv-note">Makes a new DNG next to the original and stacks the two. Your edits carry over.</p>
-<label class="fl-check"><input type="checkbox" data-k="denoise" checked> ${icon('denoise', 14)} Denoise</label>
-<label class="fl-opt"><span>Amount</span><input class="cv-slider" type="range" min="0" max="100" value="50" data-k="amount"></label>
-<label class="fl-check"><input type="checkbox" data-k="sr"> ${icon('superRes', 14)} Super Resolution (twice the width and height)</label>`, 'Enhance', (r) => ({
-        denoise: q<HTMLInputElement>(r, '[data-k="denoise"]').checked, amount: Number(q<HTMLInputElement>(r, '[data-k="amount"]').value), sr: q<HTMLInputElement>(r, '[data-k="sr"]').checked,
-      }));
+      const first = library.photo(library.active ?? ids[0]);
+      if (!first) return;
+      const v = await askEnhance(ctx, first.id, ids.some((id) => library.photo(id)?.kind === 'raw'), ids.length);
       if (!v) return;
       if (v.denoise) await run(ctx, 'ai.denoise', { ids, amount: v.amount }, `Denoising ${ids.length} photo${ids.length === 1 ? '' : 's'}`);
+      if (v.rawDetails) await run(ctx, 'ai.rawDetails', { ids }, `Raw Details for ${ids.length} photo${ids.length === 1 ? '' : 's'}`);
       if (v.sr) await run(ctx, 'ai.superResolution', { ids }, 'Super Resolution started');
     } },
     { id: 'photo.hdr', label: 'HDR Merge...', keys: ['Mod+H'], enabled: two, run: async () => {

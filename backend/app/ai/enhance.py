@@ -58,3 +58,19 @@ def superres(lin: np.ndarray, progress=None) -> np.ndarray:
     lo = cv2.GaussianBlur(up, (0, 0), 1.2)
     merged = cv2.GaussianBlur(base, (0, 0), 1.2) + (up - lo)
     return _decode(np.clip(merged, 0.0, 1.0), peak, cv2.resize(lin, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC))
+
+
+def raw_details(path, progress=None) -> tuple[np.ndarray, dict]:
+    from app.services.decode import _raw_linear
+    if progress is not None:
+        progress(1, 3, "Raw Details: demosaicing")
+    lin, info = _raw_linear(path, None, True, "DCB")
+    enc, peak = _encode(lin)
+    y = enc @ LW
+    if progress is not None:
+        progress(2, 3, "Raw Details: edges")
+    fine = y - cv2.GaussianBlur(y, (0, 0), 0.8)
+    sigma = noise_sigma(y)
+    gate = np.clip((np.abs(fine) - 1.5 * sigma) / max(2.0 * sigma, 1e-4), 0.0, 1.0)
+    out = np.clip(enc + (0.45 * fine * gate)[..., None], 0.0, 1.0)
+    return _decode(out, peak, lin), info
