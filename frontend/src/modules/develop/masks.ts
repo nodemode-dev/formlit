@@ -1,6 +1,6 @@
 import { clone, develop } from '../../state/develop';
 import { promptName } from '../../ui/dialogs';
-import { el, escapeHtml, patchList, q, setClass, setHidden } from '../../ui/dom';
+import { el, escapeHtml, patchList, q, setClass, setHidden, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
 import type { ToolHost } from './tools';
@@ -30,7 +30,12 @@ const POINT_KEYS: Array<[keyof LocalPoint, string, number, number]> = [['hueShif
 const AI_KINDS: Array<[string, string, string]> = [['subject', 'Subject', 'maskSubject'], ['sky', 'Sky', 'maskSky'], ['background', 'Background', 'maskBackground'], ['people', 'People', 'maskPeople'], ['object', 'Objects', 'maskObject']];
 const MANUAL: Array<[string, string, string]> = [['brush', 'Brush', 'maskBrush'], ['linear', 'Linear Gradient', 'maskLinear'], ['radial', 'Radial Gradient', 'maskRadial']];
 const RANGES: Array<[string, string, string]> = [['colorRange', 'Color Range', 'maskColor'], ['luminanceRange', 'Luminance Range', 'maskLuminance'], ['depthRange', 'Depth Range', 'maskDepth']];
-const NAMES: Record<string, string> = Object.fromEntries([...AI_KINDS, ...MANUAL, ...RANGES].map(([k, l]) => [k, l]));
+const PART_GROUPS: Array<[string, string, string]> = [['people-parts', 'People Parts', 'maskPeople'], ['landscape', 'Landscape', 'maskSky']];
+const PARTS: Record<string, Array<[string, string]>> = {
+  people: [['faceSkin', 'Face Skin'], ['bodySkin', 'Body Skin'], ['eyebrows', 'Eyebrows'], ['sclera', 'Eye Sclera'], ['iris', 'Iris and Pupil'], ['lips', 'Lips'], ['teeth', 'Teeth'], ['hair', 'Hair'], ['clothes', 'Clothes']],
+  landscape: [['sky', 'Sky'], ['water', 'Water'], ['vegetation', 'Vegetation'], ['mountains', 'Mountains'], ['architecture', 'Architecture'], ['naturalGround', 'Natural Ground'], ['artificialGround', 'Artificial Ground']],
+};
+const NAMES: Record<string, string> = { ...Object.fromEntries([...AI_KINDS, ...MANUAL, ...RANGES].map(([k, l]) => [k, l])), landscape: 'Landscape' };
 
 export class MaskTool implements Tool {
   readonly id = 'masks';
@@ -141,7 +146,8 @@ export class MaskTool implements Tool {
 <div class="fl-tool-title">${icon('masking', 14)} Masks<span class="fl-grow"></span><label class="fl-check fl-check-sm"><input type="checkbox" data-overlay checked> Show Overlay (O)</label></div>
 <div class="fl-mask-list"></div>
 <div class="fl-sub">Create New Mask</div>
-<div class="fl-mask-grid">${AI_KINDS.map(btn).join('')}${MANUAL.map(btn).join('')}${RANGES.map(btn).join('')}</div>
+<div class="fl-mask-grid">${AI_KINDS.map(btn).join('')}${PART_GROUPS.map(btn).join('')}${MANUAL.map(btn).join('')}${RANGES.map(btn).join('')}</div>
+<div class="fl-mask-parts" hidden><div class="fl-sub fl-mask-parts-title"></div><div class="fl-mask-parts-list"></div><label class="fl-check fl-check-sm"><input type="checkbox" data-separate> Create separate masks</label><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="parts-cancel">Cancel</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="parts-create">Create Mask</button></div></div>
 <div class="fl-mask-comp"></div>
 <div class="fl-mask-brush" hidden></div>
 <div class="fl-mask-adjust" hidden><div class="fl-sub">Adjustments</div><div class="fl-row"><span class="fl-row-label">Effect</span><select class="cv-select fl-grow" data-effect aria-label="Effect preset"></select></div></div>
@@ -224,7 +230,11 @@ export class MaskTool implements Tool {
   private click(e: Event): void {
     const t = e.target as HTMLElement;
     const nw = t.closest<HTMLElement>('[data-new]')?.dataset.new;
+    if (nw === 'people-parts' || nw === 'landscape') { this.openParts(nw === 'landscape' ? 'landscape' : 'people'); return; }
     if (nw) { void this.create(nw, 'new'); return; }
+    const pa = t.closest<HTMLElement>('[data-a="parts-cancel"], [data-a="parts-create"]')?.dataset.a;
+    if (pa === 'parts-cancel') { setHidden(q(this.root, '.fl-mask-parts'), true); return; }
+    if (pa === 'parts-create') { void this.createParts(); return; }
     const pt = t.closest<HTMLElement>('[data-pt]');
     if (pt) { this.pointIdx = Number(pt.dataset.pt); this.paintPoints(this.current().m); return; }
     if (t.closest('[data-a="pickpoint"]')) {
@@ -266,6 +276,42 @@ export class MaskTool implements Tool {
   }
 
   private nextId(masks: Mask[]): number { return masks.reduce((a, m) => Math.max(a, m.id), 0) + 1; }
+
+  private partGroup: 'people' | 'landscape' = 'people';
+
+  private openParts(group: 'people' | 'landscape'): void {
+    this.partGroup = group;
+    const box = q(this.root, '.fl-mask-parts');
+    setText(q(box, '.fl-mask-parts-title'), group === 'people' ? 'People Parts' : 'Landscape');
+    const html = PARTS[group].map(([k, l]) => `<label class="fl-check fl-check-sm"><input type="checkbox" data-part="${k}"> ${l}</label>`).join('');
+    const list = q(box, '.fl-mask-parts-list');
+    if (list.dataset.key !== group) { list.dataset.key = group; list.innerHTML = html; }
+    setHidden(box, false);
+  }
+
+  private async createParts(): Promise<void> {
+    const box = q(this.root, '.fl-mask-parts');
+    const parts = Array.from(box.querySelectorAll<HTMLInputElement>('[data-part]')).filter((i) => i.checked).map((i) => i.dataset.part as string);
+    if (!parts.length) { this.host.ctx.fail(new Error('Tick one or more parts')); return; }
+    const id = develop.id;
+    if (id === null) return;
+    const separate = q<HTMLInputElement>(box, '[data-separate]').checked;
+    const done = this.host.ctx.shell.busy(this.partGroup === 'people' ? 'Finding people parts' : 'Finding landscape parts');
+    try {
+      await develop.flush();
+      const r = await this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts });
+      const masks = this.masks();
+      if (separate) {
+        for (const s of r.shapes) masks.push({ id: this.nextId(masks), name: String(s.label ?? s.part), visible: true, components: [{ shape: s, op: 'add' }], adjust: {} });
+      } else {
+        masks.push({ id: this.nextId(masks), name: r.shapes.map((s) => String(s.label ?? s.part)).join(', '), visible: true, components: r.shapes.map((s) => ({ shape: s, op: 'add' as const })), adjust: {} });
+      }
+      this.sel = masks.length - 1;
+      this.comp = 0;
+      setHidden(box, true);
+      this.write(masks, 'end', this.partGroup === 'people' ? 'Mask: People Parts' : 'Mask: Landscape');
+    } catch (err) { this.host.ctx.fail(err, 'AI Mask'); } finally { done(); }
+  }
 
   private defaultShape(kind: string): Shape {
     switch (kind) {
@@ -332,7 +378,7 @@ export class MaskTool implements Tool {
       key: (x) => String(x.m.id),
       create: () => el('<div class="fl-mask-row"></div>'),
       update: (node, x) => {
-        const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : 'Intersect: '}${escapeHtml(NAMES[c.shape.kind] ?? c.shape.kind)}</span></button>`).join('');
+        const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : 'Intersect: '}${escapeHtml(String(c.shape.label ?? NAMES[c.shape.kind] ?? c.shape.kind))}</span></button>`).join('');
         const html = `<div class="fl-mask-head${x.i === this.sel ? ' is-on' : ''}" data-mask="${x.i}"><button class="cv-icon-btn" type="button" data-eye aria-label="Show or hide">${icon(x.m.visible === false ? 'eyeOff' : 'eye', 13)}</button><span class="fl-grow">${escapeHtml(x.m.name)}${x.m.invert ? ' (inverted)' : ''}</span></div>${x.i === this.sel ? comps : ''}`;
         if (node.dataset.html !== html) { node.dataset.html = html; node.innerHTML = html; }
       },

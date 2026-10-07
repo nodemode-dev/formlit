@@ -69,6 +69,34 @@ def ai_download(model: str, wait: bool = False) -> dict:
     return {"task": tid, "model": model}
 
 
+@command("develop.aiParts", "AI Mask Parts", {"id": {"type": "integer"}, "group": {"type": "string", "enum": ["people", "landscape"]},
+                                             "parts": {"type": "array", "description": "people: faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; landscape: sky, water, vegetation, mountains, architecture, naturalGround, artificialGround"}})
+def ai_parts(group: str, parts: list[str], id: int | None = None) -> dict:
+    from app.ai import parts as parts_mod
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    names = parts_mod.PERSON_PARTS if group == "people" else parts_mod.LANDSCAPE_PARTS
+    want = [p for p in parts if p in names]
+    if not want:
+        raise CommandError("Choose one or more parts: " + ", ".join(names))
+    rgb8 = view_rgb8(pid)
+    if group == "people":
+        _need("people")
+        person = nets.u2net(rgb8, "people")
+        faces = nets.faces(rgb8) if models.ready("faces") else []
+        maps = parts_mod.people_parts(rgb8, person, faces)
+    else:
+        sky = nets.sky(rgb8) if models.ready("sky") else None
+        dep = nets.depth(rgb8) if models.ready("depth") else None
+        maps = parts_mod.landscape_parts(rgb8, sky, dep)
+    shapes = []
+    stamp = int(time.time() * 1000)
+    for p in want:
+        key = f"{group}-{p}-{stamp}"
+        save_bitmap(pid, key, maps[p])
+        shapes.append({"kind": group, "part": p, "label": names[p], "bitmap": key, "coverage": round(float(maps[p].mean()), 4)})
+    return {"shapes": shapes}
+
+
 @command("develop.aiMask", "AI Mask", {"id": {"type": "integer"}, "kind": {"type": "string", "enum": ["subject", "background", "sky", "people", "object", "depth"]},
                                        "box": {"type": "array"}, "points": {"type": "array"}})
 def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, points: list[list[float]] | None = None) -> dict:
