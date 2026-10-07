@@ -61,7 +61,7 @@ export class DevelopView {
   compare: Compare = 'off';
   split = 0.5;
   clipping = false;
-  proof: { space: string; gamut: boolean; paper: string } | null = null;
+  proof: { space: string; gamut: boolean; paper: string; intent?: string } | null = null;
   tool: Tool | null = null;
   private inflight = false;
   private queued = false;

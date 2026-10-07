@@ -114,6 +114,12 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
             "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
+@command("develop.proofProfiles", "Soft Proofing Profiles", mutates=False)
+def proof_profiles() -> dict:
+    from app.output import icc
+    return {"profiles": icc.profiles(), "folders": [str(f) for f in icc.folders()], "intents": list(icc.INTENTS)}
+
+
 @command("develop.lensProfileInfo", "Lens Profile", {"id": {"type": "integer"}}, mutates=False)
 def lens_profile_info(id: int) -> dict:
     from app.develop import lensprofile
