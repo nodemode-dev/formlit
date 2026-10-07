@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.1.0
-Last updated: 2026-10-07 · first release: publish plug-ins, slideshow audio, mask curves, private locations
+Current build version: v0.2.0
+Last updated: 2026-10-07 · colour-table profiles, Adobe profile import, DCPs in camera space, the classical reflection filter tried and withdrawn
 
 ---
 
@@ -47,8 +47,10 @@ backend/
     │   ├── colour.py              colour spaces, Bradford, OkLab, encodings
     │   ├── curves.py              tone LUTs, monotone point curves
     │   ├── auto.py                Auto tone, Auto white balance, Auto B&W
-    │   ├── profiles.py            built-in looks, .cube LUTs
-    │   ├── dcp.py                 DNG camera profile import
+    │   ├── profiles.py            built-in looks baked to colour tables, .cube LUTs, profile import
+    │   ├── adobe_profile.py       Adobe creative profile (.xmp RGBTable) reader and resampler
+    │   ├── camera_styles.py       camera-matching styles per maker, as-shot style from the raw
+    │   ├── dcp.py                 DNG camera profiles applied in camera space
     │   ├── camera_look.py         fitted Camera Look from the embedded JPEG
     │   ├── lensprofile.py         DNG opcode lens profiles
     │   ├── fringe.py              defringe
@@ -121,7 +123,8 @@ backend/
 - [app/develop/finish.py and kernel.py](#develop-finish-kernel)
 - [app/develop/masks.py](#develop-masks)
 - [app/develop/lensblur.py](#develop-lensblur)
-- [app/develop/profiles.py and dcp.py](#develop-profiles)
+- [app/develop/profiles.py, adobe_profile.py and dcp.py](#develop-profiles)
+- [app/develop/reflections.py (removed in v0.2.0)](#develop-reflections)
 - [app/ai/people.py](#ai-people)
 - [app/ai/merge.py and enhance.py](#ai-merge-enhance)
 - [app/output/export.py](#output-export)
@@ -317,6 +320,13 @@ Three cached layers per slot: geometry (sampled image, spots, red eye), linear (
 
 Local mask curves are applied after the finish, through each mask's alpha, instead of inside both finish implementations. The output is decoded to the sRGB-encoded values the global curve sees, curved, and re-encoded, so the curve behaves the same in every output space. Moving them into the kernel would put them before grain and the profile LUT.
 
+### app/develop/render.py · camera profile in the linear stage
+- refers-to: app/develop/render.py :: _stage_render (dcp.apply_linear)
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+A DCP is applied right after white balance, in linear ProPhoto, which is where Camera Raw applies a profile's hue and saturation map and look table, so exposure and the tone sliders work on the profile's colours instead of under them. The profile id joins the linear key only when it is a DCP, so switching between built-in looks never re-runs the linear stage.
+
 ---
 
 ## app/develop/finish.py and kernel.py {#develop-finish-kernel}
@@ -367,14 +377,105 @@ Held all six full-size blur levels plus three full-size temporaries per step; a 
 
 ---
 
-## app/develop/profiles.py and dcp.py {#develop-profiles}
+## app/develop/profiles.py, adobe_profile.py and dcp.py {#develop-profiles}
 
 ### app/develop/profiles.py · PROFILES
 - refers-to: app/develop/profiles.py :: PROFILES, effective
-- kind: todo
+- kind: todo (resolved v0.2.0)
 - logged: v0.1.0 · 2026-10-07
 
-Built-in looks are setting offsets applied beneath the sliders. Parity row 29 would want them as 3D colour tables with an amount, Adobe-format creative profile import, and DCP hue and saturation maps applied in camera space before the tone curve (today `dcp.bake` makes a display-referred table).
+Built-in looks were setting offsets applied beneath the sliders. Resolved in v0.2.0: colour looks are baked to 3D tables, Adobe creative profiles import, and DCPs apply in camera space. See the entries below.
+
+### app/develop/profiles.py · table_of, is_table, SPATIAL
+- refers-to: app/develop/profiles.py :: table_of, is_table, effective, lut_of
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+A look is baked once into a 33-point sRGB table by running the numpy finish over a lattice with the look's per-pixel deltas, then applied through the same LUT hook as an imported `.cube`, so Amount scales it from 0 to 200 percent and the sliders stay at their own values instead of carrying the look's offsets. Two kinds of key stay as offsets (`offset_key`): Clarity, Texture and Dehaze (`SPATIAL`), which are neighbourhood operations a per-pixel table cannot hold, and the `bw.*` mix of black and white looks, which is a colour filter that has to act before the conversion to grey. A black and white look is the treatment switch plus those mix offsets plus a table holding its tone and toning; the table is baked on colour input but at render time it receives the already-grey picture, so it adds contrast and toning without touching the user's own B&W mix. The lattice uses `log_l` equal to `base` so local contrast terms see no detail; `info.raw` is False so no camera tone is applied twice. The table runs before grain (both finish implementations) so a look never reshapes the grain.
+
+### app/develop/profiles.py · in_space, lut_of(dev, space)
+- refers-to: app/develop/profiles.py :: in_space, SPACE_N, _SPACE_TABLES; finish.py and kernel.py call sites
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+Tables are authored in sRGB, but the finish hands them values encoded in the export's own primaries, so a ProPhoto or Adobe RGB export used to get a different look. `in_space` re-expresses a table for a space once (49 points, cached against the table object): each lattice point is converted to sRGB, looked up, and the change is carried back as a linear delta, so in-gamut colours match the sRGB result exactly and wide-gamut colours keep their gamut instead of being clipped to sRGB.
+
+### app/develop/camera_styles.py and profiles.py · camera-matching sets
+- refers-to: app/develop/camera_styles.py :: STYLES, SETS, RENAME, MAKES, as_shot, id_for_name, crs_name; profiles.py :: _delta, style_of, effective(dev, info), catalogue(camera, keep); finish.py :: camera_matrix_look
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+Lightroom's camera-matching profiles are Adobe-made DCPs per camera model, which cannot be shipped. formlit's equivalent has two parts. Camera Look is fitted per photo to the camera's own embedded JPEG (tone curve and colour matrix), so it reproduces whatever picture style the photo was shot in. Each maker's named styles (`SETS`, with maker wording in `RENAME`, chosen from the first word of the catalog's camera name through `MAKES`) are tables built on top of Camera Look (any id beginning `fl.camera` turns it on in `camera_matrix_look`). The deltas describe each style relative to the maker's standard rendering, from the makers' published descriptions, and are approximations.
+
+Because Camera Look already contains the as-shot style, the other styles are built relative to it: `as_shot` reads the style from the raw (Canon CR2 maker note 0x00A0, ProcessingInfo index 10; Auto is treated as Standard), the decoder stores it as `cameraStyle`, and `_delta` subtracts that style's deltas, so choosing the as-shot style gives exactly Camera Look and no style is applied twice. Colour grading hues are absolute angles and are copied, every other key (mixer hues included) is subtracted. A black and white as-shot style is ignored (its JPEG holds no colour to build from). Other raw formats do not report the style yet, so the styles assume Standard, and the Profile Browser says so. `catalogue(keep=...)` keeps a photo's current camera style in the list even when it belongs to another maker's set. `xmp_presets` maps Camera Raw's `CameraProfile` names (including the renamed ones) to these ids and back.
+
+### app/develop/adobe_profile.py · format
+- refers-to: app/develop/adobe_profile.py :: _base85, read, to_srgb
+- kind: explainer
+- logged: v0.2.0 · 2026-10-07
+
+An Adobe creative profile is an XMP with `crs:RGBTable` naming a `crs:Table_[md5]` attribute. The attribute is Adobe's base85 (alphabet in `ALPHABET`, little-endian 32-bit groups, least significant digit first) over a 4-byte little-endian length and a zlib stream. The stream holds a header (type 1, version 1, dimensions 3, divisions), then uint16 samples stored as deltas from the identity lattice, red outermost and blue innermost, then the primaries, gamma and gamut enums and the amount range as two doubles. Enums follow the DNG SDK: primaries 0 sRGB, 1 Adobe RGB, 2 ProPhoto, 3 Display P3, 4 Rec.2020; gamma 0 linear, 1 sRGB, 2 1.8, 3 2.2, 4 Rec.2020; gamut 0 clip, 1 extend. Layout checked against the MIT-licensed CUBE-to-XMP converter (round trip max error 7.6e-6); no code was copied from either source. Tables in other spaces are resampled into an sRGB lattice through XYZ with Bradford adaptation, then saved as a `.cube` with a JSON sidecar for the name, group and the grayscale flag.
+
+### app/develop/adobe_profile.py · look_table_only
+- refers-to: app/develop/adobe_profile.py :: look_table_only; engine/presets.py :: preset.import
+- kind: todo
+- logged: v0.2.0 · 2026-10-07
+
+Some Adobe profiles carry their look as an HSV look table (`crs:LookTable`, the DCP-style hue, saturation and value map) instead of, or beside, an RGB table. The binary layout of that table inside the XMP is not documented in any source available to this build, so such a file is refused with a message rather than imported as a plain preset that silently loses its look. Profiles that hold an RGB table (the large majority, including every profile made with Camera Raw's profile tools from a LUT) import. Supporting the look-table form needs the layout of the DNG SDK's look table stream.
+
+### app/develop/dcp.py · apply_linear, to_prophoto, weight1, tone_knots
+- refers-to: app/develop/dcp.py :: load, fits_camera, weight1, _pick, to_prophoto, needs_exposure, apply_linear, tone_knots, _apply_table, LIGHT_K, SENSOR_EV
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+The order follows the DNG reference. `to_prophoto`: when the DCP names the photo's camera (`fits_camera` on UniqueCameraModel against the catalog camera) and the decoder recorded LibRaw's camera to Rec.2020 matrix, the image is taken back to white-balanced camera RGB and converted with the DCP's ForwardMatrix to XYZ D50, or, without one, with its ColorMatrix and the neutral of the current white balance, then Bradford to D50. Otherwise the plain Rec.2020 to ProPhoto conversion is used, since matrices only fit their own camera. Both matrices and hue/saturation maps are blended between the two calibration illuminants by 1/T of the white balance temperature (`weight1`; illuminant temperatures in `LIGHT_K` are the DNG SDK's). The hue/saturation map sees sensor-relative values (divided by `sensorGain`), then BaselineExposureOffset is applied, then the look table sees post-exposure values (scaled by 2^(Exposure − 0.35), the 0.35 EV formlit adds at decode); a look table with value divisions or sRGB encoding therefore depends on Exposure, so only then does Exposure join the linear stage's cache key (`needs_exposure`). For sRGB-encoded tables the value scale multiplies the encoded value, as `RefBaselineHueSatMap` does. A ProfileToneCurve becomes the base tone (`tone_knots` resamples it into the 32 knots `camera_look` uses, mapping formlit's scene scale to the DNG one by 2^-0.35); `finish.camera_tone` picks it up for both kernels. Work is done in 256-row chunks to bound memory. Validated with synthetic profiles: a ForwardMatrix equal to LibRaw's conversion reproduces the plain render; grey 0.18 with an sRGB-encoded value scale of 1.25 gives 0.292 as in the reference. Known cost: with a 3D look table, Exposure drags re-run the numpy DCP stage (about 2.7 s at 1600 px).
+
+### app/develop/dcp.py · bake, to_cube
+- refers-to: app/develop/dcp.py :: bake, to_cube (removed v0.2.0)
+- kind: removed-code
+- logged: v0.2.0 · 2026-10-07
+
+```python
+def bake(prof: dict, size: int = 33) -> np.ndarray:
+    ...
+    pp = lin @ SRGB_TO_PP.T
+    # hue and saturation map, then look table
+    out = np.clip(pp @ PP_TO_SRGB.T, 0.0, 1.0)
+    return srgb_encode(out)
+
+def to_cube(src: Path, dst_dir: Path) -> tuple[Path, str]:
+    # validate, bake, write a 33-point .cube named after the profile
+```
+
+v0.1.0 baked a DCP into a display-referred sRGB table, applied after the tone curve, so the profile's maps saw clipped, tone-mapped values. Replaced by `profiles.import_dcp` (copies the DCP and a JSON name sidecar) and `apply_linear` in the render's linear stage. The module's own Bradford and ProPhoto constants went with it; `colour.py` provides both.
+
+---
+
+## app/develop/reflections.py (removed in v0.2.0) {#develop-reflections}
+
+### app/develop/reflections.py · suppress, layer, global_layer, apply
+- refers-to: app/develop/reflections.py (deleted), render.py :: _stage_render, render_region; controls.json `reflections.amount`; settings.py GROUPS `reflections`; F/modules/develop/tools.ts SpotTool sRefl
+- kind: removed-code
+- logged: v0.2.0 · 2026-10-07
+
+```python
+def suppress(e, threshold, lam=1e-7):
+    keep = smoothstep(0.7 * threshold, 1.3 * threshold, |grad(luma(e))|)
+    kappa = 2cos(pi*i/h) + 2cos(pi*j/w) - 4          # DCT eigenvalues of the Laplacian
+    for each channel a:
+        div = divergence(keep * grad(a))
+        out = idct((kappa * dct(div) + lam * dct(a)) / (kappa**2 + lam))
+
+def global_layer(img, frame, wb_m, strength, key):   # cached per photo, strength, geometry
+    small = frame.sample(img, *frame.fit_long(1536)) @ wb_m.T
+    return srgb-encoded small minus suppress(small, 0.01 + 0.05 * strength), back to linear
+
+def apply(lin, dev, glob, region, size):             # warp the layer into any size or region
+    r = warpAffine(glob, pixel-centre map of region within size)
+    return lin - r if amount > 0 else blend toward r + 0.5 * mean
+```
+
+A first Reflections slider (-100 to 100, in the Healing tool's remove row, its own sync group) used single-image reflection suppression after Arvanitopoulos, Achanta and Süsstrunk (CVPR 2017): keep strong gradients, drop weak ones, solve the screened Poisson equation in the DCT domain. The plumbing worked (a global layer on a 1536 px proxy, warped into every size and region, agreed with full renders to 1.2e-5), but the method itself did not: an independent audit composited real photos with blurred real reflections and found the slider moved the result further from the true scene in all 12 cases, and on a clean photo Amount 80 changed the picture by a mean of 0.075 (soft backgrounds blotched, skies greyed). A benchmark over four transmissions, three reflections each, two strengths and two blurs gave an error ratio of 2.0 (0.17 of cases improved); high-passing the layer to protect low frequencies cut the damage on clean photos to 0.013 but no case improved. Withdrawn before release rather than shipped as a control that makes photos worse. The plumbing above is the shape to reuse with a learned separation model (for example DSRNet, Apache-2.0), which replaces `suppress` and `layer` with one ONNX pass on the proxy.
 
 ---
 
@@ -538,6 +639,13 @@ Matrix and TRC ICC profiles (the usual case for ProPhoto, Adobe RGB and Display 
 - logged: v0.1.0 · 2026-10-07
 
 Pillow reads only 8-bit PSD, so 16 and 32-bit composites are read from the image data section directly, using Pillow's packbits decoder for compressed rows.
+
+### app/services/decode.py · _cam_to_2020, sensorGain, cameraStyle
+- refers-to: app/services/decode.py :: _cam_to_2020, XYZ_FROM_SRGB, _raw_linear, SOURCE_VERSION; previews.py :: source (camera)
+- kind: explainer
+- logged: v0.2.0 · 2026-10-07
+
+Raw sources now record what DCPs and camera styles need: `camToRec2020`, LibRaw's own path from white-balanced camera RGB to Rec.2020 (its rgb_xyz matrix times dcraw's sRGB matrix, rows normalised, inverted, then sRGB to Rec.2020), `sensorGain` (the 2^(BaselineExposure + 0.35) applied at decode), and `cameraStyle` from `camera_styles.as_shot`. `previews.source` adds the catalog's camera name. SOURCE_VERSION went to 5 so cached sources are decoded again once.
 
 ---
 

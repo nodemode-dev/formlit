@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.1.0
-Last updated: 2026-10-07 · first release: Plug-in Manager, Comments panel, slideshow audio and clips, mask curves
+Current build version: v0.2.0
+Last updated: 2026-10-07 · Profile Browser filters and as-shot note, Amount at rest, Navigator reserves its shape, a Reflections slider tried and withdrawn
 
 ---
 
@@ -128,6 +128,9 @@ frontend/
 - [src/modules/develop/masks.ts](#develop-masks)
 - [src/modules/develop/view.ts](#develop-view)
 - [src/modules/develop/tools.ts](#develop-tools)
+- [src/modules/develop/profile-browser.ts](#develop-profile-browser)
+- [src/modules/develop/panels.ts](#develop-panels)
+- [src/modules/develop/left.ts](#develop-left)
 - [src/modules/output/book.ts](#output-book)
 - [src/modules/output/slideshow.ts](#output-slideshow)
 - [src/modules/shared/plugin-manager.ts](#shared-plugin-manager)
@@ -247,6 +250,62 @@ With HDR on, renders are requested in `display` mode (PQ AVIF) on HDR-capable sc
 - logged: v0.1.0 · 2026-10-07
 
 O cycles grid, thirds, diagonal, triangle, golden ratio, golden spiral and aspect ratios; Shift+O flips the orientation of the triangle and spiral. The Straighten tool (or Ctrl-drag) sets the angle to the negative of the drawn line's tilt.
+
+### src/modules/develop/tools.ts · SpotTool reflections slider
+- refers-to: src/modules/develop/tools.ts :: SpotTool (remove row); groups.ts `reflections`
+- kind: removed-code
+- logged: v0.2.0 · 2026-10-07
+
+```ts
+this.sRefl = slider('reflections.amount', 'Reflections', -100, 100, 0, this.reflection(), (v, phase) => {
+  this.host.view.setDragging(phase === 'drag');
+  develop.patch('reflections', v ? { amount: v } : null, phase, 'Remove Reflections');
+});
+this.removeRow.appendChild(this.sRefl.root);
+develop.listen((why) => { if (why !== 'drag') this.sRefl.set(this.reflection()); });
+```
+
+The slider sat in the Healing tool's remove row and wrote the whole-photo `reflections.amount` setting (zero writes `null`, which prunes the key), with its own `reflections` sync group. Withdrawn with the engine's classical filter before release (see the backend log, `app/develop/reflections.py`); this is the wiring to restore when a learned model backs it.
+
+---
+
+## src/modules/develop/profile-browser.ts {#develop-profile-browser}
+
+### src/modules/develop/profile-browser.ts · ready
+- refers-to: src/modules/develop/profile-browser.ts :: ProfileBrowser.ready, show
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+The browser opens only after the favourites preference has loaded. In v0.1.0 the first opening painted the grid, then the preference arrived and inserted the Favorites row above it, shifting every tile (layout shift 0.035 under 4x CPU throttling). Waiting for one small request keeps the first paint final. After an import, `left.ts` calls `develop.refreshInfo` so new profiles appear in the menu and the browser without changing photos.
+
+### src/modules/develop/profile-browser.ts · filter types and the note
+- refers-to: src/modules/develop/profile-browser.ts :: fillFilter, rows, writeNote, note
+- kind: explainer
+- logged: v0.2.0 · 2026-10-07
+
+The filter's values are `All`, `Favorites`, `type:color`, `type:bw` and the group names; the `type:` values keep their own prefix because a group is also called B&W. The note under the filter is written before the dialog opens (never after), from `develop.info.cameraStyle`: it names the picture style the raw was shot in, or says the camera styles assume the standard style when the raw does not record it.
+
+---
+
+## src/modules/develop/panels.ts {#develop-panels}
+
+### src/modules/develop/panels.ts · Amount at rest
+- refers-to: src/modules/develop/panels.ts :: DevelopPanels.sync (profile.amount)
+- kind: explainer
+- logged: v0.2.0 · 2026-10-07
+
+Profiles without a table (Color, Camera Look, DCPs) have nothing for Amount to scale, so the slider is made `inert` and dimmed (`.fl-sl.is-inert`) instead of hidden, which would move every slider under it. Both are written only when the state changes.
+
+---
+
+## src/modules/develop/left.ts {#develop-left}
+
+### src/modules/develop/left.ts · Navigator box
+- refers-to: src/modules/develop/left.ts :: nav, navBox (.fl-nav-fit)
+- kind: rationale
+- logged: v0.2.0 · 2026-10-07
+
+The Navigator box takes the photo's aspect ratio (`--fl-nav-ar`, from the library record) the moment the photo is chosen, capped at 180 px, and the picture fits inside it. Before, the box sat at its 120 px minimum until the thumbnail arrived and then grew, which on a slow first decode pushed Presets, Snapshots and History down by 37 px. The view rectangle is still placed in box percentages, so on portrait photos (letterboxed in the box) it is offset sideways, as it was before.
 
 ---
 
