@@ -10,7 +10,7 @@ export type MetaPresets = Record<string, Record<string, string>>;
 const FIELDS: Array<[string, string]> = [
   ['creator', 'Creator'], ['creatorJob', 'Job Title'], ['creatorEmail', 'Email'], ['creatorPhone', 'Phone'], ['creatorUrl', 'Website'],
   ['creatorCity', 'City'], ['creatorCountry', 'Country'], ['copyright', 'Copyright'], ['copyrightStatus', 'Copyright Status'], ['rightsUsage', 'Rights Usage Terms'],
-  ['copyrightUrl', 'Copyright Info URL'], ['provider', 'Provider'], ['source', 'Source'], ['instructions', 'Instructions'], ['event', 'Event'],
+  ['copyrightUrl', 'Copyright Info URL'], ['credit', 'Credit Line'], ['source', 'Source'], ['instructions', 'Instructions'], ['event', 'Event'],
 ];
 
 export async function loadMetaPresets(ctx: Ctx): Promise<MetaPresets> {

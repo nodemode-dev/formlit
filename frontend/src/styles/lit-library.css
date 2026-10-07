@@ -154,6 +154,12 @@
 .fl-meta-input { height: 22px; min-width: 0; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: var(--surface-field); color: var(--text-primary); font: inherit; font-size: var(--fs-11); }
 .fl-meta-input:hover { border-color: var(--line-2); }
 .fl-meta-input:focus { outline: none; border-color: var(--accent-color); }
+select.fl-meta-input { padding: 0 2px; }
+.fl-meta-area { align-items: start; }
+textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resize: vertical; line-height: 1.45; }
+.fl-meta-view { margin-bottom: 4px; }
+.fl-meta-view .cv-select { height: 24px; }
+.fl-meta [hidden] { display: none; }
 .fl-kw-text { width: 100%; height: auto; min-height: 56px; padding: 6px 8px; resize: vertical; font: inherit; font-size: var(--fs-12); }
 .fl-kw-add, .fl-kw-search { width: 100%; margin-top: 6px; }
 .fl-kw-search { margin: 0 0 6px; }

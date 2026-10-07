@@ -15,7 +15,7 @@ RULE_FIELDS = {
     "virtualCopy": ("(p.master_id IS NOT NULL)", "bool"), "title": ("json_extract(p.meta, '$.title')", "text"),
     "caption": ("json_extract(p.meta, '$.caption')", "text"), "creator": ("json_extract(p.meta, '$.creator')", "text"),
     "city": ("json_extract(p.meta, '$.city')", "text"), "state": ("json_extract(p.meta, '$.state')", "text"),
-    "country": ("json_extract(p.meta, '$.country')", "text"), "location": ("json_extract(p.meta, '$.location')", "text"),
+    "country": ("json_extract(p.meta, '$.country')", "text"), "location": ("COALESCE(json_extract(p.meta, '$.sublocation'), json_extract(p.meta, '$.location'))", "text"),
     "copyright": ("json_extract(p.meta, '$.copyright')", "text"), "keyword": ("keyword", "keyword"), "collection": ("collection", "collection"),
     "person": ("person", "person"), "sharpness": ("json_extract(p.meta, '$.cull.sharpness')", "num"), "bestOfGroup": ("json_extract(p.meta, '$.cull.best')", "bool"),
     "smartPreview": ("p.smart_preview", "bool"), "duration": ("p.duration", "num"),

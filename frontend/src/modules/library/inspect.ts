@@ -1,7 +1,7 @@
 import type { Ctx } from '../../app';
 import { catalog, type KeywordRow } from '../../state/catalog';
 import { library } from '../../state/library';
-import { el, escapeHtml, q, setClass, setHtml, setText, setValue } from '../../ui/dom';
+import { el, escapeHtml, q, setClass, setHidden, setHtml, setText, setValue } from '../../ui/dom';
 import { Histogram } from '../../ui/histogram';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
@@ -65,10 +65,32 @@ export class DetailCache {
 
 export const details = new DetailCache();
 
-const META_FIELDS: Array<[string, string]> = [
-  ['title', 'Title'], ['caption', 'Caption'], ['headline', 'Headline'], ['creator', 'Creator'], ['creatorJob', 'Job Title'], ['copyright', 'Copyright'],
-  ['copyrightStatus', 'Copyright Status'], ['rightsUrl', 'Rights URL'], ['location', 'Sublocation'], ['city', 'City'], ['state', 'State / Province'],
-  ['country', 'Country'], ['countryCode', 'ISO Country Code'], ['event', 'Event'], ['instructions', 'Instructions'], ['credit', 'Credit Line'], ['source', 'Source'],
+type MetaKind = 'ro' | 'rw' | 'sel' | 'area' | 'sub';
+const META_VIEWS: Array<[string, string]> = [['default', 'Default'], ['iptc', 'IPTC'], ['exif', 'EXIF'], ['location', 'Location'], ['caption', 'Large Caption'], ['minimal', 'Minimal']];
+const META_VIEW_KEY = 'formlit_meta_view';
+const META_ROWS: Array<[MetaKind, string, string, string]> = [
+  ['ro', 'fileName', 'File Name', 'default exif minimal'], ['ro', 'copyName', 'Copy Name', 'default'], ['ro', 'folder', 'Folder', 'default'],
+  ['ro', 'size', 'File Size', 'default exif'], ['ro', 'dims', 'Dimensions', 'default exif'],
+  ['area', 'caption', 'Caption', 'caption'],
+  ['rw', 'title', 'Title', 'default iptc minimal'], ['rw', 'caption', 'Caption', 'default iptc minimal'], ['rw', 'headline', 'Headline', 'iptc'],
+  ['rw', 'altText', 'Alt Text', 'iptc'], ['rw', 'extendedDescription', 'Extended Description', 'iptc'],
+  ['rw', 'copyright', 'Copyright', 'default iptc caption minimal'], ['sel', 'copyrightStatus', 'Copyright Status', 'default iptc'],
+  ['rw', 'rightsUsage', 'Rights Usage Terms', 'iptc'], ['rw', 'copyrightUrl', 'Copyright Info URL', 'iptc'],
+  ['sub', '', 'Contact', 'iptc'],
+  ['rw', 'creator', 'Creator', 'default iptc'], ['rw', 'creatorJob', 'Job Title', 'iptc'], ['rw', 'creatorAddress', 'Address', 'iptc'],
+  ['rw', 'creatorCity', 'City', 'iptc'], ['rw', 'creatorState', 'State / Province', 'iptc'], ['rw', 'creatorCountry', 'Country', 'iptc'],
+  ['rw', 'creatorPhone', 'Phone', 'iptc'], ['rw', 'creatorEmail', 'E-Mail', 'iptc'], ['rw', 'creatorUrl', 'Website', 'iptc'],
+  ['sub', '', 'Camera', 'default exif'],
+  ['ro', 'captureTime', 'Capture Time', 'default exif'], ['ro', 'camera', 'Camera', 'default exif'], ['ro', 'lens', 'Lens', 'default exif'],
+  ['ro', 'exposure', 'Exposure', 'default exif'], ['ro', 'focal', 'Focal Length', 'default exif'], ['ro', 'iso', 'ISO Speed', 'default exif'],
+  ['ro', 'bias', 'Exposure Bias', 'exif'], ['ro', 'flash', 'Flash', 'exif'],
+  ['sub', '', 'Location', 'default iptc location'],
+  ['rw', 'sublocation', 'Sublocation', 'default iptc location'], ['rw', 'city', 'City', 'default iptc location'], ['rw', 'state', 'State / Province', 'default iptc location'],
+  ['rw', 'country', 'Country', 'default iptc location'], ['rw', 'isoCountryCode', 'ISO Country Code', 'iptc location'], ['ro', 'gps', 'GPS', 'default exif location'],
+  ['sub', '', 'Status', 'default iptc'],
+  ['rw', 'event', 'Event', 'default iptc'], ['rw', 'personShown', 'Person Shown', 'iptc'], ['rw', 'scene', 'Scene Code', 'iptc'], ['rw', 'subjectCode', 'Subject Code', 'iptc'],
+  ['rw', 'intellectualGenre', 'Intellectual Genre', 'iptc'], ['rw', 'jobId', 'Job Identifier', 'iptc'], ['rw', 'instructions', 'Instructions', 'default iptc'],
+  ['rw', 'credit', 'Credit Line', 'iptc'], ['rw', 'source', 'Source', 'iptc'],
 ];
 
 export class InspectPanels {
@@ -171,7 +193,7 @@ export class InspectPanels {
     this.renderKeywords();
     for (const row of Array.from(this.meta.querySelectorAll<HTMLElement>('[data-field]'))) {
       const f = row.dataset.field as string;
-      const input = row.querySelector<HTMLInputElement>('input');
+      const input = row.querySelector<HTMLInputElement>('input, select, textarea');
       const value = this.metaValue(d, f);
       if (input) setValue(input, value);
       else setText(q(row, '.fl-meta-val'), value);
@@ -197,31 +219,38 @@ export class InspectPanels {
       case 'flash': return d.flash === null || d.flash === undefined ? '' : d.flash & 1 ? 'Fired' : 'Did not fire';
       case 'gps': return d.gpsLat !== null && d.gpsLon !== null ? `${d.gpsLat.toFixed(5)}, ${d.gpsLon.toFixed(5)}` : '';
       case 'size': return d.fileSize ? `${(d.fileSize / 1048576).toFixed(1)} MB` : '';
+      case 'sublocation': return d.meta?.sublocation ?? d.meta?.location ?? '';
       default: return d.meta?.[f] ?? '';
     }
   }
 
   private buildMeta(): void {
-    const ro = (f: string, label: string) => `<div class="fl-meta-row" data-field="${f}"><span class="fl-meta-key">${label}</span><span class="fl-meta-val"></span></div>`;
-    const rw = (f: string, label: string) => `<label class="fl-meta-row" data-field="${f}"><span class="fl-meta-key">${label}</span><input class="fl-meta-input" type="text" spellcheck="false"></label>`;
-    const html = [
-      '<div class="fl-meta-note"></div>',
-      ro('fileName', 'File Name'), ro('copyName', 'Copy Name'), ro('folder', 'Folder'), ro('size', 'File Size'), ro('dims', 'Dimensions'),
-      ...META_FIELDS.slice(0, 7).map(([f, l]) => rw(f, l)),
-      '<div class="fl-sub">Camera</div>',
-      ro('captureTime', 'Capture Time'), ro('camera', 'Camera'), ro('lens', 'Lens'), ro('exposure', 'Exposure'), ro('focal', 'Focal Length'), ro('iso', 'ISO Speed'),
-      ro('bias', 'Exposure Bias'), ro('flash', 'Flash'), ro('gps', 'GPS'),
-      '<div class="fl-sub">Location and IPTC</div>',
-      ...META_FIELDS.slice(7).map(([f, l]) => rw(f, l)),
-    ].join('');
-    this.meta.innerHTML = html;
+    const row = ([kind, f, label, views]: [MetaKind, string, string, string]): string => {
+      if (kind === 'sub') return `<div class="fl-sub fl-meta-sub" data-views="${views}">${label}</div>`;
+      if (kind === 'ro') return `<div class="fl-meta-row" data-field="${f}" data-views="${views}"><span class="fl-meta-key">${label}</span><span class="fl-meta-val"></span></div>`;
+      if (kind === 'sel') return `<label class="fl-meta-row" data-field="${f}" data-views="${views}"><span class="fl-meta-key">${label}</span><select class="fl-meta-input"><option value="">Unknown</option><option value="Copyrighted">Copyrighted</option><option value="Public Domain">Public Domain</option></select></label>`;
+      if (kind === 'area') return `<label class="fl-meta-row fl-meta-area" data-field="${f}" data-views="${views}"><span class="fl-meta-key">${label}</span><textarea class="fl-meta-input" rows="8" spellcheck="true"></textarea></label>`;
+      return `<label class="fl-meta-row" data-field="${f}" data-views="${views}"><span class="fl-meta-key">${label}</span><input class="fl-meta-input" type="text" spellcheck="false"></label>`;
+    };
+    const viewSel = `<label class="fl-meta-row fl-meta-view"><span class="fl-meta-key">View</span><select class="cv-select">${META_VIEWS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>`;
+    this.meta.innerHTML = [viewSel, '<div class="fl-meta-note"></div>', ...META_ROWS.map(row)].join('');
+    const sel = q<HTMLSelectElement>(this.meta, '.fl-meta-view select');
+    const show = (v: string): void => {
+      for (const r of Array.from(this.meta.querySelectorAll<HTMLElement>('[data-views]'))) setHidden(r, !(r.dataset.views ?? '').split(' ').includes(v));
+    };
+    let view = 'default';
+    try { view = localStorage.getItem(META_VIEW_KEY) || 'default'; } catch { view = 'default'; }
+    if (!META_VIEWS.some(([v]) => v === view)) view = 'default';
+    sel.value = view;
+    show(view);
+    sel.addEventListener('change', () => { show(sel.value); try { localStorage.setItem(META_VIEW_KEY, sel.value); } catch { show(sel.value); } });
     this.meta.addEventListener('change', (e) => {
       const input = e.target as HTMLInputElement;
-      const row = input.closest<HTMLElement>('[data-field]');
-      if (!row) return;
-      void this.run('photo.setMeta', { fields: { [row.dataset.field as string]: input.value } });
+      const r = input.closest<HTMLElement>('[data-field]');
+      if (!r) return;
+      void this.run('photo.setMeta', { fields: { [r.dataset.field as string]: input.value } });
     });
-    this.meta.addEventListener('keydown', (e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); });
+    this.meta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') (e.target as HTMLInputElement).blur(); });
   }
 
   private async setKeywords(): Promise<void> {

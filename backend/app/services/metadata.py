@@ -28,8 +28,17 @@ for _p, _u in NS.items():
 
 META_FIELDS = ["title", "caption", "headline", "altText", "extendedDescription", "creator", "creatorJob", "creatorAddress", "creatorCity",
                "creatorState", "creatorCountry", "creatorEmail", "creatorPhone", "creatorUrl", "copyright", "copyrightStatus", "rightsUsage",
-               "copyrightUrl", "location", "city", "state", "country", "isoCountryCode", "sublocation", "jobId", "instructions", "provider",
+               "copyrightUrl", "location", "city", "state", "country", "isoCountryCode", "sublocation", "jobId", "instructions", "credit",
                "source", "intellectualGenre", "scene", "subjectCode", "event", "personShown"]
+SIMPLE = {"headline": "photoshop:Headline", "city": "photoshop:City", "state": "photoshop:State", "country": "photoshop:Country",
+          "isoCountryCode": "Iptc4xmpCore:CountryCode", "sublocation": "Iptc4xmpCore:Location", "instructions": "photoshop:Instructions",
+          "jobId": "photoshop:TransmissionReference", "credit": "photoshop:Credit", "source": "photoshop:Source", "creatorJob": "photoshop:AuthorsPosition",
+          "intellectualGenre": "Iptc4xmpCore:IntellectualGenre", "copyrightUrl": "xmpRights:WebStatement"}
+ALT = {"title": "dc:title", "caption": "dc:description", "copyright": "dc:rights", "rightsUsage": "xmpRights:UsageTerms",
+       "altText": "Iptc4xmpCore:AltTextAccessibility", "extendedDescription": "Iptc4xmpCore:ExtDescrAccessibility", "event": "Iptc4xmpExt:Event"}
+BAG = {"scene": "Iptc4xmpCore:Scene", "subjectCode": "Iptc4xmpCore:SubjectCode", "personShown": "Iptc4xmpExt:PersonInImage"}
+CONTACT = {"creatorAddress": "CiAdrExtadr", "creatorCity": "CiAdrCity", "creatorState": "CiAdrRegion", "creatorCountry": "CiAdrCtry",
+           "creatorEmail": "CiEmailWork", "creatorPhone": "CiTelWork", "creatorUrl": "CiUrlWork"}
 
 
 def _num(v: Any) -> float | None:
@@ -183,6 +192,17 @@ def _bag(el: ET.Element | None) -> list[str]:
     return [(li.text or "").strip() for li in el.iter(_q("rdf", "li")) if (li.text or "").strip()]
 
 
+def _clark(qname: str) -> str:
+    prefix, name = qname.split(":")
+    return _q(prefix, name)
+
+
+_SIMPLE_R = {_clark(v): k for k, v in SIMPLE.items()}
+_ALT_R = {_clark(v): k for k, v in ALT.items()}
+_BAG_R = {_clark(v): k for k, v in BAG.items()}
+_CONTACT_R = {_q("Iptc4xmpCore", v): k for k, v in CONTACT.items()}
+
+
 def parse_xmp(text: str) -> dict:
     out: dict[str, Any] = {}
     try:
@@ -202,28 +222,31 @@ def parse_xmp(text: str) -> dict:
                     pass
             elif k == _q("xmp", "Label"):
                 out["label"] = v
-            elif k == _q("photoshop", "City"):
-                meta["city"] = v
-            elif k == _q("photoshop", "State"):
-                meta["state"] = v
-            elif k == _q("photoshop", "Country"):
-                meta["country"] = v
-            elif k == _q("photoshop", "Headline"):
-                meta["headline"] = v
-            elif k == _q("Iptc4xmpCore", "Location"):
-                meta["location"] = v
+            elif k in _SIMPLE_R:
+                meta[_SIMPLE_R[k]] = v
+            elif k == _q("xmpRights", "Marked"):
+                meta["copyrightStatus"] = "Copyrighted" if v.strip().lower() == "true" else "Public Domain"
             elif k == _q("photoshop", "DateCreated") or k == _q("exif", "DateTimeOriginal"):
                 out.setdefault("captureTime", v[:19])
             elif k == _q("fl", "develop"):
                 out["develop"] = html.unescape(v)
         for child in desc:
             tag = child.tag
-            if tag == _q("dc", "title"):
-                meta["title"] = _alt(child)
-            elif tag == _q("dc", "description"):
-                meta["caption"] = _alt(child)
-            elif tag == _q("dc", "rights"):
-                meta["copyright"] = _alt(child)
+            if tag in _ALT_R:
+                meta[_ALT_R[tag]] = _alt(child)
+            elif tag in _BAG_R:
+                meta[_BAG_R[tag]] = ", ".join(_bag(child))
+            elif tag in _SIMPLE_R:
+                meta[_SIMPLE_R[tag]] = (child.text or "").strip()
+            elif tag == _q("xmpRights", "Marked"):
+                meta["copyrightStatus"] = "Copyrighted" if (child.text or "").strip().lower() == "true" else "Public Domain"
+            elif tag == _q("Iptc4xmpCore", "CreatorContactInfo"):
+                for kk, vv in child.attrib.items():
+                    if kk in _CONTACT_R:
+                        meta[_CONTACT_R[kk]] = vv
+                for sub in child.iter():
+                    if sub.tag in _CONTACT_R:
+                        meta[_CONTACT_R[sub.tag]] = (sub.text or "").strip()
             elif tag == _q("dc", "creator"):
                 c = _bag(child)
                 if c:
@@ -239,16 +262,6 @@ def parse_xmp(text: str) -> dict:
                     pass
             elif tag == _q("xmp", "Label"):
                 out["label"] = (child.text or "").strip()
-            elif tag == _q("photoshop", "Headline"):
-                meta["headline"] = (child.text or "").strip()
-            elif tag == _q("photoshop", "City"):
-                meta["city"] = (child.text or "").strip()
-            elif tag == _q("photoshop", "State"):
-                meta["state"] = (child.text or "").strip()
-            elif tag == _q("photoshop", "Country"):
-                meta["country"] = (child.text or "").strip()
-            elif tag == _q("Iptc4xmpCore", "Location"):
-                meta["location"] = (child.text or "").strip()
             elif tag == _q("fl", "develop"):
                 out["develop"] = (child.text or "").strip()
             elif tag.startswith("{" + NS["crs"]):
@@ -286,10 +299,13 @@ def build_xmp(record: dict) -> str:
     attrs = [f'xmp:Rating="{int(record.get("rating", 0))}"', f'xmp:MetadataDate="{time.strftime("%Y-%m-%dT%H:%M:%S")}"', 'xmp:CreatorTool="formlit"']
     if record.get("label"):
         attrs.append(f'xmp:Label="{_esc(record["label"].title())}"')
-    for key, tag in (("city", "photoshop:City"), ("state", "photoshop:State"), ("country", "photoshop:Country"), ("headline", "photoshop:Headline"),
-                     ("location", "Iptc4xmpCore:Location"), ("instructions", "photoshop:Instructions"), ("jobId", "photoshop:TransmissionReference")):
+    meta = {**meta, "sublocation": meta.get("sublocation") or meta.get("location") or ""}
+    for key, tag in SIMPLE.items():
         if meta.get(key):
             attrs.append(f'{tag}="{_esc(meta[key])}"')
+    status = str(meta.get("copyrightStatus") or "").strip().lower()
+    if status in ("copyrighted", "public domain"):
+        attrs.append(f'xmpRights:Marked="{"True" if status == "copyrighted" else "False"}"')
     if record.get("captureTime"):
         attrs.append(f'photoshop:DateCreated="{_esc(record["captureTime"])}"')
     if record.get("develop"):
@@ -301,12 +317,16 @@ def build_xmp(record: dict) -> str:
         except (ValueError, TypeError):
             pass
     children = []
-    if meta.get("title"):
-        children.append(f'<dc:title><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta["title"])}</rdf:li></rdf:Alt></dc:title>')
-    if meta.get("caption"):
-        children.append(f'<dc:description><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta["caption"])}</rdf:li></rdf:Alt></dc:description>')
-    if meta.get("copyright"):
-        children.append(f'<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta["copyright"])}</rdf:li></rdf:Alt></dc:rights>')
+    for key, tag in ALT.items():
+        if meta.get(key):
+            children.append(f'<{tag}><rdf:Alt><rdf:li xml:lang="x-default">{_esc(meta[key])}</rdf:li></rdf:Alt></{tag}>')
+    for key, tag in BAG.items():
+        items = [s.strip() for s in str(meta.get(key) or "").split(",") if s.strip()]
+        if items:
+            children.append(f"<{tag}><rdf:Bag>" + "".join(f"<rdf:li>{_esc(s)}</rdf:li>" for s in items) + f"</rdf:Bag></{tag}>")
+    contact = "".join(f"<Iptc4xmpCore:{tag}>{_esc(meta[key])}</Iptc4xmpCore:{tag}>" for key, tag in CONTACT.items() if meta.get(key))
+    if contact:
+        children.append(f'<Iptc4xmpCore:CreatorContactInfo rdf:parseType="Resource">{contact}</Iptc4xmpCore:CreatorContactInfo>')
     if meta.get("creator"):
         children.append(f'<dc:creator><rdf:Seq><rdf:li>{_esc(meta["creator"])}</rdf:li></rdf:Seq></dc:creator>')
     kws = record.get("keywords") or []
