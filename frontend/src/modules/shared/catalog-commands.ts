@@ -1,6 +1,7 @@
 import type { Ctx } from '../../app';
 import { events } from '../../io/events';
-import { library } from '../../state/library';
+import { library, type Photo } from '../../state/library';
+import type { SecondMode, SecondMsg } from '../../second-modes';
 import { askForm } from '../../ui/askform';
 import { Dialog } from '../../ui/dialogs';
 import { el, escapeHtml } from '../../ui/dom';
@@ -32,24 +33,53 @@ class ShortcutsDialog extends Dialog {
   }
 }
 
-async function openSecondWindow(): Promise<void> {
-  const url = `${window.location.pathname}?second=1`;
+let secondRef: Window | null = null;
+const secondCh = new BroadcastChannel(SECOND_CHANNEL);
+
+async function openSecondWindow(mode?: SecondMode): Promise<void> {
+  const url = `${window.location.pathname}?second=1${mode ? `&mode=${mode}` : ''}`;
   if ('__TAURI_INTERNALS__' in window) {
     const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
     const existing = await WebviewWindow.getByLabel('second');
-    if (existing) { await existing.setFocus(); return; }
+    if (existing) { if (mode) secondCh.postMessage({ kind: 'mode', mode } satisfies SecondMsg); await existing.setFocus(); return; }
     new WebviewWindow('second', { url, title: 'formlit · Second Window', width: 1200, height: 800 });
     return;
   }
-  window.open(url, 'formlit-second', 'popup,width=1200,height=800');
+  if (secondRef && !secondRef.closed) { if (mode) secondCh.postMessage({ kind: 'mode', mode } satisfies SecondMsg); secondRef.focus(); return; }
+  secondRef = window.open(url, 'formlit-second', 'popup,width=1200,height=800');
 }
 
 function broadcastActive(): void {
-  const ch = new BroadcastChannel(SECOND_CHANNEL);
-  const send = () => ch.postMessage({ photo: library.active !== null ? library.photo(library.active) ?? null : null });
+  const ch = secondCh;
+  let hover: number | null = null;
+  const send = () => {
+    const sel = library.selected();
+    const photos: Record<string, Photo> = {};
+    for (const id of sel.slice(0, 24)) { const p = library.photo(id); if (p) photos[id] = p; }
+    ch.postMessage({ kind: 'state', photo: library.photo(library.active) ?? null, photos, sel, active: library.active, view: { source: library.source, filter: library.filter, sort: library.sort } } satisfies SecondMsg);
+  };
   library.listen('selection', send);
-  library.listen('photos', (ids) => { if (library.active !== null && ids.includes(library.active)) send(); });
-  ch.onmessage = (e: MessageEvent) => { if ((e.data as { hello?: boolean }).hello) send(); };
+  library.listen('list', send);
+  library.listen('photos', (ids) => { if (ids.some((id) => library.selection.has(id) || id === library.active)) send(); });
+  document.addEventListener('pointerover', (e) => {
+    const cell = (e.target as HTMLElement).closest?.<HTMLElement>('.fl-cell[data-id]');
+    const id = cell ? Number(cell.dataset.id) : null;
+    if (id === hover) return;
+    hover = id;
+    ch.postMessage({ kind: 'hover', id, photo: library.photo(id) ?? null } satisfies SecondMsg);
+  }, { passive: true });
+  ch.onmessage = (e: MessageEvent) => {
+    const d = e.data as SecondMsg;
+    if (d.hello) { send(); return; }
+    if (d.kind !== 'select') return;
+    const ids = (d.sel ?? []).filter((id) => library.photos.has(id));
+    if (!ids.length) return;
+    library.selection.clear();
+    for (const id of ids) library.selection.add(id);
+    library.active = d.active !== null && d.active !== undefined && ids.includes(d.active) ? d.active : ids[0];
+    library.anchor = library.active;
+    library.emitSelection();
+  };
 }
 
 interface AutoImport { enabled: boolean; watch: string; destination: string; folderTemplate: string; renameTemplate: string; keywords: string[]; preset: string }
@@ -167,6 +197,11 @@ export function registerCatalogCommands(ctx: Ctx): void {
       },
     },
     { id: 'view.secondWindow', label: 'Second Window', keys: ['F11'], run: () => void openSecondWindow() },
+    { id: 'view.second.grid', label: 'Second Window: Grid', keys: ['Shift+G'], run: () => void openSecondWindow('grid') },
+    { id: 'view.second.loupe', label: 'Second Window: Loupe', run: () => void openSecondWindow('loupe') },
+    { id: 'view.second.compare', label: 'Second Window: Compare', keys: ['Shift+C'], run: () => void openSecondWindow('compare') },
+    { id: 'view.second.survey', label: 'Second Window: Survey', keys: ['Shift+N'], run: () => void openSecondWindow('survey') },
+    { id: 'view.second.slideshow', label: 'Second Window: Slideshow', run: () => void openSecondWindow('slideshow') },
     { id: 'app.shortcuts', label: 'Keyboard Shortcuts', keys: ['Mod+/'], run: () => { shortcuts ??= new ShortcutsDialog(ctx); shortcuts.show(); } },
     { id: 'app.agents', label: 'Agents and MCP...', run: () => openPreferences(ctx) },
   );
