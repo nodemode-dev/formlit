@@ -648,6 +648,14 @@ def read_metadata(ids: Any = None) -> dict:
                 continue
             x = metadata.read_xmp(p)
             cols: dict = {}
+            r = c.row("SELECT kind, camera FROM photos WHERE id=?", (pid,))
+            e = metadata.read_exif(p) if r and not r["camera"] and r["kind"] != "video" else {}
+            if e.get("camera"):
+                cols.update(camera=e["camera"], lens=e.get("lens", ""), focal=e.get("focal"), aperture=e.get("aperture"), shutter=e.get("shutter"),
+                            iso=e.get("iso"), bias=e.get("bias"), flash=e.get("flash"), gps_lat=e.get("gpsLat"), gps_lon=e.get("gpsLon"),
+                            gps_alt=e.get("gpsAlt"), gps_dir=e.get("gpsDir"), exif=e)
+                if e.get("captureTime"):
+                    cols["capture_time"] = e["captureTime"]
             if "rating" in x:
                 cols["rating"] = max(0, min(5, int(x["rating"])))
             if "label" in x and x["label"].lower() in LABELS:

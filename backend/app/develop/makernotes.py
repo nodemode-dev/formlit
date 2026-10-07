@@ -168,6 +168,48 @@ def _exif_in(jpeg: bytes) -> str | None:
     return _from_tiff(Tiff(jpeg, i + 6))
 
 
+def _box(buf: bytes, name: bytes) -> bytes | None:
+    i = buf.find(name)
+    if i < 4:
+        return None
+    size = struct.unpack_from(">I", buf, i - 4)[0]
+    return buf[i + 4:i - 4 + size] if 8 < size <= len(buf) - i + 4 else None
+
+
+def container_exif(path) -> dict:
+    import io
+
+    import exifread
+    from exifread.tags.exif import GPS_TAGS
+    try:
+        with open(path, "rb") as f:
+            buf = f.read(HEAD)
+    except OSError:
+        return {}
+    try:
+        if buf.startswith(b"FUJIFILMCCD-RAW"):
+            jo, jl = struct.unpack_from(">II", buf, 84)
+            return dict(exifread.process_file(io.BytesIO(buf[jo:jo + jl]), details=False))
+        if not (buf[4:8] == b"ftyp" and b"crx " in buf[:32]):
+            return {}
+        tags: dict = {}
+        for name, group in ((b"CMT1", "Image"), (b"CMT2", "EXIF"), (b"CMT4", "GPS")):
+            blob = _box(buf, name)
+            if not blob:
+                continue
+            for key, value in exifread.process_file(io.BytesIO(blob), details=False).items():
+                if not key.startswith("Image "):
+                    continue
+                label = key[6:]
+                if group == "GPS":
+                    known = GPS_TAGS.get(getattr(value, "tag", -1))
+                    label = known[0] if known else label
+                tags[f"{group} {label}"] = value
+        return tags
+    except (struct.error, ValueError, KeyError, IndexError):
+        return {}
+
+
 def picture_style(path) -> str | None:
     try:
         with open(path, "rb") as f:

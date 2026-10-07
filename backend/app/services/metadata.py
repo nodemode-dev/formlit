@@ -95,6 +95,9 @@ def read_exif(path: Path) -> dict:
     except Exception:
         tags = {}
     if not tags:
+        from app.develop.makernotes import container_exif
+        tags = container_exif(path)
+    if not tags:
         return out
     make = _text(tags.get("Image Make", ""))
     model = _text(tags.get("Image Model", ""))
