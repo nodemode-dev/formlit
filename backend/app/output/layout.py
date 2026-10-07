@@ -50,6 +50,23 @@ BOOK_TEMPLATES = {
     "three": {"name": "One Large Two Small", "cells": [[0.06, 0.06, 0.88, 0.52], [0.06, 0.61, 0.43, 0.33], [0.51, 0.61, 0.43, 0.33]], "texts": []},
     "three-col": {"name": "Three Columns", "cells": [[0.05, 0.22, 0.28, 0.56], [0.36, 0.22, 0.28, 0.56], [0.67, 0.22, 0.28, 0.56]], "texts": []},
     "four": {"name": "Four Grid", "cells": [[0.06, 0.06, 0.43, 0.43], [0.51, 0.06, 0.43, 0.43], [0.06, 0.51, 0.43, 0.43], [0.51, 0.51, 0.43, 0.43]], "texts": []},
+    "two-h-caption": {"name": "Two Side by Side with Captions", "cells": [[0.06, 0.18, 0.425, 0.56], [0.515, 0.18, 0.425, 0.56]], "texts": [[0.06, 0.77, 0.425, 0.08], [0.515, 0.77, 0.425, 0.08]]},
+    "two-big-small": {"name": "One Large One Small", "cells": [[0.05, 0.08, 0.6, 0.84], [0.68, 0.36, 0.27, 0.3]], "texts": [[0.68, 0.7, 0.27, 0.12]]},
+    "three-row": {"name": "Three in a Row", "cells": [[0.04, 0.3, 0.3, 0.4], [0.35, 0.3, 0.3, 0.4], [0.66, 0.3, 0.3, 0.4]], "texts": []},
+    "three-left": {"name": "One Tall Two Stacked", "cells": [[0.05, 0.06, 0.5, 0.88], [0.57, 0.06, 0.38, 0.43], [0.57, 0.51, 0.38, 0.43]], "texts": []},
+    "three-stack": {"name": "Three Stacked", "cells": [[0.2, 0.04, 0.6, 0.29], [0.2, 0.355, 0.6, 0.29], [0.2, 0.67, 0.6, 0.29]], "texts": []},
+    "four-row": {"name": "Four in a Row", "cells": [[0.04, 0.34, 0.215, 0.32], [0.27, 0.34, 0.215, 0.32], [0.5, 0.34, 0.215, 0.32], [0.73, 0.34, 0.215, 0.32]], "texts": []},
+    "four-feature": {"name": "One Large Three Small", "cells": [[0.05, 0.06, 0.62, 0.88], [0.7, 0.06, 0.25, 0.28], [0.7, 0.36, 0.25, 0.28], [0.7, 0.66, 0.25, 0.28]], "texts": []},
+    "four-caption": {"name": "Four Grid with Caption", "cells": [[0.08, 0.05, 0.41, 0.37], [0.51, 0.05, 0.41, 0.37], [0.08, 0.44, 0.41, 0.37], [0.51, 0.44, 0.41, 0.37]], "texts": [[0.08, 0.85, 0.84, 0.08]]},
+    "five": {"name": "Five Mosaic", "cells": [[0.04, 0.05, 0.56, 0.58], [0.62, 0.05, 0.34, 0.28], [0.62, 0.35, 0.34, 0.28], [0.04, 0.66, 0.45, 0.29], [0.51, 0.66, 0.45, 0.29]], "texts": []},
+    "six": {"name": "Six Grid", "cells": [[0.04 + c * 0.31, 0.12 + r * 0.39, 0.3, 0.37] for r in range(2) for c in range(3)], "texts": []},
+    "nine": {"name": "Nine Grid", "cells": [[0.05 + c * 0.305, 0.05 + r * 0.305, 0.29, 0.29] for r in range(3) for c in range(3)], "texts": []},
+    "twelve": {"name": "Contact Sheet", "cells": [[0.04 + c * 0.235, 0.06 + r * 0.31, 0.22, 0.28] for r in range(3) for c in range(4)], "texts": []},
+    "photo-text-right": {"name": "Photo with Text Beside", "cells": [[0.05, 0.08, 0.55, 0.84]], "texts": [[0.64, 0.3, 0.31, 0.08], [0.64, 0.4, 0.31, 0.3]]},
+    "photo-text-left": {"name": "Text Beside Photo", "cells": [[0.4, 0.08, 0.55, 0.84]], "texts": [[0.05, 0.3, 0.31, 0.08], [0.05, 0.4, 0.31, 0.3]]},
+    "full-caption": {"name": "Full Bleed with Caption", "cells": [[0, 0, 1, 0.86]], "texts": [[0.08, 0.89, 0.84, 0.07]]},
+    "title-photo": {"name": "Title over Photo", "cells": [[0.08, 0.24, 0.84, 0.7]], "texts": [[0.08, 0.06, 0.84, 0.1], [0.08, 0.16, 0.84, 0.05]]},
+    "quote": {"name": "Quote Page", "cells": [], "texts": [[0.18, 0.36, 0.64, 0.2], [0.18, 0.6, 0.64, 0.06]]},
     "text": {"name": "Text Page", "cells": [], "texts": [[0.15, 0.3, 0.7, 0.4]]},
     "blank": {"name": "Blank", "cells": [], "texts": []},
     "cover": {"name": "Cover", "cells": [[0.0, 0.0, 1.0, 0.72]], "texts": [[0.08, 0.76, 0.84, 0.1], [0.08, 0.87, 0.84, 0.06]]},
@@ -87,6 +104,24 @@ def page_size(s: dict) -> tuple[float, float]:
     if (s.get("orientation") == "landscape") != (w > h):
         w, h = h, w
     return w, h
+
+
+TEXT_STYLES = {
+    "title": {"font": "sans", "bold": True, "size": 30, "align": "center"},
+    "heading": {"font": "sans", "bold": True, "size": 18, "align": "left"},
+    "body": {"font": "serif", "bold": False, "size": 11, "align": "left"},
+    "caption": {"font": "sans", "bold": False, "italic": True, "size": 9, "align": "center"},
+    "quote": {"font": "serif", "bold": False, "italic": True, "size": 20, "align": "center"},
+    "mono": {"font": "mono", "bold": False, "size": 10, "align": "left"},
+}
+
+
+def pan_zoom(cell: dict, img: dict, z: float, x: float, y: float) -> dict:
+    z = max(1.0, min(4.0, z))
+    x, y = max(-1.0, min(1.0, x)), max(-1.0, min(1.0, y))
+    iw, ih = img["w"] * z, img["h"] * z
+    sx, sy = max(0.0, iw - cell["w"]), max(0.0, ih - cell["h"])
+    return {"x": cell["x"] - sx * (0.5 + 0.5 * x) + min(0.0, iw - cell["w"]) * -0.5, "y": cell["y"] - sy * (0.5 + 0.5 * y) + min(0.0, ih - cell["h"]) * -0.5, "w": iw, "h": ih}
 
 
 def place(cell: dict, aspect: float | None, fill: bool, rotate: bool) -> dict:
@@ -167,16 +202,27 @@ def book_pages(settings: dict, photos: dict[int, float]) -> dict:
         t = BOOK_TEMPLATES.get(page.get("template", "single"), BOOK_TEMPLATES["single"])
         ids = list(page.get("photos") or [])
         cells = []
+        crops = list(page.get("crops") or [])
         for i, (x, y, w, h) in enumerate(t["cells"]):
             pid = ids[i] if i < len(ids) else None
             c = {"x": x * pw, "y": y * ph, "w": w * pw, "h": h * ph}
             item = place(c, photos.get(int(pid)) if pid is not None else None, True, False)
             item["photo"] = pid
+            adj = crops[i] if i < len(crops) and isinstance(crops[i], dict) else None
+            if adj and item.get("img"):
+                item["img"] = pan_zoom(c, item["img"], float(adj.get("z", 1)), float(adj.get("x", 0)), float(adj.get("y", 0)))
+                item["crop"] = {"z": float(adj.get("z", 1)), "x": float(adj.get("x", 0)), "y": float(adj.get("y", 0))}
             cells.append(item)
         texts = []
         values = list(page.get("texts") or [])
+        styles = list(page.get("styles") or [])
         for i, (x, y, w, h) in enumerate(t["texts"]):
-            texts.append({"x": x * pw, "y": y * ph, "w": w * pw, "h": h * ph, "text": values[i] if i < len(values) else "", "title": idx == 0 and i == 0})
+            frame = {"x": x * pw, "y": y * ph, "w": w * pw, "h": h * ph, "text": values[i] if i < len(values) else "", "title": idx == 0 and i == 0}
+            st = styles[i] if i < len(styles) and isinstance(styles[i], dict) else None
+            if st:
+                base = TEXT_STYLES.get(str(st.get("style", "")), {})
+                frame.update({k: v for k, v in {**base, **st}.items() if k in ("font", "bold", "italic", "size", "align", "color")})
+            texts.append(frame)
         out.append({"template": page.get("template", "single"), "cells": cells, "texts": texts, "cover": idx == 0, "number": idx})
     return {"page": {"w": pw, "h": ph}, "pages": out, "settings": s}
 

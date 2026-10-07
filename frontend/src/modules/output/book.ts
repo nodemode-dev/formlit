@@ -1,5 +1,5 @@
 import { library } from '../../state/library';
-import { el, escapeHtml, patchList, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
+import { el, escapeHtml, patchList, q, setClass, setHidden, setStyleVar, setText, setValue } from '../../ui/dom';
 import { Panel } from '../../ui/panel';
 import { toast } from '../../ui/toast';
 import { registerModule } from '../registry';
@@ -7,7 +7,10 @@ import { runOutput } from '../shared/tasks';
 import { OutputModule } from './base';
 import { PageView, type Layout } from './page';
 
-interface BookPage { template: string; photos: Array<number | null>; texts: string[] }
+interface Crop { z: number; x: number; y: number }
+interface TextStyle { style?: string; align?: string; color?: string }
+interface BookPage { template: string; photos: Array<number | null>; texts: string[]; crops?: Array<Crop | null>; styles?: Array<TextStyle | null> }
+const STYLE_NAMES: Array<[string, string]> = [['', 'Book Default'], ['title', 'Title'], ['heading', 'Heading'], ['body', 'Body'], ['caption', 'Caption'], ['quote', 'Quote'], ['mono', 'Typewriter']];
 interface TemplateDef { name: string; cells: number[][]; texts: number[][] }
 type View = 'multi' | 'spread' | 'single';
 
@@ -31,6 +34,9 @@ class BookModule extends OutputModule {
   private readonly templatesBox = el('<div class="fl-tpl-grid"></div>');
   private readonly textBox = el('<div class="fl-form"></div>');
   private readonly pageInfo = el('<p class="cv-note"></p>');
+  private readonly cellBox = el('<div class="fl-book-cell" hidden><div class="fl-sub">Photo in Cell</div><label class="fl-opt"><span>Zoom</span><input class="cv-slider" type="range" min="100" max="400" step="5" value="100" data-cz></label><p class="cv-note">Drag the photo in its cell to reposition it.</p><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-creset>Reset</button></div></div>');
+  private selectedCell = -1;
+  private pan: { view: PageView; cell: number; node: HTMLElement; sx: number; sy: number; c0: Crop; moved: boolean } | null = null;
   private readonly viewSeg = el('<div class="cv-seg fl-seg-sm"><button type="button" data-v="multi">Multi-Page</button><button type="button" data-v="spread">Spread</button><button type="button" data-v="single">Single Page</button></div>');
 
   protected keepOnTemplate(s: Record<string, unknown>): Record<string, unknown> {
@@ -74,8 +80,10 @@ class BookModule extends OutputModule {
       { path: 'autoLayout', label: 'Preset', kind: 'select', options: [['mixed', 'Mixed layouts'], ['one', 'One photo per page']] },
     ]).body.appendChild(this.buttons([['auto', 'Auto Layout'], ['clear', 'Clear Layout']]));
     const pp = new Panel('book.page', 'Page');
-    pp.body.append(this.pageInfo, this.templatesBox, this.buttons([['add', 'Add Page'], ['remove', 'Remove Page']]));
+    pp.body.append(this.pageInfo, this.templatesBox, this.buttons([['add', 'Add Page'], ['remove', 'Remove Page']]), this.cellBox);
     right.appendChild(pp.root);
+    q<HTMLInputElement>(this.cellBox, '[data-cz]').addEventListener('input', (e) => this.setCrop({ z: Number((e.target as HTMLInputElement).value) / 100 }));
+    q(this.cellBox, '[data-creset]').addEventListener('click', () => this.setCrop(null));
     this.templatesBox.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tpl]');
       if (b) this.setTemplate(b.dataset.tpl as string);
@@ -86,6 +94,10 @@ class BookModule extends OutputModule {
     this.textBox.addEventListener('input', (e) => {
       const i = (e.target as HTMLElement).closest<HTMLInputElement | HTMLTextAreaElement>('[data-t]');
       if (i) this.setText(Number(i.dataset.t), i.value);
+    });
+    this.textBox.addEventListener('change', (e) => {
+      const s = (e.target as HTMLElement).closest<HTMLInputElement | HTMLSelectElement>('[data-ts]');
+      if (s) this.setStyle(Number(s.dataset.ts), s.dataset.k as keyof TextStyle, s.value);
     });
     this.formPanel(right, 'type', 'Type and Background', [
       { path: 'background', label: 'Background', kind: 'color' },
@@ -156,6 +168,67 @@ class BookModule extends OutputModule {
     this.writePage(this.selected, { ...page, texts });
   }
 
+  private setStyle(index: number, k: keyof TextStyle, value: string): void {
+    const page = this.pageRef(this.selected);
+    if (!page) return;
+    const styles = [...(page.styles ?? [])];
+    while (styles.length <= index) styles.push(null);
+    const next: TextStyle = { ...(styles[index] ?? {}), [k]: value };
+    if (!value) delete next[k];
+    styles[index] = Object.keys(next).length ? next : null;
+    this.writePage(this.selected, { ...page, styles });
+  }
+
+  private crop(pageIndex: number, cell: number): Crop {
+    const c = this.pageRef(pageIndex)?.crops?.[cell];
+    return { z: c?.z ?? 1, x: c?.x ?? 0, y: c?.y ?? 0 };
+  }
+
+  private setCrop(patch: Partial<Crop> | null, pageIndex = this.selected, cell = this.selectedCell): void {
+    const page = this.pageRef(pageIndex);
+    if (!page || cell < 0) return;
+    const crops = [...(page.crops ?? [])];
+    while (crops.length <= cell) crops.push(null);
+    crops[cell] = patch === null ? null : { ...this.crop(pageIndex, cell), ...patch };
+    this.writePage(pageIndex, { ...page, crops });
+  }
+
+  private startPan(view: PageView, e: PointerEvent): void {
+    const node = (e.target as HTMLElement).closest<HTMLElement>('.fl-pcell');
+    if (!node || e.button !== 0 || view.index !== this.selected || Number(node.dataset.key) !== this.selectedCell || node.classList.contains('is-empty')) return;
+    e.preventDefault();
+    node.setPointerCapture(e.pointerId);
+    this.pan = { view, cell: this.selectedCell, node, sx: e.clientX, sy: e.clientY, c0: this.crop(view.index, this.selectedCell), moved: false };
+    setClass(node, 'is-panning', true);
+  }
+
+  private movePan(e: PointerEvent): void {
+    const p = this.pan;
+    if (!p) return;
+    const lay = this.lay;
+    const c = lay?.pages[p.view.index]?.cells[p.cell];
+    if (!c?.img) return;
+    const r = p.node.getBoundingClientRect();
+    const iw = c.img.w / c.w, ih = c.img.h / c.h;
+    const sx = Math.max(1e-3, iw - 1), sy = Math.max(1e-3, ih - 1);
+    const x = Math.max(-1, Math.min(1, p.c0.x - (2 * (e.clientX - p.sx)) / (r.width * sx)));
+    const y = Math.max(-1, Math.min(1, p.c0.y - (2 * (e.clientY - p.sy)) / (r.height * sy)));
+    p.moved = true;
+    const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
+    setStyleVar(p.node, '--ix', pct(iw > 1 ? -(iw - 1) * (0.5 + 0.5 * x) : (1 - iw) / 2));
+    setStyleVar(p.node, '--iy', pct(ih > 1 ? -(ih - 1) * (0.5 + 0.5 * y) : (1 - ih) / 2));
+    p.node.dataset.panx = String(x);
+    p.node.dataset.pany = String(y);
+  }
+
+  private endPan(): void {
+    const p = this.pan;
+    this.pan = null;
+    if (!p) return;
+    setClass(p.node, 'is-panning', false);
+    if (p.moved) this.setCrop({ x: Number(p.node.dataset.panx ?? p.c0.x), y: Number(p.node.dataset.pany ?? p.c0.y) }, p.view.index, p.cell);
+  }
+
   private assign(pageIndex: number, cell: number, ids: number[]): void {
     const page = this.pageRef(pageIndex);
     if (!page || !ids.length) return;
@@ -215,8 +288,12 @@ class BookModule extends OutputModule {
           v = new PageView();
           const view = v;
           v.onDropIds = (cell, ids) => this.assign(view.index, cell, ids);
-          v.onCell = (_cell, e) => { this.selected = view.index; this.paintSelection(); this.syncPagePanel(); e.stopPropagation(); };
-          v.root.addEventListener('click', () => { this.selected = view.index; this.paintSelection(); this.syncPagePanel(); });
+          v.onCell = (cell, e) => { this.selected = view.index; this.selectedCell = cell; this.paintSelection(); this.syncPagePanel(); e.stopPropagation(); };
+          v.root.addEventListener('click', () => { if (this.selected !== view.index) this.selectedCell = -1; this.selected = view.index; this.paintSelection(); this.syncPagePanel(); });
+          v.root.addEventListener('pointerdown', (e) => this.startPan(view, e));
+          v.root.addEventListener('pointermove', (e) => this.movePan(e));
+          v.root.addEventListener('pointerup', () => this.endPan());
+          v.root.addEventListener('pointercancel', () => this.endPan());
           v.root.addEventListener('contextmenu', (e) => {
             const c = (e.target as HTMLElement).closest<HTMLElement>('.fl-pcell');
             if (!c) return;
@@ -242,7 +319,10 @@ class BookModule extends OutputModule {
   }
 
   private paintSelection(): void {
-    for (const v of this.views) setClass(v.root, 'is-selected', v.root.isConnected && v.index === this.selected);
+    for (const v of this.views) {
+      setClass(v.root, 'is-selected', v.root.isConnected && v.index === this.selected);
+      for (const c of Array.from(v.root.querySelectorAll<HTMLElement>('.fl-pcell'))) setClass(c, 'is-cell-on', v.index === this.selected && Number(c.dataset.key) === this.selectedCell && !c.classList.contains('is-empty'));
+    }
   }
 
   private syncPagePanel(): void {
@@ -260,9 +340,20 @@ class BookModule extends OutputModule {
     const key = `${this.selected}|${page?.template}`;
     if (this.textBox.dataset.key !== key) {
       this.textBox.dataset.key = key;
-      this.textBox.innerHTML = frames.length ? frames.map((_, i) => `<div class="fl-form-row is-wide"><span class="fl-form-label">${this.selected === 0 ? (i === 0 ? 'Title' : 'Subtitle') : `Text ${i + 1}`}</span><div class="fl-form-ctl"><input class="cv-input" type="text" data-t="${i}"></div></div>`).join('') : '<p class="cv-note">This template has no text. Pick one with a caption or a Text Page to add words.</p>';
+      const styleOpts = STYLE_NAMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      this.textBox.innerHTML = frames.length ? frames.map((_, i) => `<div class="fl-form-row is-wide"><span class="fl-form-label">${this.selected === 0 ? (i === 0 ? 'Title' : 'Subtitle') : `Text ${i + 1}`}</span><div class="fl-form-ctl"><input class="cv-input" type="text" data-t="${i}"></div></div>
+<div class="fl-row fl-book-tstyle"><select class="cv-select" data-ts="${i}" data-k="style" aria-label="Text style">${styleOpts}</select><select class="cv-select" data-ts="${i}" data-k="align" aria-label="Alignment"><option value="">Align: Style</option><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select><input class="fl-color" type="color" data-ts="${i}" data-k="color" aria-label="Text color"></div>`).join('') : '<p class="cv-note">This template has no text. Pick one with a caption or a Text Page to add words.</p>';
     }
     for (const i of Array.from(this.textBox.querySelectorAll<HTMLInputElement>('[data-t]'))) setValue(i, page?.texts?.[Number(i.dataset.t)] ?? '');
+    for (const s of Array.from(this.textBox.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-ts]'))) {
+      const st = page?.styles?.[Number(s.dataset.ts)] ?? null;
+      const k = s.dataset.k as keyof TextStyle;
+      setValue(s, String(st?.[k] ?? (k === 'color' ? String(this.get('textColor') ?? '#222222') : '')));
+    }
+    const lay = this.lay?.pages[this.selected];
+    const hasPhoto = this.selectedCell >= 0 && lay?.cells[this.selectedCell]?.photo != null;
+    setHidden(this.cellBox, !hasPhoto);
+    if (hasPhoto) setValue(q<HTMLInputElement>(this.cellBox, '[data-cz]'), String(Math.round(this.crop(this.selected, this.selectedCell).z * 100)));
   }
 
   private async exportBook(): Promise<void> {

@@ -5,7 +5,7 @@ import { previewUrl, thumbUrl } from '../../ui/thumbs';
 
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Cell extends Rect { photo: number | null; rot?: boolean; img?: Rect | null }
-export interface Overlay { x: number; y: number; size: number; text: string; align: string; color: string; wrap?: number }
+export interface Overlay { x: number; y: number; size: number; text: string; align: string; color: string; wrap?: number; font?: string; bold?: boolean; italic?: boolean }
 export interface TextFrame extends Rect { text: string; title?: boolean }
 export interface LayoutPage { cells: Cell[]; texts?: TextFrame[]; overlays?: Overlay[]; number: number; cover?: boolean; template?: string }
 export interface Layout { page: { w: number; h: number }; pages: LayoutPage[]; settings: Record<string, unknown> }
@@ -80,7 +80,12 @@ export class PageView {
       setStyleVar(n as HTMLElement, '--fs', `${(t.size / 72).toFixed(4)}`);
       setStyleVar(n as HTMLElement, '--tc', t.color);
       setStyleVar(n as HTMLElement, '--tw', t.wrap ? pct(t.wrap / pw) : 'auto');
-      setClass(n, 'is-left', t.align !== 'center');
+      setClass(n, 'is-left', t.align === 'left' || (t.align !== 'center' && t.align !== 'right'));
+      setClass(n, 'is-right', t.align === 'right');
+      setClass(n, 'is-serif', t.font === 'serif');
+      setClass(n, 'is-mono', t.font === 'mono');
+      setClass(n, 'is-bold', !!t.bold);
+      setClass(n, 'is-italic', !!t.italic);
     }
   }
 

@@ -251,7 +251,7 @@ def print_run(settings: dict | None = None, ids: Any = None, collection: int | N
 def book_options() -> dict:
     return {"sizes": {k: {"name": v[0], "w": v[1], "h": v[2]} for k, v in layout.BOOK_SIZES.items()},
             "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"]} for k, v in layout.BOOK_TEMPLATES.items()}, "defaults": layout.BOOK_DEFAULTS,
-            "presets": layout.BOOK_PRESETS}
+            "presets": layout.BOOK_PRESETS, "textStyles": layout.TEXT_STYLES}
 
 
 @command("book.autoLayout", "Auto Layout Book", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "mode": {"type": "string", "enum": ["mixed", "one"]}}, mutates=False)

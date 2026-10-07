@@ -130,14 +130,27 @@ def _overlays(page: dict, layout: dict, s: dict, total: int) -> list[dict]:
                 out.append({"x": c["x"] + c["w"] / 2, "y": c["y"] + c["h"] + float(cap.get("size", 9)) / 72 * 1.3, "size": float(cap.get("size", 9)), "text": text, "align": "center", "color": "#333333"})
     for t in page.get("texts") or []:
         if t.get("text"):
-            size = float(s.get("titleSize", 28) if t.get("title") else s.get("textSize", 11))
-            out.append({"x": t["x"] + t["w"] / 2, "y": t["y"] + size / 72, "size": size, "text": t["text"], "align": "center", "color": s.get("textColor", "#222222"), "wrap": t["w"]})
+            size = float(t.get("size") or (s.get("titleSize", 28) if t.get("title") else s.get("textSize", 11)))
+            align = str(t.get("align") or "center")
+            x = t["x"] if align == "left" else t["x"] + t["w"] if align == "right" else t["x"] + t["w"] / 2
+            out.append({"x": x, "y": t["y"] + size / 72, "size": size, "text": t["text"], "align": align, "color": t.get("color") or s.get("textColor", "#222222"), "wrap": t["w"],
+                        "font": t.get("font", "sans"), "bold": t.get("bold", size >= 20), "italic": bool(t.get("italic"))})
     if s.get("captions") and "captionField" in s:
         for c in page["cells"]:
             text = caption(c.get("photo"), s.get("captionField", "title"))
             if text:
                 out.append({"x": c["x"] + c["w"] / 2, "y": c["y"] + c["h"] + 0.18, "size": 9, "text": text, "align": "center", "color": s.get("textColor", "#222222")})
     return out
+
+
+PDF_FONTS = {"sans": ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"),
+             "serif": ("Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"),
+             "mono": ("Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique")}
+
+
+def pdf_font(family: str, bold: bool, italic: bool) -> str:
+    f = PDF_FONTS.get(family, PDF_FONTS["sans"])
+    return f[(1 if bold else 0) + (2 if italic else 0)]
 
 
 def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = None) -> Path:
@@ -182,13 +195,15 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
                     c.line(X, Y + sy * G, X, Y + sy * (G + L))
         for t in _overlays(page, layout, s, total):
             c.setFillColorRGB(*(v / 255 for v in _hex(t["color"])))
-            font = "Helvetica-Bold" if t["size"] >= 20 else "Helvetica"
+            font = pdf_font(t.get("font", "sans"), bool(t.get("bold", t["size"] >= 20)), bool(t.get("italic")))
             c.setFont(font, t["size"])
             lines = simpleSplit(t["text"], font, t["size"], t["wrap"] * 72) if t.get("wrap") else [t["text"]]
             for i, line in enumerate(lines):
                 X, Y = t["x"] * 72, (ph - t["y"]) * 72 - i * t["size"] * 1.3
                 if t["align"] == "center":
                     c.drawCentredString(X, Y, line)
+                elif t["align"] == "right":
+                    c.drawRightString(X, Y, line)
                 else:
                     c.drawString(X, Y, line)
         c.showPage()
@@ -233,7 +248,7 @@ def raster(layout: dict, page: dict, ppi: float | None = None, bits: int = 8) ->
     for t in _overlays(page, layout, s, len(layout["pages"])):
         font = ImageFont.load_default(size=max(6, round(t["size"] / 72 * ppi)))
         X, Y = t["x"] * ppi, t["y"] * ppi
-        draw.text((X, Y), t["text"], font=font, fill=(*_hex(t["color"]), 255), anchor="ms" if t["align"] == "center" else "ls")
+        draw.text((X, Y), t["text"], font=font, fill=(*_hex(t["color"]), 255), anchor={"center": "ms", "right": "rs"}.get(t["align"], "ls"))
     layer = np.asarray(ink, np.float32) / 255.0
     a = layer[..., 3:4]
     if np.any(a > 0):
