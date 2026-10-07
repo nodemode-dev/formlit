@@ -11,10 +11,10 @@ from typing import Any
 
 from app.core import config, prefs
 from app.engine import catalog as catalog_mod
-from app.engine import tasks
+from app.engine import events, tasks
 from app.engine.commands import CommandError, command, resolve_ids
 from app.engine.records import aspect, loads
-from app.output import encode, export, layout, pages, publish, slideshow, web
+from app.output import encode, export, layout, pages, publish, publish_sdk, slideshow, web
 from app.services import rename
 
 
@@ -436,16 +436,44 @@ def web_export(ids: Any = None, collection: int | None = None, settings: dict | 
 
 @command("publish.services", "Publish Services", mutates=False)
 def publish_services() -> dict:
-    return {"services": publish.services(), "kinds": publish.KINDS}
+    return {"services": publish.services(), "kinds": publish_sdk.kinds()}
 
 
-@command("publish.createService", "New Publish Service", {"kind": {"type": "string", "enum": list(publish.KINDS)}, "name": {"type": "string"}, "settings": {"type": "object"}})
+@command("publish.createService", "New Publish Service", {"kind": {"type": "string", "description": "folder, ftp, webdav, s3 or a plug-in kind from publish.plugins"}, "name": {"type": "string"}, "settings": {"type": "object"}})
 def publish_create_service(kind: str, name: str, settings: dict | None = None) -> dict:
-    if kind not in publish.KINDS:
-        raise CommandError("kind is folder or ftp")
+    if kind not in publish.KINDS and publish_sdk.get(kind) is None:
+        raise CommandError(f"No publish service kind {kind}; see publish.plugins")
     with cat().change("New Publish Service") as ch:
-        sid = ch.insert("publish_services", kind=kind, name=name.strip() or publish.KINDS[kind], settings=settings or {})
+        sid = ch.insert("publish_services", kind=kind, name=name.strip() or publish_sdk.label(kind), settings=settings or {})
     return {"id": sid}
+
+
+@command("publish.plugins", "Plug-in Manager", mutates=False)
+def publish_plugins() -> dict:
+    return publish_sdk.plugins()
+
+
+@command("publish.reloadPlugins", "Reload Plug-ins", mutates=False)
+def publish_reload_plugins() -> dict:
+    publish_sdk.load(force=True)
+    events.publish("list.changed", list="publish")
+    return publish_sdk.plugins()
+
+
+@command("publish.comments", "Published Photo Comments", {"id": {"type": "integer"}}, mutates=False)
+def publish_comments(id: int) -> dict:
+    return {"threads": publish.comments(int(id))}
+
+
+@command("publish.addComment", "Add Comment", {"collection": {"type": "integer"}, "id": {"type": "integer"}, "text": {"type": "string"}}, mutates=False)
+def publish_add_comment(collection: int, id: int, text: str) -> dict:
+    if not text.strip():
+        raise CommandError("Write a comment first")
+    try:
+        publish.add_comment(int(collection), int(id), text.strip())
+    except RuntimeError as exc:
+        raise CommandError(str(exc)) from exc
+    return {"threads": publish.comments(int(id))}
 
 
 @command("publish.updateService", "Edit Publish Service", {"id": {"type": "integer"}, "name": {"type": "string"}, "settings": {"type": "object"}})
@@ -455,9 +483,7 @@ def publish_update_service(id: int, name: str | None = None, settings: dict | No
         fields["name"] = name.strip()
     if settings is not None:
         old = loads(cat().scalar("SELECT settings FROM publish_services WHERE id=?", (int(id),)), {})
-        if "password" not in settings and "password" in old:
-            settings = dict(settings, password=old["password"])
-        fields["settings"] = settings
+        fields["settings"] = publish_sdk.keep_secrets(settings, old)
     with cat().change("Edit Publish Service") as ch:
         ch.update("publish_services", int(id), **fields)
     return {"id": int(id)}

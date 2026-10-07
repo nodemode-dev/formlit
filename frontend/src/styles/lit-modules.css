@@ -189,6 +189,25 @@
 .fl-pub-row .fl-btn-sm { height: 20px; padding: 0 6px; font-size: var(--fs-10); opacity: 0; }
 .fl-pub-row:hover .fl-btn-sm, .fl-pub-row.is-pending .fl-btn-sm { opacity: 1; }
 .fl-pub-row .cv-icon-btn { width: 20px; height: 20px; }
+.fl-cmt-threads { display: grid; gap: 10px; }
+.fl-cmt-list { display: grid; gap: 6px; margin: 4px 0 6px; }
+.fl-cmt { padding: 6px 8px; border: 1px solid var(--line-1); border-radius: 6px; background: var(--surface-0); }
+.fl-cmt-head { display: flex; justify-content: space-between; gap: 8px; color: var(--text-muted); font-size: var(--fs-10); }
+.fl-cmt-head b { color: var(--text-secondary); font-weight: 600; }
+.fl-cmt-text { margin-top: 2px; color: var(--text-primary); font-size: var(--fs-11); line-height: 1.4; overflow-wrap: anywhere; }
+.fl-cmt-error { margin: 0; color: var(--danger); font-size: var(--fs-11); }
+.fl-cmt-add { display: flex; gap: 6px; }
+.fl-cmt-add .cv-input { flex: 1; min-width: 0; }
+.fl-plug-list { display: grid; gap: 8px; max-height: 340px; margin: 10px 0; overflow-y: auto; }
+.fl-plug { padding: 8px 10px; border: 1px solid var(--line-1); border-radius: 8px; background: var(--surface-0); }
+.fl-plug-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fl-plug-name { color: var(--text-primary); font-weight: 600; font-size: var(--fs-12); }
+.fl-plug-badge { color: var(--text-muted); font-style: normal; font-size: var(--fs-10); }
+.fl-plug-desc { margin-top: 3px; color: var(--text-secondary); font-size: var(--fs-11); line-height: 1.4; }
+.fl-plug-meta { margin-top: 4px; color: var(--text-muted); font-size: var(--fs-10); overflow-wrap: anywhere; }
+.fl-plug-errors { display: grid; gap: 4px; margin-bottom: 8px; }
+.fl-plug-error { padding: 6px 8px; border: 1px solid var(--danger); border-radius: 6px; color: var(--text-secondary); font-size: var(--fs-11); overflow-wrap: anywhere; }
+.fl-plug-error b { color: var(--danger); margin-right: 6px; }
 
 .fl-second { position: fixed; inset: 0; display: grid; grid-template-rows: 36px minmax(0, 1fr); background: var(--canvas-bg); }
 .fl-second-bar { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line-0); background: var(--surface-1); color: var(--text-secondary); font-size: var(--fs-12); }

@@ -6,9 +6,9 @@ from typing import Any, Callable
 from app.engine import catalog as catalog_mod
 from app.engine.catalog import now_iso
 from app.engine.records import loads
-from app.output import export, web
+from app.output import export, publish_sdk, web
 
-KINDS = {"folder": "Hard Drive", "ftp": "FTP Server"}
+KINDS = publish_sdk.RESERVED
 
 
 def services() -> list[dict]:
@@ -30,8 +30,9 @@ def services() -> list[dict]:
                 walk(int(c["id"]), depth + 1)
         walk(None, 0)
         st = loads(r["settings"], {})
-        safe = {k: v for k, v in st.items() if k != "password"}
-        out.append({"id": sid, "kind": r["kind"], "name": r["name"], "label": KINDS.get(r["kind"], r["kind"]), "settings": safe, "collections": cols})
+        mod = publish_sdk.get(r["kind"])
+        out.append({"id": sid, "kind": r["kind"], "name": r["name"], "label": publish_sdk.label(r["kind"]), "settings": publish_sdk.public(st), "collections": cols,
+                    "comments": bool(mod is not None and mod.SERVICE.get("comments"))})
     return out
 
 
@@ -110,13 +111,14 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
     settings = export.merged(st.get("export") or {})
     names = _names(cid) or [col["name"]]
     staging = Path(st.get("folder") or export.merged({})["destination"]["folder"]).expanduser().joinpath(*names)
-    if svc["kind"] == "ftp":
+    if svc["kind"] != "folder":
         from app.core import config
         staging = config.temp_dir() / "publish" / str(cid)
     staging.mkdir(parents=True, exist_ok=True)
     settings["destination"].update(folder=str(staging), useSubfolder=False, sameAsOriginal=False, existing="overwrite", addToCatalog=False)
     pub = {int(r["photo_id"]): r for r in cat.rows("SELECT * FROM published WHERE collection_id=?", (cid,))}
     ftp = web._ftp(st) if svc["kind"] == "ftp" else None
+    plug = publish_sdk.Session(svc["kind"], st) if svc["kind"] not in KINDS else None
     remote_root = posixpath.join(st.get("path") or "/", *names) if ftp else ""
     if ftp:
         web._mkdirs(ftp, remote_root)
@@ -134,8 +136,11 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
                     with path.open("rb") as fh:
                         ftp.storbinary(f"STOR {remote}", fh)
                     path.unlink(missing_ok=True)
+                elif plug:
+                    remote = plug.upload(path, names, _photo(pid), old["remote"] if old is not None else "")
+                    path.unlink(missing_ok=True)
                 if old is not None and old["remote"] and old["remote"] != remote:
-                    _delete(ftp, old["remote"])
+                    _delete(ftp, old["remote"], plug)
                 rev = int(cat.scalar("SELECT develop_rev FROM photos WHERE id=?", (pid,)) or 0)
                 with cat.change("Publish", undoable=False) as ch:
                     ch.delete("published", collection_id=cid, photo_id=pid)
@@ -148,10 +153,12 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
         for pid in todo_state["removed"]:
             old = pub.get(pid)
             if old is not None and old["remote"]:
-                _delete(ftp, old["remote"])
+                _delete(ftp, old["remote"], plug)
             with cat.change("Unpublish", undoable=False) as ch:
                 ch.delete("published", collection_id=cid, photo_id=pid)
     finally:
+        if plug is not None:
+            plug.close()
         if ftp is not None:
             try:
                 ftp.quit()
@@ -160,11 +167,55 @@ def run(cid: int, progress: Callable[..., Any] | None = None) -> dict:
     return {"published": done, "failed": failed, "removed": todo_state["removed"]}
 
 
-def _delete(ftp: ftplib.FTP | None, remote: str) -> None:
+def _delete(ftp: ftplib.FTP | None, remote: str, plug: publish_sdk.Session | None = None) -> None:
     try:
-        if ftp is not None:
+        if plug is not None:
+            plug.delete(remote)
+        elif ftp is not None:
             ftp.delete(remote)
         else:
             Path(remote).unlink(missing_ok=True)
-    except (OSError, ftplib.all_errors):
+    except (OSError, RuntimeError, ftplib.all_errors):
         return
+
+
+def _photo(pid: int) -> dict:
+    cat = catalog_mod.get()
+    r = cat.row("SELECT file_name, meta, capture_time FROM photos WHERE id=?", (pid,))
+    meta = loads(r["meta"], {}) if r is not None else {}
+    return {"id": pid, "fileName": r["file_name"] if r is not None else "", "captureTime": r["capture_time"] if r is not None else "",
+            "title": meta.get("title") or "", "caption": meta.get("caption") or "", "keywords": cat.photo_keywords(pid)}
+
+
+def comments(pid: int) -> list[dict]:
+    cat = catalog_mod.get()
+    out = []
+    for r in cat.rows("SELECT p.collection_id, p.remote, c.name, c.service_id FROM published p JOIN collections c ON c.id=p.collection_id WHERE p.photo_id=? AND p.remote<>''", (pid,)):
+        s = cat.row("SELECT kind, name, settings FROM publish_services WHERE id=?", (r["service_id"],))
+        mod = publish_sdk.get(s["kind"]) if s is not None else None
+        if s is None or mod is None or not mod.SERVICE.get("comments"):
+            continue
+        entry: dict = {"collection": int(r["collection_id"]), "name": f"{s['name']}: {r['name']}", "comments": [], "error": ""}
+        try:
+            sess = publish_sdk.Session(s["kind"], loads(s["settings"], {}))
+            try:
+                entry["comments"] = sess.comments(r["remote"])
+            finally:
+                sess.close()
+        except Exception as exc:
+            entry["error"] = str(exc)
+        out.append(entry)
+    return out
+
+
+def add_comment(cid: int, pid: int, text: str) -> None:
+    cat = catalog_mod.get()
+    svc, _ = _service(cid)
+    remote = cat.scalar("SELECT remote FROM published WHERE collection_id=? AND photo_id=?", (cid, pid))
+    if not remote:
+        raise RuntimeError("Publish the photo before commenting on it")
+    sess = publish_sdk.Session(svc["kind"], loads(svc["settings"], {}))
+    try:
+        sess.comment(str(remote), text)
+    finally:
+        sess.close()

@@ -13,6 +13,7 @@ import { registerExport } from './modules/shared/export';
 import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
 import { registerTether } from './modules/shared/tether';
+import { registerPluginManager } from './modules/shared/plugin-manager';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
 import { catalog } from './state/catalog';
@@ -69,6 +70,7 @@ export class App implements Ctx {
     registerPhotoDialogs(this);
     registerCatalogCommands(this);
     registerTether(this);
+    registerPluginManager(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));
@@ -193,7 +195,7 @@ export class App implements Ctx {
     const pick = (items: Array<string | '-'>) => items.filter((i) => i === '-' || has(i));
     const tidy = (items: Array<string | '-'>) => pick(items).filter((x, i, a) => !(x === '-' && (i === 0 || a[i - 1] === '-' || i === a.length - 1)));
     const defs = this.menus.length ? this.menus : [
-      { label: 'File', items: () => tidy(['library.newCatalog', 'library.openCatalog', '-', 'library.import', 'library.importCatalog', 'library.exportCatalog','library.autoImport', 'library.autoImportSettings', 'library.tether', 'library.tetherStop', '-', 'library.export', 'library.exportPrevious', '-', 'library.editIn', '-', 'preset.importFiles', '-', 'app.preferences', 'app.about']) },
+      { label: 'File', items: () => tidy(['library.newCatalog', 'library.openCatalog', '-', 'library.import', 'library.importCatalog', 'library.exportCatalog','library.autoImport', 'library.autoImportSettings', 'library.tether', 'library.tetherStop', '-', 'library.export', 'library.exportPrevious', '-', 'library.editIn', '-', 'preset.importFiles', 'app.pluginManager', '-', 'app.preferences', 'app.about']) },
       { label: 'Edit', items: () => tidy(['edit.undo', 'edit.redo', '-', 'edit.selectAll', 'edit.selectNone', 'edit.invertSelection', 'edit.selectPicks', 'edit.deselectUnflagged', '-', 'view.find']) },
       { label: 'Library', items: () => tidy(['lib.colNew', 'lib.colNewSmart', 'lib.colNewSet', '-', 'view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.cull', 'library.findFaces', 'library.drawFace', '-', 'library.syncFolder', 'library.checkFiles', 'library.findMissing', 'library.locate', 'library.buildPreviews', 'library.buildSmartPreviews', 'library.discardSmartPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
       { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.enhance', 'photo.hdr', 'photo.pano', 'photo.hdrPano', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.quickClear', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },

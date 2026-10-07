@@ -9,11 +9,13 @@ import { PopupMenu } from '../../ui/menu';
 import { Panel } from '../../ui/panel';
 import { toast } from '../../ui/toast';
 import type { CollectionRow } from '../../state/catalog';
+import type { FieldSpec } from '../../ui/form';
 import { whenDone } from '../shared/tasks';
 import { openSmartCollection } from './smart';
 
 interface PubCollection { id: number; name: string; depth: number; parent: number | null; set: boolean; smart: boolean; rules: unknown; new: number[]; modified: number[]; published: number[]; removed: number[] }
-interface Service { id: number; kind: string; name: string; label: string; settings: Record<string, unknown>; collections: PubCollection[] }
+interface Service { id: number; kind: string; name: string; label: string; settings: Record<string, unknown>; collections: PubCollection[]; comments?: boolean }
+interface Kind { kind: string; label: string; fields: FieldSpec[]; comments: boolean; builtin: boolean; help?: string }
 type Row = { key: string; service: Service; col?: PubCollection };
 
 const SVC_ITEMS = ['pub.editService', '-', 'pub.newCol', 'pub.newSmart', 'pub.newSet', '-', 'pub.removeService'];
@@ -23,8 +25,9 @@ const SET_ITEMS = ['pub.newCol', 'pub.newSmart', 'pub.newSet', '-', 'pub.rename'
 export class PublishPanel {
   readonly panel: Panel;
   private readonly list = el('<div class="fl-pub"></div>');
-  private readonly empty = el('<p class="cv-note">Publish keeps a folder or an FTP site in step with a collection: new and edited photos go out, removed ones are deleted.</p>');
+  private readonly empty = el('<p class="cv-note">Publish keeps a folder, an FTP site, a WebDAV or Nextcloud folder, an S3 bucket or a plug-in service in step with a collection: new and edited photos go out, removed ones are deleted.</p>');
   private services: Service[] = [];
+  private kinds: Kind[] = [];
   private timer = 0;
   private readonly menu: PopupMenu;
   private at: { s: Service; c?: PubCollection } | null = null;
@@ -80,7 +83,7 @@ export class PublishPanel {
   }
 
   private load(): void {
-    void this.ctx.api.cmd<{ services: Service[] }>('publish.services').then((r) => { this.services = r.services; this.render(); }, () => undefined);
+    void this.ctx.api.cmd<{ services: Service[]; kinds: Kind[] }>('publish.services').then((r) => { this.services = r.services; this.kinds = r.kinds; this.render(); }, () => undefined);
   }
 
   private render(): void {
@@ -98,7 +101,7 @@ export class PublishPanel {
           ? el(`<div class="fl-pub-row is-col is-set" data-col="${r.col.id}" role="button" tabindex="0">${icon('collectionSet', 13)}<span class="fl-pub-name"></span><em class="fl-pub-badge"></em><button class="cv-icon-btn" type="button" data-newcol aria-label="Create Published Collection">${icon('plus', 12)}</button></div>`)
           : r.col
           ? el(`<div class="fl-pub-row is-col" data-col="${r.col.id}" role="button" tabindex="0">${icon(r.col.smart ? 'smartCollection' : 'publish', 13)}<span class="fl-pub-name"></span><em class="fl-pub-badge"></em><button class="cv-btn fl-btn-sm" type="button" data-publish>Publish</button></div>`)
-          : el(`<div class="fl-pub-row is-service" data-svc="${r.service.id}">${icon(r.service.kind === 'ftp' ? 'modWeb' : 'folder', 13)}<span class="fl-pub-name"></span><em class="fl-muted"></em><button class="cv-icon-btn" type="button" data-newcol aria-label="Create Published Collection">${icon('plus', 12)}</button></div>`);
+          : el(`<div class="fl-pub-row is-service" data-svc="${r.service.id}">${icon(r.service.kind === 'ftp' ? 'modWeb' : r.service.kind === 'folder' ? 'folder' : 'upload', 13)}<span class="fl-pub-name"></span><em class="fl-muted"></em><button class="cv-icon-btn" type="button" data-newcol aria-label="Create Published Collection">${icon('plus', 12)}</button></div>`);
         update(n, r);
         return n;
       },
@@ -196,12 +199,22 @@ export class PublishPanel {
 
   private async setup(edit: Service | null = null): Promise<void> {
     let presets: Array<{ id: string; name: string; settings: Record<string, unknown> }> = [];
-    try { presets = (await this.ctx.api.cmd<{ presets: typeof presets }>('export.presets')).presets; } catch (err) { this.ctx.fail(err); return; }
+    try {
+      presets = (await this.ctx.api.cmd<{ presets: typeof presets }>('export.presets')).presets;
+      if (!this.kinds.length) this.kinds = (await this.ctx.api.cmd<{ kinds: Kind[] }>('publish.services')).kinds;
+    } catch (err) { this.ctx.fail(err); return; }
     const st = (edit?.settings ?? {}) as Record<string, unknown>;
     const options = presets.filter((p) => !/original|dng/i.test(p.id)).map((p) => [p.id, p.name] as [string, string]);
     if (edit) options.unshift(['', 'Keep current export settings']);
-    const v = await askForm(edit ? `Edit ${edit.name}` : 'Set Up Publish Service', edit ? 'Changes apply the next time a collection publishes. Use Mark to Republish to send everything again with new settings.' : 'A publish service exports with a preset to a folder or FTP site, then keeps it in step.', [
-      { path: 'kind', label: 'Service', kind: 'seg', options: [['folder', 'Hard Drive'], ['ftp', 'FTP Server']], show: () => !edit },
+    const plugins = this.kinds.filter((k) => k.kind !== 'folder' && k.kind !== 'ftp');
+    const extra: FieldSpec[] = plugins.flatMap((k) => [
+      ...(k.help ? [{ path: `help.${k.kind}`, label: k.help, kind: 'note' as const, show: (g: (p: string) => unknown) => g('kind') === k.kind }] : []),
+      ...k.fields.map((f) => ({ ...f, path: `opt.${k.kind}.${f.path}`, placeholder: f.kind === 'password' && edit ? 'unchanged' : f.placeholder, show: (g: (p: string) => unknown) => g('kind') === k.kind })),
+    ]);
+    const opt: Record<string, Record<string, unknown>> = {};
+    for (const k of plugins) opt[k.kind] = Object.fromEntries(k.fields.map((f) => [f.path, edit?.kind === k.kind ? (f.kind === 'password' ? '' : st[f.path] ?? '') : f.kind === 'check' ? false : f.kind === 'seg' || f.kind === 'select' ? (f.options as Array<[string, string]> | undefined)?.[0]?.[0] ?? '' : '']));
+    const v = await askForm(edit ? `Edit ${edit.name}` : 'Set Up Publish Service', edit ? 'Changes apply the next time a collection publishes. Use Mark to Republish to send everything again with new settings.' : 'A publish service exports with a preset to a folder, a server or a plug-in service, then keeps it in step. File > Plug-in Manager lists the services plug-ins add.', [
+      { path: 'kind', label: 'Service', kind: 'select', options: this.kinds.map((k) => [k.kind, k.label] as [string, string]), show: () => !edit },
       { path: 'name', label: 'Name', kind: 'text' },
       { path: 'preset', label: 'Export with', kind: 'select', options },
       { path: 'folder', label: 'Folder', kind: 'text', placeholder: '~/Pictures/Published', show: (g) => g('kind') === 'folder' },
@@ -209,14 +222,21 @@ export class PublishPanel {
       { path: 'user', label: 'Username', kind: 'text', show: (g) => g('kind') === 'ftp' },
       { path: 'password', label: 'Password', kind: 'password', placeholder: edit ? 'unchanged' : '', show: (g) => g('kind') === 'ftp' },
       { path: 'path', label: 'Server path', kind: 'text', placeholder: '/public_html/photos', show: (g) => g('kind') === 'ftp' },
+      ...extra,
     ], edit
-      ? { kind: edit.kind, name: edit.name, preset: '', folder: String(st.folder ?? ''), host: String(st.host ?? ''), user: String(st.user ?? ''), password: '', path: String(st.path ?? '/'), tls: true }
-      : { kind: 'folder', name: 'My Portfolio', preset: 'builtin.web', folder: '', host: '', user: '', password: '', path: '/', tls: true }, 'Save');
+      ? { kind: edit.kind, name: edit.name, preset: '', folder: String(st.folder ?? ''), host: String(st.host ?? ''), user: String(st.user ?? ''), password: '', path: String(st.path ?? '/'), tls: true, opt }
+      : { kind: 'folder', name: 'My Portfolio', preset: 'builtin.web', folder: '', host: '', user: '', password: '', path: '/', tls: true, opt }, 'Save');
     if (!v) return;
     const preset = presets.find((p) => p.id === v.preset);
     const settings: Record<string, unknown> = { export: preset?.settings ?? st.export ?? {} };
-    if (v.kind === 'ftp') { Object.assign(settings, { host: v.host, user: v.user, path: v.path || '/', tls: true, port: Number(st.port ?? 21) }); if (v.password) settings.password = v.password; }
-    else if (v.folder) settings.folder = v.folder;
+    const kind = String(v.kind);
+    if (kind === 'ftp') { Object.assign(settings, { host: v.host, user: v.user, path: v.path || '/', tls: true, port: Number(st.port ?? 21) }); if (v.password) settings.password = v.password; }
+    else if (kind === 'folder') { if (v.folder) settings.folder = v.folder; }
+    else {
+      const k = plugins.find((x) => x.kind === kind);
+      const got = ((v.opt as Record<string, Record<string, unknown>> | undefined) ?? {})[kind] ?? {};
+      for (const f of k?.fields ?? []) if (!(f.kind === 'password' && !got[f.path])) settings[f.path] = got[f.path];
+    }
     try {
       if (edit) { await this.ctx.api.cmd('publish.updateService', { id: edit.id, name: v.name, settings }); toast(`Saved ${String(v.name)}`); return; }
       await this.ctx.api.cmd('publish.createService', { kind: v.kind, name: v.name, settings });
