@@ -247,8 +247,8 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-merge-prev.is-busy img { opacity: 0.55; }
 .fl-merge-status { position: absolute; inset: auto 12px 12px; padding: 4px 8px; border-radius: 6px; background: var(--glass-bg); color: var(--text-secondary); font-size: var(--fs-11); text-align: center; }
 .fl-merge-status[hidden] { display: none; }
-.fl-merge-opts .fl-opt { grid-template-columns: 96px minmax(0, 1fr) 32px; }
-.fl-merge-opts .fl-opt em { color: var(--text-secondary); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.fl-merge-opts .fl-opt, .fl-opt.fl-cull-opt { grid-template-columns: 96px minmax(0, 1fr) 32px; }
+.fl-merge-opts .fl-opt em, .fl-cull-opt em { color: var(--text-secondary); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
 .fl-merge-opts .fl-row { margin: 4px 0; }
 .fl-imp-dest[hidden] { display: none; }
 .fl-imp-summary { margin-right: auto; color: var(--text-secondary); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }

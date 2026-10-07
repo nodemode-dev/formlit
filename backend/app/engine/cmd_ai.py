@@ -662,36 +662,75 @@ def cull_analyze(ids: Any = None, wait: bool = False) -> dict:
         by_id = {it["id"]: it for it in items}
         best = set()
         for g in groups:
-            best.add(max(g, key=lambda i: by_id[i]["sharpness"] * 0.75 + by_id[i]["exposure"] * 0.25))
+            best.add(max(g, key=lambda i: cull_mod.quality(by_id[i])))
         with cat().change("Assisted Culling", undoable=False) as ch:
             for gi, g in enumerate(groups):
                 for pid in g:
                     row = cat().row("SELECT meta FROM photos WHERE id=?", (pid,))
                     meta = loads(row["meta"], {}) if row else {}
                     it = by_id[pid]
-                    meta["cull"] = {"sharpness": it["sharpness"], "exposure": it["exposure"], "group": gi, "groupSize": len(g), "best": pid in best, "faces": it["faces"]}
+                    meta["cull"] = {"sharpness": it["sharpness"], "exposure": it["exposure"], "group": gi, "groupSize": len(g), "best": pid in best, "faces": it["faces"],
+                                    "faceSharpness": it.get("faceSharpness"), "eyesOpen": it.get("eyesOpen"), "quality": round(cull_mod.quality(it), 1)}
                     ch.update("photos", pid, meta=meta)
         blurry = [i for i in by_id if by_id[i]["sharpness"] < 35]
         dupes = [i for g in groups if len(g) > 1 for i in g if i not in best]
-        return {"photos": len(items), "groups": len([g for g in groups if len(g) > 1]), "best": sorted(best), "blurry": sorted(blurry), "duplicates": sorted(dupes)}
+        closed = [i for i in by_id if by_id[i].get("eyesOpen") is not None and by_id[i]["eyesOpen"] < 35]
+        return {"photos": len(items), "groups": len([g for g in groups if len(g) > 1]), "best": sorted(best), "blurry": sorted(blurry), "duplicates": sorted(dupes),
+                "eyesClosed": sorted(closed), "withFaces": len([i for i in by_id if by_id[i]["faces"]]),
+                "scores": {str(i): {"sharpness": by_id[i]["sharpness"], "exposure": by_id[i]["exposure"], "eyesOpen": by_id[i].get("eyesOpen")} for i in by_id}}
     return _maybe_wait(tasks.start("cull", "Assisted Culling", job), wait)
 
 
 @command("cull.apply", "Apply Culling", {"ids": {"type": "array"}, "pickBest": {"type": "boolean"}, "rejectBlurry": {"type": "boolean"}, "rejectDuplicates": {"type": "boolean"},
-                                         "threshold": {"type": "number"}})
-def cull_apply(ids: Any = None, pickBest: bool = True, rejectBlurry: bool = True, rejectDuplicates: bool = False, threshold: float = 35.0) -> dict:
+                                         "rejectEyesClosed": {"type": "boolean"}, "threshold": {"type": "number", "description": "sharpness below this is blurry, 0 to 100"},
+                                         "exposureMin": {"type": "number"}, "eyesMin": {"type": "number"},
+                                         "applyAs": {"type": "string", "enum": ["flags", "ratings", "labels", "stacks"]}})
+def cull_apply(ids: Any = None, pickBest: bool = True, rejectBlurry: bool = True, rejectDuplicates: bool = False, rejectEyesClosed: bool = False, threshold: float = 35.0,
+               exposureMin: float = 0.0, eyesMin: float = 35.0, applyAs: str = "flags") -> dict:
     pids = resolve_ids(ids)
-    picks, rejects = [], []
+    picks, rejects, keeps = [], [], []
+    info: dict[int, dict] = {}
+    for pid in pids:
+        row = cat().row("SELECT meta FROM photos WHERE id=?", (pid,))
+        cl = (loads(row["meta"], {}) if row else {}).get("cull")
+        if not cl:
+            continue
+        info[pid] = cl
+        eyes = cl.get("eyesOpen")
+        bad = (rejectBlurry and cl["sharpness"] < threshold) or (exposureMin > 0 and cl.get("exposure", 100) < exposureMin) \
+            or (rejectEyesClosed and eyes is not None and eyes < eyesMin) or (rejectDuplicates and cl.get("groupSize", 1) > 1 and not cl.get("best"))
+        if bad:
+            rejects.append(pid)
+        elif pickBest and cl.get("best") and cl.get("groupSize", 1) > 1:
+            picks.append(pid)
+        else:
+            keeps.append(pid)
+    stacked: list[list[int]] = []
     with cat().change("Apply Culling") as ch:
-        for pid in pids:
-            row = cat().row("SELECT meta, flag FROM photos WHERE id=?", (pid,))
-            cl = (loads(row["meta"], {}) if row else {}).get("cull")
-            if not cl:
-                continue
-            if rejectBlurry and cl["sharpness"] < threshold or rejectDuplicates and cl.get("groupSize", 1) > 1 and not cl.get("best"):
+        if applyAs == "flags":
+            for pid in rejects:
                 ch.update("photos", pid, flag=-1)
-                rejects.append(pid)
-            elif pickBest and cl.get("best") and cl.get("groupSize", 1) > 1:
+            for pid in picks:
                 ch.update("photos", pid, flag=1)
-                picks.append(pid)
-    return {"picks": picks, "rejects": rejects}
+        elif applyAs == "labels":
+            for pid, lab in [(p, "red") for p in rejects] + [(p, "green") for p in picks] + [(p, "yellow") for p in keeps]:
+                ch.update("photos", pid, label=lab)
+        elif applyAs == "ratings":
+            for pid in rejects:
+                ch.update("photos", pid, rating=1)
+            for pid in picks + keeps:
+                q = float(info[pid].get("quality") or info[pid]["sharpness"])
+                stars = 2 + int(q >= 55) + int(q >= 72)
+                ch.update("photos", pid, rating=min(5, stars + (1 if pid in picks else 0)))
+    if applyAs == "stacks":
+        from app.engine.cmd_library import stack_group
+        groups: dict[int, list[int]] = {}
+        for pid, cl in info.items():
+            if cl.get("groupSize", 1) > 1:
+                groups.setdefault(int(cl["group"]), []).append(pid)
+        for members in groups.values():
+            if len(members) > 1:
+                members.sort(key=lambda p: (not info[p].get("best"), -float(info[p].get("quality") or 0)))
+                stack_group(members)
+                stacked.append(members)
+    return {"picks": picks, "rejects": rejects, "kept": keeps, "stacks": stacked, "applyAs": applyAs}

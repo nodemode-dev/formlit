@@ -6,7 +6,7 @@ import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
 import { askMerge } from './merge-dialog';
 
-interface CullResult { photos: number; groups: number; best: number[]; blurry: number[]; duplicates: number[] }
+interface CullResult { photos: number; groups: number; best: number[]; blurry: number[]; duplicates: number[]; eyesClosed?: number[]; withFaces?: number; scores?: Record<string, { sharpness: number; exposure: number; eyesOpen: number | null }> }
 
 class OptionsDialog extends Dialog {
   private resolve: ((v: Record<string, unknown> | null) => void) | null = null;
@@ -35,9 +35,10 @@ class OptionsDialog extends Dialog {
 }
 
 let dialog: OptionsDialog | null = null;
-function ask(title: string, html: string, okLabel: string, read: (root: HTMLElement) => Record<string, unknown>): Promise<Record<string, unknown> | null> {
+function ask(title: string, html: string, okLabel: string, read: (root: HTMLElement) => Record<string, unknown>, wire?: (root: HTMLElement) => void): Promise<Record<string, unknown> | null> {
   dialog ??= new OptionsDialog();
   const body = el(`<div class="fl-ai-dialog">${html}</div>`);
+  wire?.(body);
   return dialog.ask(title, body, okLabel, () => read(body));
 }
 
@@ -78,16 +79,37 @@ export function registerAiCommands(ctx: Ctx): void {
       const ids = library.targets().length > 1 ? library.targets() : library.ids;
       if (!ids.length) return;
       try {
-        const r = await ctx.api.cmd<CullResult>('cull.analyze', { ids, wait: true });
-        const v = await ask('Assisted Culling', `<p class="cv-note">${r.photos} photos assessed for focus and exposure, ${r.groups} groups of near duplicates found.</p>
-<label class="fl-check"><input type="checkbox" data-k="pick" checked> Flag the best of each group as a pick (${r.groups})</label>
-<label class="fl-check"><input type="checkbox" data-k="blur" checked> Reject blurry photos (${r.blurry.length})</label>
-<label class="fl-check"><input type="checkbox" data-k="dupes"> Reject the other near duplicates (${r.duplicates.length})</label>`, 'Apply', (root) => ({
+        const done = ctx.shell.busy(`Assessing ${ids.length} photos`);
+        let r: CullResult;
+        try { r = await ctx.api.cmd<CullResult>('cull.analyze', { ids, wait: true }); } finally { done(); }
+        const scores = Object.values(r.scores ?? {});
+        const count = (fn: (s: { sharpness: number; exposure: number; eyesOpen: number | null }) => boolean) => scores.filter(fn).length;
+        const slider = (k: string, label: string, val: number) => `<label class="fl-opt fl-cull-opt"><span>${label}</span><input class="cv-slider" type="range" min="0" max="100" value="${val}" data-k="${k}"><em data-out="${k}">${val}</em></label>`;
+        const v = await ask('Assisted Culling', `<p class="cv-note">${r.photos} photos assessed for focus, exposure${r.withFaces ? ` and open eyes (${r.withFaces} with faces)` : ''}; ${r.groups} ${r.groups === 1 ? 'group' : 'groups'} of near duplicates.</p>
+<label class="fl-check"><input type="checkbox" data-k="pick" checked> Mark the best of each group (${r.groups})</label>
+<label class="fl-check"><input type="checkbox" data-k="blur" checked> Reject blurry photos</label>
+${slider('threshold', 'Sharpness', 35)}
+<label class="fl-check"><input type="checkbox" data-k="eyes"${r.withFaces ? ' checked' : ' disabled'}> Reject closed eyes (${r.eyesClosed?.length ?? 0})</label>
+${slider('exposureMin', 'Exposure', 0)}
+<label class="fl-check"><input type="checkbox" data-k="dupes"> Reject the other near duplicates (${r.duplicates.length})</label>
+<div class="fl-row"><span class="fl-row-label">Apply as</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="applyAs"><button type="button" data-v="flags" class="is-on">Flags</button><button type="button" data-v="ratings">Ratings</button><button type="button" data-v="labels">Labels</button><button type="button" data-v="stacks">Stacks</button></div></div>
+<p class="cv-note fl-cull-count"></p>`, 'Apply', (root) => ({
           pickBest: q<HTMLInputElement>(root, '[data-k="pick"]').checked, rejectBlurry: q<HTMLInputElement>(root, '[data-k="blur"]').checked, rejectDuplicates: q<HTMLInputElement>(root, '[data-k="dupes"]').checked,
-        }));
+          rejectEyesClosed: q<HTMLInputElement>(root, '[data-k="eyes"]').checked, threshold: Number(q<HTMLInputElement>(root, '[data-k="threshold"]').value),
+          exposureMin: Number(q<HTMLInputElement>(root, '[data-k="exposureMin"]').value), applyAs: root.querySelector<HTMLElement>('[data-seg="applyAs"] .is-on')?.dataset.v ?? 'flags',
+        }), (root) => {
+          const sync = () => {
+            const t = Number(q<HTMLInputElement>(root, '[data-k="threshold"]').value), e = Number(q<HTMLInputElement>(root, '[data-k="exposureMin"]').value);
+            for (const o of Array.from(root.querySelectorAll<HTMLElement>('[data-out]'))) setText(o, q<HTMLInputElement>(root, `[data-k="${o.dataset.out}"]`).value);
+            setText(q(root, '.fl-cull-count'), `${count((s) => s.sharpness < t)} below the sharpness threshold, ${count((s) => e > 0 && s.exposure < e)} below the exposure threshold.`);
+          };
+          root.addEventListener('input', sync);
+          root.addEventListener('click', (ev) => { const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-seg] [data-v]'); if (b) for (const x of Array.from(b.parentElement?.children ?? []) as HTMLElement[]) x.classList.toggle('is-on', x === b); });
+          sync();
+        });
         if (!v) return;
-        const res = await ctx.api.cmd<{ picks: number[]; rejects: number[] }>('cull.apply', { ids, ...v });
-        toast(`${res.picks.length} picked, ${res.rejects.length} rejected`);
+        const res = await ctx.api.cmd<{ picks: number[]; rejects: number[]; kept: number[]; stacks: number[][] }>('cull.apply', { ids, ...v });
+        toast(v.applyAs === 'stacks' ? `Stacked ${res.stacks.length} groups of near duplicates` : `${res.picks.length} best, ${res.rejects.length} rejected, ${res.kept.length} kept`);
       } catch (err) { ctx.fail(err, 'Assisted Culling'); }
     } },
     { id: 'library.findFaces', label: 'Find Faces', run: () => void run(ctx, 'ai.findFaces', { all: true }, 'Finding faces in the catalog') },
