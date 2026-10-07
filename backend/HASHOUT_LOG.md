@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.2.0
-Last updated: 2026-10-07 · colour-table profiles, Adobe profile import, DCPs in camera space, the classical reflection filter tried and withdrawn
+Current build version: v0.3.0
+Last updated: 2026-10-07 · Adobe look-table profiles, the look step, maker-note picture styles, DCP baseline brightness, the frozen engine's command modules
 
 ---
 
@@ -49,7 +49,10 @@ backend/
     │   ├── auto.py                Auto tone, Auto white balance, Auto B&W
     │   ├── profiles.py            built-in looks baked to colour tables, .cube LUTs, profile import
     │   ├── adobe_profile.py       Adobe creative profile (.xmp RGBTable) reader and resampler
-    │   ├── camera_styles.py       camera-matching styles per maker, as-shot style from the raw
+    │   ├── camera_styles.py       camera-matching styles per maker and their names
+    │   ├── makernotes.py          as-shot picture style from each maker's raw maker notes
+    │   ├── dcp_kernel.py          numba evaluation of DCP and look hue/saturation/value tables
+    │   ├── pool.py                the one lock around every parallel numba kernel call
     │   ├── dcp.py                 DNG camera profiles applied in camera space
     │   ├── camera_look.py         fitted Camera Look from the embedded JPEG
     │   ├── lensprofile.py         DNG opcode lens profiles
@@ -153,6 +156,13 @@ backend/
 - logged: v0.1.0 · 2026-10-07
 
 The frozen entry sets `FORMLIT_DESKTOP=1` and `FORMLIT_DIST` to the bundled frontend with `setdefault`, then binds `FORMLIT_PORT` (0 picks a free port) and prints the port on its startup line; the Tauri shell reads that line. Development never runs this file.
+
+### formlit_engine.py · selfcheck
+- refers-to: formlit_engine.py :: selfcheck; setup/freeze_backend(.bat) hidden imports
+- kind: warning-context
+- logged: v0.3.0 · 2026-10-07
+
+The first local Linux build (v0.3.0 work) produced an engine that exited at startup: `app.engine.cmd_output` was missing from the frozen archive. `boot.load_commands` and `publish_sdk` import modules by name, and `--collect-submodules app` collected nothing, because the spec's collection step runs before the backend folder is on PyInstaller's search path (passing `--paths` did not change that). The freeze scripts now name each dynamically imported module with `--hidden-import`, and `--selfcheck` imports every command module and the built-in publish services and exits 1 if any is missing. The freeze scripts run the selfcheck on the fresh binary in `dist-engine` before copying it to `src-tauri/binaries`, and stop if it fails, so a broken engine never replaces a working one there (`desktop_dev` skips freezing when that binary exists). A new command module or publish service must be added to both lists.
 
 ---
 
@@ -327,6 +337,13 @@ Local mask curves are applied after the finish, through each mask's alpha, inste
 
 A DCP is applied right after white balance, in linear ProPhoto, which is where Camera Raw applies a profile's hue and saturation map and look table, so exposure and the tone sliders work on the profile's colours instead of under them. The profile id joins the linear key only when it is a DCP, so switching between built-in looks never re-runs the linear stage.
 
+### app/develop/render.py · the look step
+- refers-to: app/develop/render.py :: Stages (base, look_key), _stage_render; profiles.py :: look_of; dcp.py :: apply_camera, apply_look
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+The linear stage is cached in two steps. `st.base` holds white balance, a DCP's matrices and hue/saturation map (`dcp.apply_camera`), noise reduction, defringe and lens blur, keyed without Exposure. `st.lin` adds the look step (`dcp.apply_look`): a DCP's look table or an imported Adobe look table with its Amount, keyed by the look and, only when the table depends on value, by Exposure. Dragging Exposure with such a table re-runs only the look step and the planes (0.64 s at 1600 px instead of 2.7 s). Without a look `st.lin` is `st.base`, so nothing is copied. Planes and masks key on the look key, since they read `st.lin`. The look now runs after noise reduction, defringe and lens blur rather than before them; all three are close to colour-neutral, and Camera Raw also denoises before its look.
+
 ---
 
 ## app/develop/finish.py and kernel.py {#develop-finish-kernel}
@@ -344,6 +361,13 @@ A DCP is applied right after white balance, in linear ProPhoto, which is where C
 - logged: v0.1.0 · 2026-10-07
 
 The numba kernel and the numpy reference must give the same picture. Any change to one is made to the other in the same turn and compared on the demo photos.
+
+### app/develop/pool.py · LOCK
+- refers-to: app/develop/pool.py :: LOCK; kernel.py :: finish, warm; dcp.py :: lookup
+- kind: warning-context
+- logged: v0.3.0 · 2026-10-07
+
+FastAPI runs each render request on its own worker thread, and the interface sends several at once (the view, the zoomed region, Before, thumbnails). numba's default threading layer on macOS and on Linux without TBB or OpenMP is `workqueue`, which is not thread-safe: when two threads launch `parallel=True` kernels at the same moment it prints "Numba workqueue threading layer is terminating: Concurrent access has been detected" and aborts the whole engine process, which the interface sees as a 502 and every later request fails. Reported from v0.2.0 on macOS. Every call into a parallel kernel (`kernel.run`, `dcp_kernel.table`) now holds `pool.LOCK`. Each kernel already uses every core, so serializing them costs no throughput; decoding, planes and encoding still run concurrently. Checked with 24 overlapping renders (CR2, CR3, DNG and a 10401 px TIFF, view and region sizes): all 200, the engine stays up. A new parallel kernel must take the same lock. `warm` now also compiles the DCP kernel at boot, so its first compile does not hold the lock during a user's first render.
 
 ---
 
@@ -407,7 +431,21 @@ Tables are authored in sRGB, but the finish hands them values encoded in the exp
 
 Lightroom's camera-matching profiles are Adobe-made DCPs per camera model, which cannot be shipped. formlit's equivalent has two parts. Camera Look is fitted per photo to the camera's own embedded JPEG (tone curve and colour matrix), so it reproduces whatever picture style the photo was shot in. Each maker's named styles (`SETS`, with maker wording in `RENAME`, chosen from the first word of the catalog's camera name through `MAKES`) are tables built on top of Camera Look (any id beginning `fl.camera` turns it on in `camera_matrix_look`). The deltas describe each style relative to the maker's standard rendering, from the makers' published descriptions, and are approximations.
 
-Because Camera Look already contains the as-shot style, the other styles are built relative to it: `as_shot` reads the style from the raw (Canon CR2 maker note 0x00A0, ProcessingInfo index 10; Auto is treated as Standard), the decoder stores it as `cameraStyle`, and `_delta` subtracts that style's deltas, so choosing the as-shot style gives exactly Camera Look and no style is applied twice. Colour grading hues are absolute angles and are copied, every other key (mixer hues included) is subtracted. A black and white as-shot style is ignored (its JPEG holds no colour to build from). Other raw formats do not report the style yet, so the styles assume Standard, and the Profile Browser says so. `catalogue(keep=...)` keeps a photo's current camera style in the list even when it belongs to another maker's set. `xmp_presets` maps Camera Raw's `CameraProfile` names (including the renamed ones) to these ids and back.
+Because Camera Look already contains the as-shot style, the other styles are built relative to it: `as_shot` reads the style from the raw through `makernotes.picture_style` (see below), the decoder stores it as `cameraStyle`, and `_delta` subtracts that style's deltas, so choosing the as-shot style gives exactly Camera Look and no style is applied twice. Colour grading hues are absolute angles and are copied, every other key (mixer hues included) is subtracted. A black and white as-shot style is ignored (its JPEG holds no colour to build from). Raws that do not record a style (DNGs from phones, some older cameras) assume Standard, and the Profile Browser says so. `catalogue(keep=...)` keeps a photo's current camera style in the list even when it belongs to another maker's set. `xmp_presets` maps Camera Raw's `CameraProfile` names (including the renamed ones) to these ids and back.
+
+### app/develop/makernotes.py · picture_style
+- refers-to: app/develop/makernotes.py :: Tiff, picture_style, _from_tiff, _cr3, _raf, _embedded, _fuji, CANON, NIKON, SONY, FUJI_FILM, FUJI_MONO, PANASONIC, OLYMPUS, PENTAX
+- kind: explainer
+- logged: v0.3.0 · 2026-10-07
+
+Reads only the first 4 MB. Canon CR2: maker note IFD at the note, offsets from the TIFF header, ProcessingInfo (0x00A0) element 10 (0x81 Standard to 0x88 Fine Detail; 0x87 Auto counts as Standard). Canon CR3: the `CMT3` box is a TIFF of the maker note, offsets from the box data. Nikon: "Nikon\0" plus a TIFF header 10 bytes in; Picture Control Data (0x0023) holds the version in 4 bytes, then name and base, 20 bytes each, at 4 and 24 for versions 01xx and 02xx and at 8 and 28 for 03xx; the base is used, so custom controls map to what they were built from. Sony: Creative Style (0xB020) string, offsets from the file's TIFF header, with or without a "SONY DSC" header. Fujifilm: the RAF's embedded JPEG (offset and length big-endian at 84) holds Exif; the "FUJIFILM" maker note is little-endian with offsets from the note; Film Mode (0x1401), else the monochrome modes in Saturation (0x1003). Panasonic RW2: Exif sits in the embedded JPEG (tag 0x002E); Photo Style (0x0089). Olympus and OM System: "OLYMPUS\0II" or "OM SYSTEM\0\0\0II" headers, offsets from the note, the Camera Settings sub-IFD (0x2020, type IFD) holds Picture Mode (0x0520). Pentax: "PENTAX \0II" (offsets from the note) or "AOC\0" (offsets from the file), Image Tone (0x004F). The make (0x010F) chooses between Canon and Sony, whose notes have no header. Checked against exiftool on 13 raws.
+
+### app/develop/makernotes.py · container_exif
+- refers-to: app/develop/makernotes.py :: container_exif, _box; services/metadata.py :: read_exif; engine/cmd_library.py :: photo.readMetadata
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+exifread reads no Exif from CR3 (an ISO media container) or RAF, so before v0.3.0 those photos imported with no camera, lens, exposure or capture time (the file date stood in). `read_exif` now falls back to `container_exif` when exifread returns nothing: for a RAF it runs exifread on the embedded JPEG; for a CR3 it runs exifread on each of the `CMT1` (IFD0, keys renamed `Image`), `CMT2` (Exif, keys renamed `EXIF`) and `CMT4` (GPS, keys renamed `GPS` with their GPS tag names) boxes, so `read_exif` sees the same key names it sees from a TIFF raw. Checked against exiftool on R5, R10, X-T3 and X100V files. Photos imported before v0.3.0 are filled in by `photo.readMetadata` (Metadata > Read Metadata from File): when a photo's stored camera is empty it re-reads Exif and sets the camera, lens, exposure and the Exif record; it fills a GPS column only when that column is still empty (anything there was set by hand, since the import read no GPS), and replaces the capture time only when it is still the import's stand-in (the file's modification time as stored in `file_mtime`), so a re-timed or geotagged photo keeps its edits. Photos that already have a camera are left alone.
 
 ### app/develop/adobe_profile.py · format
 - refers-to: app/develop/adobe_profile.py :: _base85, read, to_srgb
@@ -417,11 +455,41 @@ Because Camera Look already contains the as-shot style, the other styles are bui
 An Adobe creative profile is an XMP with `crs:RGBTable` naming a `crs:Table_[md5]` attribute. The attribute is Adobe's base85 (alphabet in `ALPHABET`, little-endian 32-bit groups, least significant digit first) over a 4-byte little-endian length and a zlib stream. The stream holds a header (type 1, version 1, dimensions 3, divisions), then uint16 samples stored as deltas from the identity lattice, red outermost and blue innermost, then the primaries, gamma and gamut enums and the amount range as two doubles. Enums follow the DNG SDK: primaries 0 sRGB, 1 Adobe RGB, 2 ProPhoto, 3 Display P3, 4 Rec.2020; gamma 0 linear, 1 sRGB, 2 1.8, 3 2.2, 4 Rec.2020; gamut 0 clip, 1 extend. Layout checked against the MIT-licensed CUBE-to-XMP converter (round trip max error 7.6e-6); no code was copied from either source. Tables in other spaces are resampled into an sRGB lattice through XYZ with Bradford adaptation, then saved as a `.cube` with a JSON sidecar for the name, group and the grayscale flag.
 
 ### app/develop/adobe_profile.py · look_table_only
-- refers-to: app/develop/adobe_profile.py :: look_table_only; engine/presets.py :: preset.import
-- kind: todo
+- refers-to: app/develop/adobe_profile.py :: look_table_only (removed v0.3.0)
+- kind: todo (resolved v0.3.0)
 - logged: v0.2.0 · 2026-10-07
 
-Some Adobe profiles carry their look as an HSV look table (`crs:LookTable`, the DCP-style hue, saturation and value map) instead of, or beside, an RGB table. The binary layout of that table inside the XMP is not documented in any source available to this build, so such a file is refused with a message rather than imported as a plain preset that silently loses its look. Profiles that hold an RGB table (the large majority, including every profile made with Camera Raw's profile tools from a LUT) import. Supporting the look-table form needs the layout of the DNG SDK's look table stream.
+v0.2.0 refused Adobe profiles that hold an HSV look table. Resolved in v0.3.0 by `_look` below.
+
+### app/develop/adobe_profile.py · _block, _look, LOOK_TABLE
+- refers-to: app/develop/adobe_profile.py :: _block, _look, read, stem_of; profiles.py :: import_profile_xmp, _look_data, look_of, catalogue
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+`crs:LookTable` names a `crs:Table_[md5]` attribute encoded like the RGB table (Adobe base85 over a length and a zlib stream). The stream is read as the DNG SDK's look table: type 0 (the RGB table is type 1), version 1 or 2, hue, saturation and value divisions, then hue shift, saturation scale and value scale as float32 triples with value outermost and saturation innermost (the DCP order), the encoding (0 linear, 1 sRGB) and, in version 2, the minimum and maximum amount as doubles. The layout comes from the SDK's structure as recalled for this build, not from a reference file, so the reader checks the block's exact length against the divisions and refuses anything that does not match, rather than reading a misaligned table. The look is stored in the profile's JSON sidecar (rounded to six decimals); a look-only profile has no `.cube` and is listed from its sidecar. `look_of` scales the deltas by Amount (hue shift times a, saturation and value scales moved from 1 by a) and hands them to the render's look step with the DCP's machinery.
+
+Only a top-level `rdf:Description` whose `crs:PresetType` is `Look` (or absent) counts as a profile (`_profile_desc`, used by `is_profile` and `read`). A Lightroom preset that references a creative profile nests the profile's tables inside `crs:Look/crs:Parameters`; matching any description in the file had imported such a preset as a bare profile and dropped its settings, so it now goes to the preset converter. The compressed block's stated size must lie between 16 bytes and 32 MB and is decompressed with that bound, a look block shorter than its 20-byte header is refused, and malformed XML becomes a ValueError, so every bad file reaches the user as a message from `preset.import`.
+
+### app/develop/profiles.py · _owner, _stem_for, _changed, _meta
+- refers-to: app/develop/profiles.py :: _owner, _stem_for, _changed, _meta, _meta_at, import_cube, import_profile_xmp, import_dcp; render.py :: drop_stages
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+Imported profiles share one folder and one name space: a plain `.cube`, an Adobe profile (a `.json` sidecar, with a `.cube` when it has an RGB table) and a DCP (a `.dcp` with a `.json` naming it) are told apart by `_owner`. An import replaces only a profile of its own kind with the same name; a name held by another kind gets a numbered stem (`Name_2`), so importing an Adobe look never deletes a user's LUT and a new LUT never inherits an old look. `_changed` runs after every import: it clears the cube, look and DCP caches and drops every cached render stage, because the stage keys name a profile by id, so re-importing a profile under the same name would otherwise keep rendering the old one. `_meta` reads a sidecar through a cache keyed by path and modification time: sidecars can now hold a look table (1.6 MB as JSON for a 90 by 30 by 24 table), and `effective` reads the sidecar on every render.
+
+### app/develop/dcp.py · lookup, dcp_kernel.table
+- refers-to: app/develop/dcp.py :: lookup, _apply_table; dcp_kernel.py :: table
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+`_apply_table` stays as the numpy reference; `lookup` runs the same arithmetic per pixel in a parallel numba kernel (cached to the data folder like the finish kernel) and falls back to the reference if numba cannot be imported. The two agree within 5e-15 on random tables of every shape (2.5D and 3D, linear and sRGB encoding, any value scale). Both wrap a hue that rounds to exactly 6.0 after the modulo (a tiny negative shift on a red) back to 0; without that the kernel fell through to the magenta sector and the reference raised.
+
+### app/develop/dcp.py · baseline_gain
+- refers-to: app/develop/dcp.py :: baseline_gain, tone_knots, MID_GREY; finish.py :: camera_tone
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+Camera Raw puts a per-camera BaselineExposure in front of a DCP's tone curve. DNG files carry it; proprietary raws do not (it lives in Adobe's camera tables), so a DCP tone curve on a CR2, NEF, ARW or RAF came out 1.2 to 1.5 EV darker than the camera's JPEG on the test files. When the raw has no baseline of its own, `tone_knots` scales the curve's input so the DCP maps middle grey (0.18) where the fitted camera tone does, within two stops either way. Whether a raw has its own baseline is the decoder's `ownBaseline` flag: true only for a DNG that carries tag 50730. formlit's own linear DNGs (denoise, HDR, panorama, DNG export) write a BaselineExposure that only undoes their storage scale, so `write_linear_dng` carries the source's flag in its private tag and the decoder restores it; a derived DNG then renders a DCP exactly as its source raw does (checked: tone at 0.18 is 0.5649 on a 5D Mark IV CR2 and on its DNG). An earlier test of `sensorGain` against 2^0.35 treated those DNGs, and any DNG with a baseline of exactly 0, the wrong way round. The two-stop clamp is deliberate: the camera tone fit also holds per-photo in-camera brightening (Canon Auto Lighting Optimizer or Highlight Tone Priority, Sony DRO), which is not a camera baseline. On the 5D Mark IV test file the match wanted 2.98 EV, the clamp gave 2 EV and the render sits 0.67 EV under the JPEG; Sony A7 III, Fujifilm X-T3 and Nikon D750 wanted 1.2 to 1.5 EV and land within 0.2 EV. Checked with RawTherapee's camera DCPs (used locally only) on matching raws.
 
 ### app/develop/dcp.py · apply_linear, to_prophoto, weight1, tone_knots
 - refers-to: app/develop/dcp.py :: load, fits_camera, weight1, _pick, to_prophoto, needs_exposure, apply_linear, tone_knots, _apply_table, LIGHT_K, SENSOR_EV

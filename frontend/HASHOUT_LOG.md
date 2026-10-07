@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.2.0
-Last updated: 2026-10-07 · Profile Browser filters and as-shot note, Amount at rest, Navigator reserves its shape, a Reflections slider tried and withdrawn
+Current build version: v0.3.0
+Last updated: 2026-10-07 · the Navigator keeps one 3:2 box and maps its rectangle onto the letterboxed picture, the dev server drops font preloads
 
 ---
 
@@ -135,6 +135,7 @@ frontend/
 - [src/modules/output/slideshow.ts](#output-slideshow)
 - [src/modules/shared/plugin-manager.ts](#shared-plugin-manager)
 - [src/styles/lit-tokens.css](#styles-lit-tokens)
+- [vite.config.ts](#vite-config)
 - [Files with no entries](#no-entries)
 
 ---
@@ -233,6 +234,13 @@ Created an empty row that was filled only on the next sync, a blank row for a fr
 
 ## src/modules/develop/view.ts {#develop-view}
 
+### src/modules/develop/view.ts · shown, place
+- refers-to: src/modules/develop/view.ts :: shown, place, setPhoto, run
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+`setPhoto` switches the view's geometry to the new photo at once (aspect from the library record, centre reset), but the picture on screen is still the old photo until the new render arrives. The image fills its box (`object-fit: fill`), so moving the box first stretched the old photo into the new photo's shape, and at 1:1 rescaled it, for as long as the render took (about half a second at 4x CPU). `shown` records which photo the box's pixels belong to; `place` only moves the box when they belong to the current photo (or nothing is loaded yet), and `run` sets `shown` right after the new image is swapped in and before calling `place`, so the new pixels and the new geometry appear in the same frame.
+
 ### src/modules/develop/view.ts · hdr
 - refers-to: src/modules/develop/view.ts :: body, hdr fields
 - kind: explainer
@@ -301,11 +309,11 @@ Profiles without a table (Color, Camera Look, DCPs) have nothing for Amount to s
 ## src/modules/develop/left.ts {#develop-left}
 
 ### src/modules/develop/left.ts · Navigator box
-- refers-to: src/modules/develop/left.ts :: nav, navBox (.fl-nav-fit)
+- refers-to: src/modules/develop/left.ts :: nav, navSync, the navImg load listener; src/styles/lit-develop.css :: .fl-nav-fit
 - kind: rationale
-- logged: v0.2.0 · 2026-10-07
+- logged: v0.2.0 · 2026-10-07 · revised v0.3.0
 
-The Navigator box takes the photo's aspect ratio (`--fl-nav-ar`, from the library record) the moment the photo is chosen, capped at 180 px, and the picture fits inside it. Before, the box sat at its 120 px minimum until the thumbnail arrived and then grew, which on a slow first decode pushed Presets, Snapshots and History down by 37 px. The view rectangle is still placed in box percentages, so on portrait photos (letterboxed in the box) it is offset sideways, as it was before.
+v0.2.0 sized the box to each photo's aspect ratio (`--fl-nav-ar`, capped at 180 px). That still moved the panels below it whenever a landscape photo followed a portrait one, and a tall photo overflowed the cap. Since v0.3.0 the box is one fixed 3:2 shape for every photo (`aspect-ratio: 3 / 2`, a single 100% grid cell, the image limited to the cell's height), so nothing below it ever moves, and the picture is letterboxed inside it. `navSync` places the view rectangle against the picture's own rectangle (its offset and size within the box, read with `getBoundingClientRect`), not against the box, so it lines up on portrait and landscape photos alike. The picture's `load` event re-runs `navSync`, so after switching photos while zoomed, or after a preset preview, the rectangle follows the new picture's shape as soon as it is shown.
 
 ---
 
@@ -357,6 +365,17 @@ Lists loaded plug-ins (keyed by kind) and the files that failed with their reaso
 - logged: v0.1.0 · 2026-10-07
 
 Colours only formlit needs (label colours, clipping, the map and page surfaces) are declared here as tokens, so component sheets never hold raw colours and formvis's vendored tokens stay untouched.
+
+---
+
+## vite.config.ts {#vite-config}
+
+### vite.config.ts · devFontPreloads
+- refers-to: vite.config.ts :: devFontPreloads, plugins
+- kind: rationale
+- logged: v0.3.0 · 2026-10-07
+
+`index.html` preloads three Inter woff2 files so the built app paints its first frame in the right font; in the build they resolve to the hashed font files the stylesheet uses. The dev server loads stylesheets through modules after the load event, so Chromium reported those preloads as unused a few seconds in (3 console warnings). The plugin applies only to `serve` and removes the woff2 preload links from the served HTML; the production build keeps them.
 
 ---
 
