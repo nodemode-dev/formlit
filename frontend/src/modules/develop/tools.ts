@@ -589,6 +589,145 @@ export class WbPickerTool implements Tool {
   }
 }
 
+interface PointColor { hue: number; chroma: number; lum: number; hueShift: number; satShift: number; lumShift: number; variance: number; range: number }
+
+const POINT_SLIDERS: Array<[keyof PointColor, string, number, number]> = [['hueShift', 'Hue Shift', -100, 100], ['satShift', 'Sat Shift', -100, 100], ['lumShift', 'Lum Shift', -100, 100], ['variance', 'Variance', -100, 100], ['range', 'Range', 0, 100]];
+
+export class PointColorTool implements Tool {
+  readonly id = 'point';
+  cursor = 'crosshair';
+  private readonly root: HTMLElement;
+  private readonly swatches: HTMLElement;
+  private readonly sliders = new Map<string, Slider>();
+  private current = 0;
+
+  constructor(private readonly host: ToolHost) {
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('eyeDropper', 14)} Point Color</div><div class="fl-muted">Click a colour in the photo to add it (up to eight), then shift it.</div><div class="fl-point-swatches"></div><div class="fl-point-sliders"></div><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-a="remove">Remove</button><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.swatches = q(this.root, '.fl-point-swatches');
+    const box = q(this.root, '.fl-point-sliders');
+    for (const [k, label, min, max] of POINT_SLIDERS) {
+      const s = new Slider({ id: k, label, min, max, default: k === 'range' ? 50 : 0, step: 1, decimals: 0 }, { input: (id, v, phase) => this.setValue(id as keyof PointColor, v, phase) });
+      this.sliders.set(k, s);
+      box.appendChild(s.root);
+    }
+    this.root.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const sw = t.closest<HTMLElement>('[data-i]');
+      if (sw) { this.current = Number(sw.dataset.i); this.paint(); return; }
+      if (t.closest('[data-a="done"]')) this.host.done();
+      else if (t.closest('[data-a="remove"]')) {
+        const pts = this.points();
+        if (!pts.length) return;
+        pts.splice(this.current, 1);
+        this.current = Math.max(0, this.current - 1);
+        develop.patch('pointColors', pts, 'end', 'Remove Point Color');
+        this.paint();
+      }
+    });
+  }
+
+  private points(): PointColor[] { return clone((develop.settings.pointColors as PointColor[] | undefined) ?? []); }
+
+  activate(): void { this.host.drawer.replaceChildren(this.root); this.paint(); }
+
+  private paint(): void {
+    const pts = this.points();
+    const html = pts.map((p, i) => {
+      const a = p.chroma * Math.cos((p.hue * Math.PI) / 180), b = p.chroma * Math.sin((p.hue * Math.PI) / 180);
+      return `<button class="fl-point-sw${i === this.current ? ' is-on' : ''}" type="button" data-i="${i}" style="background: oklab(${(p.lum * 100).toFixed(1)}% ${a.toFixed(4)} ${b.toFixed(4)})" aria-label="Point ${i + 1}"></button>`;
+    }).join('');
+    if (this.swatches.dataset.key !== html) { this.swatches.dataset.key = html; this.swatches.innerHTML = html || '<span class="fl-muted">No colours yet</span>'; }
+    const cur = pts[this.current];
+    for (const [k, s] of this.sliders) s.set(cur ? Number(cur[k as keyof PointColor] ?? (k === 'range' ? 50 : 0)) : (k === 'range' ? 50 : 0));
+  }
+
+  private setValue(k: keyof PointColor, v: number, phase: 'drag' | 'end'): void {
+    const pts = this.points();
+    if (!pts[this.current]) return;
+    pts[this.current] = { ...pts[this.current], [k]: v };
+    develop.patch('pointColors', pts, phase, `Point Color ${k.replace('Shift', '')}`);
+  }
+
+  down(p: Pt): boolean {
+    const id = develop.id;
+    if (id === null || p.u < 0 || p.u > 1 || p.v < 0 || p.v > 1) return true;
+    void this.host.ctx.api.cmd<{ lab: [number, number, number] }>('develop.sampleColor', { id, x: p.nx, y: p.ny, settings: develop.settings }).then((r) => {
+      const [l, a, b] = r.lab;
+      const pts = this.points();
+      if (pts.length >= 8) { this.host.ctx.fail(new Error('Point Color holds eight colours; remove one first')); return; }
+      pts.push({ lum: l, chroma: Math.hypot(a, b), hue: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360, hueShift: 0, satShift: 0, lumShift: 0, variance: 0, range: 50 });
+      this.current = pts.length - 1;
+      develop.patch('pointColors', pts, 'end', 'Add Point Color');
+      this.paint();
+    }, (err) => this.host.ctx.fail(err));
+    return true;
+  }
+
+  key(_e: KeyboardEvent, combo: string): boolean {
+    if (combo === 'Escape') { this.host.done(); return true; }
+    return false;
+  }
+}
+
+export type TatMode = 'curve' | 'hue' | 'sat' | 'lum' | 'bw';
+const TAT_TITLES: Record<TatMode, string> = { curve: 'Tone Curve', hue: 'Hue', sat: 'Saturation', lum: 'Luminance', bw: 'B&W Mix' };
+
+export class TatTool implements Tool {
+  readonly id = 'tat';
+  cursor = 'ns-resize';
+  mode: TatMode = 'curve';
+  private readonly root: HTMLElement;
+  private readonly read: HTMLElement;
+  private drag: { cid: string; y: number; start: number; seq: number } | null = null;
+  private seq = 0;
+
+  constructor(private readonly host: ToolHost) {
+    this.root = el(`<div class="fl-tool-opts"><div class="fl-tool-title">${icon('targeted', 14)} <span class="fl-tat-title"></span></div><div class="fl-muted fl-tat-read">Press on the photo and drag up or down to adjust what is under the pointer.</div><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm fl-btn-cta" type="button" data-a="done">Done</button></div></div>`);
+    this.read = q(this.root, '.fl-tat-read');
+    this.root.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[data-a="done"]')) this.host.done(); });
+  }
+
+  activate(): void {
+    setText(q(this.root, '.fl-tat-title'), `Targeted Adjustment: ${TAT_TITLES[this.mode]}`);
+    this.host.drawer.replaceChildren(this.root);
+  }
+
+  down(p: Pt): boolean {
+    const id = develop.id;
+    if (id === null || p.u < 0 || p.u > 1 || p.v < 0 || p.v > 1) return true;
+    const seq = ++this.seq;
+    const y = p.e.clientY;
+    this.drag = { cid: '', y, start: 0, seq };
+    void this.host.ctx.api.cmd<{ band: string; region: string }>('develop.sampleColor', { id, x: p.nx, y: p.ny, settings: develop.settings }).then((r) => {
+      if (!this.drag || this.drag.seq !== seq) return;
+      const cid = this.mode === 'curve' ? `curve.${r.region}` : this.mode === 'bw' ? `bw.${r.band}` : `mixer.${r.band}.${this.mode}`;
+      this.drag.cid = cid;
+      this.drag.start = develop.value(cid);
+      setText(this.read, `${develop.labelFor(cid, this.drag.start)} (${this.mode === 'curve' ? r.region : r.band})`);
+    }, (err) => this.host.ctx.fail(err));
+    return true;
+  }
+
+  move(p: Pt): void {
+    const d = this.drag;
+    if (!d || !d.cid) return;
+    const v = d.start + (d.y - p.e.clientY) * 0.5;
+    develop.set(d.cid, v, 'drag');
+    setText(this.read, develop.labelFor(d.cid, develop.value(d.cid)));
+  }
+
+  up(): void {
+    const d = this.drag;
+    this.drag = null;
+    if (d?.cid) develop.set(d.cid, develop.value(d.cid), 'end');
+  }
+
+  key(_e: KeyboardEvent, combo: string): boolean {
+    if (combo === 'Escape') { this.host.done(); return true; }
+    return false;
+  }
+}
+
 export function toolStrip(): HTMLElement {
   const b = (cmd: string, ic: string, label: string) => `<button class="cv-icon-btn" type="button" data-cmd="${cmd}" aria-label="${label}">${icon(ic, 17)}</button>`;
   return el(`<div class="fl-toolstrip">${b('develop.tool.crop', 'crop', 'Crop and Straighten')}${b('develop.tool.spot', 'spotHeal', 'Healing')}${b('develop.tool.redeye', 'redEye', 'Red Eye Correction')}${b('develop.tool.masks', 'masking', 'Masking')}</div>`);

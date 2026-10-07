@@ -61,6 +61,7 @@ export class DevelopView {
   compare: Compare = 'off';
   split = 0.5;
   clipping = false;
+  proof: { space: string; gamut: boolean; paper: string } | null = null;
   tool: Tool | null = null;
   private inflight = false;
   private queued = false;
@@ -227,6 +228,7 @@ export class DevelopView {
   private body(extra: Record<string, unknown> = {}): Record<string, unknown> {
     const overlay: Record<string, unknown> = {};
     if (this.clipping) overlay.clipping = true;
+    if (this.proof) overlay.proof = this.proof;
     const t = this.tool?.overlay?.();
     if (t) Object.assign(overlay, t);
     return { settings: develop.settings, view: 'develop', crop: !this.tool?.uncropped, quality: this.dragging ? 80 : 90, overlay: Object.keys(overlay).length ? overlay : undefined, ...extra };

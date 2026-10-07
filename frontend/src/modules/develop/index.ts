@@ -2,7 +2,7 @@ import type { Ctx } from '../../app';
 import { develop } from '../../state/develop';
 import { library } from '../../state/library';
 import { Dialog } from '../../ui/dialogs';
-import { el, q, setClass, setText } from '../../ui/dom';
+import { el, q, setClass, setHidden, setText } from '../../ui/dom';
 import { binsOf } from '../../ui/histogram';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
@@ -11,7 +11,7 @@ import { registerModule, type ModuleHosts } from '../registry';
 import { LeftPanels } from './left';
 import { MaskTool } from './masks';
 import { DevelopPanels } from './panels';
-import { CropTool, RedEyeTool, SpotTool, toolStrip, WbPickerTool, type ToolHost } from './tools';
+import { CropTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
 import { DevelopView, type Compare, type Tool } from './view';
 
 const GROUPS: Array<[string, string]> = [
@@ -69,6 +69,9 @@ class DevelopModule {
   private drawer!: HTMLElement;
   private tools = new Map<string, Tool & { activate(): void }>();
   private toolId = '';
+  private tat: TatTool | null = null;
+  private proofOn = false;
+  private gamut = false;
   private active = false;
   private groupsDialog: GroupsDialog | null = null;
   private histTimer = 0;
@@ -90,6 +93,9 @@ class DevelopModule {
       this.tools.set('redeye', new RedEyeTool(host));
       this.tools.set('masks', new MaskTool(host));
       this.tools.set('wb', new WbPickerTool(host));
+      this.tools.set('point', new PointColorTool(host));
+      this.tat = new TatTool(host);
+      this.tools.set('tat', this.tat);
       if (this.active) void this.open();
     }, (err) => ctx.fail(err, 'Develop'));
     this.toolbar();
@@ -154,6 +160,16 @@ class DevelopModule {
     this.panels.setHistogramInfo(p ? `${i.width ?? p.w} x ${i.height ?? p.h}${i.raw ? ' · raw' : ''} · As shot ${i.asShotTemp} K` : '');
   }
 
+  private applyProof(): void {
+    const bar = this.hosts.toolbar;
+    setHidden(q(bar, '.fl-proof-opts'), !this.proofOn);
+    const [space, paper] = q<HTMLSelectElement>(bar, '.fl-proof-profile').value.split('|');
+    this.view.proof = this.proofOn ? { space, paper, gamut: this.gamut } : null;
+    setClass(this.hosts.stage, 'is-proof', this.proofOn);
+    this.view.invalidateRegion();
+    this.view.schedule();
+  }
+
   setTool(id: string): void {
     if (this.toolId === id) id = '';
     this.toolId = id;
@@ -175,11 +191,15 @@ class DevelopModule {
 <span class="fl-tb-sep"></span>
 <button class="cv-icon-btn" type="button" data-cmd="develop.clipping" aria-label="Show Clipping (J)">${icon('clipHighlights', 16)}</button>
 <button class="cv-icon-btn" type="button" data-cmd="develop.wbPicker" aria-label="White Balance Selector (W)">${icon('eyeDropper', 16)}</button>
+<span class="fl-tb-sep"></span>
+<button class="cv-icon-btn" type="button" data-cmd="develop.softProof" aria-label="Soft Proofing (S)">${icon('softProof', 16)}</button>
+<span class="fl-proof-opts" hidden><select class="cv-select fl-proof-profile" aria-label="Proof profile"><option value="srgb|screen">sRGB (web)</option><option value="p3|screen">Display P3</option><option value="adobergb|screen">Adobe RGB (1998)</option><option value="adobergb|matte">Print, matte paper</option><option value="adobergb|glossy">Print, glossy paper</option></select><button class="cv-icon-btn" type="button" data-cmd="develop.gamutWarning" aria-label="Destination Gamut Warning">${icon('warning', 15)}</button></span>
 <span class="fl-tb-spacer"></span>
 <span class="fl-tb-label fl-tb-zoom"></span>
 <div class="cv-seg fl-seg-sm fl-tb-zooms"><button type="button" data-z="fit">Fit</button><button type="button" data-z="fill">Fill</button><button type="button" data-z="1">1:1</button><button type="button" data-z="2">2:1</button></div>
 </div>`);
     t.appendChild(bar);
+    q<HTMLSelectElement>(bar, '.fl-proof-profile').addEventListener('change', () => this.applyProof());
     q(bar, '.fl-tb-compare').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-c]');
       if (b) this.setCompare(b.dataset.c as Compare);
@@ -250,6 +270,8 @@ class DevelopModule {
       { id: 'develop.autoSync', label: 'Auto Sync', keys: ['Alt+Shift+Mod+A'], run: () => { develop.autoSync = !develop.autoSync; toast(develop.autoSync ? 'Auto Sync on: edits apply to every selected photo' : 'Auto Sync off'); }, checked: () => develop.autoSync },
       { id: 'develop.matchExposure', label: 'Match Total Exposures', keys: ['Alt+Shift+Mod+M'], run: () => this.run('develop.matchExposure'), enabled: multi },
       { id: 'develop.clipping', label: 'Show Clipping', keys: ['J'], run: () => { this.view.clipping = !this.view.clipping; this.view.schedule(); }, checked: () => this.view.clipping },
+      { id: 'develop.softProof', label: 'Soft Proofing', run: () => { this.proofOn = !this.proofOn; this.applyProof(); }, checked: () => this.proofOn },
+      { id: 'develop.gamutWarning', label: 'Destination Gamut Warning', run: () => { this.gamut = !this.gamut; if (!this.proofOn) this.proofOn = true; this.applyProof(); }, checked: () => this.proofOn && this.gamut },
       { id: 'develop.beforeAfter', label: 'Before/After Left/Right', keys: ['Y'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'lr' ? 'off' : 'lr'); }, checked: () => this.view.compare === 'lr' },
       { id: 'develop.before', label: 'Show Before', keys: ['\\'], run: () => this.setCompare(this.view.compare === 'before' ? 'off' : 'before'), checked: () => this.view.compare === 'before' },
       { id: 'develop.loupe', label: 'Loupe', run: () => this.setCompare('off') },
@@ -258,6 +280,12 @@ class DevelopModule {
       { id: 'develop.tool.redeye', label: 'Red Eye Correction', keys: ['Shift+E'], run: tool('redeye'), checked: () => this.toolId === 'redeye' },
       { id: 'develop.tool.masks', label: 'Masking', keys: ['Shift+W'], run: tool('masks'), checked: () => this.toolId === 'masks' },
       { id: 'develop.wbPicker', label: 'White Balance Selector', keys: ['W'], run: tool('wb'), checked: () => this.toolId === 'wb' },
+      { id: 'develop.pointColor', label: 'Point Color', run: tool('point'), checked: () => this.toolId === 'point' },
+      ...([['curve', 'Tone Curve', 'T'], ['hue', 'Hue', 'H'], ['sat', 'Saturation', 'S'], ['lum', 'Luminance', 'L'], ['bw', 'B&W Mix', 'G']] as Array<[TatMode, string, string]>).map(([m, l, k]) => ({
+        id: `develop.tat.${m}`, label: `Targeted Adjustment: ${l}`, keys: [`Alt+Shift+Mod+${k}`],
+        run: () => { if (!this.tat) return; this.tat.mode = m; if (this.toolId === 'tat') this.tat.activate(); else tool('tat')(); },
+        checked: () => this.toolId === 'tat' && this.tat?.mode === m,
+      })),
       { id: 'develop.preset', label: 'New Develop Preset...', run: () => ctx.run('develop.newPreset') },
       { id: 'develop.zoom', label: 'Toggle Zoom', keys: ['Z'], run: () => { if (ctx.module() === 'develop') this.view.toggleZoom(); else ctx.run('view.zoomToggle'); } },
       { id: 'develop.aiDenoise', label: 'Denoise...', keys: ['Alt+Mod+D'], run: () => ctx.run('photo.enhance'), enabled: has },
@@ -270,6 +298,8 @@ class DevelopModule {
     if (t?.key?.(e, combo)) { this.view.draw(); return true; }
     if (combo === 'Escape' && this.toolId) { this.setTool(''); return true; }
     if (combo === 'Space') { this.view.toggleZoom(); return true; }
+    if (combo === 'S') { this.ctx.run('develop.softProof'); return true; }
+    if (combo === 'Shift+S') { this.ctx.run('develop.gamutWarning'); return true; }
     return false;
   }
 }

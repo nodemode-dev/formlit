@@ -104,7 +104,14 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
     patch = lin[max(0, py - 2):py + 3, max(0, px - 2):px + 3].reshape(-1, 3).mean(axis=0)
     ev = float((eff.get("light") or {}).get("exposure", 0))
     lab = colour.oklab_from_2020(tonemap_for_select(patch[None, :] * (2.0 ** ev)))[0]
-    return {"lab": [round(float(v), 5) for v in lab]}
+    from app.develop.colorops import band_weights
+    from app.develop.settings import BANDS
+    hue = np.array([np.arctan2(lab[2], lab[1])], np.float64)
+    weights = band_weights(hue)[0]
+    l = float(lab[0])
+    region = "shadows" if l < 0.3 else "darks" if l < 0.5 else "lights" if l < 0.72 else "highlights"
+    return {"lab": [round(float(v), 5) for v in lab], "band": BANDS[int(np.argmax(weights))], "region": region,
+            "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
 @command("develop.info", "Develop Source Info", {"id": {"type": "integer"}, "settings": {"type": "object"}}, mutates=False)

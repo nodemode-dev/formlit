@@ -84,7 +84,7 @@ export class DevelopPanels {
     this.curve = new CurveEditor();
     const curveSliders = el('<div class="fl-curve-sliders"></div>');
     curveSliders.append(s('curve.highlights'), s('curve.lights'), s('curve.darks'), s('curve.shadows'), s('curve.splitShadows'), s('curve.splitMid'), s('curve.splitHighlights'));
-    pCurve.body.append(this.curve.root, curveSliders, s('curve.refineSaturation'));
+    pCurve.body.append(this.curve.root, curveSliders, s('curve.refineSaturation'), el(`<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.tat.curve">${icon('targeted', 13)} Targeted Adjustment</button></div>`));
 
     const pMixer = this.panel('dev.mixer', 'Color Mixer', 'mixer');
     this.mixerTabs = el(`<div class="cv-seg fl-seg-sm fl-mixer-tabs"><button type="button" data-m="hue">Hue</button><button type="button" data-m="sat">Saturation</button><button type="button" data-m="lum">Luminance</button><button type="button" data-m="all">All</button></div>`);
@@ -100,7 +100,11 @@ export class DevelopPanels {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-m]');
       if (b) { this.mixerMode = b.dataset.m as string; this.syncMixer(); }
     });
-    pMixer.body.append(this.mixerTabs, this.mixerBody, this.bwBody);
+    const tatMixer = el<HTMLButtonElement>(`<button class="cv-btn fl-btn-sm" type="button">${icon('targeted', 13)} Targeted</button>`);
+    tatMixer.addEventListener('click', () => this.ctx.run(develop.settings.treatment === 'bw' ? 'develop.tat.bw' : `develop.tat.${this.mixerMode === 'all' ? 'hue' : this.mixerMode}`));
+    const mixerFoot = el('<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.pointColor">Point Color...</button></div>');
+    mixerFoot.prepend(tatMixer);
+    pMixer.body.append(this.mixerTabs, this.mixerBody, this.bwBody, mixerFoot);
 
     const pGrade = this.panel('dev.grading', 'Color Grading', 'grading');
     const wheelRow = el('<div class="fl-wheels"></div>');
