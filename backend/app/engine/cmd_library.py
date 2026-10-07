@@ -573,6 +573,46 @@ def check_metadata(ids: Any = None) -> dict:
     return xmpwrite.check(_ids(ids) if ids is not None else None)
 
 
+WATCH: set[int] = set()
+
+
+def changed_files(pids: list[int], apply: bool = True) -> list[int]:
+    c = cat()
+    found: list[tuple[int, os.stat_result, Path]] = []
+    for i in range(0, len(pids), 900):
+        chunk = pids[i:i + 900]
+        for r in c.rows(f"SELECT p.id, f.path, p.file_name, p.file_size, p.file_mtime FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.master_id IS NULL AND p.id IN ({','.join('?' * len(chunk))})", tuple(chunk)):
+            path = Path(r["path"]) / r["file_name"]
+            try:
+                st = path.stat()
+            except OSError:
+                continue
+            if st.st_size != int(r["file_size"] or 0) or abs(st.st_mtime - float(r["file_mtime"] or 0)) > 1.0:
+                found.append((int(r["id"]), st, path))
+    if apply and found:
+        from app.services import decode
+        with c.change("Files Changed on Disk", undoable=False) as ch:
+            for pid, st, path in found:
+                w, h = decode.dimensions(path)
+                previews.drop_source(pid)
+                fam = [pid] + [int(x["id"]) for x in c.rows("SELECT id FROM photos WHERE master_id=?", (pid,))]
+                for one in fam:
+                    previews.clear(one)
+                    rev = int(c.scalar("SELECT develop_rev FROM photos WHERE id=?", (one,)) or 0)
+                    ch.update("photos", one, file_size=st.st_size, file_mtime=st.st_mtime, develop_rev=rev + 1, **({"width": w, "height": h} if w and h else {}))
+        previews.warm([pid for pid, _, _ in found])
+    return [pid for pid, _, _ in found]
+
+
+@command("library.checkFiles", "Check for Changed Files", {"ids": {"type": "array"}})
+def check_files(ids: Any = None) -> dict:
+    from app.services import xmpwrite
+    pids = sorted(set(resolve_ids(ids) if ids else []) | WATCH)
+    if not pids:
+        return {"changed": [], "conflicts": []}
+    return {"changed": changed_files(pids), "conflicts": xmpwrite.check(pids)["conflicts"]}
+
+
 @command("photo.readMetadata", "Read Metadata from File", {"ids": {"type": "array"}})
 def read_metadata(ids: Any = None) -> dict:
     pids = _ids(ids)
@@ -974,20 +1014,36 @@ def folder_create(name: str = "", parent: int | None = None, path: str = "") -> 
     return {"id": fid, "path": str(target)}
 
 
-@command("folder.synchronize", "Synchronize Folder", {"id": {"type": "integer"}, "importNew": {"type": "boolean"}})
-def folder_sync(id: int, importNew: bool = True, removeMissing: bool = False) -> dict:
+@command("folder.synchronize", "Synchronize Folder", {"id": {"type": "integer"}, "importNew": {"type": "boolean"}, "removeMissing": {"type": "boolean"},
+                                                      "scanMetadata": {"type": "boolean"}, "dryRun": {"type": "boolean"}})
+def folder_sync(id: int, importNew: bool = True, removeMissing: bool = False, scanMetadata: bool = True, dryRun: bool = False) -> dict:
+    from app.services import xmpwrite
     c = cat()
     r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
     if r is None:
         raise CommandError("No such folder")
-    found = find_missing()
-    res: dict = {"missing": len(found["missing"])}
-    if importNew:
-        out = importer.import_files([r["path"]], "add", recursive=True)
-        res["imported"] = out["count"]
-    if removeMissing and found["missing"]:
-        remove(found["missing"])
-        res["removed"] = len(found["missing"])
+    rows = c.rows("SELECT p.id, f.path, p.file_name, p.missing FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.master_id IS NULL AND (f.path=? OR f.path LIKE ?)", (r["path"], r["path"] + os.sep + "%"))
+    gone = {int(x["id"]) for x in rows if not (Path(x["path"]) / x["file_name"]).is_file()}
+    flip = [x for x in rows if (int(x["id"]) in gone) != bool(x["missing"])]
+    if flip:
+        with c.change("Find Missing Photos", undoable=False) as ch:
+            for x in flip:
+                ch.update("photos", int(x["id"]), missing=1 if int(x["id"]) in gone else 0)
+    missing = sorted(gone)
+    missing += [int(x["id"]) for x in c.rows(f"SELECT id FROM photos WHERE master_id IN ({','.join('?' * len(gone))})", tuple(gone))] if gone else []
+    present = [int(x["id"]) for x in rows if int(x["id"]) not in gone]
+    new = [f["path"] for f in importer.scan([r["path"]], True, 50_000)["files"] if not f["inCatalog"]] if importNew or dryRun else []
+    if dryRun:
+        return {"new": len(new), "missing": len(gone), "changed": len(changed_files(present, apply=False)), "path": r["path"]}
+    res: dict = {"imported": 0, "missing": len(gone), "removed": 0, "changed": [], "conflicts": []}
+    if importNew and new:
+        res["imported"] = importer.import_files(new, "add", skip_duplicates=False, recursive=False)["count"]
+    if removeMissing and missing:
+        remove(missing)
+        res["removed"] = len(gone)
+    if scanMetadata and present:
+        res["changed"] = changed_files(present)
+        res["conflicts"] = xmpwrite.check(present)["conflicts"]
     return res
 
 
@@ -1111,6 +1167,65 @@ def label_names(names: dict | None = None) -> dict:
     return {"names": c.get_meta("labelNames", {})}
 
 
+def _mount(path: str) -> str:
+    p = Path(path)
+    if os.name == "nt":
+        return p.drive + "\\" if p.drive else p.anchor
+    parts = p.parts
+    if len(parts) > 2 and parts[1] == "Volumes":
+        return str(Path(*parts[:3]))
+    if len(parts) > 3 and parts[1] == "media":
+        return str(Path(*parts[:4]))
+    if len(parts) > 4 and parts[1] == "run" and parts[2] == "media":
+        return str(Path(*parts[:5]))
+    q = p
+    while q != q.parent and not os.path.ismount(q):
+        q = q.parent
+    return str(q)
+
+
+def _volume(mount: str) -> dict:
+    if mount in ("/", ""):
+        name = "Macintosh HD" if platform.system() == "Darwin" else "File System"
+    elif os.name == "nt":
+        name = f"Local Disk ({mount.rstrip(chr(92))})"
+    else:
+        name = Path(mount).name or mount
+    try:
+        du = shutil.disk_usage(mount)
+        return {"mount": mount, "name": name, "free": du.free, "total": du.total, "online": True}
+    except OSError:
+        return {"mount": mount, "name": name, "free": 0, "total": 0, "online": False}
+
+
+@command("folder.showParent", "Show Parent Folder", {"id": {"type": "integer"}})
+def folder_show_parent(id: int) -> dict:
+    c = cat()
+    r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
+    if r is None:
+        raise CommandError("No such folder")
+    up = Path(r["path"]).parent
+    if up == Path(r["path"]):
+        raise CommandError("This folder is already at the top of its volume")
+    with c.change("Show Parent Folder") as ch:
+        return {"id": c.folder_id(ch, up)}
+
+
+@command("folder.hideParent", "Hide This Parent", {"id": {"type": "integer"}})
+def folder_hide_parent(id: int) -> dict:
+    c = cat()
+    if c.row("SELECT id FROM folders WHERE id=?", (int(id),)) is None:
+        raise CommandError("No such folder")
+    if int(c.scalar("SELECT COUNT(*) FROM photos WHERE folder_id=?", (int(id),)) or 0):
+        raise CommandError("This folder holds photos of its own, so it cannot be hidden")
+    kids = [int(x["id"]) for x in c.rows("SELECT id FROM folders WHERE parent_id=?", (int(id),))]
+    with c.change("Hide This Parent") as ch:
+        for k in kids:
+            ch.update("folders", k, parent_id=None)
+        ch.delete("folders", id=int(id))
+    return {"children": kids}
+
+
 @command("library.tree", "Catalog Panels", mutates=False)
 def tree() -> dict:
     c = cat()
@@ -1118,6 +1233,11 @@ def tree() -> dict:
     folders = [{"id": int(r["id"]), "path": r["path"], "name": r["name"], "parent": r["parent_id"], "count": int(r["n"]),
                 "missing": int(r["miss"] or 0), "online": Path(r["path"]).is_dir()}
                for r in c.rows("SELECT f.id, f.path, f.name, f.parent_id, COUNT(p.id) AS n, SUM(p.missing) AS miss FROM folders f LEFT JOIN photos p ON p.folder_id=f.id GROUP BY f.id ORDER BY f.path COLLATE NOCASE")]
+    volumes: dict[str, dict] = {}
+    for f in folders:
+        if f["parent"] is None:
+            f["volume"] = _mount(f["path"])
+            volumes.setdefault(f["volume"], _volume(f["volume"]))
     cols = []
     for r in c.rows("SELECT c.*, (SELECT COUNT(*) FROM collection_photos cp WHERE cp.collection_id=c.id) AS n FROM collections c ORDER BY c.kind='set' DESC, c.name COLLATE NOCASE"):
         item = {"id": int(r["id"]), "name": r["name"], "kind": r["kind"], "parent": r["parent_id"], "count": int(r["n"]), "target": bool(r["target"]),
@@ -1133,7 +1253,7 @@ def tree() -> dict:
         "catalog": {"name": c.path.stem, "path": str(c.path), "total": total, "previousImport": len(last),
                     "quick": int(c.scalar("SELECT COUNT(*) FROM collection_photos cp JOIN collections c ON c.id=cp.collection_id WHERE c.kind='quick'") or 0),
                     "missing": int(c.scalar("SELECT COUNT(*) FROM photos WHERE missing=1") or 0), "revision": c.revision},
-        "folders": folders, "collections": cols, "keywords": kws, "labelNames": c.get_meta("labelNames", {}),
+        "folders": folders, "volumes": list(volumes.values()), "collections": cols, "keywords": kws, "labelNames": c.get_meta("labelNames", {}),
     }
 
 

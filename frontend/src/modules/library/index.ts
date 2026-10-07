@@ -16,6 +16,7 @@ import { FilterBar } from './filterbar';
 import { importDropped, openImport } from './importer';
 import { InspectPanels } from './inspect';
 import { FaceRegions } from './face-regions';
+import { LibraryNavigator } from './navigator';
 import { Painter } from './painter';
 import { PeoplePanel } from './people';
 import { PublishPanel } from './publish';
@@ -58,6 +59,7 @@ class LibraryModule {
     hosts.left.appendChild(new PublishPanel(ctx).panel.root);
     new InspectPanels(ctx, hosts.right);
     this.stage();
+    hosts.left.prepend(new LibraryNavigator(this.loupe, () => { if (ctx.module() !== 'library') ctx.toModule('library'); if (this.view !== 'loupe') this.setView('loupe'); }).panel.root);
     this.toolbar();
     this.foots();
     this.commands();

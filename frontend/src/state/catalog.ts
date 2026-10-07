@@ -1,11 +1,12 @@
 import { api } from '../io/api';
 import { events } from '../io/events';
 
-export interface FolderRow { id: number; path: string; name: string; parent: number | null; count: number; missing: number; online: boolean }
+export interface FolderRow { id: number; path: string; name: string; parent: number | null; count: number; missing: number; online: boolean; volume?: string }
+export interface VolumeRow { mount: string; name: string; free: number; total: number; online: boolean }
 export interface CollectionRow { id: number; name: string; kind: string; parent: number | null; count: number; target: boolean; rules: unknown; settings: Record<string, unknown> | null; service: number | null; cover: number | null }
 export interface KeywordRow { id: number; name: string; parent: number | null; count: number; synonyms: string[]; export: boolean; person: boolean }
 export interface CatalogInfo { name: string; path: string; total: number; previousImport: number; quick: number; missing: number; revision: number }
-export interface Tree { catalog: CatalogInfo; folders: FolderRow[]; collections: CollectionRow[]; keywords: KeywordRow[]; labelNames: Record<string, string> }
+export interface Tree { catalog: CatalogInfo; folders: FolderRow[]; volumes?: VolumeRow[]; collections: CollectionRow[]; keywords: KeywordRow[]; labelNames: Record<string, string> }
 
 type Fn = () => void;
 

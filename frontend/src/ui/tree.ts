@@ -10,6 +10,8 @@ export interface TreeNode {
   hasKids: boolean;
   dim?: boolean;
   badge?: string;
+  note?: string;
+  head?: boolean;
   data?: unknown;
 }
 
@@ -92,7 +94,7 @@ export class Tree {
     for (const row of Array.from(this.list.children) as HTMLElement[]) setClass(row, 'is-drop', row.dataset.key === key);
   }
 
-  isOpen(key: string): boolean { return this.open[`${this.opts.id}:${key}`] ?? false; }
+  isOpen(key: string): boolean { return this.open[`${this.opts.id}:${key}`] ?? !!this.byKey.get(key)?.head; }
 
   toggle(key: string, on?: boolean): void {
     const k = `${this.opts.id}:${key}`;
@@ -146,8 +148,9 @@ export class Tree {
     setHtml(q(row, '.fl-tree-icon'), icon(n.icon, 14), n.icon);
     setText(q(row, '.fl-tree-label'), n.label);
     setHtml(q(row, '.fl-tree-badge'), n.badge ? escapeHtml(n.badge) : '', n.badge ?? '');
-    setText(q(row, '.fl-tree-count'), n.count === null || n.count === undefined ? '' : String(n.count));
+    setText(q(row, '.fl-tree-count'), n.note ?? (n.count === null || n.count === undefined ? '' : String(n.count)));
     setClass(row, 'is-dim', !!n.dim);
+    setClass(row, 'is-head', !!n.head);
     setClass(row, 'is-active', n.key === this.active);
     setTitle(row, n.label);
     row.setAttribute('aria-expanded', String(n.hasKids && this.isOpen(n.key)));

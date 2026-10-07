@@ -175,6 +175,18 @@
 .fl-tree-count { color: var(--text-muted); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
 .fl-tree-empty { padding: 6px 4px; color: var(--text-muted); font-size: var(--fs-11); line-height: 1.5; }
 .fl-tree-empty[hidden] { display: none; }
+.fl-tree-row.is-head { margin-top: 2px; background: var(--group-head); color: var(--text-primary); font-weight: 600; }
+.fl-tree-row.is-head:first-child { margin-top: 0; }
+.fl-tree-row.is-head .fl-tree-count { font-weight: 400; }
+.fl-lib-nav { height: 150px; }
+.fl-nav-pic { position: relative; display: block; line-height: 0; }
+.fl-nav-pic img { max-height: 140px; }
+.fl-nav-pic .fl-nav-rect { box-shadow: none; }
+.fl-nav-pic.is-zoomed img { filter: brightness(0.65); }
+.fl-sync-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.fl-sync-row { padding-left: 22px; }
+.fl-sync-row[hidden] { display: none; }
+.fl-sync-status { overflow-wrap: anywhere; }
 
 .fl-hist { position: relative; height: 92px; border-radius: 6px; background: var(--surface-0); border: 1px solid var(--line-1); overflow: hidden; }
 .fl-hist canvas { display: block; width: 100%; height: 100%; }

@@ -1,6 +1,8 @@
 import type { Ctx } from '../../app';
 import { events } from '../../io/events';
+import { catalog } from '../../state/catalog';
 import { library, type Photo } from '../../state/library';
+import { synchronizeFolder } from '../library/folder-sync';
 import type { SecondMode, SecondMsg } from '../../second-modes';
 import { askForm } from '../../ui/askform';
 import { Dialog } from '../../ui/dialogs';
@@ -96,7 +98,33 @@ export function registerCatalogCommands(ctx: Ctx): void {
   events.on('catalog.changed', () => {
     try { localStorage.removeItem('formlit_library_view'); } finally { window.location.reload(); }
   });
+  let lastCheck = 0;
+  const checkFiles = (force = false) => {
+    if (!force && (document.visibilityState !== 'visible' || Date.now() - lastCheck < 4000)) return Promise.resolve(null);
+    lastCheck = Date.now();
+    const ids = [...new Set([...(library.active !== null ? [library.active] : []), ...library.selected(), ...library.ids.slice(0, 3000)])];
+    return ctx.api.cmd<{ changed: number[]; conflicts: number[] }>('library.checkFiles', { ids }).then((r) => {
+      if (r.changed.length) toast(`${r.changed.length} ${r.changed.length === 1 ? 'photo was' : 'photos were'} changed on disk and reloaded`);
+      return r;
+    }, () => null);
+  };
+  window.addEventListener('focus', () => void checkFiles());
+  document.addEventListener('visibilitychange', () => void checkFiles());
   ctx.commands.add(
+    {
+      id: 'library.syncFolder', label: 'Synchronize Folder...', enabled: () => library.source.kind === 'folder',
+      run: () => {
+        const f = catalog.tree.folders.find((x) => x.id === library.source.id);
+        if (f) void synchronizeFolder(ctx, f);
+      },
+    },
+    {
+      id: 'library.checkFiles', label: 'Check for Changed Files',
+      run: async () => {
+        const r = await checkFiles(true);
+        if (r && !r.changed.length) toast(r.conflicts.length ? `${r.conflicts.length} ${r.conflicts.length === 1 ? 'photo has' : 'photos have'} newer metadata on disk` : 'No files changed on disk');
+      },
+    },
     {
       id: 'library.openCatalog', label: 'Open Catalog...',
       run: async () => {

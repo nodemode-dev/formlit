@@ -185,8 +185,9 @@ export class InspectPanels {
       if (seq !== this.seq) return;
       this.detail = d;
       this.paint();
-      const s = await this.ctx.api.cmd<{ keywords: string[] }>('keyword.suggest', { ids: [id] });
-      if (seq === this.seq) setHtml(this.kwSuggest, s.keywords.map((k) => `<button class="fl-chip" type="button" data-kw="${escapeHtml(k)}">${escapeHtml(k.split('|').pop() ?? k)}</button>`).join('') || '<span class="fl-muted">No suggestions yet</span>', s.keywords.join(','));
+      const s = await this.ctx.api.cmd<{ keywords: { id: number; path: string }[] }>('keyword.suggest', { ids: [id] });
+      const paths = s.keywords.map((k) => k.path);
+      if (seq === this.seq) setHtml(this.kwSuggest, paths.map((k) => `<button class="fl-chip" type="button" data-kw="${escapeHtml(k)}">${escapeHtml(k.split('|').pop() ?? k)}</button>`).join('') || '<span class="fl-muted">No suggestions yet</span>', paths.join(','));
     } catch { return; }
   }
 

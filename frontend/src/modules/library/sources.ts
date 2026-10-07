@@ -1,5 +1,5 @@
 import type { Ctx } from '../../app';
-import { catalog, type CollectionRow, type FolderRow } from '../../state/catalog';
+import { catalog, type CollectionRow, type FolderRow, type VolumeRow } from '../../state/catalog';
 import { library, type Source } from '../../state/library';
 import { promptName, confirmAction } from '../../ui/dialogs';
 import { el } from '../../ui/dom';
@@ -9,6 +9,7 @@ import { PopupMenu } from '../../ui/menu';
 import { Panel } from '../../ui/panel';
 import { toast } from '../../ui/toast';
 import { Tree, type TreeNode } from '../../ui/tree';
+import { synchronizeFolder } from './folder-sync';
 import { openSmartCollection } from './smart';
 
 function home(path: string): string {
@@ -17,7 +18,12 @@ function home(path: string): string {
 
 function sourceKey(s: Source): string { return `${s.kind}:${s.id ?? s.value ?? ''}`; }
 
-export function folderNodes(rows: FolderRow[]): TreeNode[] {
+function bytes(n: number): string {
+  const gb = n / 1e9;
+  return gb >= 1000 ? `${(gb / 1000).toFixed(1)} TB` : `${gb >= 100 ? gb.toFixed(0) : gb.toFixed(1)} GB`;
+}
+
+export function folderNodes(rows: FolderRow[], volumes: VolumeRow[] = []): TreeNode[] {
   const kids = new Map<number | null, FolderRow[]>();
   const ids = new Set(rows.map((r) => r.id));
   for (const r of rows) {
@@ -27,14 +33,23 @@ export function folderNodes(rows: FolderRow[]): TreeNode[] {
   }
   const total = (r: FolderRow): number => r.count + (kids.get(r.id) ?? []).reduce((a, k) => a + total(k), 0);
   const out: TreeNode[] = [];
-  const walk = (parent: number | null, depth: number) => {
-    for (const r of kids.get(parent) ?? []) {
+  const walk = (list: FolderRow[], depth: number, top: boolean) => {
+    for (const r of list) {
       const hasKids = (kids.get(r.id) ?? []).length > 0;
-      out.push({ key: `folder:${r.id}`, label: depth === 0 ? home(r.path) : r.name, icon: r.online ? 'folder' : 'warning', count: total(r), depth, hasKids, dim: !r.online, data: r });
-      walk(r.id, depth + 1);
+      out.push({ key: `folder:${r.id}`, label: top ? home(r.path) : r.name, icon: r.online ? 'folder' : 'warning', count: total(r), depth, hasKids, dim: !r.online, data: r });
+      walk(kids.get(r.id) ?? [], depth + 1, false);
     }
   };
-  walk(null, 0);
+  const roots = kids.get(null) ?? [];
+  if (!volumes.length) { walk(roots, 0, true); return out; }
+  for (const v of volumes) {
+    const mine = roots.filter((r) => r.volume === v.mount);
+    if (!mine.length) continue;
+    out.push({ key: `volume:${v.mount}`, label: v.name, icon: v.online ? 'drive' : 'warning', depth: 0, hasKids: true, head: true, dim: !v.online,
+      note: v.online ? `${bytes(v.free)} / ${bytes(v.total)}` : 'Offline', count: null });
+    walk(mine, 1, true);
+  }
+  walk(roots.filter((r) => !volumes.some((v) => v.mount === r.volume)), 0, true);
   return out;
 }
 
@@ -73,7 +88,7 @@ export class SourcePanels {
     this.folders = new Tree({
       id: 'folders', empty: 'Import photos to see their folders here',
       onPick: (n) => { const r = n.data as FolderRow; library.setSource({ kind: 'folder', id: r.id, label: r.name, recursive: true }); },
-      onContext: (n, e) => this.context(n, e, ['lib.folderShow', 'lib.folderSync', 'lib.folderRename', 'lib.folderCreate', 'lib.folderMove', 'lib.folderRelocate', '-', 'lib.folderRemove']),
+      onContext: (n, e) => { if (!n.head) this.context(n, e, ['lib.folderShow', 'lib.folderSync', 'lib.folderRename', 'lib.folderCreate', 'lib.folderMove', 'lib.folderRelocate', '-', 'lib.folderShowParent', 'lib.folderHideParent', '-', 'lib.folderRemove']); },
       canDrop: (n) => (n.data as FolderRow).online !== false,
       onDrop: (n, ids) => void this.movePhotos(n.data as FolderRow, ids),
     });
@@ -128,7 +143,9 @@ export class SourcePanels {
     const parentSet = () => { const c = col(); return c ? (c.kind === 'set' ? c.id : c.parent) : null; };
     ctx.commands.add(
       { id: 'lib.folderShow', label: /Mac/.test(navigator.platform) ? 'Show in Finder' : 'Show in Explorer', run: () => { const f = folder(); const first = f ? library.ids.find((id) => library.photo(id)?.folder === f.id) : undefined; if (first !== undefined) void ctx.api.cmd('photo.reveal', { id: first }).catch(fail); } },
-      { id: 'lib.folderSync', label: 'Synchronize Folder...', run: () => { const f = folder(); if (f) void ctx.api.cmd<{ added: number; missing: number }>('folder.synchronize', { id: f.id, importNew: true }).then((r) => toast(`Synchronized: ${r.added ?? 0} new, ${r.missing ?? 0} missing`), fail); } },
+      { id: 'lib.folderSync', label: 'Synchronize Folder...', run: () => { const f = folder(); if (f) void synchronizeFolder(ctx, f); } },
+      { id: 'lib.folderShowParent', label: 'Show Parent Folder', enabled: () => folder()?.parent === null, run: () => { const f = folder(); if (f) void ctx.api.cmd('folder.showParent', { id: f.id }).catch(fail); } },
+      { id: 'lib.folderHideParent', label: 'Hide This Parent', enabled: () => { const f = folder(); return !!f && f.count === 0 && catalog.tree.folders.some((x) => x.parent === f.id); }, run: () => { const f = folder(); if (f) void ctx.api.cmd('folder.hideParent', { id: f.id }).catch(fail); } },
       { id: 'lib.folderRename', label: 'Rename...', run: async () => { const f = folder(); if (!f) return; const name = await promptName('Rename Folder', f.name, 'Rename'); if (name && name !== f.name) await ctx.api.cmd('folder.update', { id: f.id, name }).catch(fail); } },
       { id: 'lib.folderCreate', label: 'Create Folder inside...', run: async () => { const f = folder(); if (!f) return; const name = await promptName('New Folder', 'Untitled', 'Create'); if (name) await ctx.api.cmd('folder.create', { parent: f.id, name }).catch(fail); } },
       { id: 'lib.folderRelocate', label: 'Update Folder Location...', run: async () => { const f = folder(); if (!f) return; const to = await pickFolder('Update Folder Location', `Where is "${f.name}" now? Photos in it are found again by name.`, folderOf(f.path), 'Choose'); if (to) { const r = await ctx.api.cmd<{ found: number }>('folder.relocate', { id: f.id, path: to }).catch(fail); if (r) toast(`Found ${r.found} photo${r.found === 1 ? '' : 's'} in ${to}`); } } },
@@ -153,7 +170,7 @@ export class SourcePanels {
     ];
     if (t.catalog.missing) cat.push({ key: 'missing:', label: 'Missing Photographs', icon: 'warning', count: t.catalog.missing, depth: 0, hasKids: false, data: { kind: 'missing', label: 'Missing Photographs' } });
     this.catalogTree.set(cat);
-    this.folders.set(folderNodes(t.folders));
+    this.folders.set(folderNodes(t.folders, t.volumes ?? []));
     this.collections.set(collectionNodes(t.collections));
     this.syncActive();
   }

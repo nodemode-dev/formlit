@@ -91,6 +91,19 @@ export class Viewer {
 
   center(): [number, number] { return [this.cx, this.cy]; }
 
+  visible(): [number, number, number, number] | null {
+    const p = this.photo;
+    if (!p || this.root.hidden || !this.root.isConnected || !this.root.clientWidth) return null;
+    const [w, h] = this.dims(p);
+    const s = this.scale();
+    const vw = this.root.clientWidth, vh = this.root.clientHeight;
+    const dw = w * s, dh = h * s;
+    if (dw <= vw + 1 && dh <= vh + 1) return null;
+    const x = dw > vw ? Math.min(0, Math.max(vw - dw, vw / 2 - this.cx * dw)) : (vw - dw) / 2;
+    const y = dh > vh ? Math.min(0, Math.max(vh - dh, vh / 2 - this.cy * dh)) : (vh - dh) / 2;
+    return [Math.max(0, -x / dw), Math.max(0, -y / dh), Math.min(1, (vw - x) / dw), Math.min(1, (vh - y) / dh)];
+  }
+
   follow(z: Zoom, cx: number, cy: number): void {
     if (this.zoom === z && this.cx === cx && this.cy === cy) return;
     this.zoom = z;
