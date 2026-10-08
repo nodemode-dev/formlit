@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.2
-Last updated: 2026-10-08 · originals protected from export, publish and preset ids; undo moves files; typed command parameters; develop settings sanitized; v0.3.0: look tables, the look step, maker notes, DCP baselines, the frozen engine
+Current build version: v0.3.4
+Last updated: 2026-10-08 · the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -246,6 +246,13 @@ An engine sweep of 3,100 calls found 90 that ended in a 500 (AttributeError, Ind
 - logged: v0.1.0 · 2026-10-07
 
 Removing the top photo of a stack left the others hidden behind a missing top. Remove now renumbers the stack, or dissolves it when one photo is left.
+
+### app/engine/cmd_library.py · keyword and stack integrity, folder prefixes
+- refers-to: app/engine/cmd_library.py :: keyword_update, keyword_merge, _keyword_tree, keyword_delete, stack_group, folder queries; query.py :: like_under, _folder_ids, collection_descendants; tasks.py :: start
+- kind: rationale
+- logged: v0.3.4 · 2026-10-08
+
+From the command sweep: a keyword could be renamed to blank or to a sibling's name (an IntegrityError), moved under a keyword that does not exist or under itself or a child (which made the recursive queries loop while holding the catalog lock), and merged into a keyword that does not exist or into its own child. All are now refused with a sentence, and every recursive keyword and collection query uses `UNION` rather than `UNION ALL`, so a cycle already in a catalog ends instead of looping. Stacking photos that were already stacked left one-photo stacks behind and accepted duplicates and missing ids; `stack.group` now de-duplicates, keeps only existing photos and tidies the stacks they left. Folder subtree queries matched `_` and `%` in folder names as wildcards (removing a folder `a_b` also removed `aXb`); `like_under` escapes them. A cancelled task now ends as `cancelled`, not `done`, and the interface treats both as finished.
 
 ### app/engine/cmd_library.py · collection rules and parents, photo.readMetadata
 - refers-to: app/engine/cmd_library.py :: collection_create, collection_update, _collection_descendants; query.py :: validate_rules, compile_rules, RULE_OPS
@@ -671,6 +678,13 @@ A spread template on a left page lays its cells across two page widths, then spl
 
 ## app/output/slideshow.py {#output-slideshow}
 
+### app/output/slideshow.py and layout.py · value ranges
+- refers-to: app/output/slideshow.py :: merged; layout.py :: print_pages grid; core/prefs.py :: update; engine/cmd_library.py :: set_capture_time; query.py :: query limit
+- kind: rationale
+- logged: v0.3.4 · 2026-10-08
+
+Out-of-range values that produced nonsense are clamped or refused where they enter: slide duration 0.5 to 600 s, fade 0 to 30 s, pan and zoom 0 to 1; print grids 1 to 15 rows and columns with gaps that leave every cell a positive size; preferences that have a default must keep its type (a string for Edit In settings broke Edit In); capture times must parse and shifts stay within 200 years. Schema ranges were added where the meaning is fixed (white balance picker 0 to 1, location latitude, longitude and radius, generative remove 1 to 3 variants, cull threshold 0 to 100), which `dispatch` enforces. `library.query` applies `limit` after collapsing stacks, so it returns as many photos as asked.
+
 ### app/output/slideshow.py · write_video timeline
 - refers-to: app/output/slideshow.py :: write_video
 - kind: explainer
@@ -753,6 +767,13 @@ Raw sources now record what DCPs and camera styles need: `camToRec2020`, LibRaw'
 ---
 
 ## app/services/previews.py {#services-previews}
+
+### app/services/previews.py · _once deadlock
+- refers-to: app/services/previews.py :: _once
+- kind: warning-context
+- logged: v0.3.4 · 2026-10-08
+
+`_once` added its clean-up callback to the future while still holding `_inflight_lock`. When the preview job had already finished by then (a build that fails at once, such as a missing original), `add_done_callback` runs the callback on the spot, in the same thread, and the callback waited for the lock that thread was holding. That thread hung for good and every later preview, thumbnail and develop write that requested a preview queued behind the lock, so the interface stopped getting new previews until the engine restarted. Found with a stack dump of an engine that stalled during the command sweep. The callback is now added after the lock is released.
 
 ### app/services/previews.py · clear
 - refers-to: app/services/previews.py :: clear, drop_source

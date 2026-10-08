@@ -2,6 +2,17 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.3.4 · 2026-10-08
+
+### Fixed
+
+- **Previews could stop for good.** When a preview job finished before the engine had finished registering it (for example a photo whose original is missing), the thread waiting on it deadlocked, and every later thumbnail, preview and develop change queued behind it until the engine was restarted. The registration no longer holds the lock that the finished job needs.
+- **Keywords.** Renaming a keyword to nothing or to a sibling's name, moving it under itself, a child or a keyword that does not exist, and merging into a missing keyword or a child are refused with a message; a loop already in a catalog no longer hangs keyword and collection queries.
+- **Stacks.** Stacking photos that were already in stacks left one-photo stacks behind; duplicates and missing photos made empty or single stacks. Stacking now tidies the stacks it takes photos from.
+- **Folders.** Removing or checking a folder whose name contains `_` or `%` also affected folders that only looked similar.
+- **Out-of-range values** are now clamped or refused: slide duration and fade, print grid rows, columns and gaps, white balance picker position, saved location coordinates, generative remove variants, the cull threshold, capture times that do not parse, and preferences of the wrong type (which broke Edit In).
+- Find Photos with a limit returned fewer photos than asked when stacks were collapsed; a cancelled task reported itself as done.
+
 ## v0.3.3 · 2026-10-08
 
 Interface fixes from a full pass through every module, menu and dialog.
