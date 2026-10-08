@@ -112,6 +112,7 @@
 .fl-tpl-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-height: 220px; margin: 4px 0 8px; overflow-y: auto; }
 .fl-book-tstyle { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 30px; gap: 4px; margin: 2px 0 10px; }
 .fl-book-tstyle .cv-select { height: 24px; font-size: var(--fs-11); }
+.fl-book-tstyle .fl-color { width: 30px; }
 .fl-tpl { padding: 4px; border: 1px solid var(--line-1); border-radius: 6px; background: var(--surface-0); cursor: pointer; }
 .fl-tpl:hover { border-color: var(--line-3); }
 .fl-tpl.is-on { border-color: var(--accent-line); background: var(--accent-soft); }

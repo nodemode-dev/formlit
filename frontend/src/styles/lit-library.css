@@ -154,7 +154,29 @@
 .fl-tb-sort { width: 124px; flex: none; }
 .fl-tb:not(.is-grid) .fl-tb-gridonly { display: none; }
 .fl-tb-labels { display: inline-flex; gap: 4px; margin-left: 4px; }
-.fl-tb-size { width: 120px; flex: none; }
+.fl-tb-size { width: 120px; flex: 0 1 120px; min-width: 56px; }
+@container fl-toolbar (max-width: 960px) {
+  .fl-tb .fl-tb-label { display: none; }
+  .fl-tb-sort { width: 108px; }
+}
+@container fl-toolbar (max-width: 820px) {
+  .fl-tb .fl-tb-labels { gap: 2px; margin-left: 2px; }
+  .fl-tb .fl-tb-stars button { width: 17px; }
+  .fl-tb .fl-tb-compare [data-c="tb"], .fl-tb .fl-tb-compare [data-c="split"] { display: none; }
+}
+@container fl-toolbar (max-width: 700px) {
+  .fl-tb [data-cmd="photo.rotateLeft"], .fl-tb [data-cmd="photo.rotateRight"] { display: none; }
+}
+@container fl-toolbar (max-width: 620px) {
+  .fl-tb .fl-tb-labels { display: none; }
+  .fl-tb-sort { width: 92px; }
+}
+@container fl-toolbar (max-width: 560px) {
+  .fl-tb .fl-tb-zooms, .fl-tb .fl-tb-sep, .fl-tb .fl-painter { display: none; }
+}
+@container fl-toolbar (max-width: 480px) {
+  .fl-tb .fl-tb-stars, .fl-tb .fl-tb-dir { display: none; }
+}
 .fl-tb-zoom { min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 .fl-foot-row { display: flex; gap: 6px; width: 100%; }
 .fl-foot-row .cv-btn { flex: 1; justify-content: center; }

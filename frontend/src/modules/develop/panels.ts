@@ -255,7 +255,7 @@ export class DevelopPanels {
       s('optics.defringeGreen'), s('optics.defringeGreenHueLo'), s('optics.defringeGreenHueHi'));
 
     const pGeo = this.panel('dev.geometry', 'Transform', 'geometry');
-    const upright = el(`<div class="fl-row"><span class="fl-row-label">Upright</span><div class="cv-seg fl-seg-sm fl-grow">${['off', 'auto', 'guided', 'level', 'vertical', 'full'].map((m) => `<button type="button" data-up="${m}">${m === 'off' ? 'Off' : m.charAt(0).toUpperCase() + m.slice(1)}</button>`).join('')}</div></div>`);
+    const upright = el(`<div class="fl-row"><span class="fl-row-label">Upright</span><div class="cv-seg fl-seg-sm fl-grow fl-upright">${['off', 'auto', 'guided', 'level', 'vertical', 'full'].map((m) => `<button type="button" data-up="${m}">${m === 'off' ? 'Off' : m.charAt(0).toUpperCase() + m.slice(1)}</button>`).join('')}</div></div>`);
     upright.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-up]');
       if (b?.dataset.up === 'guided') this.ctx.run('develop.tool.guided');

@@ -62,7 +62,7 @@ html, body { height: 100%; }
 .fl-stage-page { position: absolute; inset: 0; }
 .fl-stage-page[hidden] { display: none; }
 .fl-toolbar { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); background: var(--surface-1); border-top: 1px solid var(--line-0); min-width: 0; overflow: hidden; }
-.fl-toolbar-page { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
+.fl-toolbar-page { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; container-type: inline-size; container-name: fl-toolbar; }
 .fl-toolbar-page[hidden] { display: none; }
 .fl-tb-sep { width: 1px; height: 18px; background: var(--line-2); flex: none; }
 .fl-tb-label { color: var(--text-muted); font-size: var(--fs-11); white-space: nowrap; }
