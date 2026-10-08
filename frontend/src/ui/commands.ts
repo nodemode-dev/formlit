@@ -68,7 +68,10 @@ export class Commands {
   }
 
   /** The command that has `combo`, if any. */
-  forCombo(combo: string): Command | undefined { return this.byKey.get(combo); }
+  forCombo(combo: string): Command | undefined {
+    const all = [...this.map.values()].filter((c) => c.keys?.includes(combo));
+    return all.find((c) => c.enabled && this.enabled(c)) ?? all.find((c) => !c.enabled) ?? this.byKey.get(combo);
+  }
 
   /** A command's keys as defined, before any rebinding. */
   defaultKeys(id: string): string[] { return [...(this.defaults.get(id) ?? [])]; }
