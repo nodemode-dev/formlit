@@ -439,7 +439,7 @@ def wb_preset(ids: Any = None, mode: str = "asShot") -> dict:
     return {"ids": [p for p in pids if p not in skipped], "skipped": skipped}
 
 
-@command("develop.whiteBalancePick", "White Balance Selector", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}})
+@command("develop.whiteBalancePick", "White Balance Selector", {"id": {"type": "integer"}, "x": {"type": "number", "minimum": 0, "maximum": 1}, "y": {"type": "number", "minimum": 0, "maximum": 1}})
 def wb_pick(x: float, y: float, id: int | None = None, apply: bool = True) -> dict:
     from app.develop import auto as auto_mod
     from app.develop.render import effective, plan

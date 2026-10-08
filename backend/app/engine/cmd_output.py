@@ -693,8 +693,8 @@ def _km(a: float, b: float, c: float, d: float) -> float:
     return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(h)))
 
 
-@command("location.save", "Save Location", {"id": {"type": "integer"}, "name": {"type": "string"}, "lat": {"type": "number"}, "lon": {"type": "number"},
-                                            "radius": {"type": "number"}, "private": {"type": "boolean"}})
+@command("location.save", "Save Location", {"id": {"type": "integer"}, "name": {"type": "string"}, "lat": {"type": "number", "minimum": -90, "maximum": 90},
+                                            "lon": {"type": "number", "minimum": -180, "maximum": 180}, "radius": {"type": "number", "minimum": 0, "maximum": 20000}, "private": {"type": "boolean"}})
 def location_save(name: str, lat: float, lon: float, radius: float = 0.2, private: bool = False, id: int | None = None) -> dict:
     with cat().change("Save Location") as ch:
         if id is None:

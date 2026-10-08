@@ -758,7 +758,7 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
     return out
 
 
-@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "description": "1 to 3 fills to choose from"},
+@command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "minimum": 1, "maximum": 3, "description": "1 to 3 fills to choose from"},
                                                      "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"}})
 def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bool = False) -> dict:
     pid = int(id) if id is not None else resolve_ids("active")[0]
@@ -1114,7 +1114,7 @@ def cull_analyze(ids: Any = None, wait: bool = False) -> dict:
 
 
 @command("cull.apply", "Apply Culling", {"ids": {"type": "array"}, "pickBest": {"type": "boolean"}, "rejectBlurry": {"type": "boolean"}, "rejectDuplicates": {"type": "boolean"},
-                                         "rejectEyesClosed": {"type": "boolean"}, "threshold": {"type": "number", "description": "sharpness below this is blurry, 0 to 100"},
+                                         "rejectEyesClosed": {"type": "boolean"}, "threshold": {"type": "number", "minimum": 0, "maximum": 100, "description": "sharpness below this is blurry, 0 to 100"},
                                          "exposureMin": {"type": "number"}, "eyesMin": {"type": "number"},
                                          "applyAs": {"type": "string", "enum": ["flags", "ratings", "labels", "stacks"]}})
 def cull_apply(ids: Any = None, pickBest: bool = True, rejectBlurry: bool = True, rejectDuplicates: bool = False, rejectEyesClosed: bool = False, threshold: float = 35.0,

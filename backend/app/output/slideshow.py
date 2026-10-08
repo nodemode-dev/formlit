@@ -33,7 +33,13 @@ TEMPLATES = [
 
 
 def merged(s: dict | None) -> dict:
-    return layout_mod.deep_merge(DEFAULTS, s)
+    out = layout_mod.deep_merge(DEFAULTS, s if isinstance(s, dict) else {})
+    for key, lo, hi in (("duration", 0.5, 600.0), ("fade", 0.0, 30.0), ("panZoom", 0.0, 1.0)):
+        try:
+            out[key] = min(hi, max(lo, float(out.get(key, DEFAULTS[key]))))
+        except (TypeError, ValueError):
+            out[key] = DEFAULTS[key]
+    return out
 
 
 AUDIO_EXTS = {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg", ".oga", ".opus", ".aif", ".aiff"}

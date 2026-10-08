@@ -187,10 +187,11 @@ def print_pages(settings: dict, photos: list[dict]) -> dict:
     style = s.get("style", "grid")
     cells: list[dict] = []
     if style == "grid":
-        rows, cols = max(1, int(s["rows"])), max(1, int(s["cols"]))
-        gx, gy = float(s["gapX"]), float(s["gapY"])
-        cw = float(s["cellW"]) if s.get("cellW") else (area_w - gx * (cols - 1)) / cols
-        chh = float(s["cellH"]) if s.get("cellH") else (area_h - gy * (rows - 1)) / rows
+        rows, cols = max(1, min(15, int(s["rows"]))), max(1, min(15, int(s["cols"])))
+        gx = max(0.0, min(float(s["gapX"]), area_w / max(1, cols - 1) * 0.9 if cols > 1 else 0.0))
+        gy = max(0.0, min(float(s["gapY"]), area_h / max(1, rows - 1) * 0.9 if rows > 1 else 0.0))
+        cw = max(0.05, float(s["cellW"])) if s.get("cellW") else (area_w - gx * (cols - 1)) / cols
+        chh = max(0.05, float(s["cellH"])) if s.get("cellH") else (area_h - gy * (rows - 1)) / rows
         total_w, total_h = cw * cols + gx * (cols - 1), chh * rows + gy * (rows - 1)
         ox, oy = ml + (area_w - total_w) / 2, mt + (area_h - total_h) / 2
         cells = [{"x": ox + c * (cw + gx), "y": oy + r * (chh + gy), "w": cw, "h": chh} for r in range(rows) for c in range(cols)]

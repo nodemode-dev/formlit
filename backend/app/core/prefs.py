@@ -28,6 +28,9 @@ def load() -> dict:
 
 
 def update(values: dict[str, Any]) -> dict:
+    for key, default in DEFAULTS.items():
+        if key in values and values[key] is not None and type(values[key]) is not type(default):
+            raise ValueError(f"preference {key} must be {type(default).__name__}")
     cur = load()
     cur.update(values)
     with _lock:
