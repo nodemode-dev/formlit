@@ -245,7 +245,7 @@ def parse_text(text: str) -> dict:
     except ValueError:
         tokens = text.split()
     for tok in tokens:
-        m = re.fullmatch(r"([a-zA-Z]+):(>=|<=|>|<|=|!)?(.+)", tok)
+        m = re.fullmatch(r"([a-zA-Z]+)(?::|(?=[<>=!]))(>=|<=|>|<|=|!)?(.+)", tok)
         if m and m.group(1).lower() in TEXT_FIELDS:
             field = TEXT_FIELDS[m.group(1).lower()]
             op = {"!": "!=", None: "="}.get(m.group(2), m.group(2))

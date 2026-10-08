@@ -416,21 +416,27 @@ def auto_wb(ids: Any = None) -> dict:
 
 @command("develop.whiteBalancePreset", "White Balance", {"ids": {"type": "array"}, "mode": {"type": "string"}})
 def wb_preset(ids: Any = None, mode: str = "asShot") -> dict:
+    from app.develop.render import WB_PRESETS
+    if mode not in ("asShot", "auto", "custom", *WB_PRESETS):
+        raise CommandError(f"mode is asShot, auto, custom or one of {', '.join(WB_PRESETS)}")
     if mode == "auto":
         return auto_wb(ids)
     pids = resolve_ids(ids)
     c = cat()
+    skipped = []
     with c.change(f"White Balance: {mode}") as ch:
         for pid in pids:
-            dev, _ = current(pid)
+            dev, kind = current(pid)
+            if mode in WB_PRESETS and kind != "raw":
+                skipped.append(pid)
+                continue
             new = copy.deepcopy(dev)
-            from app.develop.render import WB_PRESETS
             new["wb"] = {"mode": mode}
             if mode in WB_PRESETS:
                 new["wb"].update(temp=WB_PRESETS[mode][0], tint=WB_PRESETS[mode][1])
             store(ch, pid, new, "White Balance")
     after(pids)
-    return {"ids": pids}
+    return {"ids": [p for p in pids if p not in skipped], "skipped": skipped}
 
 
 @command("develop.whiteBalancePick", "White Balance Selector", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}})

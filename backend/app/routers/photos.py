@@ -20,23 +20,40 @@ def _missing(pid: int) -> JSONResponse:
     return JSONResponse({"ok": False, "error": f"No image for photo {pid}"}, status_code=404)
 
 
-def _file(path, final: bool, versioned: bool, media: str = "image/jpeg") -> FileResponse:
-    return FileResponse(path, media_type=media, headers={"Cache-Control": IMMUTABLE if final and versioned else "no-store", "X-Final": "1" if final else "0"})
+def _file(path, final: bool, versioned: bool, media: str = "image/jpeg") -> Response | None:
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None
+    return Response(data, media_type=media, headers={"Cache-Control": IMMUTABLE if final and versioned else "no-store", "X-Final": "1" if final else "0"})
 
 
 @router.get("/{pid}/thumb")
 def thumb(pid: int, rev: int | None = None) -> Any:
-    path, final = previews.best_thumb(pid)
-    return _missing(pid) if path is None else _file(path, final, rev is not None)
+    for _ in range(3):
+        path, final = previews.best_thumb(pid)
+        if path is None:
+            break
+        out = _file(path, final, rev is not None)
+        if out is not None:
+            return out
+    return _missing(pid)
 
 
 @router.get("/{pid}/preview")
 def preview(pid: int, rev: int | None = None, wait: float = 0.0) -> Any:
-    try:
-        path, final = previews.best_preview(pid, min(max(wait, 0.0), 30.0))
-    except FileNotFoundError:
-        return _missing(pid)
-    return _missing(pid) if path is None else _file(path, final, rev is not None)
+    for _ in range(3):
+        try:
+            path, final = previews.best_preview(pid, min(max(wait, 0.0), 30.0))
+        except FileNotFoundError:
+            break
+        if path is None:
+            break
+        out = _file(path, final, rev is not None)
+        if out is not None:
+            return out
+    return _missing(pid)
 
 
 @router.get("/{pid}/full")
@@ -47,7 +64,7 @@ def full(pid: int, rev: int | None = None, wait: float = 60.0) -> Any:
         return _missing(pid)
     except TimeoutError:
         return JSONResponse({"ok": False, "error": "Still building the 1:1 preview"}, status_code=202)
-    return _file(path, True, rev is not None)
+    return _file(path, True, rev is not None) or _missing(pid)
 
 
 @router.get("/{pid}/original")
