@@ -36,7 +36,7 @@ export async function removePhotos(ctx: Ctx, fromDisk = false): Promise<void> {
   const n = ids.length;
   const what = `${n} photo${n === 1 ? '' : 's'}`;
   const ok = await confirmAction(fromDisk ? 'Delete from Disk' : 'Remove from Catalog',
-    fromDisk ? `Move the originals of ${what} to the system trash and remove them from the catalog?` : `Remove ${what} from the catalog? The files on disk are not touched.`,
+    fromDisk ? `Move the originals of ${what} to the system trash and remove them from the catalog? This cannot be undone from formlit; restore the files from the trash and import them again.` : `Remove ${what} from the catalog? The files on disk are not touched.`,
     fromDisk ? 'Delete' : 'Remove', fromDisk);
   if (!ok) return;
   await ctx.api.cmd(fromDisk ? 'photo.delete' : 'photo.remove', { ids }).catch((e) => ctx.fail(e));

@@ -292,6 +292,8 @@ def add_keywords(ids: Any = None, keywords: list[str] | None = None) -> dict:
 def remove_keywords(ids: Any = None, keywords: list[str] | None = None) -> dict:
     pids = _ids(ids)
     c = cat()
+    if any(not isinstance(kw, str) for kw in keywords or []):
+        raise CommandError("keywords must be a list of names")
     with c.change("Remove Keywords") as ch:
         for kw in keywords or []:
             leaf = kw.split("|")[-1].strip()
@@ -380,9 +382,12 @@ def set_master(id: int) -> dict:
 
 @command("photo.remove", "Remove from Catalog", {"ids": {"type": "array"}})
 def remove(ids: Any = None) -> dict:
-    pids = _ids(ids)
+    return _remove(_ids(ids), True)
+
+
+def _remove(pids: list[int], undoable: bool) -> dict:
     c = cat()
-    with c.change("Remove Photos") as ch:
+    with c.change("Remove Photos", undoable=undoable) as ch:
         stacks = {int(r["stack_id"]) for pid in pids for r in c.db.execute("SELECT stack_id FROM photos WHERE id=? AND stack_id IS NOT NULL", (pid,)).fetchall()}
         for pid in pids:
             for table, col in (("photo_keywords", "photo_id"), ("collection_photos", "photo_id"), ("history", "photo_id"), ("snapshots", "photo_id"), ("faces", "photo_id")):
@@ -433,7 +438,7 @@ def delete(ids: Any = None) -> dict:
             p = c.photo_path(pid)
             if p is not None:
                 paths.append(p)
-    remove(pids)
+    _remove(pids, False)
     trashed = []
     for p in paths:
         if p.is_file():
@@ -496,9 +501,11 @@ def rename_photos(ids: Any = None, template: str = "{name}", custom: str = "", s
                 continue
             target = rename.unique(dst)
             src.rename(target)
+            ch.moved(src, target)
             side = metadata.sidecar_path(src)
             if side.is_file():
                 side.rename(metadata.sidecar_path(target))
+                ch.moved(side, metadata.sidecar_path(target))
             ch.update("photos", pid, file_name=target.name)
             for vc in c.db.execute("SELECT id FROM photos WHERE master_id=?", (pid,)).fetchall():
                 ch.update("photos", int(vc["id"]), file_name=target.name)
@@ -787,7 +794,14 @@ def collection_create(name: str, kind: str = "collection", parent: int | None = 
                       settings: dict | None = None, service: int | None = None) -> dict:
     if kind not in COLLECTION_KINDS:
         raise CommandError("kind is " + ", ".join(COLLECTION_KINDS))
+    if not isinstance(name, str):
+        raise CommandError("name must be a string")
+    if kind == "smart" and rules is not None:
+        query.validate_rules(rules)
     c = cat()
+    if parent is not None and c.row("SELECT 1 FROM collections WHERE id=?", (int(parent),)) is None:
+        raise CommandError(f"No collection set {parent}", 404)
+    ids = [int(i) for i in (ids or []) if c.row("SELECT 1 FROM photos WHERE id=?", (int(i),)) is not None]
     with c.change(f"New {COLLECTION_KINDS[kind]}") as ch:
         pos = int(c.db.execute("SELECT COALESCE(MAX(position), 0) FROM collections").fetchone()[0]) + 1
         cid = ch.insert("collections", name=name.strip() or "Untitled", kind=kind, parent_id=parent, rules=rules or ({"match": "all", "rules": []} if kind == "smart" else None), position=pos,
@@ -802,6 +816,17 @@ def collection_create(name: str, kind: str = "collection", parent: int | None = 
     return {"id": cid}
 
 
+def _collection_descendants(cid: int) -> set[int]:
+    out: set[int] = set()
+    todo = [cid]
+    while todo:
+        for r in cat().rows("SELECT id FROM collections WHERE parent_id=?", (todo.pop(),)):
+            if int(r["id"]) not in out:
+                out.add(int(r["id"]))
+                todo.append(int(r["id"]))
+    return out
+
+
 @command("collection.update", "Edit Collection", {"id": {"type": "integer"}, "name": {"type": "string"}, "parent": {"type": "integer"}, "rules": {"type": "object"}, "settings": {"type": "object"}, "cover": {"type": "integer"}})
 def collection_update(id: int, name: str | None = None, parent: int | None = -1, rules: dict | None = None, settings: dict | None = None, cover: int | None = None) -> dict:
     c = cat()
@@ -809,8 +834,12 @@ def collection_update(id: int, name: str | None = None, parent: int | None = -1,
     if name is not None:
         fields["name"] = name.strip() or "Untitled"
     if parent != -1:
+        if parent is not None and (int(parent) == int(id) or int(parent) in _collection_descendants(int(id))
+                                   or c.row("SELECT 1 FROM collections WHERE id=?", (int(parent),)) is None):
+            raise CommandError("A collection can only move into an existing set that is not inside it")
         fields["parent_id"] = parent
     if rules is not None:
+        query.validate_rules(rules)
         fields["rules"] = rules
     if settings is not None:
         fields["settings"] = settings
@@ -1027,6 +1056,7 @@ def folder_update(id: int, name: str) -> dict:
         raise CommandError(f"{new.name} already exists")
     old.rename(new)
     with c.change("Rename Folder") as ch:
+        ch.moved(old, new)
         for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ?", (str(old), str(old) + os.sep + "%")).fetchall():
             p = str(new) + f["path"][len(str(old)):]
             ch.update("folders", int(f["id"]), path=p, name=Path(p).name)

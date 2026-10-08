@@ -101,6 +101,9 @@ class Change:
             return json.dumps(value, separators=(",", ":"))
         return value
 
+    def moved(self, src: Path, dst: Path) -> None:
+        self.ops.append(("move", str(src), str(dst)))
+
     def touch(self, table: str, row_id: int | None, fields) -> None:
         if table == "photos" and row_id is not None:
             self.photos.setdefault(int(row_id), set()).update(fields)
@@ -264,10 +267,18 @@ class Catalog:
             events.publish("list.changed", list=name, revision=self.revision)
 
     def _apply(self, ops: list[tuple], reverse: bool, ch: Change) -> None:
-        seq = reversed(ops) if reverse else ops
+        seq = list(reversed(ops) if reverse else ops)
+        for op in seq:
+            if op[0] == "move":
+                a, b = (Path(op[2]), Path(op[1])) if reverse else (Path(op[1]), Path(op[2]))
+                if not a.exists() or b.exists():
+                    raise ValueError(f"Cannot {'undo' if reverse else 'redo'} this: {a} is missing or {b.name} is in the way")
         for op in seq:
             kind = op[0]
-            if kind == "update":
+            if kind == "move":
+                a, b = (Path(op[2]), Path(op[1])) if reverse else (Path(op[1]), Path(op[2]))
+                a.rename(b)
+            elif kind == "update":
                 _, table, rid, before, after = op
                 vals = before if reverse else after
                 self.db.execute(f"UPDATE {table} SET {','.join(f'{k}=?' for k in vals)} WHERE id=?", (*vals.values(), rid))
@@ -304,6 +315,7 @@ class Catalog:
                 self.db.execute("COMMIT")
             except BaseException:
                 self.db.execute("ROLLBACK")
+                self.undo_stack.append(entry)
                 raise
             self.redo_stack.append(entry)
             self.revision += 1
@@ -323,6 +335,7 @@ class Catalog:
                 self.db.execute("COMMIT")
             except BaseException:
                 self.db.execute("ROLLBACK")
+                self.redo_stack.append(entry)
                 raise
             self.undo_stack.append(entry)
             self.revision += 1
@@ -367,6 +380,8 @@ class Catalog:
         return fid
 
     def keyword_id(self, ch: Change, path: str) -> int:
+        if not isinstance(path, str) or not path.replace(">", "|").replace("|", "").strip():
+            raise ValueError(f"A keyword needs a name (got {path!r})")
         parent = None
         kid = 0
         for part in [p.strip() for p in path.replace(">", "|").split("|") if p.strip()]:
