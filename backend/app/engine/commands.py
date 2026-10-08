@@ -1,4 +1,5 @@
 import inspect
+import math
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -64,12 +65,59 @@ def resolve_ids(ids: Any) -> list[int]:
     return [int(i) for i in ids]
 
 
+def _typed(cid: str, name: str, schema: dict, value: Any, default: Any) -> Any:
+    kind = schema.get("type")
+    if value is None:
+        return None
+    bad = CommandError(f"{cid}: {name} must be {'an' if kind in ('array', 'integer', 'object') else 'a'} {kind}")
+    if kind in ("integer", "number") and isinstance(value, str):
+        try:
+            value = float(value.strip()) if kind == "number" or "." in value or "e" in value.lower() else int(value.strip())
+        except ValueError:
+            raise bad from None
+    if kind == "integer":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value or (isinstance(value, float) and not value.is_integer()):
+            raise bad
+        value = int(value)
+    elif kind == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise bad
+    elif kind == "boolean":
+        if isinstance(value, int) and not isinstance(value, bool) and value in (0, 1):
+            value = bool(value)
+        elif not isinstance(value, bool):
+            raise bad
+    elif kind == "string":
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = str(value)
+        elif not isinstance(value, str):
+            raise bad
+    elif kind == "object":
+        if not isinstance(value, dict):
+            raise bad
+    elif kind == "array":
+        ok = isinstance(value, list) or (name == "ids" and (value in ("selection", "active") or (isinstance(value, int) and not isinstance(value, bool))))
+        if not ok:
+            raise bad
+    if "enum" in schema and value not in schema["enum"]:
+        raise CommandError(f"{cid}: {name} must be one of {', '.join(map(str, schema['enum']))}")
+    if kind in ("integer", "number") and ("minimum" in schema and value < schema["minimum"] or "maximum" in schema and value > schema["maximum"]):
+        raise CommandError(f"{cid}: {name} must be between {schema.get('minimum', '-inf')} and {schema.get('maximum', 'inf')}")
+    return value
+
+
 def dispatch(cid: str, params: dict | None = None) -> Any:
     spec = REGISTRY.get(cid)
     if spec is None:
         raise CommandError(f"Unknown command: {cid}", 404)
+    if params is not None and not isinstance(params, dict):
+        raise CommandError(f"{cid}: parameters must be an object")
     params = dict(params or {})
     sig = inspect.signature(spec.fn)
+    for name, schema in spec.params.items():
+        if name in params and isinstance(schema, dict) and schema.get("type"):
+            p = sig.parameters.get(name)
+            params[name] = _typed(cid, name, schema, params[name], p.default if p is not None and p.default is not p.empty else ...)
     accepted = {k: v for k, v in params.items() if k in sig.parameters}
     unknown = sorted(set(params) - set(accepted))
     if unknown and not any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values()):

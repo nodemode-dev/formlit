@@ -1,6 +1,8 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +25,13 @@ app.add_middleware(GZipMiddleware, minimum_size=4096, compresslevel=3,
                    exclude_content_types=DEFAULT_EXCLUDED_CONTENT_TYPES + ("application/octet-stream", "image/tiff", "application/pdf"))
 for router in ROUTERS:
     app.include_router(router)
+
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+    logging.getLogger("formlit").exception("unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse({"ok": False, "error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
 
 _dist = config.dist_dir()
 if _dist is not None:

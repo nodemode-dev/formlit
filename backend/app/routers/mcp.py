@@ -63,6 +63,21 @@ def _cmd(cid: str, **params: Any) -> Any:
     return dispatch(cid, {k: v for k, v in params.items() if v is not None})
 
 
+def _straighten(args: dict) -> dict:
+    from app.develop.geometry import crop_fit_angle
+    from app.engine import catalog as catalog_mod
+    from app.engine.commands import resolve_ids
+    out = []
+    for pid in resolve_ids(args.get("ids")):
+        angle = float(dispatch("develop.autoStraighten", {"id": pid})["angle"])
+        r = catalog_mod.get().row("SELECT width, height FROM photos WHERE id=?", (pid,))
+        w, h = (float(r["width"] or 3), float(r["height"] or 2)) if r else (3.0, 2.0)
+        rect = [round(v, 6) for v in crop_fit_angle(w, h, angle)]
+        dispatch("develop.update", {"ids": [pid], "patch": {"crop": {"angle": angle, "rect": rect}}, "label": "Auto Straighten"})
+        out.append({"id": pid, "angle": angle})
+    return {"photos": out}
+
+
 def _preview(args: dict) -> dict:
     from PIL import Image
     from app.develop import settings as S
@@ -187,7 +202,7 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("add_gradient_mask", "Adds a linear gradient (start and end points, 0 to 1 of the frame) or a radial gradient (center, rx, ry, feather, invert) with local adjust values.",
            {"id": ID, "kind": {"type": "string", "enum": ["linear", "radial"]}, "start": {"type": "array", "items": {"type": "number"}}, "end": {"type": "array", "items": {"type": "number"}},
             "center": {"type": "array", "items": {"type": "number"}}, "rx": {"type": "number"}, "ry": {"type": "number"}, "feather": {"type": "number"}, "invert": {"type": "boolean"}, "adjust": {"type": "object"}}, ["id", "kind"]), _gradient),
-    (_tool("auto_straighten", "Levels the horizon from the lines in the photo.", {"ids": IDS}, ["ids"]), lambda a: _cmd("develop.autoStraighten", ids=a["ids"])),
+    (_tool("auto_straighten", "Levels the horizon from the lines in the photo.", {"ids": IDS}, ["ids"]), _straighten),
     (_tool("upright", "Perspective correction: auto, level, vertical or full.", {"ids": IDS, "mode": {"type": "string", "enum": ["auto", "level", "vertical", "full", "off"]}}, ["ids", "mode"]), lambda a: _cmd("develop.upright", ids=a["ids"], mode=a["mode"])),
     (_tool("denoise", "AI Denoise: writes an enhanced DNG next to each raw and stacks it.", {"ids": IDS, "amount": {"type": "number", "minimum": 0, "maximum": 100, "default": 50}, "wait": WAIT}, ["ids"]),
      lambda a: _cmd("ai.denoise", ids=a["ids"], amount=a.get("amount", 50), wait=a.get("wait", True))),
@@ -277,9 +292,13 @@ async def mcp(request: Request) -> Response:
         return Response(content=json.dumps(_err(None, -32700, "Parse error")), media_type="application/json", status_code=400)
     if isinstance(msg, list):
         return Response(content=json.dumps(_err(None, -32600, "Batches are not supported")), media_type="application/json", status_code=400)
+    if not isinstance(msg, dict):
+        return Response(content=json.dumps(_err(None, -32600, "Invalid request: expected a JSON-RPC object")), media_type="application/json", status_code=400)
     req_id, method, params = msg.get("id"), msg.get("method"), msg.get("params") or {}
     if req_id is None:
         return Response(status_code=202)
+    if not isinstance(params, dict):
+        return Response(content=json.dumps(_err(req_id, -32602, "params must be an object")), media_type="application/json")
     meta = params.get("_meta") or {}
     version = meta.get("io.modelcontextprotocol/protocolVersion") or request.headers.get("mcp-protocol-version") or "2025-11-25"
     modern = version == "2026-07-28"
@@ -297,13 +316,16 @@ async def mcp(request: Request) -> Response:
     elif method == "prompts/list":
         out = _ok(req_id, {"prompts": PROMPTS}, modern)
     elif method == "prompts/get":
-        text = {"culling_workflow": CULLING, "develop_strategy": DEVELOP}.get(params.get("name"))
+        text = {"culling_workflow": CULLING, "develop_strategy": DEVELOP}.get(params.get("name") if isinstance(params.get("name"), str) else "")
         out = _ok(req_id, {"description": next(p["description"] for p in PROMPTS if p["name"] == params.get("name")), "messages": [{"role": "user", "content": {"type": "text", "text": text}}]}, modern) if text else _err(req_id, -32602, f"No prompt named {params.get('name')}")
     elif method == "tools/list":
         out = _ok(req_id, {"tools": [t[0] for t in TOOLS]}, modern)
     elif method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
-        out = _ok(req_id, await call_tool(name, args), modern) if name in SPECS and isinstance(args, dict) else _err(req_id, -32602, f"No tool named {name}")
+        if not isinstance(name, str) or not isinstance(args, dict):
+            out = _err(req_id, -32602, "tools/call needs a tool name and an arguments object")
+        else:
+            out = _ok(req_id, await call_tool(name, args), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
     else:
         out = _err(req_id, -32601, f"Method not found: {method}")
     return Response(content=json.dumps(out, default=str), media_type="application/json")

@@ -79,9 +79,39 @@ def mask_bitmap(pid: int, key: str) -> Any:
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+def _bad_render(body: Any) -> str:
+    def num(v: Any) -> bool:
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float("inf")
+    if not isinstance(body, dict):
+        return "The render body must be an object"
+    if body.get("settings") is not None and not isinstance(body["settings"], dict):
+        return "settings must be an object"
+    if body.get("long") is not None and not (num(body["long"]) and 16 <= body["long"] <= 30000):
+        return "long must be a number of pixels between 16 and 30000"
+    size = body.get("size")
+    if size is not None and not (isinstance(size, list) and len(size) == 2 and all(num(v) and 1 <= v <= 30000 for v in size)):
+        return "size must be [width, height] in pixels"
+    region = body.get("region")
+    if region is not None and not (isinstance(region, list) and len(region) == 4 and all(num(v) for v in region) and region[0] < region[2] and region[1] < region[3]):
+        return "region must be [x0, y0, x1, y1] with x0 < x1 and y0 < y1"
+    if body.get("quality") is not None and not (num(body["quality"]) and 1 <= body["quality"] <= 100):
+        return "quality must be between 1 and 100"
+    if body.get("overlay") is not None and not isinstance(body["overlay"], dict):
+        return "overlay must be an object"
+    for key in ("space", "view", "hdr", "preset"):
+        if body.get(key) is not None and not isinstance(body[key], str):
+            return f"{key} must be a string"
+    if body.get("presetAmount") is not None and not num(body["presetAmount"]):
+        return "presetAmount must be a number"
+    return ""
+
+
 @router.post("/{pid}/render")
 def render(pid: int, body: dict | None = Body(default=None)) -> Any:
     body = body or {}
+    bad = _bad_render(body)
+    if bad:
+        return JSONResponse({"ok": False, "error": bad}, status_code=400)
     started = time.perf_counter()
     cat = catalog_mod.get()
     row = cat.row("SELECT develop FROM photos WHERE id=?", (pid,))
@@ -96,6 +126,8 @@ def render(pid: int, body: dict | None = Body(default=None)) -> Any:
         dev = defaults_for(str(cat.scalar("SELECT kind FROM photos WHERE id=?", (pid,)) or ""))
     elif dev is None:
         dev = loads(row["develop"], {})
+    from app.develop.settings import sanitize
+    dev = sanitize(dev)
     if body.get("preset"):
         from app.develop import settings as S
         from app.engine import presets
