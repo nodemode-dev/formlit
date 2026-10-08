@@ -20,7 +20,7 @@ def current(pid: int) -> tuple[dict, str]:
     r = cat().row("SELECT develop, kind FROM photos WHERE id=?", (pid,))
     if r is None:
         raise CommandError(f"No photo with id {pid}", 404)
-    return records.loads(r["develop"], {}), r["kind"]
+    return S.sanitize(records.loads(r["develop"], {})), r["kind"]
 
 
 def store(ch: Change, pid: int, dev: dict, label: str, history: bool = True) -> None:
@@ -28,7 +28,7 @@ def store(ch: Change, pid: int, dev: dict, label: str, history: bool = True) -> 
     r = c.db.execute("SELECT develop, develop_rev, kind FROM photos WHERE id=?", (pid,)).fetchone()
     if r is None:
         return
-    new = S.prune(dev)
+    new = S.prune(S.sanitize(dev))
     if json.dumps(new, sort_keys=True) == json.dumps(records.loads(r["develop"], {}), sort_keys=True):
         return
     ch.update("photos", pid, develop=new, develop_rev=int(r["develop_rev"]) + 1, edit_time=now_iso(), edited=1 if S.edited(new, r["kind"]) else 0)
@@ -505,6 +505,9 @@ def paste(ids: Any = None, groups: list[str] | None = None, amount: float = 1.0)
 
 @command("develop.sync", "Sync Settings", {"ids": {"type": "array"}, "from": {"type": "integer"}, "groups": {"type": "array"}})
 def sync(ids: Any = None, groups: list[str] | None = None, **kw: Any) -> dict:
+    unknown = sorted(set(kw) - {"from"})
+    if unknown:
+        raise CommandError(f"develop.sync does not take {', '.join(unknown)}")
     src = kw.get("from") or SESSION.active
     if not src:
         raise CommandError("No source photo: pass from, or make a photo active")
@@ -530,6 +533,8 @@ def paste_previous(ids: Any = None) -> dict:
 def match_exposure(ids: Any = None) -> dict:
     import math
     pids = resolve_ids(ids)
+    if not pids:
+        raise CommandError("Select the photos to match")
     ref = SESSION.active or pids[0]
     c = cat()
 
