@@ -235,6 +235,7 @@ class DevelopModule {
       for (const b of Array.from(bar.querySelectorAll<HTMLElement>('[data-z]'))) setClass(b, 'is-on', b.dataset.z === String(z));
     };
     this.setCompare('off');
+    this.view.onZoom(this.view.zoom);
   }
 
   private setCompare(c: Compare): void {
@@ -262,21 +263,23 @@ class DevelopModule {
   private commands(): void {
     const ctx = this.ctx;
     const has = () => develop.id !== null;
+    const anyPhoto = () => develop.id !== null || library.active !== null || library.targets().length > 0;
     const multi = () => library.targets().length > 1;
     const tool = (id: string) => () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setTool(id); };
     ctx.commands.add(
-      { id: 'develop.auto', label: 'Auto Settings', keys: ['Shift+Mod+U'], run: () => this.run('develop.auto'), enabled: has },
-      { id: 'develop.autoBw', label: 'Auto B&W Mix', run: () => this.run('develop.autoBw'), enabled: has },
-      { id: 'develop.reset', label: 'Reset All Settings', keys: ['Shift+Mod+R'], run: () => this.run('develop.reset'), enabled: has },
+      { id: 'develop.auto', label: 'Auto Settings', keys: ['Shift+Mod+U'], run: () => this.run('develop.auto'), enabled: anyPhoto },
+      { id: 'develop.autoBw', label: 'Auto B&W Mix', run: () => this.run('develop.autoBw'), enabled: anyPhoto },
+      { id: 'develop.reset', label: 'Reset All Settings', keys: ['Shift+Mod+R'], run: () => this.run('develop.reset'), enabled: anyPhoto },
       { id: 'develop.copy', label: 'Copy Settings...', keys: ['Shift+Mod+C'], run: async () => {
-        if (develop.id === null) return;
+        const id = ctx.module() === 'develop' ? develop.id : library.active ?? develop.id;
+        if (id === null) return;
         await develop.flush();
         this.groupsDialog ??= new GroupsDialog();
         const groups = await this.groupsDialog.ask('Copy Settings', 'Copy');
-        if (groups) await ctx.api.cmd('develop.copy', { id: develop.id, groups }).then(() => toast('Settings copied'), (e) => ctx.fail(e));
-      }, enabled: has },
-      { id: 'develop.paste', label: 'Paste Settings', keys: ['Shift+Mod+V'], run: () => this.run('develop.paste', {}, () => toast('Settings pasted')), enabled: has },
-      { id: 'develop.pastePrevious', label: 'Paste Settings from Previous', keys: ['Alt+Mod+V'], run: () => this.run('develop.pastePrevious'), enabled: has },
+        if (groups) await ctx.api.cmd('develop.copy', { id, groups }).then(() => toast('Settings copied'), (e) => ctx.fail(e));
+      }, enabled: anyPhoto },
+      { id: 'develop.paste', label: 'Paste Settings', keys: ['Shift+Mod+V'], run: () => this.run('develop.paste', {}, () => toast('Settings pasted')), enabled: anyPhoto },
+      { id: 'develop.pastePrevious', label: 'Paste Settings from Previous', keys: ['Alt+Mod+V'], run: () => this.run('develop.pastePrevious'), enabled: anyPhoto },
       { id: 'develop.syncSettings', label: 'Sync Settings...', keys: ['Shift+Mod+S'], run: async () => {
         const ids = await this.targets();
         const from = library.active;
@@ -314,7 +317,10 @@ class DevelopModule {
       } },
       { id: 'develop.fringePicker', label: 'Fringe Color Selector', run: tool('fringe'), checked: () => this.toolId === 'fringe' },
       { id: 'develop.tool.guided', label: 'Guided Upright', keys: ['Shift+T'], run: tool('guided'), checked: () => this.toolId === 'guided' },
-      { id: 'develop.profileBrowser', label: 'Profile Browser...', run: () => openProfileBrowser(this.ctx) },
+      { id: 'develop.profileBrowser', label: 'Profile Browser...', run: async () => {
+        if (ctx.module() !== 'develop') { ctx.toModule('develop'); await develop.open(library.active).catch((e) => ctx.fail(e)); }
+        openProfileBrowser(this.ctx);
+      } },
       ...([['curve', 'Tone Curve', 'T'], ['hue', 'Hue', 'H'], ['sat', 'Saturation', 'S'], ['lum', 'Luminance', 'L'], ['bw', 'B&W Mix', 'G']] as Array<[TatMode, string, string]>).map(([m, l, k]) => ({
         id: `develop.tat.${m}`, label: `Targeted Adjustment: ${l}`, keys: [`Alt+Shift+Mod+${k}`],
         run: () => { if (!this.tat) return; this.tat.mode = m; if (this.toolId === 'tat') this.tat.activate(); else tool('tat')(); },

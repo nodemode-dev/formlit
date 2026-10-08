@@ -40,13 +40,11 @@ export class Panel {
       this.tools.appendChild(sw);
       this.sw = sw;
     }
-    for (const tool of opts.tools ?? []) {
-      tool.addEventListener('click', (e) => e.stopPropagation());
-      this.tools.appendChild(tool);
-    }
+    for (const tool of opts.tools ?? []) this.tools.appendChild(tool);
     const saved = readState()[id];
     this.setOpen(saved ?? opts.open ?? true, false);
     this.head.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.fl-panel-tools > *')) return;
       if (e.altKey) { this.solo(); return; }
       this.setOpen(!this.isOpen, true);
     });

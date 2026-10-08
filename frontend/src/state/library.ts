@@ -151,6 +151,12 @@ export class Library {
     try { localStorage.setItem(LOCK_KEY, on ? '1' : '0'); } catch { return; }
   }
 
+  relabel(kind: string, id: number, label: string): void {
+    if (this.source.kind !== kind || this.source.id !== id || this.source.label === label) return;
+    this.source = { ...this.source, label };
+    this.emitList();
+  }
+
   setSource(source: Source): void {
     if (sameSource(source, this.source) && source.recursive === this.source.recursive) return;
     if (!this.filterLock && !sameSource(source, this.source)) {

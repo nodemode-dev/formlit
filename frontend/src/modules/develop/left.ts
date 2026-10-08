@@ -137,7 +137,8 @@ export class LeftPanels {
       if (why === 'photo' || why === 'reload') { this.loadHistory(); this.loadSnaps(); this.nav(); }
       if (why === 'edit') { window.clearTimeout(this.histTimer); this.histTimer = window.setTimeout(() => this.loadHistory(), 1200); }
     });
-    view.onZoom = () => this.navSync();
+    const chained = view.onZoom;
+    view.onZoom = (z) => { chained?.(z); this.navSync(); };
     void this.loadPresets();
   }
 
@@ -171,7 +172,7 @@ export class LeftPanels {
         await develop.flush();
         await ctx.api.cmd('snapshot.create', { id: develop.id, name }).catch((e) => ctx.fail(e));
         this.loadSnaps();
-      } },
+      }, enabled: () => ctx.module() === 'develop' && develop.id !== null },
     );
   }
 
@@ -273,7 +274,7 @@ export class LeftPanels {
       patchList(this.snaps, r.snapshots, {
         key: (s) => String(s.id),
         create: (s) => el(`<div class="fl-list-row" data-snap="${s.id}"><span>${escapeHtml(s.name)}</span><button class="cv-icon-btn" type="button" data-del aria-label="Delete">${icon('close', 12)}</button></div>`),
-        update: () => undefined,
+        update: (n, s) => setText(q(n, 'span'), s.name),
       });
       if (!r.snapshots.length) this.snaps.replaceChildren(el('<div class="fl-muted fl-list-empty">No snapshots yet</div>'));
       else this.snaps.querySelector('.fl-list-empty')?.remove();
