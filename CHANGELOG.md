@@ -2,6 +2,14 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.5.0 · 2026-10-08
+
+### Changed
+
+- The tone curve editor draws the same monotone spline and parametric regions the engine renders, so the drawn curve and the picture agree.
+- Colour Mixer slider tracks take their band colours from the engine's control table.
+- NOTICE lists only the works this tree includes.
+
 ## v0.4.0 · 2026-10-08
 
 A test build of the rewritten develop engine. The engine's colour, geometry, tone, detail, colour-mixing, finish, kernel, mask and retouching modules are new code written from published standards, papers and Lightroom Classic's documented controls.
