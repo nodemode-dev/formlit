@@ -13,7 +13,7 @@ function wire(): void {
   events.on('task', (e) => {
     const w = waiting.get(Number(e.id));
     if (!w) return;
-    if (e.state === 'done') { waiting.delete(Number(e.id)); w.ok((e.result ?? {}) as Result); }
+    if (e.state === 'done' || e.state === 'cancelled') { waiting.delete(Number(e.id)); w.ok((e.result ?? {}) as Result); }
     else if (e.state === 'failed') { waiting.delete(Number(e.id)); w.fail(new Error(String(e.error ?? 'Failed'))); }
   });
 }

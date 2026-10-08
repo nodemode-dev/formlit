@@ -455,6 +455,13 @@ def set_capture_time(ids: Any = None, time: str | None = None, shiftSeconds: flo
     pids = _ids(ids)
     c = cat()
     rows = {pid: c.row("SELECT capture_time FROM photos WHERE id=?", (pid,)) for pid in pids}
+    if shiftSeconds is not None and abs(shiftSeconds) > 200 * 365.25 * 86400:
+        raise CommandError("shiftSeconds must be within 200 years")
+    if time:
+        try:
+            datetime.fromisoformat(time[:19])
+        except ValueError as exc:
+            raise CommandError(f"time must be YYYY-MM-DDTHH:MM:SS: {exc}") from exc
     shift = timedelta(seconds=shiftSeconds or 0)
     if time and not each:
         first = rows[pids[0]]["capture_time"] if rows.get(pids[0]) else None
@@ -697,14 +704,24 @@ def read_metadata(ids: Any = None) -> dict:
 
 @command("stack.group", "Group into Stack", {"ids": {"type": "array"}})
 def stack_group(ids: Any = None) -> dict:
-    pids = _ids(ids)
+    c = cat()
+    pids = [p for p in dict.fromkeys(int(i) for i in _ids(ids)) if c.row("SELECT 1 FROM photos WHERE id=?", (p,)) is not None]
     if len(pids) < 2:
         raise CommandError("A stack needs two or more photos")
-    c = cat()
+    old = {int(r["stack_id"]) for p in pids for r in [c.row("SELECT stack_id FROM photos WHERE id=?", (p,))] if r and r["stack_id"]}
     with c.change("Group into Stack") as ch:
         sid = ch.insert("stacks", collapsed=1)
         for i, pid in enumerate(pids):
             ch.update("photos", pid, stack_id=sid, stack_pos=i)
+        for o in old:
+            left = [int(r["id"]) for r in c.db.execute("SELECT id FROM photos WHERE stack_id=? ORDER BY stack_pos, id", (o,)).fetchall()]
+            if len(left) < 2:
+                for one in left:
+                    ch.update("photos", one, stack_id=None, stack_pos=0)
+                ch.delete("stacks", id=o)
+            else:
+                for pos, one in enumerate(left):
+                    ch.update("photos", one, stack_pos=pos)
     return {"stack": sid}
 
 
@@ -953,11 +970,28 @@ def keyword_create(path: str, synonyms: list[str] | None = None, person: bool = 
 @command("keyword.update", "Edit Keyword", {"id": {"type": "integer"}, "name": {"type": "string"}, "parent": {"type": "integer"}})
 def keyword_update(id: int, name: str | None = None, parent: int | None = -1, synonyms: list[str] | None = None, export: bool | None = None, person: bool | None = None) -> dict:
     c = cat()
+    row = c.row("SELECT parent_id FROM keywords WHERE id=?", (int(id),))
+    if row is None:
+        raise CommandError(f"No keyword {id}", 404)
     fields: dict = {}
     if name is not None:
+        if not name.strip():
+            raise CommandError("A keyword needs a name")
         fields["name"] = name.strip()
     if parent != -1:
+        if parent is not None and (int(parent) in _keyword_tree(int(id)) or c.row("SELECT 1 FROM keywords WHERE id=?", (int(parent),)) is None):
+            raise CommandError("A keyword can only move under an existing keyword that is not inside it")
         fields["parent_id"] = parent
+    if synonyms is not None and not all(isinstance(s, str) for s in synonyms):
+        raise CommandError("synonyms must be a list of words")
+    under = fields.get("parent_id", row["parent_id"]) if "parent_id" in fields else row["parent_id"]
+    new_name = fields.get("name")
+    if new_name and c.row("SELECT 1 FROM keywords WHERE name=? AND COALESCE(parent_id, 0)=? AND id!=?", (new_name, under or 0, int(id))):
+        raise CommandError(f"There is already a keyword {new_name} there")
+    if "parent_id" in fields and not new_name:
+        own = c.scalar("SELECT name FROM keywords WHERE id=?", (int(id),))
+        if c.row("SELECT 1 FROM keywords WHERE name=? AND COALESCE(parent_id, 0)=? AND id!=?", (own, under or 0, int(id))):
+            raise CommandError(f"There is already a keyword {own} there")
     if synonyms is not None:
         fields["synonyms"] = synonyms
     if export is not None:
@@ -969,10 +1003,14 @@ def keyword_update(id: int, name: str | None = None, parent: int | None = -1, sy
     return {"id": int(id)}
 
 
+def _keyword_tree(kid: int) -> set[int]:
+    return {int(r["id"]) for r in cat().rows("WITH RECURSIVE t(id) AS (SELECT ? UNION SELECT k.id FROM keywords k JOIN t ON k.parent_id=t.id) SELECT id FROM t", (kid,))}
+
+
 @command("keyword.delete", "Delete Keyword", {"id": {"type": "integer"}})
 def keyword_delete(id: int) -> dict:
     c = cat()
-    rows = c.rows("WITH RECURSIVE t(id) AS (SELECT ? UNION ALL SELECT k.id FROM keywords k JOIN t ON k.parent_id=t.id) SELECT id FROM t", (int(id),))
+    rows = c.rows("WITH RECURSIVE t(id) AS (SELECT ? UNION SELECT k.id FROM keywords k JOIN t ON k.parent_id=t.id) SELECT id FROM t", (int(id),))
     with c.change("Delete Keyword") as ch:
         for r in rows:
             ch.delete("photo_keywords", keyword_id=int(r["id"]))
@@ -983,9 +1021,13 @@ def keyword_delete(id: int) -> dict:
 @command("keyword.merge", "Merge Keywords", {"ids": {"type": "array"}, "into": {"type": "integer"}})
 def keyword_merge(ids: list[int], into: int) -> dict:
     c = cat()
+    if c.row("SELECT 1 FROM keywords WHERE id=?", (int(into),)) is None:
+        raise CommandError(f"No keyword {into} to merge into", 404)
+    if any(int(into) in _keyword_tree(int(k)) and int(k) != int(into) for k in ids):
+        raise CommandError("A keyword cannot be merged into one of its own children")
     with c.change("Merge Keywords") as ch:
         for kid in ids:
-            if int(kid) == int(into):
+            if int(kid) == int(into) or c.row("SELECT 1 FROM keywords WHERE id=?", (int(kid),)) is None:
                 continue
             for r in c.db.execute("SELECT photo_id FROM photo_keywords WHERE keyword_id=?", (int(kid),)).fetchall():
                 if not c.db.execute("SELECT 1 FROM photo_keywords WHERE photo_id=? AND keyword_id=?", (r["photo_id"], int(into))).fetchone():
@@ -1057,7 +1099,7 @@ def folder_update(id: int, name: str) -> dict:
     old.rename(new)
     with c.change("Rename Folder") as ch:
         ch.moved(old, new)
-        for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ?", (str(old), str(old) + os.sep + "%")).fetchall():
+        for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ? ESCAPE '^'", (str(old), query.like_under(str(old)))).fetchall():
             p = str(new) + f["path"][len(str(old)):]
             ch.update("folders", int(f["id"]), path=p, name=Path(p).name)
     return {"id": int(id), "path": str(new)}
@@ -1087,7 +1129,7 @@ def folder_sync(id: int, importNew: bool = True, removeMissing: bool = False, sc
     r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
     if r is None:
         raise CommandError("No such folder")
-    rows = c.rows("SELECT p.id, f.path, p.file_name, p.missing FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.master_id IS NULL AND (f.path=? OR f.path LIKE ?)", (r["path"], r["path"] + os.sep + "%"))
+    rows = c.rows("SELECT p.id, f.path, p.file_name, p.missing FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.master_id IS NULL AND (f.path=? OR f.path LIKE ? ESCAPE '^')", (r["path"], query.like_under(r["path"])))
     gone = {int(x["id"]) for x in rows if not (Path(x["path"]) / x["file_name"]).is_file()}
     flip = [x for x in rows if (int(x["id"]) in gone) != bool(x["missing"])]
     if flip:
@@ -1118,18 +1160,18 @@ def folder_remove(id: int) -> dict:
     r = c.row("SELECT path FROM folders WHERE id=?", (int(id),))
     if r is None:
         raise CommandError("No such folder")
-    ids = [int(x["id"]) for x in c.rows("SELECT p.id FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? OR f.path LIKE ?", (r["path"], r["path"] + os.sep + "%"))]
+    ids = [int(x["id"]) for x in c.rows("SELECT p.id FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? OR f.path LIKE ? ESCAPE '^'", (r["path"], query.like_under(r["path"])))]
     if ids:
         remove(ids)
     with c.change("Remove Folder") as ch:
-        for f in c.db.execute("SELECT id FROM folders WHERE path=? OR path LIKE ?", (r["path"], r["path"] + os.sep + "%")).fetchall():
+        for f in c.db.execute("SELECT id FROM folders WHERE path=? OR path LIKE ? ESCAPE '^'", (r["path"], query.like_under(r["path"]))).fetchall():
             ch.delete("folders", id=int(f["id"]))
     return {"removed": ids}
 
 
 def _repath(ch, fid: int, old: Path, new: Path) -> None:
     c = cat()
-    for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ?", (str(old), str(old) + os.sep + "%")).fetchall():
+    for f in c.db.execute("SELECT id, path FROM folders WHERE path=? OR path LIKE ? ESCAPE '^'", (str(old), query.like_under(str(old)))).fetchall():
         p = str(new) + f["path"][len(str(old)):]
         ch.update("folders", int(f["id"]), path=p, name=Path(p).name)
     up = c.row("SELECT id FROM folders WHERE path=?", (str(new.parent),))
@@ -1140,7 +1182,7 @@ def _recheck(root: Path) -> int:
     c = cat()
     found = 0
     with c.change("Check Files", undoable=False) as ch:
-        for p in c.db.execute("SELECT p.id, p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? OR f.path LIKE ?", (str(root), str(root) + os.sep + "%")).fetchall():
+        for p in c.db.execute("SELECT p.id, p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? OR f.path LIKE ? ESCAPE '^'", (str(root), query.like_under(str(root)))).fetchall():
             ok = (Path(p["path"]) / p["file_name"]).is_file()
             ch.update("photos", int(p["id"]), missing=0 if ok else 1)
             found += int(ok)

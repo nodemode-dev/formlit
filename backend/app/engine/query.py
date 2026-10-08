@@ -1,3 +1,4 @@
+import os
 import re
 import shlex
 import time
@@ -284,6 +285,10 @@ def _free_text(words: list[str], args: list) -> str:
     return " AND ".join(parts) if parts else "1"
 
 
+def like_under(path: str, sep: str = os.sep) -> str:
+    return re.sub(r"([\^%_])", r"^\1", str(path)) + sep + "%"
+
+
 def _folder_ids(cat: Catalog, fid: int, recursive: bool) -> list[int]:
     if not recursive:
         return [fid]
@@ -291,7 +296,7 @@ def _folder_ids(cat: Catalog, fid: int, recursive: bool) -> list[int]:
     if not root:
         return [fid]
     prefix = root["path"].rstrip("/\\")
-    return [int(r["id"]) for r in cat.rows("SELECT id FROM folders WHERE path=? OR path LIKE ? OR path LIKE ?", (prefix, prefix + "/%", prefix + "\\%"))]
+    return [int(r["id"]) for r in cat.rows("SELECT id FROM folders WHERE path=? OR path LIKE ? ESCAPE '^' OR path LIKE ? ESCAPE '^'", (prefix, like_under(prefix, "/"), like_under(prefix, "\\")))]
 
 
 def source_clause(cat: Catalog, source: dict, args: list) -> tuple[str, str | None]:
@@ -326,7 +331,7 @@ def source_clause(cat: Catalog, source: dict, args: list) -> tuple[str, str | No
         return "EXISTS (SELECT 1 FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id=?)", f"(SELECT position FROM collection_photos cp WHERE cp.photo_id=p.id AND cp.collection_id={cid})"
     if kind == "keyword":
         args.append(int(source["id"]))
-        return "EXISTS (SELECT 1 FROM photo_keywords pk WHERE pk.photo_id=p.id AND pk.keyword_id IN (WITH RECURSIVE t(id) AS (SELECT ? UNION ALL SELECT k.id FROM keywords k JOIN t ON k.parent_id=t.id) SELECT id FROM t))", None
+        return "EXISTS (SELECT 1 FROM photo_keywords pk WHERE pk.photo_id=p.id AND pk.keyword_id IN (WITH RECURSIVE t(id) AS (SELECT ? UNION SELECT k.id FROM keywords k JOIN t ON k.parent_id=t.id) SELECT id FROM t))", None
     if kind == "person":
         args.append(int(source["id"]))
         return "EXISTS (SELECT 1 FROM faces fc WHERE fc.photo_id=p.id AND fc.person_id=?)", None
@@ -360,7 +365,7 @@ def source_clause(cat: Catalog, source: dict, args: list) -> tuple[str, str | No
 
 
 def collection_descendants(cat: Catalog, cid: int) -> list[int]:
-    rows = cat.rows("WITH RECURSIVE t(id) AS (SELECT id FROM collections WHERE parent_id=? UNION ALL SELECT c.id FROM collections c JOIN t ON c.parent_id=t.id) SELECT id FROM t", (cid,))
+    rows = cat.rows("WITH RECURSIVE t(id) AS (SELECT id FROM collections WHERE parent_id=? UNION SELECT c.id FROM collections c JOIN t ON c.parent_id=t.id) SELECT id FROM t", (cid,))
     return [int(r["id"]) for r in rows]
 
 
@@ -447,7 +452,7 @@ def query(cat: Catalog, source: dict | None = None, flt: dict | None = None, sor
     else:
         order = f"{SORTS.get(key, 'p.capture_time')} {direction}, p.file_name COLLATE NOCASE {direction}, COALESCE(p.master_id, p.id), p.id"
     sql = f"{SUMMARY_SQL} JOIN folders f ON f.id=p.folder_id WHERE {where} ORDER BY {order}"
-    if limit:
+    if limit and not stacks:
         sql += f" LIMIT {int(limit)}"
     rows = cat.rows(sql, tuple(args))
     collapsed = {int(r["id"]) for r in cat.rows("SELECT id FROM stacks WHERE collapsed=1")} if stacks else set()
@@ -466,6 +471,8 @@ def query(cat: Catalog, source: dict | None = None, flt: dict | None = None, sor
                 continue
         ids.append(int(r["id"]))
         photos[int(r["id"])] = s
+        if limit and len(ids) >= int(limit):
+            break
     return {"ids": ids, "photos": photos, "total": len(ids)}
 
 

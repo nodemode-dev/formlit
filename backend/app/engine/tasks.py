@@ -45,8 +45,9 @@ def start(kind: str, label: str, fn: Callable[[Progress], Any]) -> int:
         try:
             result = fn(prog)
             with _lock:
-                TASKS[tid].update(state="done", result=result)
-            events.publish("task", id=tid, kind=kind, state="done", label=label, result=result)
+                state = "cancelled" if TASKS[tid].get("cancel") else "done"
+                TASKS[tid].update(state=state, result=result)
+            events.publish("task", id=tid, kind=kind, state=state, label=label, result=result)
         except Exception as exc:
             traceback.print_exc()
             with _lock:
