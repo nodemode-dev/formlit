@@ -2,6 +2,24 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.3.3 · 2026-10-08
+
+Interface fixes from a full pass through every module, menu and dialog.
+
+### Fixed
+
+- **Buttons stayed disabled until a shortcut was pressed.** After selecting a photo with the mouse, the toolbar's flag, star, label and rotate buttons and Export stayed disabled (clicking 3 stars did nothing), Develop's Reset, Copy, Paste and Auto stayed disabled while editing, and a menu choice left the wrong view highlighted. Buttons now follow the selection, edits, undo and menus.
+- **Ctrl+N** created a snapshot everywhere. It now creates a collection in the Library and a snapshot in Develop, as in Lightroom.
+- The Presets +, Snapshots + and History × buttons collapsed their own panel; the Folders + (Import) did nothing. All now just do their job.
+- Toolbars no longer run under the side panels: at 1440 px every Library control, the Thumbnails slider included, fits, and at 1024 px the toolbars drop their least-used controls in order instead of cutting them off. Upright's Vertical and Full fit the Transform panel.
+- Renaming a snapshot, or the collection or folder you are viewing, shows the new name at once.
+- The search box's own example, `rating>=3`, now works (as does `rating:>=3`).
+- Thumbnails occasionally failed with a server error while previews were being rebuilt during a slider drag.
+- The Develop toolbar's zoom readout was blank and its Fit, Fill, 1:1 and 2:1 never highlighted.
+- Auto Settings, Auto B&W, Reset, Copy and Paste Settings work from the Library on the selection; Profile Browser from the Library opens Develop on the selected photo.
+- Quick Develop's Daylight, Shade and the other light-source presets are skipped for JPEG, PNG, TIFF and WebP photos (they only apply to raws).
+- The Book module's text colour swatches ran past the window edge.
+
 ## v0.3.2 · 2026-10-08
 
 A safety release from an engine test sweep of 3,100 command calls. Nothing here changes how photos look.

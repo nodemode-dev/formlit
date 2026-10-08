@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.1
-Last updated: 2026-10-07 · relative white balance for rendered files; v0.3.0: the view holds the old picture's geometry until the new render arrives, the Navigator's 3:2 box, the dev font preloads
+Current build version: v0.3.3
+Last updated: 2026-10-08 · buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
 
 ---
 
@@ -160,6 +160,20 @@ These files are vendored from formvis (Apache-2.0, the owner's) and keep their u
 
 Shortcuts are matched on `KeyboardEvent.code` where a mapping exists. Without `Comma`, Shift+comma arrived as `<`, so Alt+Shift+Mod+, (Plug-in Manager) never matched. Only Preferences and the Plug-in Manager use the comma.
 
+### src/ui/commands.ts · forCombo
+- refers-to: src/ui/commands.ts :: forCombo; modules/develop/left.ts :: develop.snapshot; modules/library/sources.ts :: lib.colNew
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+Two commands may share a shortcut when they belong to different modules, as in Lightroom: Mod+N is Create Collection in the Library and New Snapshot in Develop. The key map kept only the last command registered, so Mod+N always meant New Snapshot. `forCombo` now looks at every command with the combo and picks, in order, one that declares `enabled()` and is enabled, then one with no `enabled()` (a command that always applies), then the key map's owner. A module-specific command therefore declares `enabled()` with its module test (`develop.snapshot` is enabled only in Develop with a photo).
+
+### src/app.ts · scheduled syncButtons
+- refers-to: src/app.ts :: start (sync), syncButtons
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+Every `[data-cmd]` button takes its disabled, checked and title state from its command, but `syncButtons` ran only after a shortcut, a click on an enabled button or a module switch. Selecting a photo with the mouse therefore left the toolbar's flag, star, label, rotate and Export buttons disabled, Develop's Reset, Copy, Paste and Auto stayed disabled while editing, and a menu choice left the wrong view button highlighted. `start` now schedules `syncButtons` (one per animation frame at most) on selection, list and photo changes, catalog changes, develop changes other than drags, undo and redo, and after any pointer or key release. The setters write only what changed, so nothing repaints when the state is the same.
+
 ---
 
 ## src/ui/histogram.ts {#ui-histogram}
@@ -314,6 +328,20 @@ Lightroom shows Temp and Tint for JPEG, PNG, TIFF and other rendered files as -1
 ---
 
 ## src/modules/develop/left.ts {#develop-left}
+
+### src/ui/panel.ts and left.ts · header tools, snapshot labels, onZoom
+- refers-to: src/ui/panel.ts :: Panel (head click, tools); modules/develop/left.ts :: loadSnaps, onZoom; modules/develop/index.ts :: toolbar onZoom, commands (anyPhoto, profileBrowser); state/library.ts :: relabel; modules/library/sources.ts :: lib.colRename, lib.folderRename
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+A panel header is one button, so a click on a tool inside it (Presets +, Snapshots +, History ×) also toggled the panel and hid the dialog's result. Tools passed in the constructor stopped propagation instead, which kept their `data-cmd` from reaching the app's delegated handler, so the Folders + did nothing. The header now ignores clicks that start inside `.fl-panel-tools` and no tool stops propagation. The snapshot list updates each row's name in place, so a rename shows at once; renaming the collection or folder being viewed relabels the filmstrip source through `library.relabel`. The left panels used to replace the view's `onZoom` and so blanked the toolbar's zoom readout; both now chain it, and the readout is set when the toolbar is built. Auto, Auto B&W, Reset, Copy and Paste work from the Library on the selection, and the Profile Browser opens Develop first.
+
+### src/styles/lit-library.css · toolbar container queries
+- refers-to: src/styles/lit-shell.css :: .fl-toolbar-page (container fl-toolbar); lit-library.css :: @container fl-toolbar; lit-develop.css :: .fl-upright
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+The Library toolbar was 955 px of content in an 838 px bar at 1440 px with both panels open, so the Thumbnails slider sat under the right panel, and at 1024 px a dozen controls were cut off, with Develop's 1:1 and 2:1 too. The toolbar page is now a size container and its contents step down as it narrows: text labels go first (960), then the stars tighten and the Top/Bottom and Split compare modes go (820; the View menu still has them), rotate (700), colour labels and a narrower sort (620), Develop's zoom buttons, separators and the Painter (560; the Navigator has the zooms) and finally the stars and sort direction (480; keys 0 to 5 rate). Every remaining control is fully inside the bar at 1024 and 1440 px. Upright's six modes sit in a 3 by 2 grid so Vertical and Full stay in the column.
 
 ### src/modules/develop/left.ts · Navigator box
 - refers-to: src/modules/develop/left.ts :: nav, navSync, the navImg load listener; src/styles/lit-develop.css :: .fl-nav-fit

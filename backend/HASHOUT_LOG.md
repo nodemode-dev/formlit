@@ -787,6 +787,27 @@ Serves slideshow music from anywhere on disk, so it is limited to audio extensio
 
 ## app/routers/photos.py {#routers-photos}
 
+### app/routers/photos.py · _file
+- refers-to: app/routers/photos.py :: _file, thumb, preview, full
+- kind: warning-context
+- logged: v0.3.3 · 2026-10-08
+
+`best_thumb` and `best_preview` may pick an older preview file while the background builder is replacing it; `FileResponse` opened the file only when sending, so a file deleted in between raised "File at path ... does not exist" as a 500 (2 of 73 thumbnail requests during a fast slider drag). `_file` now reads the bytes before answering and returns None if the file is gone, and the endpoints ask for the best file again, up to three times.
+
+### app/engine/query.py · parse_text operators
+- refers-to: app/engine/query.py :: parse_text; frontend modules/library/filterbar.ts placeholder
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+The search box suggests `rating>=3`, but the parser only accepted `field:` followed by an operator (`rating:>=3`). A field name followed directly by `<`, `>`, `=` or `!` is now read as a rule too; words that are not field names stay free text.
+
+### app/engine/cmd_develop.py · whiteBalancePreset on rendered files
+- refers-to: app/engine/cmd_develop.py :: wb_preset; render.py :: WB_PRESETS, effective_wb
+- kind: rationale
+- logged: v0.3.3 · 2026-10-08
+
+Daylight, Cloudy, Shade, Tungsten, Fluorescent and Flash describe light falling on a sensor and only make sense for raws; the render already ignored them for rendered files, but Quick Develop stored the mode on a JPEG, which Develop then showed as a hidden menu entry. The command now skips rendered files for those presets and reports them as `skipped`, and refuses unknown modes.
+
 ### app/routers/photos.py · _bad_render, settings.sanitize, main._unhandled
 - refers-to: app/routers/photos.py :: _bad_render, render; develop/settings.py :: sanitize; develop/render.py :: effective; develop/masks.py :: evaluate; engine/cmd_develop.py :: current, store; main.py :: _unhandled
 - kind: rationale
