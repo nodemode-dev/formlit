@@ -2,6 +2,29 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.4.0 · 2026-10-08
+
+A test build of the rewritten develop engine. The engine's colour, geometry, tone, detail, colour-mixing, finish, kernel, mask and retouching modules are new code written from published standards, papers and Lightroom Classic's documented controls.
+
+### Changed
+
+- **Tint** runs the Lightroom way: positive values turn the photo magenta, negative green. Temperatures and tints are computed with Robertson's method and the DNG tint scale, so as-shot values read closer to Lightroom's. Photos edited in earlier versions keep their numbers, which now mean the opposite tint direction.
+- **Every develop slider** has a new implementation (tone mapping, Highlights and Shadows, Clarity, Texture, Dehaze, the colour mixer, B&W, Point Color, Color Grading, Calibration, sharpening, noise reduction, post-crop vignetting, grain, built-in looks, Auto). Strengths differ from v0.3.4; existing edits render somewhat differently.
+- Masks, brush strokes, spot heal and clone, Generative Remove compositing and red eye are reimplemented; heal now blends in the gradient domain.
+- The Transform sliders, lens corrections and Upright are reimplemented; Upright refuses to correct photos with no reliable lines instead of tilting them.
+
+### Fixed
+
+- **Auto Straighten** rotated the wrong way.
+- Output ICC profiles now carry sampled sRGB curves, valid for every ICC v2 reader.
+
+### Not verified yet
+
+- Side-by-side comparison with Lightroom for slider strengths.
+- The interface's curve editor and slider tracks are unchanged in this build.
+- The engine's design notes (`backend/HASHOUT_LOG.md`, the wiki's Pipeline page and the harness pipeline reference) still describe v0.3.4.
+- The first start after installing compiles the new kernel, which takes about a minute.
+
 ## v0.3.4 · 2026-10-08
 
 ### Fixed
