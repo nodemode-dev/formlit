@@ -2,6 +2,20 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.3.2 · 2026-10-08
+
+A safety release from an engine test sweep of 3,100 command calls. Nothing here changes how photos look.
+
+### Fixed
+
+- **Files outside the catalog could be deleted or overwritten.** A user preset or export preset id containing a path (`user:/any/file`, `../`) let Delete Preset and Update Preset delete or overwrite any file the engine could reach, including over MCP. Preset ids now resolve only inside the presets folder.
+- **Originals could be overwritten.** Export to the same folder with "overwrite" replaced the original photo with the rendered copy; a folder publish collection named `..` overwrote originals one level up and deleted them on unpublish. formlit now never writes over or deletes a catalog original or its sidecar: such an export gets a numbered name, and book, slideshow, print and web outputs refuse an original as their file.
+- **Undo left files behind.** Undoing Rename Photos or Rename Folder restored the catalog but not the files, so photos went missing. Undo and redo now move the files too, and refuse with a message if something is in the way. Delete from Disk is no longer offered as undoable (its files are in the system trash) and its confirmation says so.
+- **One bad smart collection broke the Library.** A smart collection with malformed rules made the folder and collection tree fail until it was deleted, and an unknown rule field matched every photo. Rules are now checked when saved, and malformed ones already in a catalog match nothing. A collection cannot be moved into itself.
+- **A malformed setting made a photo unrenderable.** Develop changes with values of the wrong type (from scripts, agents or old sidecars) were stored and every later render of that photo failed. Settings are now cleaned against the control table when stored and again before every render, so affected photos render again.
+- **Wrong-type parameters crashed commands.** 90 calls ended in a server error; command parameters are now checked against their declared types and ranges and answered with a sentence (3 left after the change, all fixed). The render endpoint checks its sizes and options the same way, MCP answers malformed requests with protocol errors, and any remaining error returns JSON with its message.
+- MCP `auto_straighten` always failed; it now levels each photo and crops to fit, like the Crop tool's Auto button. `develop.sync` rejected nothing it did not understand (a typo in `from` synced from the wrong photo); it now refuses unknown parameters.
+
 ## v0.3.1 · 2026-10-07
 
 ### Fixed

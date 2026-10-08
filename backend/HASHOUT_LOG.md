@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.0
-Last updated: 2026-10-07 · Adobe look-table profiles, the look step, maker-note picture styles, DCP baseline brightness, the frozen engine's command modules
+Current build version: v0.3.2
+Last updated: 2026-10-08 · originals protected from export, publish and preset ids; undo moves files; typed command parameters; develop settings sanitized; v0.3.0: look tables, the look step, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -211,6 +211,13 @@ SQLite reuses the highest rowid once the last rows are deleted (undoing an impor
 
 Each change keeps its operations (insert, update with before and after, delete, meta). Undo replays them reversed; events are published after commit with the photo ids added, removed and changed (with the changed fields), and the lists touched.
 
+### app/engine/catalog.py · Change.moved, the move operation
+- refers-to: app/engine/catalog.py :: Change.moved, Catalog._apply, undo, redo, keyword_id; cmd_library.py :: rename_photos, folder_update, _remove, delete
+- kind: rationale
+- logged: v0.3.2 · 2026-10-08
+
+Undo used to restore only the catalog: undoing Rename Photos or Rename Folder left the files under their new names, so the photos went missing. A command that moves a file or folder now records `ch.moved(src, dst)` in its change; `_apply` checks every move first (the source must exist and the target must be free), then renames on disk in replay order, so undo and redo move the files with the rows. If a check fails, nothing is applied and the entry goes back on its stack, so the user can fix the clash and try again. Delete from Disk is not undoable (the files are in the system trash, which formlit cannot reach on every platform), so its catalog removal is recorded with `undoable=False` and the confirmation says so. `keyword_id` refuses an empty or non-text keyword, which had created keyword 0 and stray one-letter keywords.
+
 ---
 
 ## app/engine/commands.py {#engine-commands}
@@ -222,6 +229,13 @@ Each change keeps its operations (insert, update with before and after, delete, 
 
 Unknown parameters are rejected, so a renamed parameter breaks callers loudly. The CLI parses every `key=value` as JSON when it can, so numbers arrive as ints: commands that need strings convert explicitly (`tether.set` calls `str()` on its key and value for this reason).
 
+### app/engine/commands.py · _typed
+- refers-to: app/engine/commands.py :: _typed, dispatch
+- kind: rationale
+- logged: v0.3.2 · 2026-10-08
+
+An engine sweep of 3,100 calls found 90 that ended in a 500 (AttributeError, IndexError, OverflowError and similar) because a parameter of the wrong type reached the command. `dispatch` now checks every declared parameter against its schema type before the call: integers and numbers (numeric strings are converted, NaN and infinity refused, `minimum` and `maximum` enforced), booleans (0 and 1 accepted), strings (numbers converted), objects and arrays (`ids` may also be one id, "selection" or "active"), and `enum`. `None` always passes through, because several commands give it a meaning (a `null` parent is the top level for keywords and collections). The parameters must be an object. After this, the same sweep ends in three 500s, all fixed in their commands.
+
 ---
 
 ## app/engine/cmd_library.py {#engine-cmd-library}
@@ -232,6 +246,13 @@ Unknown parameters are rejected, so a renamed parameter breaks callers loudly. T
 - logged: v0.1.0 · 2026-10-07
 
 Removing the top photo of a stack left the others hidden behind a missing top. Remove now renumbers the stack, or dissolves it when one photo is left.
+
+### app/engine/cmd_library.py · collection rules and parents, photo.readMetadata
+- refers-to: app/engine/cmd_library.py :: collection_create, collection_update, _collection_descendants; query.py :: validate_rules, compile_rules, RULE_OPS
+- kind: rationale
+- logged: v0.3.2 · 2026-10-08
+
+One smart collection saved with malformed rules (`{"rules": "zzz"}`) made `library.tree` fail with a 500 until it was deleted, and a rule with an unknown field matched every photo. Rules are now validated when a smart collection is created or edited (known field, known operator, a single value except for between, nesting at most 8 deep), and `compile_rules` skips anything malformed already in a catalog (a broken rule matches nothing rather than everything, and its arguments are discarded so the others stay aligned). A collection cannot be moved into itself or one of its own children, which would loop in the recursive queries, and a new collection's parent and photos must exist.
 
 ### app/engine/cmd_library.py · WATCH, changed_files, folder.synchronize
 - refers-to: app/engine/cmd_library.py :: changed_files, folder_synchronize
@@ -304,6 +325,13 @@ The kind is not an enum in the schema because plug-in kinds load at run time; th
 ---
 
 ## app/engine/presets.py {#engine-presets}
+
+### app/engine/presets.py · user_file
+- refers-to: app/engine/presets.py :: user_file, delete, update; output/export.py :: delete_preset
+- kind: warning-context
+- logged: v0.3.2 · 2026-10-08
+
+A user preset id is `user:` plus a path under the Develop presets folder. `preset.delete` and `preset.update` joined that path without checking it, so `user:/any/file` or `user:../../x` deleted or overwrote any file the engine could reach, including over MCP. `user_file` resolves the id, requires a `.flpreset` inside the presets folder that exists, and answers 404 otherwise. Export presets are deleted only when their id is one `list_presets` returns.
 
 ### app/engine/presets.py · merge_masks, adaptive built-ins
 - refers-to: app/engine/presets.py :: merge_masks
@@ -578,6 +606,13 @@ Denoise is non-local means. A permissively licensed learned model (NAFNet MIT, S
 
 ## app/output/export.py {#output-export}
 
+### app/output/export.py · is_original, place
+- refers-to: app/output/export.py :: is_original, place; publish.py :: _names, _delete; engine/cmd_output.py :: _out_path
+- kind: warning-context
+- logged: v0.3.2 · 2026-10-08
+
+Export to the photo's own folder with "overwrite" replaced the original with the rendered copy (with its edits baked in, which the catalog then applied a second time). A folder publish collection named `..` wrote its exports over originals one level up, and unpublishing then deleted them. `is_original` asks the catalog whether a path is a photo's original or one of its sidecars (`samefile`, so a case-insensitive file system cannot slip past it); `place` never returns such a path, falling back to a numbered name (or skipping when the setting is skip). Publish names go through `rename.safe`, so `..` becomes a plain folder name, and a local unpublish never deletes an original. Book, slideshow, print and web outputs refuse an explicit output path that is an original.
+
 ### app/output/export.py · in_private_location
 - refers-to: app/output/export.py :: in_private_location, export_one
 - kind: explainer
@@ -752,6 +787,13 @@ Serves slideshow music from anywhere on disk, so it is limited to audio extensio
 
 ## app/routers/photos.py {#routers-photos}
 
+### app/routers/photos.py · _bad_render, settings.sanitize, main._unhandled
+- refers-to: app/routers/photos.py :: _bad_render, render; develop/settings.py :: sanitize; develop/render.py :: effective; develop/masks.py :: evaluate; engine/cmd_develop.py :: current, store; main.py :: _unhandled
+- kind: rationale
+- logged: v0.3.2 · 2026-10-08
+
+`develop.update` accepted any patch, so `{"light": {"exposure": "abc"}}`, `{"masks": "nope"}` or a non-list of spot points was stored and every later render of that photo failed with a plain-text 500. `settings.sanitize` now cleans a develop record against the control table and the known structures: numeric controls must be finite numbers and are clamped, sections must be objects, crop rect, angle and flips, orientation, treatment, white balance mode, profile id, curve points, spots, masks, red eye, point colours and the disabled list must have their shapes, and anything else is dropped. It runs when settings are stored, when they are read for editing, and at the start of every render (`render.effective`), so records saved before this release render too. A mask that still fails to evaluate is skipped with a warning instead of failing the render. The render endpoint checks its own body (`long`, `size`, `region`, `quality`, `settings`, `overlay` and the string options) and answers 400 with a sentence. Any other unhandled error now returns JSON with the error instead of a bare 500.
+
 ### app/routers/photos.py · render hdr modes
 - refers-to: app/routers/photos.py :: render
 - kind: explainer
@@ -762,6 +804,13 @@ Serves slideshow music from anywhere on disk, so it is limited to audio extensio
 ---
 
 ## app/routers/mcp.py {#routers-mcp}
+
+### app/routers/mcp.py · _straighten, malformed requests
+- refers-to: app/routers/mcp.py :: _straighten, mcp
+- kind: rationale
+- logged: v0.3.2 · 2026-10-08
+
+The `auto_straighten` tool passed `ids` to `develop.autoStraighten`, which takes one `id` and only measures the angle, so the tool always failed. It now measures each photo, then sets the crop angle and the largest crop of the photo's shape that fits the rotation (`geometry.crop_fit_angle`), as the Crop tool's Auto button does. A request body that is not a JSON-RPC object, `params` that are not an object, and a tool or prompt name that is not text now get JSON-RPC errors instead of a 500.
 
 ### app/routers/mcp.py · BLOCKED
 - refers-to: app/routers/mcp.py :: BLOCKED, ALLOW_DELETE
