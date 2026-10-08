@@ -86,7 +86,8 @@ def _names(cid: int) -> list[str]:
         r = cat.row("SELECT name, parent_id FROM collections WHERE id=?", (int(cur),))
         if r is None:
             break
-        out.insert(0, str(r["name"]).replace("/", "-").replace("\\", "-"))
+        from app.services import rename
+        out.insert(0, rename.safe(str(r["name"])))
         cur = r["parent_id"]
     return out
 
@@ -173,7 +174,7 @@ def _delete(ftp: ftplib.FTP | None, remote: str, plug: publish_sdk.Session | Non
             plug.delete(remote)
         elif ftp is not None:
             ftp.delete(remote)
-        else:
+        elif not export.is_original(Path(remote)):
             Path(remote).unlink(missing_ok=True)
     except (OSError, RuntimeError, ftplib.all_errors):
         return

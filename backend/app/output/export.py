@@ -90,9 +90,9 @@ def save_preset(name: str, settings: dict) -> dict:
 
 
 def delete_preset(pid: str) -> bool:
-    if not pid.startswith("user."):
+    if not any(p["id"] == pid and not p["builtin"] for p in list_presets()):
         return False
-    f = presets_dir() / f"{pid[5:]}.json"
+    f = presets_dir() / f"{str(pid)[5:]}.json"
     if f.is_file():
         f.unlink()
         return True
@@ -238,7 +238,29 @@ def folder_for(rec: dict, s: dict) -> Path:
     return base
 
 
+def is_original(path: Path) -> bool:
+    if not path.exists():
+        return False
+    cat = catalog_mod.get()
+    rows = cat.rows("SELECT f.path AS folder, p.file_name AS name, p.sidecars AS sidecars FROM photos p JOIN folders f ON f.id=p.folder_id "
+                    "WHERE lower(p.file_name)=lower(?) OR lower(p.file_name) LIKE lower(?) ESCAPE '\\'",
+                    (path.name, path.stem.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + ".%"))
+    for r in rows:
+        own = Path(r["folder"]) / r["name"]
+        ext = path.suffix.lower().lstrip(".")
+        cands = [own] + ([own.with_suffix(path.suffix)] if ext in (loads(r["sidecars"], []) or []) or ext == "xmp" else [])
+        for c in cands:
+            try:
+                if os.path.samefile(path, c):
+                    return True
+            except OSError:
+                continue
+    return False
+
+
 def place(path: Path, existing: str) -> Path | None:
+    if path.exists() and is_original(path):
+        return None if existing == "skip" else rename.unique(path)
     if not path.exists() or existing == "overwrite":
         return path
     if existing == "skip":

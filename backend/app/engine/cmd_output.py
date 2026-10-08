@@ -54,6 +54,8 @@ def _out_dir(kind: str) -> Path:
 def _out_path(kind: str, name: str, ext: str, path: str | None) -> Path:
     if path:
         p = Path(path).expanduser()
+        if export.is_original(p):
+            raise CommandError(f"{p.name} is an original in the catalog; choose another file name")
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
     return rename.unique(_out_dir(kind) / f"{rename.safe(name or kind)}.{ext}")
