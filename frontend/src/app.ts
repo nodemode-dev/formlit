@@ -16,6 +16,7 @@ import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
+import { develop } from './state/develop';
 import { catalog } from './state/catalog';
 import { moduleById, modules, type LitModule } from './modules/registry';
 import { VERSION } from './version';
@@ -86,6 +87,17 @@ export class App implements Ctx {
     try { const saved = localStorage.getItem(MODULE_KEY); if (saved && moduleById(saved)) first = saved; } catch { first = modules()[0]?.id ?? ''; }
     if (first) this.toModule(first);
     this.syncButtons();
+    let queued = 0;
+    const sync = (): void => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; this.syncButtons(); }); };
+    library.listen('selection', sync);
+    library.listen('list', sync);
+    library.listen('photos', () => sync());
+    catalog.listen(sync);
+    develop.listen((why) => { if (why !== 'drag') sync(); });
+    events.on('undo', sync);
+    events.on('redo', sync);
+    document.addEventListener('pointerup', sync, true);
+    document.addEventListener('keyup', sync, true);
     const tree = new Promise<void>((done) => { const off = catalog.listen(() => { off(); done(); }); window.setTimeout(done, 2500); });
     void Promise.all([document.fonts.ready, tree]).then(() => revealApp());
   }
