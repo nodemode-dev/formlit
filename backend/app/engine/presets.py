@@ -149,22 +149,33 @@ def create(name: str, group: str = "User Presets", id: int | None = None, groups
     return {"id": f"user:{path.relative_to(user_dir()).as_posix()}"}
 
 
+def user_file(id: str) -> Path:
+    root = user_dir().resolve()
+    p = (root / str(id)[5:]).resolve()
+    if p.suffix != ".flpreset" or not p.is_relative_to(root) or not p.is_file():
+        raise CommandError(f"No user preset {id}", 404)
+    return p
+
+
 @command("preset.delete", "Delete Preset", {"id": {"type": "string"}})
 def delete(id: str) -> dict:
-    if not id.startswith("user:"):
+    if not str(id).startswith("user:"):
         raise CommandError("Built-in presets cannot be deleted")
-    p = user_dir() / id[5:]
-    if p.is_file():
-        p.unlink()
+    user_file(id).unlink()
     return {"id": id}
 
 
 @command("preset.update", "Update Preset with Current Settings", {"id": {"type": "string"}, "photo": {"type": "integer"}})
 def update(id: str, photo: int | None = None, name: str | None = None) -> dict:
-    if not id.startswith("user:"):
+    if not str(id).startswith("user:"):
         raise CommandError("Built-in presets cannot be changed")
-    p = user_dir() / id[5:]
-    data = json.loads(p.read_text(encoding="utf-8"))
+    p = user_file(id)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise CommandError(f"{p.name} is not a readable preset") from exc
+    if not isinstance(data, dict):
+        raise CommandError(f"{p.name} is not a readable preset")
     if photo is not None or name is None:
         dev, _ = current(int(photo) if photo is not None else resolve_ids("active")[0])
         data["settings"] = S.pick_groups(dev, data.get("groups") or [g for g in S.GROUPS if g not in ("crop", "masks", "spots", "redEye")])
