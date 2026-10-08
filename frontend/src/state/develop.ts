@@ -1,6 +1,7 @@
 import { api } from '../io/api';
 import { events } from '../io/events';
 import { library } from './library';
+import { setBandHues } from '../ui/slider';
 
 export type Dev = Record<string, unknown>;
 
@@ -98,6 +99,7 @@ export class DevelopSession {
   async init(): Promise<void> {
     if (this.doc) return;
     this.doc = await api.cmd<ControlsDoc>('develop.controls');
+    setBandHues(this.doc.mixerBands.map((b) => b.hue));
     for (const c of this.doc.controls) this.specs.set(c.id, c);
   }
 
