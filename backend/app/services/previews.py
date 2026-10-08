@@ -63,12 +63,12 @@ def _once(key: str, pool: ThreadPoolExecutor, fn) -> Future:
         fut = pool.submit(fn)
         _inflight[key] = fut
 
-        def done(_f: Future) -> None:
-            with _inflight_lock:
-                if _inflight.get(key) is _f:
-                    del _inflight[key]
-        fut.add_done_callback(done)
-        return fut
+    def done(_f: Future) -> None:
+        with _inflight_lock:
+            if _inflight.get(key) is _f:
+                del _inflight[key]
+    fut.add_done_callback(done)
+    return fut
 
 
 def encode_jpeg(rgb8: np.ndarray, quality: int = 86) -> bytes:
