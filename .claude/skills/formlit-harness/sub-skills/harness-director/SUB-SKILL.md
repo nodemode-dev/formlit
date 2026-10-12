@@ -1,6 +1,6 @@
 ---
 name: harness-director
-description: "Entrypoint for formlit work. Classifies a request as using formlit (agent work over MCP), building formlit (code), or both, loads the specialists in order, keeps the ledger and holds the completion gate. Load first for anything broad or multi-step."
+description: "Entrypoint for formlit work. Classifies a request as using formlit (agent work over MCP, which formlit-driving covers), building formlit (code), or both, loads the specialists in order, keeps the ledger and holds the completion gate. Load first for anything broad or multi-step."
 ---
 
 # Harness Director
@@ -16,7 +16,7 @@ None. This is where every unscoped formlit request starts.
 ## Procedure
 
 1. Classify the request with `references/intake.md`: use (photos change, files are written), build (code changes), or both. A request to "make formlit do X for my photos" when X does not exist is both: build the command first, then use it.
-2. For use work, confirm the tools are present: call `get_catalog`. No tools means the MCP server is not connected; follow the setup row in `../catalog-keeper/SUB-SKILL.md` rather than guessing.
+2. For use work, load `formlit-driving` and confirm the tools are present: call `get_catalog`. No tools means the MCP server is not connected; follow the precondition in `../catalog-keeper/SUB-SKILL.md` rather than guessing. A refusal that mentions outside agents is the person's setting: say where to change it and stop.
 3. For build work, read `frontend/HASHOUT_LOG.md`, `backend/HASHOUT_LOG.md` and the planning sidecar (`DEV_PLAN.md`, `BUILD_NOTES.md`) before opening code.
 4. Order the specialists. Use work runs catalog-keeper, cull-assistant, develop-artist, output-producer in that order, skipping what the request does not need. Build work runs engine-builder before pipeline-builder and ui-builder, and release-keeper last.
 5. Open a ledger row per step: the specialist, what it was asked, what it produced, the evidence. Keep it in the reply for use work and in `BUILD_NOTES.md` for build work.

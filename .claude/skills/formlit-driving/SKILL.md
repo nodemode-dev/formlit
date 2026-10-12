@@ -1,15 +1,22 @@
 ---
-name: formlit-editing
-description: Cull, develop and deliver photos in formlit, the local Lightroom alternative, through its MCP server. Use whenever the person wants photos imported, rated, flagged, culled, keyworded, geotagged, developed (exposure, white balance, masks, presets, denoise, HDR or panorama merges) or exported, printed, made into a book, slideshow or web gallery, and the formlit tools (find_photos, get_preview, develop_set, export_photos and the rest) are available or formlit is named. Also use when a formlit tool fails and the next step is unclear. Not for changing formlit's own source code (use formlit-harness) and not for layered compositing (formvis).
+name: formlit-driving
+description: Cull, develop and deliver photos in formlit, the local Lightroom alternative, through its MCP tools. Use whenever the person wants photos imported, rated, flagged, culled, keyworded, geotagged, developed (exposure, white balance, masks, presets, denoise, HDR or panorama merges) or exported, printed, made into a book, slideshow or web gallery, and the formlit tools (find_photos, get_preview, develop_set, export_photos and the rest) are available or formlit is named. Also use when a formlit tool fails, says formlit is not open or is refused, and the next step is unclear. Not for changing formlit's own source code (that is formlit-harness) and not for layered compositing (formvis).
 ---
 
 # Working with photos in formlit
 
-formlit is a photo library and raw developer running on this computer. Its MCP server (named `formlit`) works on the catalog directly, so the tools run whether or not the window is open, and every change is an ordinary undoable step the person sees in Library and Develop. These tools are the hands; this skill is how to use them well.
+formlit is a photo library and raw developer running on this computer. Its tools work on the person's catalog through the open formlit app, and every change is an ordinary undoable step the person sees in Library and Develop. These tools are the hands; this skill is how to use them well.
 
 Work in small verified steps. Ids come from `find_photos`; looks come from `get_preview`. A develop change is only right once the preview shows it.
 
-## Before anything
+## Before the first call
+
+- formlit comes as a plugin from the Form marketplace: in the Claude app open Customize, Plugins and add it, or run `/plugin` in Claude Code. Its tools then appear under the name formlit.
+- formlit has to be open on the person's computer. When a call says it is not open, ask the person to open it, then try again once.
+- The first call asks the person, in formlit's own window, to allow Claude. When a call is refused because outside agents are turned off or the person chose Not now, tell them they can change it in formlit under Preferences, AI agents, and stop. Never retry in a loop.
+- Claude chat on the web or the phone cannot reach apps on the person's computer. Suggest Cowork in the Claude desktop app, or Claude Code.
+
+## Look first
 
 1. `get_catalog`: folders, collections and keywords with their ids, and the photo count.
 2. `find_photos` with a `source` (`{"kind": "folder", "id": 3}`, `{"kind": "previousImport"}`, `{"kind": "collection", "id": 7}`) and a `filter` (`{"rating": 3, "ratingOp": ">="}`, `{"flags": ["pick"]}`, `{"text": "beach"}`).
@@ -57,12 +64,9 @@ Setting ids and ranges are in `get_develop_controls`. The ones used most: `wb.te
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| No formlit tools at all | The MCP server is not connected in this client | Ask the person to run `./formlit agents install` in the formlit folder, or approve the project's MCP server, then restart the client |
-| "The formlit engine is not running" | The engine could not be started | Ask the person to run `./formlit boot` (or open the formlit app), then retry |
+| No formlit tools at all | The formlit plugin is not added in this client | Ask the person to add formlit from the Form marketplace (Customize, Plugins, or `/plugin` in Claude Code), then start a new chat |
+| "formlit is not open" | The formlit app is closed | Ask the person to open formlit, then try once more |
+| Refused, mentioning outside agents | The person has not allowed Claude yet, chose Not now, or turned outside agents off | Tell them to open formlit and choose Allow, or to change AI agents in Preferences. Stop and do not retry in a loop |
 | "needs the ... model" | An AI model is not installed yet | Run `run_command` with `ai.download` and the model id, or ask the person to install it in Preferences |
 | "No photo with id" | A stale id | `find_photos` again |
 | An export wrote nothing | Every file existed and `existing` was skip | Pass `settings.destination.existing` as `unique` or `overwrite` |
-
-## Setup, for the person
-
-In the formlit folder: `./formlit agents install` registers formlit with Claude Code, Codex and Cursor for their user account. Inside the repository nothing is needed: `.mcp.json`, `.cursor/mcp.json` and `.codex/config.toml` point at `./formlit mcp`, which starts the engine when it is not running.

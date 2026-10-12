@@ -11,7 +11,7 @@ Make the right photos addressable by id, and keep their organization (collection
 
 ## Preconditions
 
-The formlit MCP tools are connected (`get_catalog` answers). When they are not: inside the formlit repository the project's `.mcp.json` needs approving in the client; anywhere else the person runs `./formlit agents install` in the formlit folder and restarts the client.
+The formlit MCP tools are connected (`get_catalog` answers) and the person has allowed outside agents in formlit's window. When they are not: the person adds the formlit plugin from the Form marketplace and opens formlit; inside the formlit repository the project's `.mcp.json` needs approving in the client, or the person runs `./formlit agents install` in the formlit folder and restarts the client.
 
 ## Procedure
 

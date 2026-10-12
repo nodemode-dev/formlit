@@ -1,47 +1,22 @@
 {
   "skill_name": "formlit-harness",
-  "notes": "Five evaluations across both halves of the pack (driving formlit over MCP and changing its code), and a trigger set whose negatives are the form family's neighbours. Expected behaviours are observable in the transcript or the repository.",
+  "notes": "Three evaluations for changing formlit's code, and a trigger set whose negatives are using formlit on photos (formlit-driving) and the form family's neighbours. Expected behaviours are observable in the transcript or the repository.",
   "evals": [
     {
       "id": 1,
-      "name": "cull-and-deliver-a-wedding-shoot",
-      "prompt": "I just shot the Okafor wedding, it's all in ~/Pictures/2026/okafor-wedding (about 900 CR3s). Can you get it into formlit, pick the best frame of every burst, reject the blurry ones, and export the picks as 2048px JPEGs to ~/Desktop/okafor-preview for the couple?",
-      "files": [],
-      "expected_behavior": [
-        "Calls import_photos with the absolute expanded path before anything else, and uses the returned ids rather than guessed ones",
-        "Runs analyze_culling before apply_culling, with pickBest and rejectBlurry true and rejectDuplicates left false because the person did not ask for it",
-        "Looks at a sample of picks and rejects with get_preview and reports pick and reject counts as numbers",
-        "Exports only flagged picks (find_photos with flags pick) with the builtin.web preset or equivalent settings to the absolute Desktop folder, with copyright-only metadata or says why not",
-        "Deletes nothing and names the written folder in the reply"
-      ]
-    },
-    {
-      "id": 2,
-      "name": "moody-grade-with-sky-mask-synced",
-      "prompt": "These 30 landscape raws from Skye look flat. Give them a darker, moodier look with a deeper sky, keep it consistent across the set, but don't touch my crops.",
-      "files": [],
-      "expected_behavior": [
-        "Develops one hero frame first, proposing values with get_preview values before committing with develop_set",
-        "Uses add_ai_mask with kind sky (or a linear gradient) with a negative exposure adjust for the sky rather than darkening the whole frame",
-        "Syncs with sync_settings and either no groups (crop excluded by default) or groups that exclude crop and masks, and states which",
-        "Spot-checks at least two other frames after syncing and reports what changed in photographer's words"
-      ]
-    },
-    {
-      "id": 3,
       "name": "add-an-engine-command-and-mcp-tool",
       "prompt": "Add a way to set the copyright line on many photos at once in formlit, and make sure agents can use it too.",
       "files": [],
       "expected_behavior": [
         "Adds a mutating command in backend/app/engine/cmd_library.py with params matching the signature and the write inside one catalog.change",
-        "Adds a curated tool in backend/app/routers/mcp.py calling the command, then runs ./formlit agents sync and ./formlit agents sync --check",
+        "Adds a curated tool in backend/app/routers/mcp.py calling the command, leaves it behind the outside-agent consent gate with no exemption, then runs ./formlit agents sync and ./formlit agents sync --check",
         "Proves it with ./formlit cli and reverses it with edit.undo",
         "Edits existing files with single-region hand edits only, adds no code comments, and records the decision in backend/HASHOUT_LOG.md",
         "Commits as nodemode-ai with a Conventional Commit carrying the version"
       ]
     },
     {
-      "id": 4,
+      "id": 2,
       "name": "fix-a-flash-in-an-output-module",
       "prompt": "The Print module flickers every time I drag the margin slider, the whole page blinks white. Fix it.",
       "files": [],
@@ -53,26 +28,29 @@
       ]
     },
     {
-      "id": 5,
-      "name": "adjacent-request-for-compositing-goes-elsewhere",
-      "prompt": "Take the portrait I exported from formlit and swap the background for a beach, add a title on top and save it as a layered file.",
+      "id": 3,
+      "name": "change-what-a-blocked-agent-is-told",
+      "prompt": "When AI agents are turned off in formlit, the message the agent gets should also say how to turn them back on. Change that.",
       "files": [],
       "expected_behavior": [
-        "Recognises layered compositing and text layers as formvis work, not formlit's develop or output tools",
-        "Offers formlit's Edit In (photo.editIn) to hand the photo to formvis rather than faking compositing with masks",
-        "Does not run develop_set or export_photos as a substitute for compositing"
+        "Finds the message in backend/app/engine/agents.py and changes it with one single-region hand edit, keeping the words Preferences, AI agents and the instruction not to retry",
+        "Reads backend/HASHOUT_LOG.md first and records the decision there, with no comment added to the code",
+        "Proves it by setting outsideAgents to blocked and calling a tool through the MCP endpoint or the stdio bridge, and reading the refusal, or says plainly it did not",
+        "Leaves the window and the REST commands ungated"
       ]
     }
   ],
   "trigger_evals": [
-    { "query": "cull my formlit import from yesterday and pick the sharp ones", "should_trigger": true },
-    { "query": "can u export the 5 star photos from formlit as jpgs for instagram", "should_trigger": true },
-    { "query": "Please produce a 4 x 5 contact sheet PDF of the client selects in formlit.", "should_trigger": true },
-    { "query": "my raws look too orange and dark, fix the white balance and brighten them in the catalog", "should_trigger": true },
+    { "query": "cull my formlit import from yesterday and pick the sharp ones", "should_trigger": false },
+    { "query": "can u export the 5 star photos from formlit as jpgs for instagram", "should_trigger": false },
+    { "query": "Please produce a 4 x 5 contact sheet PDF of the client selects in formlit.", "should_trigger": false },
+    { "query": "my raws look too orange and dark, fix the white balance and brighten them in the catalog", "should_trigger": false },
     { "query": "add a new slider to the develop pipeline and mirror it in the numba kernel", "should_trigger": true },
     { "query": "the Book module in frontend/src/modules/output flashes when I change templates", "should_trigger": true },
     { "query": "build the desktop app for windows and bump the version to 0.2.0", "should_trigger": true },
-    { "query": "make a slideshow video with music from my Lisbon picks", "should_trigger": true },
+    { "query": "add an MCP tool that lets agents set the copyright line on many photos", "should_trigger": true },
+    { "query": "change the message agents get when outside agents are turned off in formlit", "should_trigger": true },
+    { "query": "make a slideshow video with music from my Lisbon picks", "should_trigger": false },
     { "query": "remove the background of this image and add a new layer with text in formvis", "should_trigger": false },
     { "query": "cut these video clips together and add a crossfade in formcut", "should_trigger": false },
     { "query": "write a python script that renames jpg files by date in a folder", "should_trigger": false },

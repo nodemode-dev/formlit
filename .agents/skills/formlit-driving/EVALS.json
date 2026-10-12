@@ -1,0 +1,104 @@
+{
+  "skill_name": "formlit-driving",
+  "notes": "Seven evaluations for using formlit through the plugin: two shoots from first call to files written, the first-call consent, the refusal and not-open paths, the clients that cannot reach the computer, and the neighbour that gets compositing. Expected behaviours are observable in the transcript or on disk.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "cull-and-deliver-a-wedding-shoot",
+      "prompt": "I just shot the Okafor wedding, it's all in ~/Pictures/2026/okafor-wedding (about 900 CR3s). Can you get it into formlit, pick the best frame of every burst, reject the blurry ones, and export the picks as 2048px JPEGs to ~/Desktop/okafor-preview for the couple?",
+      "files": [],
+      "expected_behavior": [
+        "Calls import_photos with the absolute expanded path before anything else, and uses the returned ids rather than guessed ones",
+        "Runs analyze_culling before apply_culling, with pickBest and rejectBlurry true and rejectDuplicates left false because the person did not ask for it",
+        "Looks at a sample of picks and rejects with get_preview and reports pick and reject counts as numbers",
+        "Exports only flagged picks (find_photos with flags pick) with the builtin.web preset or equivalent settings to the absolute Desktop folder, with copyright-only metadata or says why not",
+        "Deletes nothing and names the written folder in the reply"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "moody-grade-with-sky-mask-synced",
+      "prompt": "These 30 landscape raws from Skye look flat. Give them a darker, moodier look with a deeper sky, keep it consistent across the set, but don't touch my crops.",
+      "files": [],
+      "expected_behavior": [
+        "Develops one hero frame first, proposing values with get_preview values before committing with develop_set",
+        "Uses add_ai_mask with kind sky (or a linear gradient) with a negative exposure adjust for the sky rather than darkening the whole frame",
+        "Syncs with sync_settings and either no groups (crop excluded by default) or groups that exclude crop and masks, and states which",
+        "Spot-checks at least two other frames after syncing and reports what changed in photographer's words"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "first-call-waits-for-the-person",
+      "prompt": "I just added the formlit plugin. How many 5 star photos are in my catalog?",
+      "files": [],
+      "expected_behavior": [
+        "Makes one formlit call (find_photos with a rating filter, or get_catalog) and waits for it instead of repeating it while it is pending",
+        "When the reply says formlit is waiting for the person to allow outside agents, tells the person to open formlit and choose Allow, and tries once more only after they say they did",
+        "Reports the count as a number taken from the tool result",
+        "Mentions no terminal commands, folders or config files"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "outside-agents-turned-off",
+      "prompt": "Give everything in my Lisbon 2026 folder three stars.",
+      "files": [],
+      "expected_behavior": [
+        "Reads the refusal and tells the person in plain words that outside agents are turned off in formlit under Preferences, AI agents",
+        "Stops after the one refusal: no second attempt, no loop, no waiting",
+        "Does not try run_command, another tool, a web address or a terminal as a way around the refusal",
+        "Offers to carry on once the person has turned it back on"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "formlit-is-not-open",
+      "prompt": "Cull my formlit import from yesterday and keep the sharp ones.",
+      "files": [],
+      "expected_behavior": [
+        "On a reply saying formlit is not open, asks the person to open formlit and tries once more after they have",
+        "Starts no engine, server or other process itself",
+        "Does not claim any photo was picked while no call has succeeded"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "chat-on-the-web-cannot-reach-the-computer",
+      "prompt": "(claude.ai in a browser, no formlit tools listed) Cull the photos in my formlit catalog from last weekend.",
+      "files": [],
+      "expected_behavior": [
+        "Says plainly that Claude chat on the web or the phone cannot reach apps on the person's computer",
+        "Suggests Cowork in the Claude desktop app, or Claude Code, with the formlit plugin added from the Form marketplace",
+        "Invents no counts, picks or file names"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "adjacent-request-for-compositing-goes-elsewhere",
+      "prompt": "Take the portrait I exported from formlit and swap the background for a beach, add a title on top and save it as a layered file.",
+      "files": [],
+      "expected_behavior": [
+        "Recognises layered compositing and text layers as formvis work, not formlit's develop or output tools",
+        "Offers formlit's Edit In (photo.editIn) to hand the photo to formvis rather than faking compositing with masks",
+        "Does not run develop_set or export_photos as a substitute for compositing"
+      ]
+    }
+  ],
+  "trigger_evals": [
+    { "query": "cull my formlit import from yesterday and pick the sharp ones", "should_trigger": true },
+    { "query": "can u export the 5 star photos from formlit as jpgs for instagram", "should_trigger": true },
+    { "query": "Please produce a 4 x 5 contact sheet PDF of the client selects in formlit.", "should_trigger": true },
+    { "query": "my raws look too orange and dark, fix the white balance and brighten them in the catalog", "should_trigger": true },
+    { "query": "make a slideshow video with music from my Lisbon picks", "should_trigger": true },
+    { "query": "formlit says it is not open and Claude cannot see my photos, what do I do", "should_trigger": true },
+    { "query": "add a new slider to the develop pipeline and mirror it in the numba kernel", "should_trigger": false },
+    { "query": "the Book module in frontend/src/modules/output flashes when I change templates", "should_trigger": false },
+    { "query": "build the desktop app for windows and bump the version to 0.2.0", "should_trigger": false },
+    { "query": "remove the background of this image and add a new layer with text in formvis", "should_trigger": false },
+    { "query": "cut these video clips together and add a crossfade in formcut", "should_trigger": false },
+    { "query": "write a python script that renames jpg files by date in a folder", "should_trigger": false },
+    { "query": "what are the best Lightroom Classic shortcuts for culling", "should_trigger": false },
+    { "query": "design a poster with my photo and a headline", "should_trigger": false }
+  ]
+}

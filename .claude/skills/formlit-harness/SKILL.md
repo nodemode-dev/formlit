@@ -1,11 +1,11 @@
 ---
 name: formlit-harness
-description: "Runs and builds formlit, the local Lightroom alternative for photos and raws: culling, developing, masks, export, print, books, slideshows, web galleries, and its own code. Use whenever a task touches formlit, either driving it over MCP (import and cull a shoot, pick the sharp ones, rate 5 stars, fix white balance, brighten or grade raws, export JPEGs for Instagram or a client, a contact sheet PDF of the selects, a photo book, a slideshow video with music, publish) or changing it: the FastAPI engine, a command, the develop pipeline or numba kernel, a Library, Develop, Map, Book, Slideshow, Print or Web module that flashes or breaks, the MCP server, the Tauri sidecar, desktop builds, versioning or the hand-back. Trigger on formlit, catalog, backend/app, frontend/src, src-tauri. Not for layered compositing or pixel retouching (formvis) and not for video editing (formcut)."
+description: "Changes and ships formlit's own code, the local Lightroom alternative for photos and raws: the FastAPI engine and its commands, the develop pipeline and numba kernel, the MCP tools and the outside-agent consent gate, the Tauri shell and sidecar, the window's Library, Develop, Map, Book, Slideshow, Print and Web modules (a flash or a layout jump), the catalog schema, versioning, desktop builds and the hand-back. Use whenever a task edits formlit's source, docs, logs or skills: backend/app, frontend/src, src-tauri, setup. Trigger on a formlit command, an MCP tool, the sidecar, a release or a bug in the window. Not for using formlit on photos, such as importing, culling, developing or exporting (that is formlit-driving), not for layered compositing or pixel retouching (formvis) and not for video editing (formcut)."
 ---
 
 # formlit harness
 
-formlit is a photo library and raw developer in the form family: an engine that owns the catalog, the develop pipeline and every output, a window that renders the engine's state, and an MCP server that hands the same commands to agents. This pack exists because both kinds of work on formlit fail in the same way: they reach past the engine. An agent that edits settings blind, without looking at a preview, ships a photo nobody checked; a developer who puts logic in the window instead of a command ships a feature agents cannot use and undo cannot reverse. Every specialist here holds the line that the engine is the source of truth and every claim is checked against what it renders.
+formlit is a photo library and raw developer in the form family: an engine that owns the catalog, the develop pipeline and every output, a window that renders the engine's state, and an MCP server that hands the same commands to agents. This pack is for changing formlit; using it on photos is `formlit-driving`, the skill the formlit plugin carries, and the photo specialists below stay here as the depth behind it. Both kinds of work fail in the same way: they reach past the engine. An agent that edits settings blind, without looking at a preview, ships a photo nobody checked; a developer who puts logic in the window instead of a command ships a feature agents cannot use and undo cannot reverse. Every specialist here holds the line that the engine is the source of truth and every claim is checked against what it renders.
 
 ## How this pack is laid out
 
@@ -32,7 +32,7 @@ A path named inside a `SUB-SKILL.md` resolves against that specialist's own fold
 
 ## Routing
 
-Start with `sub-skills/harness-director/SUB-SKILL.md` for anything broad. Load a specialist directly only for a narrow question.
+Start with `sub-skills/harness-director/SUB-SKILL.md` for anything broad. Load a specialist directly only for a narrow question. A plain request to use formlit on photos goes to `formlit-driving`; the photo specialists load here only to change or check the feature behind them.
 
 | The request is about | Load |
 | --- | --- |
@@ -41,7 +41,7 @@ Start with `sub-skills/harness-director/SUB-SKILL.md` for anything broad. Load a
 | Choosing the keepers from a shoot: picks, rejects, ratings, near-duplicates, sharpness | `cull-assistant` |
 | How photos look: white balance, tone, color, detail, masks, presets, sync, denoise, HDR, panorama, upright | `develop-artist` |
 | Files and pages out: export presets, print layouts, books, slideshows, web galleries, publish services, Edit In | `output-producer` |
-| Engine code: a new or changed command, the catalog schema, tasks, events, routers, the MCP tool list, `./formlit agents sync` | `engine-builder` |
+| Engine code: a new or changed command, the catalog schema, tasks, events, routers, the MCP tool list, the outside-agent consent gate, `./formlit agents sync` | `engine-builder` |
 | Render code: `backend/app/develop/`, the numba kernel, region renders, camera look, masks evaluation, lens blur | `pipeline-builder` |
 | Window code: `frontend/src/`, a module, a panel, a dialog, the form helper, styles, icons, a flash or a layout jump | `ui-builder` |
 | Versions, commits, the desktop app, the sidecar, CI, the parity score, the hand-back zips | `release-keeper` |
@@ -56,7 +56,8 @@ Start with `sub-skills/harness-director/SUB-SKILL.md` for anything broad. Load a
 6. No emoji anywhere and no U+2014 em dash in markdown (use the interpunct). Near-zero comments; context goes in `frontend/HASHOUT_LOG.md` or `backend/HASHOUT_LOG.md`.
 7. No self-written tests until the person asks; what should be tested goes in the planning sidecar's `TEST_PLAN.md`.
 8. Destructive actions stay with the person: deleting files from disk and switching catalogs are refused over MCP.
+9. Outside agents are asked once: every MCP tool call passes `agents.require` in `call_tool` against the `outsideAgents` setting (ask, allowed or blocked). Only the handshake, listing tools and prompts, and the window's own REST calls are open. A new tool gets no exemption, and `agents.respond` stays in `BLOCKED` so an agent cannot answer its own prompt.
 
 ## Verification bar
 
-A task is finished only with its evidence: for agent work, the preview or the written path; for engine work, the command run through `./formlit cli` and its result; for pipeline work, the parity numbers; for UI work, the throttled check; for a release, `git status` clean, the version bumped in all six files and both zips built.
+A task is finished only with its evidence: for agent work, the preview or the written path; for engine work, the command run through `./formlit cli` and its result; for a change to the MCP tools or the consent gate, a call through `/mcp` or `setup/mcp_stdio.py` with `outsideAgents` allowed, ask and blocked; for pipeline work, the parity numbers; for UI work, the throttled check; for a release, `git status` clean, the version bumped in all six files and both zips built.

@@ -1,6 +1,6 @@
 # formlit tools
 
-Generated from the engine's catalogue by `./formlit agents sync`; edit backend/app/routers/mcp.py, not this file.
+Generated from formlit's own tool catalogue; do not edit by hand. Every tool works on the catalog of the formlit app on the person's computer.
 
 ## Contents
 
@@ -10,7 +10,7 @@ Generated from the engine's catalogue by `./formlit agents sync`; edit backend/a
 - Develop: `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
-- Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`
+- Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
 
 ## get_catalog
 
@@ -398,3 +398,11 @@ Runs any engine command by id with its params (see list_commands). Deleting file
 
 - `command`: string; required
 - `params`: object
+
+## get_agent_access
+
+Whether outside agents such as Claude may use formlit (outsideAgents: ask, allowed or blocked), which clients have called since formlit started, and whether a call is waiting for the person's answer. Like every tool it is refused while the setting is blocked.
+
+- no parameters
+
+Note: read-only.

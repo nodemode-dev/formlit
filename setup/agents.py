@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """./formlit agents: formlit for Claude Code, Codex and Cursor.
 
-  sync [--check]            regenerate the editing skill's tool reference from the engine's catalogue and mirror the
+  sync [--check]            regenerate the driving skill's tool reference from the engine's catalogue and mirror the
                             skill from .claude/skills to .agents/skills; --check exits 1 when either has drifted
   install [--dry-run] [claude|codex|cursor ...]
-                            register the MCP server (./formlit mcp at this folder's absolute path) and the editing skill
-                            for this user account (all three by default); files are backed up before they change
+                            register the MCP server (./formlit mcp at this folder's absolute path) and the driving skill
+                            for this user account (all three by default); files are backed up before they change.
+                            This is the developer path; everyone else adds the formlit plugin from the Form marketplace.
 """
 
 import json
@@ -18,8 +19,10 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILL = ROOT / ".claude" / "skills" / "formlit-editing"
-MIRROR = ROOT / ".agents" / "skills" / "formlit-editing"
+NAME = "formlit-driving"
+LEGACY = "formlit-editing"
+SKILL = ROOT / ".claude" / "skills" / NAME
+MIRROR = ROOT / ".agents" / "skills" / NAME
 LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
@@ -28,7 +31,7 @@ GROUPS = [
     ("Develop", ["develop_set", "develop_patch", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
     ("Enhance and merge", ["denoise", "super_resolution", "merge_hdr", "merge_panorama"]),
     ("Output", ["export_photos", "print_pdf", "make_book", "export_slideshow", "export_web_gallery", "publish"]),
-    ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command"]),
+    ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command", "get_agent_access"]),
 ]
 
 
@@ -36,7 +39,7 @@ def tools_reference() -> str:
     sys.path.insert(0, str(ROOT / "backend"))
     from app.routers.mcp import TOOLS
     tools = [t for t, _ in TOOLS]
-    out = ["# formlit tools", "", "Generated from the engine's catalogue by `./formlit agents sync`; edit backend/app/routers/mcp.py, not this file.", "", "## Contents", ""]
+    out = ["# formlit tools", "", "Generated from formlit's own tool catalogue; do not edit by hand. Every tool works on the catalog of the formlit app on the person's computer.", "", "## Contents", ""]
     listed: set[str] = set()
     for title, names in GROUPS:
         here = [t["name"] for t in tools if t["name"] in names]
@@ -93,7 +96,17 @@ def _backup(path: Path, dry: bool) -> None:
         shutil.copy2(path, path.with_name(path.name + f".bak-{time.strftime('%Y%m%d-%H%M%S')}"))
 
 
+def _drop_legacy(parent: Path, dry: bool, said: list) -> None:
+    old = parent / LEGACY
+    manifest = old / "SKILL.md"
+    if manifest.is_file() and f"name: {LEGACY}" in manifest.read_text(encoding="utf-8"):
+        said.append(f"  remove the old skill {old} (now {NAME})")
+        if not dry:
+            shutil.rmtree(old, ignore_errors=True)
+
+
 def _copy_skill(to: Path, dry: bool, said: list) -> None:
+    _drop_legacy(to.parent, dry, said)
     if to.exists() and _files(to) == _files(SKILL):
         said.append(f"  skill already at {to}")
         return
@@ -119,7 +132,7 @@ def install_claude(home: Path, dry: bool, said: list) -> None:
                 subprocess.run([claude, "mcp", "add", "--scope", "user", "formlit", "--", LAUNCH, "mcp"], check=True, capture_output=True)
     else:
         said.append(f"  the claude command is not installed here; once it is, run: claude mcp add --scope user formlit -- {LAUNCH} mcp")
-    _copy_skill(home / ".claude" / "skills" / "formlit-editing", dry, said)
+    _copy_skill(home / ".claude" / "skills" / NAME, dry, said)
 
 
 def install_codex(home: Path, dry: bool, said: list) -> None:
@@ -137,7 +150,7 @@ def install_codex(home: Path, dry: bool, said: list) -> None:
             cfg.parent.mkdir(parents=True, exist_ok=True)
             new = text[:found.start()] + block + "\n" + text[found.end():] if found else (text.rstrip("\n") + "\n\n" if text.strip() else "") + block
             cfg.write_text(new, encoding="utf-8")
-    _copy_skill(home / ".agents" / "skills" / "formlit-editing", dry, said)
+    _copy_skill(home / ".agents" / "skills" / NAME, dry, said)
 
 
 def install_cursor(home: Path, dry: bool, said: list) -> None:
@@ -154,7 +167,7 @@ def install_cursor(home: Path, dry: bool, said: list) -> None:
             data.setdefault("mcpServers", {})["formlit"] = entry
             cfg.parent.mkdir(parents=True, exist_ok=True)
             cfg.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    _copy_skill(home / ".agents" / "skills" / "formlit-editing", dry, said)
+    _copy_skill(home / ".agents" / "skills" / NAME, dry, said)
 
 
 def main(argv: list[str]) -> int:
@@ -174,7 +187,7 @@ def main(argv: list[str]) -> int:
             {"claude": install_claude, "codex": install_codex, "cursor": install_cursor}[w](home, dry, said)
         print(("Would do (dry run):\n" if dry else "") + "\n".join(said))
         if not dry:
-            print("\nRestart the clients, then ask one to cull or develop your photos. The engine starts on the first call.")
+            print("\nRestart the clients, then ask one to cull or develop your photos. The engine starts on the first call, and formlit asks in its window whether to allow outside agents (change it later in Preferences, AI agents).")
         return 0
     print(__doc__)
     return 2

@@ -4,6 +4,7 @@ Each curated tool in `backend/app/routers/mcp.py` and the engine commands it cal
 
 | group | module |
 | --- | --- |
+| `agents` | `backend/app/engine/agents.py` |
 | `ai` | `backend/app/engine/cmd_ai.py` |
 | `book` | `backend/app/engine/cmd_output.py` |
 | `collection` | `backend/app/engine/cmd_library.py` |
@@ -78,4 +79,5 @@ Each curated tool in `backend/app/routers/mcp.py` and the engine commands it cal
 | `undo` | `edit.undo` |
 | `redo` | `edit.redo` |
 | `list_commands` | the registry catalogue (`GET /api/commands`) |
-| `run_command` | any command id, except `photo.delete`, `folder.remove`, `catalog.open` and `catalog.create` |
+| `run_command` | any command id, except `photo.delete`, `folder.remove`, `catalog.open`, `catalog.create` and `agents.respond` |
+| `get_agent_access` | `agents.status` |

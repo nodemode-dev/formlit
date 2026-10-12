@@ -39,7 +39,7 @@ Every one by hand. Filenames and tags read `v0.2.0`, never `v0_2_0`.
 | Bundle | `./formlit desktop build` | `.dmg` and `.app` (macOS), `.msi` and `.exe` (Windows), `.AppImage`, `.deb` (Linux) |
 | CI | tag `v0.2.0` and push | `.github/workflows/desktop.yml` builds all three on their own runners and attaches the bundles to a draft release |
 
-The desktop app starts the sidecar with `FORMLIT_DESKTOP=1`; the engine serves `frontend/dist` and the window talks to `http://127.0.0.1:8390`.
+The desktop app starts the sidecar with `FORMLIT_DESKTOP=1` and `FORMLIT_PORT=8390` (`ENGINE_PORT` in `src-tauri/src/main.rs`); the engine serves `frontend/dist` and the window talks to `http://127.0.0.1:8390`, the address the Form plugin's bridge uses. When 8390 is already in use the sidecar takes a free port and the window still finds it from the startup line, but the plugin cannot.
 
 ## The zips
 

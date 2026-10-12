@@ -4,7 +4,7 @@
 
 | Signal in the request | Class | First specialist |
 | --- | --- | --- |
-| Photos, a shoot, a folder of raws, "my catalog", picks, edits, an export, a PDF, a gallery | use | catalog-keeper |
+| Photos, a shoot, a folder of raws, "my catalog", picks, edits, an export, a PDF, a gallery | use | `formlit-driving`, then catalog-keeper for depth |
 | A file path under `backend/app`, `frontend/src`, `src-tauri` or `setup` | build | the owner of that path |
 | A missing feature ("formlit can't...", "add a ...") | build | engine-builder |
 | A bug the person saw in the window | build | ui-builder, or engine-builder when the command returned wrong data |

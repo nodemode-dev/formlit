@@ -19,7 +19,7 @@ Change what formlit can do, in the one place every client reaches: a command. Ha
 2. Write the command with `references/adding-a-command.md`: the decorator's params mirror the signature, mutations happen inside `catalog.change(label)`, long work goes through `tasks.start`, errors raise `CommandError` with a sentence that says what to do.
 3. Schema changes: add columns in the `SCHEMA` string with `IF NOT EXISTS` semantics or a migration in `Catalog.__init__`; register JSON columns in `JSON_FIELDS`; map new tables to a list name in `Change.touch` so `list.changed` fires.
 4. Window reachability: the window calls `ctx.api.cmd(id, params)`; nothing more is needed on the engine side.
-5. Agent reachability: a command an agent would plausibly need gets a curated tool in `app/routers/mcp.py` (a `_tool(...)` with a description that says what it does and returns, and a handler calling `_cmd`). Run `./formlit agents sync` to regenerate `.claude/skills/formlit-editing/references/tools.md` and its mirror.
+5. Agent reachability: a command an agent would plausibly need gets a curated tool in `app/routers/mcp.py` (a `_tool(...)` with a description that says what it does and returns, and a handler calling `_cmd`). Every tool call already passes the outside-agent gate in `call_tool`; add no exemption. Run `./formlit agents sync` to regenerate `.claude/skills/formlit-driving/references/tools.md` and its mirror.
 6. Prove it: `./formlit cli [command-id] key=value ...` and read the result; for mutating commands also `./formlit cli edit.undo` and confirm the state returned.
 7. Record decisions in `backend/HASHOUT_LOG.md`; no comments in code.
 8. Run `checklists/command-gate.md`.
