@@ -2,6 +2,16 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.7.1 · 2026-10-12
+
+### Fixed
+
+- **`./build_app` stopped on macOS with `error[E0463]: can't find crate for phf_macros`, twice.** The release profile's `strip = true` also applied to proc macros and build scripts, so cargo built `phf_macros` with `-C strip=symbols`; on macOS that strips the symbol rustc looks for when it loads a proc macro, and `phf` then cannot find the crate it just built. `[profile.release.build-override]` now sets `strip = false` and `debug = false`, as Format's shell does; the app binary is still stripped.
+
+### Not verified yet
+
+- The full macOS build after the fix: confirmed only that cargo no longer passes a strip flag to `phf_macros`.
+
 ## v0.7.0 · 2026-10-12
 
 formlit now has a live terminal inside the window, and Claude Code runs in it already connected to formlit, the way Format runs it. One command builds the desktop app.
