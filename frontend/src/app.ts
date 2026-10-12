@@ -15,6 +15,7 @@ import { registerCatalogCommands } from './modules/shared/catalog-commands';
 import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
 import { registerAgentConsent } from './modules/shared/agent-consent';
+import { registerTerminal } from './modules/shared/terminal';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
 import { develop } from './state/develop';
@@ -74,6 +75,7 @@ export class App implements Ctx {
     registerTether(this);
     registerPluginManager(this);
     registerAgentConsent(this);
+    registerTerminal(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));
@@ -216,8 +218,8 @@ export class App implements Ctx {
       { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename', '-', 'library.labelSet']) },
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.profileBrowser', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.copyAfterToBefore', 'develop.copyBeforeToAfter', 'develop.swapBeforeAfter', 'develop.resetBefore', '-', 'develop.matchExposure', 'develop.autoBw']) },
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', 'view.faceRegions', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
-      { label: 'Window', items: () => tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow']) },
-      { label: 'Help', items: () => tidy(['app.shortcuts', 'app.agents', 'app.about']) },
+      { label: 'Window', items: () => tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude']) },
+      { label: 'Help', items: () => tidy(['app.shortcuts', 'agent.claude', 'app.agents', 'app.about']) },
     ];
     new MenuBar(this.shell.menubar, this.commands, defs);
   }

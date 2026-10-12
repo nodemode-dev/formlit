@@ -3,7 +3,7 @@ html, body { height: 100%; }
 .fl-mark { display: inline-flex; flex: none; }
 .fl-mark svg { display: block; width: 100%; height: 100%; }
 
-.fl-app { position: relative; display: grid; grid-template-rows: var(--cv-titlebar-h) minmax(0, 1fr) var(--fl-filmstrip-h) var(--cv-status-h); height: 100%; background: var(--bg-primary); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
+.fl-app { position: relative; display: grid; grid-template-rows: var(--cv-titlebar-h) minmax(0, 1fr) var(--fl-filmstrip-h) var(--fl-dock-h) var(--cv-status-h); height: 100%; background: var(--bg-primary); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
 .fl-app.is-filmstrip-hidden { --fl-filmstrip-h: 0px; }
 .fl-app.is-filmstrip-hidden .fl-filmstrip { display: none; }
 .fl-app.is-left-hidden { --fl-left-w: 0px; }

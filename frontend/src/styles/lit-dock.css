@@ -1,0 +1,27 @@
+.fl-app.is-dock-open { --fl-dock-h: var(--fl-dock-open-h); }
+.fl-dock { position: relative; display: grid; grid-template-rows: 34px minmax(0, 1fr) 40px; min-width: 0; min-height: 0; background: var(--surface-0); border-top: 1px solid var(--line-1); }
+.fl-dock[hidden] { display: none; }
+.fl-dock-rsz { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize; z-index: var(--z-raised); }
+.fl-dock-rsz:hover, .fl-dock-rsz.is-dragging { background: var(--accent-line); }
+.fl-dock-head { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--surface-1); border-bottom: 1px solid var(--line-0); min-width: 0; }
+.fl-dock-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.fl-dock-tab { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px 0 9px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-12); white-space: nowrap; cursor: pointer; }
+.fl-dock-tab:hover { color: var(--text-primary); }
+.fl-dock-tab.is-on { border-color: var(--line-2); background: var(--surface-raised); color: var(--text-primary); }
+.fl-dock-tab.is-claude .icon { color: var(--accent-color); }
+.fl-dock-tab-x { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; color: var(--text-muted); }
+.fl-dock-tab-x:hover { background: var(--surface-2); color: var(--text-primary); }
+.fl-dock-spacer { flex: 1; }
+.fl-dock-head .cv-tt-btn { width: 26px; height: 26px; }
+.fl-dock-stage { position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+.fl-term { position: absolute; inset: 6px 4px 0 10px; }
+.fl-term[hidden] { display: none; }
+.fl-term .xterm-viewport { background: transparent; }
+.fl-dock-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
+.fl-dock-empty[hidden] { display: none; }
+.fl-dock-ask { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--surface-1); border-top: 1px solid var(--line-0); }
+.fl-dock-ask-mark { display: inline-grid; place-items: center; color: var(--accent-color); }
+.fl-dock-ask-input { flex: 1; height: 28px; }
+.fl-dock-ask .cv-tt-btn { width: 28px; height: 28px; }
+.fl-app.is-lights-dim .fl-dock { opacity: 0.16; }
+.fl-app.is-lights-off .fl-dock { opacity: 0; }

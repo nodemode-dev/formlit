@@ -3,6 +3,8 @@
   --fl-right-w: 312px;
   --fl-filmstrip-h: 116px;
   --fl-toolbar-h: 40px;
+  --fl-dock-h: 0px;
+  --fl-dock-open-h: 280px;
   --fl-panel-head-h: 34px;
   --fl-thumb-gap: 8px;
   --fl-pick: #f5f5f5;

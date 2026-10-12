@@ -12,6 +12,8 @@ const SHELL = `<div class="fl-app">
 <div class="fl-title-tools">
 <button class="cv-tt-btn" type="button" data-cmd="edit.undo" title="Undo" aria-label="Undo">${icon('undo', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="edit.redo" title="Redo" aria-label="Redo">${icon('redo', 16)}</button>
+<button class="cv-tt-btn" type="button" data-cmd="agent.claude" title="Claude Code" aria-label="Claude Code">${icon('sparkle', 16)}</button>
+<button class="cv-tt-btn" type="button" data-cmd="view.terminal" title="Show Terminal" aria-label="Show Terminal">${icon('terminal', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="app.lights" title="Lights Out (L)" aria-label="Lights Out">${icon('lightsOut', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="app.preferences" title="Preferences" aria-label="Preferences">${icon('settings', 16)}</button>
 </div>
@@ -24,12 +26,14 @@ const SHELL = `<div class="fl-app">
 <aside class="fl-col fl-right" aria-label="Right panels"><div class="fl-col-pages"></div><div class="fl-col-foots"></div></aside>
 </div>
 <div class="fl-filmstrip"></div>
+<section class="fl-dock" aria-label="Terminal" hidden></section>
 <footer class="cv-status fl-status">
 <span class="fl-st-count"></span><span class="fl-st-sel"></span><span class="fl-st-busy">${icon('loading', 12)}<span class="fl-st-busy-label"></span></span><span class="fl-st-gpu"></span><span class="fl-st-hint"></span>
 </footer>
 </div>`;
 
 const WIDTH_KEY = 'formlit_cols';
+const DOCK_KEY = 'formlit_dock_h';
 
 export class Shell {
   readonly app: HTMLElement;
@@ -37,6 +41,7 @@ export class Shell {
   readonly modulesBar: HTMLElement;
   readonly filmstrip: HTMLElement;
   readonly center: HTMLElement;
+  readonly dock: HTMLElement;
   private readonly leftPages: HTMLElement;
   private readonly rightPages: HTMLElement;
   private readonly leftFoots: HTMLElement;
@@ -57,6 +62,7 @@ export class Shell {
     this.modulesBar = q(host, '.fl-modules');
     this.filmstrip = q(host, '.fl-filmstrip');
     this.center = q(host, '.fl-center');
+    this.dock = q(host, '.fl-dock');
     this.stage = q(host, '.fl-stage');
     this.toolbar = q(host, '.fl-toolbar');
     this.leftPages = q(host, '.fl-left .fl-col-pages');
@@ -66,6 +72,41 @@ export class Shell {
     this.restoreWidths();
     this.resizer(q(host, '.fl-rsz-left'), '--fl-left-w', 1);
     this.resizer(q(host, '.fl-rsz-right'), '--fl-right-w', -1);
+    this.dockResizer();
+  }
+
+  dockOpen(): boolean { return this.app.classList.contains('is-dock-open'); }
+
+  setDock(open: boolean): void {
+    setHidden(this.dock, !open);
+    setClass(this.app, 'is-dock-open', open);
+  }
+
+  private dockResizer(): void {
+    try {
+      const h = Number(localStorage.getItem(DOCK_KEY));
+      if (h) setStyleVar(this.app, '--fl-dock-open-h', `${h}px`);
+    } catch { return; }
+    this.dock.addEventListener('pointerdown', (e) => {
+      const handle = e.target as HTMLElement;
+      if (e.button !== 0 || !handle.classList.contains('fl-dock-rsz')) return;
+      const start = e.clientY;
+      const from = this.dock.getBoundingClientRect().height;
+      handle.setPointerCapture(e.pointerId);
+      setClass(handle, 'is-dragging', true);
+      const move = (ev: PointerEvent) => {
+        const h = Math.round(Math.max(140, Math.min(window.innerHeight * 0.7, from - (ev.clientY - start))));
+        setStyleVar(this.app, '--fl-dock-open-h', `${h}px`);
+      };
+      const up = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        setClass(handle, 'is-dragging', false);
+        try { localStorage.setItem(DOCK_KEY, String(Math.round(this.dock.getBoundingClientRect().height))); } catch { return; }
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+    });
   }
 
   addModuleTab(id: string, label: string, iconName: string, title: string): void {
