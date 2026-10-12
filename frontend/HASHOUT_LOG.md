@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.3
-Last updated: 2026-10-08 · buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
+Current build version: v0.6.0
+Last updated: 2026-10-12 · the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
 
 ---
 
@@ -73,6 +73,7 @@ frontend/
     │   │   ├── print.ts           Print module
     │   │   └── web.ts             Web module
     │   └── shared/
+    │       ├── agent-consent.ts   AI agent access prompt: Allow, Not now, Block
     │       ├── actions.ts         rating, flag, label, stack, rotate commands
     │       ├── catalog-commands.ts catalogs, previews, second window, shortcuts
     │       ├── export.ts          Export dialog
@@ -96,7 +97,7 @@ frontend/
     │   ├── askform.ts             form dialog
     │   ├── dialogs.ts             Dialog, confirm, prompt (vendored)
     │   ├── folder-picker.ts       engine-side folder browser
-    │   ├── preferences.ts         Preferences dialog
+    │   ├── preferences.ts         Preferences dialog, with the AI agents section
     │   ├── menu.ts                menu bar and popup menus (vendored)
     │   ├── dropdown.ts            styled selects (vendored)
     │   ├── commands.ts            command registry and shortcuts
@@ -134,6 +135,8 @@ frontend/
 - [src/modules/output/book.ts](#output-book)
 - [src/modules/output/slideshow.ts](#output-slideshow)
 - [src/modules/shared/plugin-manager.ts](#shared-plugin-manager)
+- [src/modules/shared/agent-consent.ts](#shared-agent-consent)
+- [src/ui/preferences.ts](#ui-preferences)
 - [src/styles/lit-tokens.css](#styles-lit-tokens)
 - [vite.config.ts](#vite-config)
 - [Files with no entries](#no-entries)
@@ -389,6 +392,35 @@ Open-source Chromium (as used by Playwright here) plays WebM but not H.264, so M
 - logged: v0.1.0 · 2026-10-07
 
 Lists loaded plug-ins (keyed by kind) and the files that failed with their reasons; Reload calls `publish.reloadPlugins`, which also refreshes the Publish Services panel through a `list.changed` event.
+
+---
+
+## src/modules/shared/agent-consent.ts {#shared-agent-consent}
+
+### src/modules/shared/agent-consent.ts · one dialog, built once
+- refers-to: src/modules/shared/agent-consent.ts :: AgentConsent, ask, dismiss
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+The prompt is one dialog built the first time an agent asks and reused after that. A later request only patches the client name (a `<strong>` node, `setText`) and reopens the same dialog; nothing is created or removed while the person is looking, and it opens into the existing overlay root, so the page behind it does not move. Not now takes the initial focus because it refuses one call and changes nothing, the safest button for a reflex press. Closing with Esc, the close button or the scrim sends the same answer. Allow and Block each toast where the choice can be changed again.
+
+### src/modules/shared/agent-consent.ts · events, and a window that connects late
+- refers-to: src/modules/shared/agent-consent.ts :: registerAgentConsent; backend/app/engine/agents.py :: status
+- kind: explainer
+- logged: v0.6.0 · 2026-10-12
+
+`agents.consent` opens the prompt. `agents.changed` closes it when the setting is no longer ask or the answer was Not now, so a choice made in Preferences, in a second window or from the CLI takes down a prompt that is still up. A window that connects after the event (the plugin's bridge launches the desktop app) asks `agents.status` on the stream's `hello` and `resync` and shows the prompt for the first call still pending. The handlers are registered before the event stream starts, in `app.ts`, next to the Plug-in Manager.
+
+---
+
+## src/ui/preferences.ts {#ui-preferences}
+
+### src/ui/preferences.ts · the AI agents section
+- refers-to: src/ui/preferences.ts :: Preferences (access, seen, agents), show; src/styles/lit-library.css :: .fl-agents-seen
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+The old Agents (MCP) block was a note and the endpoint JSON. The section now leads with the plugin and keeps the developer setup second, and holds the Agent access select (Ask me, Allowed, Blocked) and a Seen row. It sits above Engine and AI Models because those two fill their rows with `innerHTML` after the dialog opens; a section placed below them would be pushed down when they arrive. The endpoint JSON is set before `open()` for the same reason, and the select and the Seen row only have their text patched afterwards (`setValue`, `setText`, `setTitle`). Seen is one line with an ellipsis and its full text in the title, so a long list never changes the row's height. The select also listens for `agents.changed`, so answering the prompt updates an open Preferences.
 
 ---
 

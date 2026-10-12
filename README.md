@@ -2,7 +2,7 @@
 <h1 align="center">formlit</h1>
 <p align="center"><b>A photo library and raw developer for the web and the desktop, in the form family's Studio Dark design.</b></p>
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.5.0-f97316" alt="version 0.5.0">
+<img src="https://img.shields.io/badge/version-0.6.0-f97316" alt="version 0.6.0">
 <img src="https://img.shields.io/badge/node-22-339933" alt="node 22">
 <img src="https://img.shields.io/badge/python-3.12-3776AB" alt="python 3.12">
 <img src="https://img.shields.io/badge/tauri-2-24C8DB" alt="tauri 2">
@@ -14,7 +14,7 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,500 of TypeScript, 2,100 of CSS, 18,800 of Python, 130 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,600 of TypeScript, 2,100 of CSS, 19,000 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
 **Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
@@ -31,7 +31,7 @@ formlit is the form family's alternative to Adobe Lightroom Classic: a catalog o
 - **Output.** Export to JPEG, PNG, TIFF, PSD (layered with Open as Layers), JPEG XL, WebP, AVIF, HEIC or DNG (the original raw for DNG sources), with sizing, output sharpening, custom ICC profiles, metadata choices (private map locations stay private), watermarks, naming, presets and post-processing. Print with grid, picture package and custom layouts, printer profiles, driver Page Setup and Printer Settings. Books with spreads, wrap covers with a spine, custom pages and Blurb-ready PDFs. Slideshows with music (up to ten tracks), audio balance, fit to music and video clips, exported as H.264. Web galleries with FTP upload. Publish services for folders, FTP, WebDAV and Nextcloud (with comments), S3-compatible storage and Python plug-ins (File > Plug-in Manager). Edit In any application.
 - **Map.** OpenStreetMap tiles with Hybrid, Satellite, Light and Dark styles, search, drag to geotag, GPX track logs, saved and private locations, reverse geocoding.
 - **XMP.** Sidecars and embedded XMP carry the full Camera Raw settings (curves, profiles, lens profiles, masks, spots, red eye), written automatically and checked for changes made by other applications.
-- **Agents.** The MCP server gives Claude Code, Codex and Cursor 49 curated tools over the engine's 217 commands (and `run_command` for the rest); `./formlit agents install` sets them up, and the `formlit-editing` skill teaches them the workflow. The `formlit-harness` skill pack guides agents that develop formlit's own code.
+- **Agents.** Add the formlit plugin from the Form marketplace, open formlit and ask Claude; formlit asks once in its own window whether to allow it (Preferences, AI agents). The MCP server gives Claude, Codex and Cursor 50 curated tools over the engine's 219 commands (and `run_command` for the rest), and the `formlit-driving` skill teaches them the workflow. The `formlit-harness` skill pack guides agents that develop formlit's own code.
 - **Zero-flash interface.** The shell mounts once and every list is patched by key; each interface change is verified in a browser throttled to 4x CPU and a slow network.
 
 ## Quick Start
@@ -63,7 +63,7 @@ formlit.bat boot
 | Frontend (dev) | http://localhost:5390 | Vite, bound to localhost only, strict port |
 | Engine | http://127.0.0.1:8390 | FastAPI; API under `/api`, MCP at `/mcp`; serves the built app in `./formlit serve` |
 | Preview | http://localhost:5391 | `vite preview` of the production build |
-| Desktop engine | random loopback port | picked by the OS, read by the Tauri shell from the startup line |
+| Desktop engine | http://127.0.0.1:8390 | the shell asks the sidecar for 8390 so the plugin can reach `/mcp`; when 8390 is taken the sidecar picks a free port and the shell reads it from the startup line |
 
 ## Configuration
 
@@ -71,7 +71,7 @@ The engine reads `backend/.env`, which is never committed; `backend/.env.example
 
 | Variable | Purpose |
 | --- | --- |
-| `FORMLIT_HOST`, `FORMLIT_PORT` | Engine bind address and port; port `0` picks a free one (desktop) |
+| `FORMLIT_HOST`, `FORMLIT_PORT` | Engine bind address and port; port `0` picks a free one, and the desktop sidecar also falls back to a free port when the one asked for (8390) is already in use |
 | `FORMLIT_DATA_DIR` | Data root (default `~/Formlit`): catalog, presets, profiles, plug-ins, models, exports |
 | `FORMLIT_LIBRARY_DIR` | The folder browser's starting folder, and where photos uploaded from a browser are saved (default `~/Pictures/formlit`) |
 | `FORMLIT_CATALOG` | Catalog file to open instead of the last one used |
@@ -107,13 +107,15 @@ formlit/
 ├── docs/                           PARITY.md and the publish plug-in example
 ├── .docs/                          BRANCHING.md and the wiki source
 ├── .github/workflows/              ci, wiki publish, desktop release matrix
-├── .claude/skills/                 formlit-harness (developing formlit) and formlit-editing (driving it)
-└── .agents/, .codex/, .cursor/     the same MCP server and editing skill for Codex and Cursor
+├── .claude/skills/                 formlit-harness (developing formlit) and formlit-driving (using it)
+└── .agents/, .codex/, .cursor/     the same MCP server and driving skill for Codex and Cursor
 ```
 
 ## Agents
 
-`.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` run `./formlit mcp`, which starts the engine when it is not running. From any other folder, `./formlit agents install` registers formlit with Claude Code, Codex and Cursor for your user account. After changing the tools in `backend/app/routers/mcp.py`, run `./formlit agents sync` so the editing skill's tool reference and its mirror follow.
+**Use formlit from Claude.** Add the formlit plugin from the Form marketplace: in the Claude app open Customize, Plugins, or run `/plugin` in Claude Code. Open formlit, then ask Claude to cull, develop or export your photos. The first time, formlit asks in its own window whether to let Claude in; Allow, Not now and Block are all fine, and you can change the answer later in Preferences, AI agents. The plugin works in Cowork and in Claude Code, which run on your computer; Claude chat on the web or the phone cannot reach it.
+
+**Developer setup.** `.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` run `./formlit mcp`, which starts the engine when it is not running. From any other folder, `./formlit agents install` registers formlit with Claude Code, Codex and Cursor for your user account. After changing the tools in `backend/app/routers/mcp.py`, run `./formlit agents sync` so the driving skill's tool reference and its mirror follow.
 
 ## Development
 
@@ -124,6 +126,7 @@ Branch model: `main` plus short-lived work branches, see `.docs/BRANCHING.md`. D
 Release history: `CHANGELOG.md`. What is not verified yet:
 
 - **Desktop app.** The Tauri shell follows formvis's sidecar template; the desktop workflow has not run, so treat desktop bundles as untested until the first `desktop.yml` run passes.
+- **Plugin.** The consent prompt, the `outsideAgents` setting and the pinned sidecar port were exercised against the engine and the Form bridge; the Rust change that asks the sidecar for 8390 in `src-tauri/src/main.rs` has not been compiled or run in a desktop build.
 - **Hardware.** Tethering was exercised against a simulated gphoto2; the digiCamControl adapter on Windows and real cameras are untested. Printing to a real printer and its driver dialogs are untested.
 - **Video in the browser.** Playback of H.264 clips depends on the webview; the open-source Chromium used for testing plays WebM but not H.264.
 - **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data. Camera-matching styles are formlit's own approximations built on a per-photo fit to the camera's JPEG; the style a raw was shot in is read from Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus and OM System, and Pentax raws (checked against exiftool on 13 files).

@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.3.4
-Last updated: 2026-10-08 · the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.6.0
+Last updated: 2026-10-12 · outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -20,8 +20,9 @@ backend/
     ├── main.py                    FastAPI app, routers, startup and shutdown
     ├── core/
     │   ├── config.py              ports, data folders, workers, env loading
-    │   └── prefs.py               JSON preferences in the data folder
+    │   └── prefs.py               JSON preferences in the data folder, including outsideAgents
     ├── engine/
+    │   ├── agents.py              outside-agent consent: the gate, status and respond
     │   ├── boot.py                loads command modules, warms the numba kernel
     │   ├── catalog.py             SQLite catalog, Change (undo, events), schema
     │   ├── commands.py            @command registry, dispatch, resolve_ids
@@ -105,7 +106,7 @@ backend/
         ├── faces.py               face crops
         ├── output.py              exported files, slideshow audio
         ├── system.py              health, version, capabilities
-        └── mcp.py                 MCP server: tools, prompts, window bridge
+        └── mcp.py                 MCP server: tools, prompts, sessions, consent gate, window bridge
 ```
 
 ---
@@ -114,6 +115,8 @@ backend/
 
 - [formlit_engine.py](#formlit-engine)
 - [app/core/config.py](#core-config)
+- [app/core/prefs.py](#core-prefs)
+- [app/engine/agents.py](#engine-agents)
 - [app/engine/boot.py](#engine-boot)
 - [app/engine/catalog.py](#engine-catalog)
 - [app/engine/commands.py](#engine-commands)
@@ -157,6 +160,13 @@ backend/
 
 The frozen entry sets `FORMLIT_DESKTOP=1` and `FORMLIT_DIST` to the bundled frontend with `setdefault`, then binds `FORMLIT_PORT` (0 picks a free port) and prints the port on its startup line; the Tauri shell reads that line. Development never runs this file.
 
+### formlit_engine.py · usable_port
+- refers-to: formlit_engine.py :: usable_port, main; src-tauri/src/main.rs :: ENGINE_PORT
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+The desktop shell used to start the sidecar with `FORMLIT_PORT=0`, a random port that the Form plugin's bridge could never find. It now asks for 8390, formlit's registry port. When something already listens there (a second formlit, a dev engine, another program) the sidecar must still start, so `usable_port` returns 0 and the OS picks a free port, which the shell still reads from the startup line. The probe connects to the port instead of binding it: a bind check reports the port busy while Linux holds it in TIME_WAIT after a quick relaunch, and a relaunch is exactly when 8390 has to be reusable. The plugin cannot reach a fallback engine; the window still can.
+
 ### formlit_engine.py · selfcheck
 - refers-to: formlit_engine.py :: selfcheck; setup/freeze_backend(.bat) hidden imports
 - kind: warning-context
@@ -181,6 +191,56 @@ The first local Linux build (v0.3.0 work) produced an engine that exited at star
 - logged: v0.1.0 · 2026-10-07
 
 Caches sit beside the catalog file, not in the data root, so two catalogs never share previews or masks keyed by the same photo id.
+
+---
+
+## app/core/prefs.py {#core-prefs}
+
+### app/core/prefs.py · outsideAgents, CHOICES
+- refers-to: app/core/prefs.py :: DEFAULTS, CHOICES, update; app/engine/agents.py :: setting
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+Whether outside agents may use formlit is a preference like the others, kept in `preferences.json` in the data folder, so it survives restarts and belongs to the person, not to a catalog. The default is `ask`. `CHOICES` lists the values a text preference may take and `update` refuses anything else, so the file cannot hold a value the gate does not understand; `agents.setting` also reads an unknown stored value as `ask`, the safe reading of a damaged file.
+
+---
+
+## app/engine/agents.py {#engine-agents}
+
+### app/engine/agents.py · require
+- refers-to: app/engine/agents.py :: require, WAIT_SECONDS, POLL_SECONDS; app/routers/mcp.py :: call_tool
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+Every MCP tool call passes `require` before it runs. `allowed` returns at once and `blocked` raises a refusal that names Preferences, AI agents. `ask` publishes `agents.consent` so the window can show its prompt, then polls the preference every quarter second for up to two minutes; polling is what lets a click in the window, a change in Preferences or `prefs.set` from the CLI all release the call without a separate wake-up channel. The wait is an `await` on `asyncio.sleep`, so the engine keeps serving the window and its other requests; a thread-blocking wait would freeze the very window the person has to answer in. After two minutes the call is refused with a sentence that tells the agent to ask the person to open formlit and not to retry in a loop.
+
+### app/engine/agents.py · _later, Not now
+- refers-to: app/engine/agents.py :: respond, _later, require
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+Not now must refuse the calls that are waiting without changing the setting, and must not poison calls that arrive afterwards. A counter does that: each waiting call remembers its value when it started, `respond("later")` bumps it, and only calls that started before the bump are refused. The agent's next call asks again, which is what Not now means.
+
+### app/engine/agents.py · one setting for every client, _seen
+- refers-to: app/engine/agents.py :: note, status, MAX_SEEN; app/routers/mcp.py :: _caller
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+The setting is global, not per client. Names come from the client itself (`clientInfo`, or `x-formlit-agent` from `./formlit mcp`), so they label the prompt and the Seen list and are never an identity to trust or to allow on their own. `_seen` keeps at most 40 names and drops the least recent, so a client that invents a new name for every call cannot grow it.
+
+### app/engine/agents.py · pending, a window that connects late
+- refers-to: app/engine/agents.py :: status (pending), _waiting; frontend/src/modules/shared/agent-consent.ts
+- kind: explainer
+- logged: v0.6.0 · 2026-10-12
+
+The plugin's bridge opens the desktop app when its first call finds no engine, so the window can connect after `agents.consent` was published and the event is gone. `status` therefore lists the calls still waiting, and the window reads it when its event stream says hello or resyncs and shows the prompt for any call that is pending.
+
+### app/engine/agents.py · scope, respond
+- refers-to: app/engine/agents.py :: respond; app/routers/mcp.py :: BLOCKED; setup/freeze_backend(.bat) hidden imports
+- kind: warning-context
+- logged: v0.6.0 · 2026-10-12
+
+The gate covers the MCP surface, which is what the plugin and `./formlit mcp` use. The window, the CLI and the REST commands on the loopback address are the person's own and are not gated, so a program the person runs on the same computer can call them, as the window does. `agents.respond` is the answer to the prompt, so it is in the MCP `BLOCKED` set: an agent that could call it through `run_command` would approve itself. The module is imported by name from `boot.COMMAND_MODULES`, so it is also a `--hidden-import` in both freeze scripts.
 
 ---
 
@@ -861,8 +921,22 @@ The `auto_straighten` tool passed `ids` to `develop.autoStraighten`, which takes
 
 Deleting photos and folders and opening or creating catalogs stay with the person in the window unless `FORMLIT_MCP_ALLOW_DELETE=1`; everything else an agent does is undoable. After changing the tools, run `./formlit agents sync`.
 
+### app/routers/mcp.py · call_tool, the consent gate
+- refers-to: app/routers/mcp.py :: call_tool, TOOLS; app/engine/agents.py :: require
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+`call_tool` is the one place every `tools/call` goes through, so the gate lives there and a new tool inherits it. A refusal comes back as an ordinary tool result with `isError` set, not as a JSON-RPC error, so the agent reads the sentence and passes it on to the person. `initialize`, `tools/list`, prompts and `ping` stay open so a client can connect and list its tools before the person has decided. `get_agent_access` goes through the gate like every other tool, which keeps the rule free of exceptions.
+
+### app/routers/mcp.py · SESSIONS, _caller
+- refers-to: app/routers/mcp.py :: SESSIONS, _open_session, _client_name, _caller; setup/mcp_stdio.py :: forward
+- kind: rationale
+- logged: v0.6.0 · 2026-10-12
+
+The endpoint stays stateless: no header is needed to call it and a client that sends no `Mcp-Session-Id` works. `initialize` issues one only so later calls can be named in the prompt; `SESSIONS` maps it to the client's name and keeps the newest 64. A call is named from, in order, the `x-formlit-agent` header (sent by `./formlit mcp`, plain ASCII because header values must be), the `_meta` client info of protocol 2026-07-28, then the session. A call with none of them is "an outside agent".
+
 ---
 
 ## Files with no entries {#no-entries}
 
-No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/core/prefs.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
+No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

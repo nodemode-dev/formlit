@@ -2,6 +2,27 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.6.0 · 2026-10-12
+
+formlit now follows the Form Agent Standard: Claude can use it through the formlit plugin from the Form marketplace, and the person decides whether outside agents may.
+
+### Added
+
+- **AI agents setting.** Preferences has an AI agents section with Agent access (Ask me, Allowed or Blocked) and the agents seen since formlit started. The first MCP tool call from an agent asks in the window ("wants to use formlit") with Allow, Not now and Block, waits up to two minutes, and is refused with a message naming where to change it when the person blocks, declines or does not answer.
+- `get_agent_access` (the 50th tool) and the `agents.status` and `agents.respond` commands report and answer the setting; `agents.respond` cannot be reached from `run_command`.
+- The MCP endpoint issues an `Mcp-Session-Id` on `initialize` so calls carry the client's name, and `./formlit mcp` sends the name as `x-formlit-agent`.
+
+### Changed
+
+- The `formlit-editing` skill is now `formlit-driving`, with a Before the first call section for the plugin and no repository setup steps; the pack `formlit-harness` now covers changing formlit. Both carry an `EVALS.json`.
+- The desktop shell asks its sidecar for port 8390 instead of a random port so the plugin's bridge finds `/mcp`; the sidecar takes a free port only when 8390 is already in use.
+- The Help menu entry Agents and MCP is now AI Agents, and Preferences leads its agent notes with the plugin and keeps the developer setup second.
+
+### Not verified yet
+
+- The Rust change in `src-tauri/src/main.rs` was not compiled, and no desktop bundle was built or run.
+- Opening the macOS app from the plugin's bridge by bundle id `ai.nodemode.formlit` was not exercised.
+
 ## v0.5.0 · 2026-10-08
 
 ### Changed

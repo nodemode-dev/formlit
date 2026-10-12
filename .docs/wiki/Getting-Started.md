@@ -38,7 +38,7 @@ On Windows use `formlit.bat` with the same commands.
 | Service | Address |
 | --- | --- |
 | Frontend (dev) | http://localhost:5390, bound to localhost only, strict port |
-| Engine | http://127.0.0.1:8390 (`FORMLIT_PORT`; `0` picks a free port for the desktop sidecar) |
+| Engine | http://127.0.0.1:8390 (`FORMLIT_PORT`; `0` picks a free port, and the desktop sidecar uses one only when 8390 is already taken) |
 | Preview | http://localhost:5391 |
 
 ## The data folder

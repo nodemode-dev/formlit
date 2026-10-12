@@ -1,18 +1,31 @@
 # Agents and MCP
 
-formlit speaks the Model Context Protocol so Claude Code, Codex and Cursor can work on your photos with tools, and it ships skills for agents that work on formlit's own code.
+formlit speaks the Model Context Protocol so Claude, Codex and Cursor can work on your photos with tools, and it ships skills for agents that work on formlit's own code.
+
+## Use formlit from Claude
+
+1. Add the formlit plugin from the Form marketplace: in the Claude app open Customize, Plugins, or run `/plugin` in Claude Code. Claude's tools then appear under the name formlit.
+2. Open formlit. On a Mac the plugin opens it for you when it is closed; elsewhere Claude asks you to open it.
+3. Ask Claude for what you want: cull a shoot, develop a look, export for a client.
+4. The first time, formlit asks in its own window, for example "Claude Code wants to use formlit", with Allow, Not now and Block. Allow lets every agent on this computer in until you change it, Not now refuses only the request that was waiting, and Block turns outside agents off.
+
+Change the answer any time in Preferences (File menu), AI agents: Agent access is Ask me, Allowed or Blocked, and Seen lists the agents that have called since formlit started. Claude waits up to two minutes for your answer, then tells you it is still waiting.
+
+The plugin works in Cowork in the Claude desktop app and in Claude Code, which run on your computer. Claude chat on the web or the phone cannot reach apps on your computer.
 
 ## The server
 
-The engine serves MCP over streamable HTTP at `http://127.0.0.1:8390/mcp`. `./formlit mcp` is the stdio shim agents run; it starts the engine when it is not running. `.mcp.json` (Claude Code), `.codex/config.toml` and `.cursor/mcp.json` point at it for this repository, and `./formlit agents install` registers it for your user account in all three.
+The engine serves MCP over streamable HTTP at `http://127.0.0.1:8390/mcp`, on this computer only and with no token or header needed. The desktop app keeps its engine on port 8390 so the plugin's bridge finds it; if something else already holds 8390 the app picks a free port, which the plugin cannot follow. For development, `./formlit mcp` is the stdio shim agents run; it starts the engine when it is not running. `.mcp.json` (Claude Code), `.codex/config.toml` and `.cursor/mcp.json` point at it for this repository, and `./formlit agents install` registers it for your user account in all three.
 
-There are 49 curated tools in seven groups (Look, Import and organize, Cull and people, Develop, Enhance and merge, Output, Window and history) plus `run_command`, which reaches any of the engine's 217 commands. Two prompts, `culling_workflow` and `develop_strategy`, give agents a starting order of work. `GET /api/mcp/status` reports the endpoint, the counts and the protocol versions.
+There are 50 curated tools in seven groups (Look, Import and organize, Cull and people, Develop, Enhance and merge, Output, Window and history) plus `run_command`, which reaches any of the engine's 219 commands. Two prompts, `culling_workflow` and `develop_strategy`, give agents a starting order of work. `GET /api/mcp/status` reports the endpoint, the counts and the protocol versions, and the tool `get_agent_access` reports the AI agents setting and which agents have called.
 
 ## Skills
 
-- `formlit-editing` (`.claude/skills` and its `.agents/skills` mirror) teaches agents to drive formlit: the order of work, the develop ids, checking with previews. Its `references/tools.md` is generated from the server by `./formlit agents sync`; run it after changing `backend/app/routers/mcp.py`.
-- `formlit-harness` (`.claude/skills/formlit-harness`) is the pack for both kinds of agent work. Its director routes to catalog-keeper, cull-assistant, develop-artist and output-producer for working on photos, and to engine-builder, pipeline-builder, ui-builder and release-keeper for changing formlit.
+- `formlit-driving` (`.claude/skills` and its `.agents/skills` mirror, and carried by the formlit plugin) teaches agents to use formlit: what to do before the first call, the order of work, the develop ids, checking with previews. Its `references/tools.md` is generated from the server by `./formlit agents sync`; run it after changing `backend/app/routers/mcp.py`.
+- `formlit-harness` (`.claude/skills/formlit-harness`) is the pack for changing formlit. Its director routes to engine-builder, pipeline-builder, ui-builder and release-keeper, with catalog-keeper, cull-assistant, develop-artist and output-producer as the photo depth behind the driving skill.
 
 ## Safety
 
-Deleting photos or folders and opening or creating catalogs are reserved for the person in the window unless `FORMLIT_MCP_ALLOW_DELETE=1`. Every agent change is a command, so it is undoable like any other.
+Outside agents are asked once. With Agent access on Ask me, the first tool call from an agent waits for your answer in formlit's window; Allowed lets calls run, and Blocked refuses them with a message that says where to change it. The check covers every tool call, from the plugin and from `./formlit mcp`; connecting and listing the tools never needs it, and formlit's own window is never held up by it. It governs the MCP tools: any program on your computer that you run yourself can still reach the engine's local address, as the window does.
+
+Deleting photos or folders and opening or creating catalogs are reserved for the person in the window unless `FORMLIT_MCP_ALLOW_DELETE=1`. An agent cannot answer its own prompt. Every agent change is a command, so it is undoable like any other.
