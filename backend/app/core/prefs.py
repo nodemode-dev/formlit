@@ -8,7 +8,9 @@ DEFAULTS: dict = {
     "editors": [],
     "editIn": {"format": "tiff", "space": "prophoto", "depth": 16, "ppi": 300, "naming": "{name}-Edit"},
     "slideshowMusic": "",
+    "outsideAgents": "ask",
 }
+CHOICES: dict[str, tuple] = {"outsideAgents": ("ask", "allowed", "blocked")}
 _lock = threading.Lock()
 
 
@@ -31,6 +33,9 @@ def update(values: dict[str, Any]) -> dict:
     for key, default in DEFAULTS.items():
         if key in values and values[key] is not None and type(values[key]) is not type(default):
             raise ValueError(f"preference {key} must be {type(default).__name__}")
+    for key, choices in CHOICES.items():
+        if key in values and values[key] not in choices:
+            raise ValueError(f"preference {key} must be one of {', '.join(choices)}")
     cur = load()
     cur.update(values)
     with _lock:

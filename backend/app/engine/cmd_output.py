@@ -11,7 +11,7 @@ from typing import Any
 
 from app.core import config, prefs
 from app.engine import catalog as catalog_mod
-from app.engine import events, tasks
+from app.engine import agents, events, tasks
 from app.engine.commands import CommandError, command, resolve_ids
 from app.engine.records import aspect, loads
 from app.output import encode, export, layout, pages, publish, publish_sdk, slideshow, web
@@ -798,4 +798,6 @@ def prefs_set(values: dict) -> dict:
     if {"autoWriteXmp", "xmpIntoFiles"} & set(values):
         from app.services import xmpwrite
         xmpwrite.configure()
+    if "outsideAgents" in values:
+        agents.changed()
     return out

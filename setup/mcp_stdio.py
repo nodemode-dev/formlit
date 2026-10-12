@@ -8,16 +8,24 @@ import urllib.request
 URL = os.environ.get("FORMLIT_MCP_URL", "http://127.0.0.1:8390/mcp")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _started = False
+_agent = ""
 
 
 def forward(line: str) -> str | None:
+    global _agent
     try:
         msg = json.loads(line)
     except ValueError:
         return json.dumps({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}})
     params = msg.get("params") or {}
     version = (params.get("_meta") or {}).get("io.modelcontextprotocol/protocolVersion") or params.get("protocolVersion") or "2025-11-25"
-    req = urllib.request.Request(URL, data=line.encode(), method="POST", headers={"Content-Type": "application/json", "Accept": "application/json", "MCP-Protocol-Version": version})
+    info = params.get("clientInfo") if msg.get("method") == "initialize" else None
+    if isinstance(info, dict) and (info.get("title") or info.get("name")):
+        _agent = str(info.get("title") or info.get("name")).encode("ascii", "ignore").decode().strip()[:80]
+    headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "MCP-Protocol-Version": version}
+    if _agent:
+        headers["x-formlit-agent"] = _agent
+    req = urllib.request.Request(URL, data=line.encode(), method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=7200) as r:
             body = r.read().decode()

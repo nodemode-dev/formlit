@@ -4,12 +4,14 @@ import io
 import json
 import os
 import urllib.parse
+import uuid
 from typing import Any, Callable
 
 from fastapi import APIRouter, Request, Response
 
 from app import __version__
 from app.core import config
+from app.engine import agents
 from app.engine import catalog as catalog_mod
 from app.engine import events
 from app.engine.commands import REGISTRY, CommandError, catalogue, dispatch
@@ -20,7 +22,9 @@ INSTRUCTIONS = ("formlit is a photo library and raw developer running on this co
                 "with or without the window open, and every change is one undoable step (undo). Start with get_catalog, then find_photos to get "
                 "photo ids. Look with get_preview before and after developing. Develop values use dotted ids from get_develop_controls (for "
                 "example light.exposure, color.vibrance, effects.clarity); pass delta true to nudge. Long jobs (import, AI, export) wait until done. For a full "
-                "plan, get the culling_workflow or develop_strategy prompt. run_command reaches every engine command listed by list_commands.")
+                "plan, get the culling_workflow or develop_strategy prompt. run_command reaches every engine command listed by list_commands. The first call asks the person "
+                "to allow outside agents in formlit's window; if a call is refused with a message about outside agents, tell them to open formlit and answer there, or to "
+                "change AI agents in Preferences, and stop instead of retrying.")
 CULLING = """How to cull a shoot in formlit.
 
 1. find_photos with source {"kind": "previousImport"} (or a folder id from get_catalog) lists the shoot.
@@ -46,7 +50,9 @@ PROMPTS = [
     {"name": "develop_strategy", "title": "Develop a photo", "description": "The order formlit's develop tools work best in, with the setting ids.", "arguments": []},
 ]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
-BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create"}
+BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
+SESSIONS: dict[str, str] = {}
+MAX_SESSIONS = 64
 
 
 def _tool(name: str, description: str, props: dict, required: list[str] | None = None, **hints: bool) -> dict:
@@ -231,6 +237,7 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("list_commands", "Every engine command (id, group, parameters) for run_command, optionally one group.", {"group": {"type": "string"}}, read=True, idempotent=True),
      lambda a: {"commands": [{k: c[k] for k in ("id", "label", "group", "mutates", "params")} for c in catalogue() if not a.get("group") or c["group"] == a["group"]]}),
     (_tool("run_command", "Runs any engine command by id with its params (see list_commands). Deleting files and switching catalogs stay in the window.", {"command": {"type": "string"}, "params": {"type": "object"}}, ["command"]), _run_command),
+    (_tool("get_agent_access", "Whether outside agents such as Claude may use formlit (outsideAgents: ask, allowed or blocked), which clients have called since formlit started, and whether a call is waiting for the person's answer. Like every tool it is refused while the setting is blocked.", {}, read=True, idempotent=True), lambda a: _cmd("agents.status")),
 ]
 
 
@@ -248,6 +255,29 @@ def _local_origin(origin: str | None) -> bool:
         return True
     host = urllib.parse.urlparse(origin).hostname or ""
     return host in ("localhost", "127.0.0.1", "::1", "tauri.localhost") or origin.startswith("tauri://")
+
+
+def _client_name(info: Any) -> str:
+    if not isinstance(info, dict):
+        return ""
+    return str(info.get("title") or info.get("name") or "").strip()[:80]
+
+
+def _open_session(client: str) -> str:
+    sid = uuid.uuid4().hex
+    SESSIONS[sid] = client
+    while len(SESSIONS) > MAX_SESSIONS:
+        SESSIONS.pop(next(iter(SESSIONS)))
+    return sid
+
+
+def _caller(request: Request, params: dict) -> tuple[str, str]:
+    header = request.headers.get("x-formlit-agent", "").strip()
+    if header:
+        return header[:80], "stdio"
+    meta = params.get("_meta")
+    named = _client_name(meta.get("io.modelcontextprotocol/clientInfo") if isinstance(meta, dict) else None)
+    return named or SESSIONS.get(request.headers.get("mcp-session-id", ""), ""), "http"
 
 
 def _ok(req_id, result: dict, modern: bool) -> dict:
@@ -268,8 +298,12 @@ def _result(value: Any) -> dict:
     return {"content": [{"type": "text", "text": text}], "structuredContent": data}
 
 
-async def call_tool(name: str, args: dict) -> dict:
+async def call_tool(name: str, args: dict, client: str = "", channel: str = "http") -> dict:
     tool, fn = SPECS[name]
+    try:
+        await agents.require(client, channel)
+    except CommandError as exc:
+        return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
     events.publish("agent.activity", tool=name, label=tool["description"].split(".")[0][:80])
     try:
         value = await asyncio.to_thread(fn, args)
@@ -304,6 +338,7 @@ async def mcp(request: Request) -> Response:
     modern = version == "2026-07-28"
     server = {"name": "formlit", "version": __version__}
     caps = {"tools": {}, "prompts": {}}
+    headers: dict[str, str] = {}
     if version not in VERSIONS and method != "initialize":
         out = _err(req_id, -32602, f"Unsupported protocol version {version}; supported: {', '.join(VERSIONS)}")
     elif method == "server/discover":
@@ -311,6 +346,9 @@ async def mcp(request: Request) -> Response:
     elif method == "initialize":
         asked = params.get("protocolVersion")
         out = _ok(req_id, {"protocolVersion": asked if asked in VERSIONS else "2025-11-25", "capabilities": caps, "serverInfo": server, "instructions": INSTRUCTIONS}, False)
+        named = _client_name(params.get("clientInfo"))
+        if named:
+            headers["Mcp-Session-Id"] = _open_session(named)
     elif method == "ping":
         out = _ok(req_id, {}, modern)
     elif method == "prompts/list":
@@ -325,10 +363,11 @@ async def mcp(request: Request) -> Response:
         if not isinstance(name, str) or not isinstance(args, dict):
             out = _err(req_id, -32602, "tools/call needs a tool name and an arguments object")
         else:
-            out = _ok(req_id, await call_tool(name, args), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
+            client, channel = _caller(request, params)
+            out = _ok(req_id, await call_tool(name, args, client, channel), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
     else:
         out = _err(req_id, -32601, f"Method not found: {method}")
-    return Response(content=json.dumps(out, default=str), media_type="application/json")
+    return Response(content=json.dumps(out, default=str), media_type="application/json", headers=headers)
 
 
 @router.get("/api/mcp/status")
