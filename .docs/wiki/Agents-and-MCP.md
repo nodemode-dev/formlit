@@ -13,11 +13,19 @@ Change the answer any time in Preferences (File menu), AI agents: Agent access i
 
 The plugin works in Cowork in the Claude desktop app and in Claude Code, which run on your computer. Claude chat on the web or the phone cannot reach apps on your computer.
 
+## Claude Code inside formlit
+
+formlit's terminal dock (Window, Show Terminal, Ctrl or Cmd+J) runs real shells, and its Claude Code button (the sparkle in the title bar, or Ctrl or Cmd+Shift+J) opens your own Claude Code in a dock tab with formlit already attached. Install Claude Code from https://claude.com/claude-code and run `claude` once in any terminal to sign in; formlit finds it on the PATH, in the usual install folders or through your login shell, and `FORMLIT_CLAUDE_BIN` names it otherwise.
+
+The tab starts in `~/Formlit/Agent` (`FORMLIT_AGENT_DIR`) with formlit's server added over HTTP and its tools allowed, so you see Claude work in the terminal and the catalog change in the window at the same time. You started it, so it does not get the outside-agent prompt; it is listed as Claude Code in formlit under Seen, and Blocked still refuses it. Type in the tab as in any terminal, or use the Ask line under the dock: it sends your request with the selected photo ids, starting Claude Code when it is not running.
+
+`./formlit claude` starts the same thing in your own terminal over stdio; that session is an outside agent and goes through the prompt.
+
 ## The server
 
 The engine serves MCP over streamable HTTP at `http://127.0.0.1:8390/mcp`, on this computer only and with no token or header needed. The desktop app keeps its engine on port 8390 so the plugin's bridge finds it; if something else already holds 8390 the app picks a free port, which the plugin cannot follow. For development, `./formlit mcp` is the stdio shim agents run; it starts the engine when it is not running. `.mcp.json` (Claude Code), `.codex/config.toml` and `.cursor/mcp.json` point at it for this repository, and `./formlit agents install` registers it for your user account in all three.
 
-There are 50 curated tools in seven groups (Look, Import and organize, Cull and people, Develop, Enhance and merge, Output, Window and history) plus `run_command`, which reaches any of the engine's 219 commands. Two prompts, `culling_workflow` and `develop_strategy`, give agents a starting order of work. `GET /api/mcp/status` reports the endpoint, the counts and the protocol versions, and the tool `get_agent_access` reports the AI agents setting and which agents have called.
+There are 50 curated tools in seven groups (Look, Import and organize, Cull and people, Develop, Enhance and merge, Output, Window and history) plus `run_command`, which reaches any of the engine's 228 commands except the terminal and Claude Code ones. Two prompts, `culling_workflow` and `develop_strategy`, give agents a starting order of work. `GET /api/mcp/status` reports the endpoint, the counts and the protocol versions, and the tool `get_agent_access` reports the AI agents setting and which agents have called.
 
 ## Skills
 
@@ -28,4 +36,4 @@ There are 50 curated tools in seven groups (Look, Import and organize, Cull and 
 
 Outside agents are asked once. With Agent access on Ask me, the first tool call from an agent waits for your answer in formlit's window; Allowed lets calls run, and Blocked refuses them with a message that says where to change it. The check covers every tool call, from the plugin and from `./formlit mcp`; connecting and listing the tools never needs it, and formlit's own window is never held up by it. It governs the MCP tools: any program on your computer that you run yourself can still reach the engine's local address, as the window does.
 
-Deleting photos or folders and opening or creating catalogs are reserved for the person in the window unless `FORMLIT_MCP_ALLOW_DELETE=1`. An agent cannot answer its own prompt. Every agent change is a command, so it is undoable like any other.
+Deleting photos or folders and opening or creating catalogs are reserved for the person in the window unless `FORMLIT_MCP_ALLOW_DELETE=1`. An agent cannot answer its own prompt, and no agent can open, read or type into the terminal dock: `run_command` refuses `terminal.*` and `claudecode.*` whatever the settings. Every agent change is a command, so it is undoable like any other.

@@ -2,6 +2,33 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.7.0 · 2026-10-12
+
+formlit now has a live terminal inside the window, and Claude Code runs in it already connected to formlit, the way Format runs it. One command builds the desktop app.
+
+### Added
+
+- **Terminal dock.** Window, Show Terminal (Ctrl or Cmd+J) opens a dock under the filmstrip with tabs of real login shells over a pseudo-terminal (ptyprocess, pywinpty on Windows) streamed to xterm.js through a WebSocket at `/api/terminal/{id}`. New Terminal, Restart and Hide are in the dock header, the height is draggable and remembered, and the shells keep running while the dock is hidden. Shells get `FORMLIT_ENGINE_URL` and `FORMLIT_MCP_URL`, and `./formlit` on the PATH in a source checkout.
+- **Claude Code in formlit.** The sparkle in the title bar, Help or Window, Claude Code (Ctrl or Cmd+Shift+J), starts the person's own Claude Code sign-in in a dock tab, in `~/Formlit/Agent`, with formlit's MCP server attached over HTTP and `mcp__formlit` allowed. The Ask line under the dock sends a request with the selected photo ids, starting Claude Code or typing into the running session.
+- Commands `terminal.open`, `terminal.list`, `terminal.write`, `terminal.read`, `terminal.resize`, `terminal.restart`, `terminal.close`, `claudecode.status` and `claudecode.open` (228 commands in all).
+- `./build_app`: one shebang script that builds the desktop app from a fresh clone on macOS and Linux (tool checks, Rust through rustup when missing, install, window, frozen sidecar, bundle, a disk image and a copy in Applications on macOS, a .deb on Linux), logged to `build_app.log`. `./formlit desktop build` runs it.
+- `./formlit claude` starts Claude Code in the person's own terminal with formlit attached over stdio.
+
+### Fixed
+
+- **Claude Code saw no formlit tools.** On the 2026-07-28 protocol, `tools/list` and `prompts/list` lacked the `ttlMs` and `cacheScope` fields that protocol requires, so Claude Code 2.1 rejected both lists and the formlit server connected with nothing in it. Both lists now carry them; 2025-11-25 replies are unchanged.
+- The desktop sidecar binds a concrete free port when 8390 is taken instead of port 0, so the engine knows its own address for the terminal and the Claude Code config.
+
+### Security
+
+- A Claude Code session started from the window carries a per-run token in the `x-formlit-inapp` header; the engine treats it as the person's consent (it skips Ask but still honours Block) and lists it as Claude Code in formlit.
+- `run_command` refuses every `terminal.*` and `claudecode.*` command for outside agents, even with `FORMLIT_MCP_ALLOW_DELETE`, and the terminal WebSocket refuses non-local origins.
+
+### Not verified yet
+
+- The interactive Claude Code tab started and drew its screen, but its first-run sign-in could not reach Anthropic from the test machine; the same MCP config was verified with `claude -p`.
+- Windows terminals (pywinpty), the terminal inside a frozen desktop build, and a full `./build_app` run were not exercised.
+
 ## v0.6.0 · 2026-10-12
 
 formlit now follows the Form Agent Standard: Claude can use it through the formlit plugin from the Form marketplace, and the person decides whether outside agents may.

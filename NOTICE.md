@@ -7,6 +7,7 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 | Work | License | Where |
 | --- | --- | --- |
 | formvis 1.63.0 design system: tokens, shell, panel and dialog sheets, theme profiles and the pre-paint theme boot, DOM helpers, commands, menus, dialogs, dropdowns, toasts and the icon set (nodemode-ai) | Apache-2.0 | `frontend/src/styles/{tokens,shell,panels,dialogs,light-mode,scrollbars,fonts}.css`, `frontend/src/ui/{dom,themes,commands,menu,dialogs,toast,dropdown,icons}.ts`, `frontend/index.html` |
+| Format 0.13.0 terminal and Claude Code pieces: the pseudo-terminal sessions, the terminal WebSocket, the xterm.js dock, the Claude Code discovery, and the one-shot `build_app` script (nodemode-ai) | Apache-2.0 | `backend/app/engine/{terminal,cmd_terminal,claude_code}.py`, `backend/app/routers/terminal_socket.py`, `frontend/src/ui/terminal-dock.ts`, `build_app` |
 | formvis 1.63.0 infrastructure: setup scripts, the PyInstaller sidecar, the Tauri 2 shell, the CI and desktop workflows, the MCP bridge and agents installer pattern (nodemode-ai) | Apache-2.0 | `setup/`, `src-tauri/`, `.github/workflows/`, `backend/formlit_engine.py` |
 | NodeMode stylized design system (tokens, theme profiles, dom-stable helpers), as carried by formvis | MIT | `frontend/src/styles/tokens.css`, `frontend/src/ui/themes.ts`, `frontend/src/ui/dom.ts` |
 | `paintbrush` and `hand` icons from Remix Icon, as carried by formvis | Apache-2.0 | `frontend/src/ui/icons.ts` |
@@ -39,6 +40,8 @@ Camera-matching profile names (for example Faithful, Velvia/Vivid, CLASSIC CHROM
 | tifffile | BSD-3-Clause | 16-bit and float TIFF |
 | reportlab | BSD-3-Clause | Book and Print PDF output |
 | onnxruntime | MIT | local AI models |
+| @xterm/xterm, @xterm/addon-fit | MIT | the terminal dock |
+| ptyprocess (macOS, Linux), pywinpty (Windows) | ISC, MIT | pseudo-terminals for the terminal dock |
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
 | ffmpeg | LGPL or GPL builds | not bundled; used as an external program for slideshow video and video export when it is installed |
 | gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode and reads its output, without linking to libgphoto2 |

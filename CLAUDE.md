@@ -10,6 +10,8 @@ Photo library and raw developer (a Lightroom Classic alternative) in the form fa
 - `frontend/src/styles/` keeps formvis's vendored Studio Dark sheets (`cv-` classes) beside formlit's own `lit-*.css` (`fl-` classes). Colours are tokens, stacking levels are `--z-*` tokens.
 - `assets/` is repo art (the README logo and the desktop icon source), not runtime files.
 - `backend/formlit_engine.py` is the PyInstaller entry for the desktop sidecar, not a dev server. The desktop shell starts it on port 8390 (a free port only if 8390 is taken) so the Form plugin's bridge can reach `/mcp`. Use `./formlit backend` or `./formlit boot` for development.
+- The terminal dock and Claude Code in formlit: `backend/app/engine/terminal.py` (pseudo-terminal sessions), `cmd_terminal.py`, `claude_code.py` (finds `claude`, builds its MCP config with the per-run `agents.INAPP_TOKEN`), `routers/terminal_socket.py` (WebSocket, local origins only), and `frontend/src/ui/terminal-dock.ts`. `terminal.*` and `claudecode.*` are window-only: `mcp.py` `WINDOW_ONLY` keeps them out of `run_command`; keep it that way.
+- `./build_app` is the one-shot desktop build for macOS and Linux; `./formlit desktop build` runs it.
 - Planning documents (DEV_PLAN, BUILD_NOTES, TEST_PLAN, the root HASHOUT_LOG) ship in the planning sidecar zip, not in this tree. The living logs `frontend/HASHOUT_LOG.md` and `backend/HASHOUT_LOG.md` are in the tree: read them before editing.
 
 ## Skills

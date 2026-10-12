@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.6.0
-Last updated: 2026-10-12 · the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
+Current build version: v0.7.0
+Last updated: 2026-10-12 · v0.7.0 the terminal dock, Claude Code and the Ask line; v0.6.0 the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
 
 ---
 
@@ -74,6 +74,7 @@ frontend/
     │   │   └── web.ts             Web module
     │   └── shared/
     │       ├── agent-consent.ts   AI agent access prompt: Allow, Not now, Block
+    │       ├── terminal.ts        terminal dock and Claude Code commands, selection context
     │       ├── actions.ts         rating, flag, label, stack, rotate commands
     │       ├── catalog-commands.ts catalogs, previews, second window, shortcuts
     │       ├── export.ts          Export dialog
@@ -84,7 +85,8 @@ frontend/
     │       ├── plugin-manager.ts  Plug-in Manager dialog
     │       └── tasks.ts           task completion helpers and output toasts
     ├── ui/
-    │   ├── shell.ts               the frame, mounted once
+    │   ├── shell.ts               the frame, mounted once, with the dock row
+    │   ├── terminal-dock.ts       xterm.js tabs over the engine's terminal WebSocket, Claude Code, Ask line
     │   ├── grid.ts                virtualized thumbnail grid
     │   ├── viewer.ts              loupe viewer with zoom
     │   ├── filmstrip.ts           filmstrip
@@ -112,7 +114,8 @@ frontend/
         ├── lit-shell.css          title bar, module picker, filmstrip, status
         ├── lit-library.css        Library surfaces
         ├── lit-develop.css        Develop surfaces
-        └── lit-modules.css        output modules, pages, publish, comments, plug-ins
+        ├── lit-modules.css        output modules, pages, publish, comments, plug-ins
+        └── lit-dock.css           the terminal dock
 ```
 
 ---
@@ -139,6 +142,7 @@ frontend/
 - [src/ui/preferences.ts](#ui-preferences)
 - [src/styles/lit-tokens.css](#styles-lit-tokens)
 - [vite.config.ts](#vite-config)
+- [src/ui/terminal-dock.ts, src/modules/shared/terminal.ts](#ui-terminal-dock)
 - [Files with no entries](#no-entries)
 
 ---
@@ -443,6 +447,45 @@ Colours only formlit needs (label colours, clipping, the map and page surfaces) 
 - logged: v0.3.0 · 2026-10-07
 
 `index.html` preloads three Inter woff2 files so the built app paints its first frame in the right font; in the build they resolve to the hashed font files the stylesheet uses. The dev server loads stylesheets through modules after the load event, so Chromium reported those preloads as unused a few seconds in (3 console warnings). The plugin applies only to `serve` and removes the woff2 preload links from the served HTML; the production build keeps them.
+
+### vite.config.ts · ws on the engine proxy
+- refers-to: vite.config.ts :: engine; src/ui/terminal-dock.ts :: connect
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+The terminal dock streams through a WebSocket at `/api/terminal/{id}` on the page's own host. The built app and the desktop window are served by the engine, so that host is the engine; on the dev server the `/api` proxy needs `ws: true` to pass the upgrade through.
+
+---
+
+## src/ui/terminal-dock.ts, src/modules/shared/terminal.ts {#ui-terminal-dock}
+
+### src/ui/terminal-dock.ts · ported from Format
+- refers-to: src/ui/terminal-dock.ts :: TerminalDock; Format frontend/src/ui/terminal-dock.ts
+- kind: explainer
+- logged: v0.7.0 · 2026-10-12
+
+One xterm.js terminal per tab, each mounted once into its own host and shown or hidden with `hidden`, never rebuilt; tabs and hosts are appended and removed one node at a time. The dock adds Format's pieces formlit lacked: a Claude Code button, an Ask line, a resize handle, and an empty note when every tab is closed. Colours come from the theme tokens at mount time. `ensure` adopts tabs the engine already has (a reload keeps its shells), and the socket replays the scrollback first.
+
+### src/ui/terminal-dock.ts · keys inside a terminal
+- refers-to: src/ui/terminal-dock.ts :: isToggle, constructor (stage keydown), mount (attachCustomKeyEventHandler); src/app.ts :: onKey
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-12
+
+xterm types through a textarea, and `App.onKey` still runs shortcuts that include Mod while focus is in a text field, so Ctrl+C, Ctrl+A or Ctrl+Z in a shell on Linux and Windows would have run formlit's Copy Settings, Select All or Undo. The stage stops keydown from bubbling to the document for every key except Mod+J, and xterm is told to ignore Mod+J, so the shell owns its keys and the one dock shortcut still hides it.
+
+### src/ui/terminal-dock.ts · Ask line
+- refers-to: src/ui/terminal-dock.ts :: send, claude; src/modules/shared/terminal.ts :: context
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+The Ask line goes to `claudecode.open` with the text as `prompt`: the engine starts Claude Code with it as the first message, or types it into the running tab followed by Enter. The selected photo ids are appended on the same line in parentheses (up to 200), because a line break typed into Claude Code's input would not reliably stay part of one message.
+
+### src/ui/shell.ts · the dock row
+- refers-to: src/ui/shell.ts :: SHELL (.fl-dock), setDock, dockResizer; src/styles/lit-dock.css; src/styles/lit-tokens.css :: --fl-dock-h, --fl-dock-open-h
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+The dock is a fixed row of the app grid between the filmstrip and the status bar, sized by `--fl-dock-h`: 0 while hidden, `--fl-dock-open-h` (280 px by default, dragged and remembered in `formlit_dock_h`) while open. Opening it shrinks the main area in one step at the person's request and nothing else moves; the dock's own rows (head, stage, Ask line) are fixed heights so the terminal never jumps when tabs come and go. Verified under 4x CPU throttling and a 150 ms, 200 KB/s network: no layout shift without input and no node removed from the dock while opening, typing, hiding and starting Claude Code.
 
 ---
 

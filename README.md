@@ -2,7 +2,7 @@
 <h1 align="center">formlit</h1>
 <p align="center"><b>A photo library and raw developer for the web and the desktop, in the form family's Studio Dark design.</b></p>
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.6.0-f97316" alt="version 0.6.0">
+<img src="https://img.shields.io/badge/version-0.7.0-f97316" alt="version 0.7.0">
 <img src="https://img.shields.io/badge/node-22-339933" alt="node 22">
 <img src="https://img.shields.io/badge/python-3.12-3776AB" alt="python 3.12">
 <img src="https://img.shields.io/badge/tauri-2-24C8DB" alt="tauri 2">
@@ -14,7 +14,7 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,600 of TypeScript, 2,100 of CSS, 19,000 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 13,900 of TypeScript, 2,200 of CSS, 19,300 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
 **Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
@@ -31,7 +31,8 @@ formlit is the form family's alternative to Adobe Lightroom Classic: a catalog o
 - **Output.** Export to JPEG, PNG, TIFF, PSD (layered with Open as Layers), JPEG XL, WebP, AVIF, HEIC or DNG (the original raw for DNG sources), with sizing, output sharpening, custom ICC profiles, metadata choices (private map locations stay private), watermarks, naming, presets and post-processing. Print with grid, picture package and custom layouts, printer profiles, driver Page Setup and Printer Settings. Books with spreads, wrap covers with a spine, custom pages and Blurb-ready PDFs. Slideshows with music (up to ten tracks), audio balance, fit to music and video clips, exported as H.264. Web galleries with FTP upload. Publish services for folders, FTP, WebDAV and Nextcloud (with comments), S3-compatible storage and Python plug-ins (File > Plug-in Manager). Edit In any application.
 - **Map.** OpenStreetMap tiles with Hybrid, Satellite, Light and Dark styles, search, drag to geotag, GPX track logs, saved and private locations, reverse geocoding.
 - **XMP.** Sidecars and embedded XMP carry the full Camera Raw settings (curves, profiles, lens profiles, masks, spots, red eye), written automatically and checked for changes made by other applications.
-- **Agents.** Add the formlit plugin from the Form marketplace, open formlit and ask Claude; formlit asks once in its own window whether to allow it (Preferences, AI agents). The MCP server gives Claude, Codex and Cursor 50 curated tools over the engine's 219 commands (and `run_command` for the rest), and the `formlit-driving` skill teaches them the workflow. The `formlit-harness` skill pack guides agents that develop formlit's own code.
+- **Agents.** Add the formlit plugin from the Form marketplace, open formlit and ask Claude; formlit asks once in its own window whether to allow it (Preferences, AI agents). The MCP server gives Claude, Codex and Cursor 50 curated tools over the engine's 228 commands (and `run_command` for the rest), and the `formlit-driving` skill teaches them the workflow. The `formlit-harness` skill pack guides agents that develop formlit's own code.
+- **Terminal and Claude Code inside formlit.** A terminal dock (Window, Show Terminal, Ctrl or Cmd+J) runs real login shells, and its Claude Code button (Ctrl or Cmd+Shift+J) starts your own Claude Code sign-in in a dock tab, already connected to formlit's MCP tools, so Claude works on the open catalog while you watch, with no outside-agent prompt. The Ask line under the dock sends a request, with the selected photo ids, to that session.
 - **Zero-flash interface.** The shell mounts once and every list is patched by key; each interface change is verified in a browser throttled to 4x CPU and a slow network.
 
 ## Quick Start
@@ -56,7 +57,7 @@ formlit.bat install
 formlit.bat boot
 ```
 
-`./formlit install` installs the engine with ONNX Runtime and the frontend; `--lite` skips the AI extra. `./formlit install-desktop`, then `./formlit desktop dev` or `./formlit desktop build`, for the desktop app. `./formlit help` lists every command, and `./formlit doctor` checks the toolchain and ports.
+`./formlit install` installs the engine with ONNX Runtime and the frontend; `--lite` skips the AI extra. For the desktop app, `./build_app` does everything from a fresh clone on macOS or Linux: it checks the tools (installing Rust with rustup when missing), installs the engine and the frontend, builds the window, freezes the engine into the sidecar, bundles the app, and on macOS copies it to Applications (`--no-install` keeps it in place, `--open` opens it, `--lite` skips the AI extra, `--clean` rebuilds from nothing); every step is logged to `build_app.log`. `./formlit desktop build` runs the same script, and `./formlit desktop dev` runs the app from source. `./formlit help` lists every command, and `./formlit doctor` checks the toolchain and ports.
 
 | Service | URL | Notes |
 | --- | --- | --- |
@@ -80,13 +81,16 @@ The engine reads `backend/.env`, which is never committed; `backend/.env.example
 | `FORMLIT_WORKERS` | Preview and export worker threads |
 | `FORMLIT_MODELS_DIR` | Where local AI models are kept |
 | `FORMLIT_GPHOTO2`, `FORMLIT_DIGICAM` | Paths to the tethering programs when they are not on the PATH |
+| `FORMLIT_AGENT_DIR` | The folder Claude Code starts in from the terminal dock (default `~/Formlit/Agent`) |
+| `FORMLIT_CLAUDE_BIN` | Path to the `claude` program when it is not found on the PATH or in the usual install folders |
 | `FORMLIT_MCP_ALLOW_DELETE` | `1` lets agents delete photos and folders and open or create catalogs, which otherwise only a person can do in the window |
 
 ## Architecture
 
 ```text
 formlit/
-├── formlit, formlit.bat            root dispatcher: install, boot, build, serve, desktop, mcp, agents, cli, doctor, counts
+├── build_app                       one-shot desktop build: tools, install, window, sidecar, bundle, install to Applications
+├── formlit, formlit.bat            root dispatcher: install, boot, build, serve, desktop, claude, mcp, agents, cli, doctor, counts
 ├── formlit_oc_install(.bat)        one-command install
 ├── setup/                          one script per task, each with a .bat twin; lib.sh holds shared helpers
 ├── shared/controls.json            the develop control table read by the engine, the interface and the agents
@@ -115,6 +119,8 @@ formlit/
 
 **Use formlit from Claude.** Add the formlit plugin from the Form marketplace: in the Claude app open Customize, Plugins, or run `/plugin` in Claude Code. Open formlit, then ask Claude to cull, develop or export your photos. The first time, formlit asks in its own window whether to let Claude in; Allow, Not now and Block are all fine, and you can change the answer later in Preferences, AI agents. The plugin works in Cowork and in Claude Code, which run on your computer; Claude chat on the web or the phone cannot reach it.
 
+**Claude Code inside formlit.** Install Claude Code (https://claude.com/claude-code) and sign in once by running `claude` in any terminal. Then press the sparkle in formlit's title bar, or Ctrl or Cmd+Shift+J: a Claude Code tab opens in the terminal dock, started in `~/Formlit/Agent` (`FORMLIT_AGENT_DIR` changes it) with formlit's MCP server attached over HTTP and its tools allowed. Because you started it in the window, it skips the outside-agent prompt; Block in Preferences, AI agents still refuses it. Outside agents cannot open, read or type into the dock: `run_command` refuses every `terminal.*` and `claudecode.*` command. `./formlit claude` starts the same kind of session in your own terminal over stdio; that one goes through the outside-agent prompt. `FORMLIT_CLAUDE_BIN` points at a `claude` that is not on the PATH.
+
 **Developer setup.** `.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` run `./formlit mcp`, which starts the engine when it is not running. From any other folder, `./formlit agents install` registers formlit with Claude Code, Codex and Cursor for your user account. After changing the tools in `backend/app/routers/mcp.py`, run `./formlit agents sync` so the driving skill's tool reference and its mirror follow.
 
 ## Development
@@ -127,6 +133,8 @@ Release history: `CHANGELOG.md`. What is not verified yet:
 
 - **Desktop app.** The Tauri shell follows formvis's sidecar template; the desktop workflow has not run, so treat desktop bundles as untested until the first `desktop.yml` run passes.
 - **Plugin.** The consent prompt, the `outsideAgents` setting and the pinned sidecar port were exercised against the engine and the Form bridge; the Rust change that asks the sidecar for 8390 in `src-tauri/src/main.rs` has not been compiled or run in a desktop build.
+- **Terminal dock and Claude Code.** Shell tabs, the dock and its shortcuts were exercised in Chromium at 4x CPU throttling on Linux, and Claude Code 2.1 was run against the engine's in-app MCP config and through `./formlit claude`. The interactive Claude Code tab was started but its first-run sign-in could not reach Anthropic from the test machine. Windows terminals (pywinpty) and the terminal inside a built desktop app are untested.
+- **Build script.** `./build_app` was syntax-checked and its options exercised; a full run on macOS or Linux has not been done.
 - **Hardware.** Tethering was exercised against a simulated gphoto2; the digiCamControl adapter on Windows and real cameras are untested. Printing to a real printer and its driver dialogs are untested.
 - **Video in the browser.** Playback of H.264 clips depends on the webview; the open-source Chromium used for testing plays WebM but not H.264.
 - **Approximations.** Denoise is non-local means, people and landscape parts and eye detection are heuristic, Blurb's spine width is estimated from the page count, and DNG export of non-DNG raws writes uncompressed data. Camera-matching styles are formlit's own approximations built on a per-photo fit to the camera's JPEG; the style a raw was shot in is read from Canon, Nikon, Sony, Fujifilm, Panasonic, Olympus and OM System, and Pentax raws (checked against exiftool on 13 files).

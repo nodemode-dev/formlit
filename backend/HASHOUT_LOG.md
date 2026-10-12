@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.6.0
-Last updated: 2026-10-12 · outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.7.0
+Last updated: 2026-10-12 · v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -22,7 +22,10 @@ backend/
     │   ├── config.py              ports, data folders, workers, env loading
     │   └── prefs.py               JSON preferences in the data folder, including outsideAgents
     ├── engine/
-    │   ├── agents.py              outside-agent consent: the gate, status and respond
+    │   ├── agents.py              outside-agent consent: the gate, status and respond, the in-app token
+    │   ├── terminal.py            pseudo-terminal sessions: spawn, scrollback, subscribers, restart
+    │   ├── cmd_terminal.py        terminal.* commands for the dock
+    │   ├── claude_code.py         finds the claude CLI, builds its MCP config, claudecode.* commands
     │   ├── boot.py                loads command modules, warms the numba kernel
     │   ├── catalog.py             SQLite catalog, Change (undo, events), schema
     │   ├── commands.py            @command registry, dispatch, resolve_ids
@@ -117,6 +120,8 @@ backend/
 - [app/core/config.py](#core-config)
 - [app/core/prefs.py](#core-prefs)
 - [app/engine/agents.py](#engine-agents)
+- [app/engine/terminal.py, cmd_terminal.py, routers/terminal_socket.py](#engine-terminal)
+- [app/engine/claude_code.py](#engine-claude-code)
 - [app/engine/boot.py](#engine-boot)
 - [app/engine/catalog.py](#engine-catalog)
 - [app/engine/commands.py](#engine-commands)
@@ -173,6 +178,13 @@ The desktop shell used to start the sidecar with `FORMLIT_PORT=0`, a random port
 - logged: v0.3.0 · 2026-10-07
 
 The first local Linux build (v0.3.0 work) produced an engine that exited at startup: `app.engine.cmd_output` was missing from the frozen archive. `boot.load_commands` and `publish_sdk` import modules by name, and `--collect-submodules app` collected nothing, because the spec's collection step runs before the backend folder is on PyInstaller's search path (passing `--paths` did not change that). The freeze scripts now name each dynamically imported module with `--hidden-import`, and `--selfcheck` imports every command module and the built-in publish services and exits 1 if any is missing. The freeze scripts run the selfcheck on the fresh binary in `dist-engine` before copying it to `src-tauri/binaries`, and stop if it fails, so a broken engine never replaces a working one there (`desktop_dev` skips freezing when that binary exists). A new command module or publish service must be added to both lists.
+
+### formlit_engine.py · free_port
+- refers-to: formlit_engine.py :: free_port, main; app/core/config.py :: engine_port, engine_url
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+When 8390 is taken the sidecar used to pass port 0 to uvicorn, so only the shell (reading the startup line) ever learned the real port. The terminal's `FORMLIT_ENGINE_URL` and the Claude Code MCP config need it inside the engine, so `free_port` binds port 0 once, reads the number, and the engine starts on that concrete port and writes it back to `FORMLIT_PORT`. The startup line still carries it, so the shell is unchanged.
 
 ---
 
@@ -241,6 +253,65 @@ The plugin's bridge opens the desktop app when its first call finds no engine, s
 - logged: v0.6.0 · 2026-10-12
 
 The gate covers the MCP surface, which is what the plugin and `./formlit mcp` use. The window, the CLI and the REST commands on the loopback address are the person's own and are not gated, so a program the person runs on the same computer can call them, as the window does. `agents.respond` is the answer to the prompt, so it is in the MCP `BLOCKED` set: an agent that could call it through `run_command` would approve itself. The module is imported by name from `boot.COMMAND_MODULES`, so it is also a `--hidden-import` in both freeze scripts.
+
+---
+
+### app/engine/agents.py · INAPP_TOKEN, the inapp channel
+- refers-to: app/engine/agents.py :: INAPP_TOKEN, INAPP_CLIENT, require; app/routers/mcp.py :: _caller; app/engine/claude_code.py :: mcp_config
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+Claude Code started from the dock is the person's own action in the window, so asking them again whether "an outside agent" may use formlit would be noise. The engine makes a random token per run and puts it only in the MCP config it hands to the Claude Code it spawns; `_caller` maps a request carrying it in `x-formlit-inapp` to the `inapp` channel and the name Claude Code in formlit. `require` lets `inapp` through under Ask but still refuses it under Block, because Block is the person's standing answer. The token never leaves the engine and its children, and a new one is made at every start, so a leaked config stops working on restart.
+
+---
+
+## app/engine/terminal.py, cmd_terminal.py, routers/terminal_socket.py {#engine-terminal}
+
+### app/engine/terminal.py · Session, _pump, gen
+- refers-to: app/engine/terminal.py :: Session, _pump, _spawn, restart, close
+- kind: explainer
+- logged: v0.7.0 · 2026-10-12
+
+Ported from Format's terminal. Each session owns a pseudo-terminal process (ptyprocess on macOS and Linux, pywinpty on Windows) read by one daemon thread, keeps the last 256 KB as scrollback for a window that attaches late, and fans output to WebSocket subscribers through the event loop with `call_soon_threadsafe`. `gen` counts restarts: a pump thread belonging to an older process returns without touching the session, so the old shell's last bytes and its exit never reach a restarted tab. A session keeps its argv and env, so Restart on a Claude Code tab starts Claude Code again rather than a shell. `start` and `stop` are routers' startup and shutdown hooks; `stop` ends every shell with the engine.
+
+### app/engine/terminal.py · base_env
+- refers-to: app/engine/terminal.py :: base_env
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+Shells get `FORMLIT_ENGINE_URL` and `FORMLIT_MCP_URL` (the second is what `setup/mcp_stdio.py` reads), so `./formlit mcp` and `./formlit cli` reach this engine even on a fallback port. The repo folder goes on the PATH only in a source checkout; a frozen engine has no repo folder.
+
+### app/engine/cmd_terminal.py · mutates False
+- refers-to: app/engine/cmd_terminal.py
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+Terminal commands change nothing in the catalog, so they are not mutating; that keeps them out of undo and the revision counter.
+
+### app/routers/terminal_socket.py · origin check
+- refers-to: app/routers/terminal_socket.py :: _local, attach
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-12
+
+Browsers apply no CORS to WebSockets, so any web page could otherwise open `ws://127.0.0.1:8390/api/terminal/{id}` and type into a shell. The socket refuses an Origin that is not loopback or Tauri (close code 4403); clients that send no Origin are local programs. Session ids are 48 random bits and are only listed through `terminal.list`, which outside agents cannot call.
+
+---
+
+## app/engine/claude_code.py {#engine-claude-code}
+
+### app/engine/claude_code.py · cli, _from_login_shell
+- refers-to: app/engine/claude_code.py :: cli, CANDIDATES, SYSTEM_PATHS, _from_login_shell
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+A desktop app opened from the Finder or a launcher gets a minimal PATH, so `shutil.which` alone misses most Claude Code installs. The search goes `FORMLIT_CLAUDE_BIN`, the PATH, the installer folders Format checks, then asks the person's login shell (`command -v claude`), which sees whatever their profile adds (nvm, volta, brew).
+
+### app/engine/claude_code.py · argv, child_env
+- refers-to: app/engine/claude_code.py :: argv, child_env, mcp_config, NOTE
+- kind: rationale
+- logged: v0.7.0 · 2026-10-12
+
+Claude Code runs interactively in a dock tab, the way the person would run it in a terminal, with `--mcp-config` adding formlit over HTTP (the person's own MCP servers stay), `--allowedTools mcp__formlit` so formlit's tools do not ask per call, and `--append-system-prompt` telling it where it is. On macOS and Linux it is started through the login shell (`shell -l -c "exec claude ..."`) so an npm-installed `claude` finds its node. `CLAUDE*` variables are dropped from its environment except the sign-in ones, as Format does, so a formlit started from inside another Claude Code session does not make the child think it is nested. A prompt from the Ask line becomes the first message when Claude Code starts, or is typed into the running tab followed by Enter.
 
 ---
 
@@ -934,6 +1005,20 @@ Deleting photos and folders and opening or creating catalogs stay with the perso
 - logged: v0.6.0 · 2026-10-12
 
 The endpoint stays stateless: no header is needed to call it and a client that sends no `Mcp-Session-Id` works. `initialize` issues one only so later calls can be named in the prompt; `SESSIONS` maps it to the client's name and keeps the newest 64. A call is named from, in order, the `x-formlit-agent` header (sent by `./formlit mcp`, plain ASCII because header values must be), the `_meta` client info of protocol 2026-07-28, then the session. A call with none of them is "an outside agent".
+
+### app/routers/mcp.py · WINDOW_ONLY
+- refers-to: app/routers/mcp.py :: WINDOW_ONLY, _run_command
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-12
+
+`run_command` reaches every engine command, and `terminal.write` is a shell. Every `terminal.*` and `claudecode.*` command is refused there whatever the consent setting or `FORMLIT_MCP_ALLOW_DELETE` say, so allowing an agent to develop photos never also hands it a shell on the person's computer. The window and `./formlit cli` still reach them through `/api/commands`.
+
+### app/routers/mcp.py · LIST_CACHE, ttlMs and cacheScope
+- refers-to: app/routers/mcp.py :: LIST_CACHE, mcp (tools/list, prompts/list)
+- kind: warning-context
+- logged: v0.7.0 · 2026-10-12
+
+On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheScope` (public or private). Without them Claude Code 2.1 rejects `tools/list` and `prompts/list`, retries, and keeps the server connected with no tools, which looked like formlit not connecting at all. 60 seconds and private: the list only changes with a new engine build, and it belongs to this computer. The 2025-11-25 replies stay as they were.
 
 ---
 
