@@ -1,7 +1,8 @@
 import type { Ctx } from '../app';
 import { Dialog } from './dialogs';
-import { el, escapeHtml, q, setHtml, setText } from './dom';
+import { el, escapeHtml, q, setHtml, setText, setTitle, setValue } from './dom';
 import { readChoice, setAccent, setIntensity, setTheme, themeSwatchesHtml, THEMES } from './themes';
+import { events } from '../io/events';
 
 interface Caps { version: string; platform: string; desktop: boolean; raw: boolean; heic: boolean; onnx: boolean; pdf: boolean; ffmpeg: boolean; workers: number; dataDir: string; catalog: string }
 
@@ -12,6 +13,8 @@ class Preferences extends Dialog {
   private readonly themeName = el('<span class="fl-muted"></span>');
   private readonly engine = el('<div class="fl-prefs-engine"></div>');
   private readonly agents = el('<pre class="fl-code"></pre>');
+  private readonly access = el<HTMLSelectElement>('<select class="cv-select"><option value="ask">Ask me</option><option value="allowed">Allowed</option><option value="blocked">Blocked</option></select>');
+  private readonly seen = el('<div class="fl-meta-row"><span class="fl-meta-key">Seen</span><span class="fl-meta-val fl-agents-seen">none yet</span></div>');
   private readonly models = el('<div class="fl-models"></div>');
   private readonly autoXmp = el('<label class="fl-check"><input type="checkbox"> Automatically write changes into XMP</label>');
   private readonly intoFiles = el('<label class="fl-check"><input type="checkbox"> Write metadata into JPEG, TIFF and DNG files instead of sidecars</label>');
@@ -29,6 +32,12 @@ class Preferences extends Dialog {
     for (const [box, key] of [[this.autoXmp, 'autoWriteXmp'], [this.intoFiles, 'xmpIntoFiles']] as Array<[HTMLElement, string]>) {
       q<HTMLInputElement>(box, 'input').addEventListener('change', (e) => void this.ctx.api.cmd('prefs.set', { values: { [key]: (e.target as HTMLInputElement).checked } }).catch((err) => this.ctx.fail(err)));
     }
+    this.body.appendChild(el('<div class="fl-sub">AI agents</div>'));
+    this.body.appendChild(el('<p class="cv-note">Claude and other AI agents can work in formlit through its plugin: add the formlit plugin from the Form marketplace in Claude (Customize, Plugins), keep formlit open, and ask in plain words. Agents use the same commands as this window and every change can be undone. Deleting files and switching catalogs always stay with you.</p>'));
+    this.field('Agent access', this.access);
+    this.body.appendChild(this.seen);
+    this.body.appendChild(el('<p class="cv-note">For developers: point an MCP client at this endpoint, or run <code>./formlit agents install</code> in the formlit repository to register it with Claude Code, Codex and Cursor.</p>'));
+    this.body.appendChild(this.agents);
     this.body.appendChild(el('<div class="fl-sub">Engine</div>'));
     this.body.appendChild(this.engine);
     this.body.appendChild(el('<div class="fl-sub">AI Models</div>'));
@@ -39,9 +48,6 @@ class Preferences extends Dialog {
       if (!b) return;
       void this.ctx.api.cmd('ai.download', { model: b.dataset.model }).then(() => { b.setAttribute('disabled', ''); setText(b, 'Installing...'); }, (err) => this.ctx.fail(err));
     });
-    this.body.appendChild(el('<div class="fl-sub">Agents (MCP)</div>'));
-    this.body.appendChild(el('<p class="cv-note">Agents drive formlit through the same commands as this window. Point an MCP client at the endpoint below, or run <code>./formlit agents install</code> to register it with Claude Code, Codex and Cursor.</p>'));
-    this.body.appendChild(this.agents);
     this.button('Done', 'primary', () => this.close());
     this.swatches.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-id]');
@@ -49,6 +55,8 @@ class Preferences extends Dialog {
     });
     this.accent.addEventListener('input', () => { setAccent(this.accent.value); this.sync(); });
     this.intensity.addEventListener('input', () => setIntensity(Number(this.intensity.value)));
+    this.access.addEventListener('change', () => void this.ctx.api.cmd('prefs.set', { values: { outsideAgents: this.access.value } }).catch((err) => this.ctx.fail(err)));
+    events.on('agents.changed', (e) => setValue(this.access, String(e.outsideAgents ?? 'ask')));
   }
 
   private sync(): void {
@@ -61,10 +69,19 @@ class Preferences extends Dialog {
 
   async show(): Promise<void> {
     this.sync();
+    const origin = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8390';
+    setText(this.agents, JSON.stringify({ mcpServers: { formlit: { type: 'http', url: `${this.ctx.api.base || origin}/mcp` } } }, null, 2));
     this.open();
     void this.ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => {
       q<HTMLInputElement>(this.autoXmp, 'input').checked = !!p.autoWriteXmp;
       q<HTMLInputElement>(this.intoFiles, 'input').checked = p.xmpIntoFiles !== false;
+      setValue(this.access, typeof p.outsideAgents === 'string' ? p.outsideAgents : 'ask');
+    }, () => undefined);
+    void this.ctx.api.cmd<{ clients: Array<{ name: string }> }>('agents.status').then((s) => {
+      const names = s.clients.map((c) => c.name).join(', ') || 'none yet';
+      const val = q(this.seen, '.fl-meta-val');
+      setText(val, names);
+      setTitle(val, names);
     }, () => undefined);
     try {
       const caps = await this.ctx.api.get<Caps>('/api/capabilities');
@@ -75,8 +92,6 @@ class Preferences extends Dialog {
       ].map(([k, v]) => `<div class="fl-meta-row"><span class="fl-meta-key">${k}</span><span class="fl-meta-val">${escapeHtml(String(v))}</span></div>`).join('');
       const ms = await this.ctx.api.cmd<{ models: Array<{ id: string; name: string; license: string; sizeMB: number; ready: boolean; downloading: boolean }> }>('ai.models');
       this.models.innerHTML = ms.models.map((m) => `<div class="fl-meta-row fl-model-row"><span class="fl-meta-key">${escapeHtml(m.name)}</span><span class="fl-meta-val">${m.sizeMB} MB · ${escapeHtml(m.license)} ${m.ready ? '<em class="fl-ok">Installed</em>' : `<button class="cv-btn fl-btn-sm" type="button" data-model="${m.id}"${m.downloading ? ' disabled' : ''}>${m.downloading ? 'Installing...' : 'Install'}</button>`}</span></div>`).join('');
-      const origin = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8390';
-      setText(this.agents, JSON.stringify({ mcpServers: { formlit: { type: 'http', url: `${this.ctx.api.base || origin}/mcp` } } }, null, 2));
     } catch { setText(q(this.body, '.fl-prefs-engine'), 'The engine is not reachable.'); }
   }
 }

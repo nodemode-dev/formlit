@@ -305,6 +305,7 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-imp-eject[hidden] { display: none; }
 
 .fl-prefs-theme { display: flex; align-items: center; gap: 10px; }
+.fl-agents-seen { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 .fl-prefs-engine { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .fl-prefs-engine .fl-meta-row { grid-template-columns: 130px minmax(0, 1fr); }
 .fl-models { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }

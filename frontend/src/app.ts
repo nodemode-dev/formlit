@@ -14,6 +14,7 @@ import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
 import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
+import { registerAgentConsent } from './modules/shared/agent-consent';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
 import { develop } from './state/develop';
@@ -72,6 +73,7 @@ export class App implements Ctx {
     registerCatalogCommands(this);
     registerTether(this);
     registerPluginManager(this);
+    registerAgentConsent(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));

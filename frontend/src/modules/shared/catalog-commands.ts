@@ -267,6 +267,6 @@ export function registerCatalogCommands(ctx: Ctx): void {
     { id: 'view.second.survey', label: 'Second Window: Survey', keys: ['Shift+N'], run: () => void openSecondWindow('survey') },
     { id: 'view.second.slideshow', label: 'Second Window: Slideshow', run: () => void openSecondWindow('slideshow') },
     { id: 'app.shortcuts', label: 'Keyboard Shortcuts', keys: ['Mod+/'], run: () => { shortcuts ??= new ShortcutsDialog(ctx); shortcuts.show(); } },
-    { id: 'app.agents', label: 'Agents and MCP...', run: () => openPreferences(ctx) },
+    { id: 'app.agents', label: 'AI Agents...', run: () => openPreferences(ctx) },
   );
 }
