@@ -16,7 +16,8 @@ usage: ./formlit [command] [options]
   build               production build of the frontend into frontend/dist
   serve               serve the built frontend from the engine on 127.0.0.1:8390
   freeze              freeze the engine into the Tauri sidecar binary
-  desktop dev|build   run or bundle the desktop app
+  desktop dev|build   run the desktop app, or build it start to finish (same as ./build_app)
+  claude [args]       Claude Code in this terminal with formlit's MCP tools attached
   mcp                 the MCP server over stdio for agents (starts the engine if needed)
   agents install|sync register formlit with Claude Code, Codex and Cursor, or refresh the skill
   cli <command> ...   run any engine command from the terminal (./formlit cli list)
@@ -43,9 +44,12 @@ case "$cmd" in
     [ $# -gt 0 ] && shift
     case "$sub" in
       dev) exec setup/desktop_dev "$@" ;;
-      build) exec setup/desktop_build "$@" ;;
+      build) exec ./build_app "$@" ;;
       *) usage; exit 2 ;;
     esac ;;
+  claude)
+    command -v claude >/dev/null 2>&1 || { printf '[formlit] Claude Code is not installed: https://claude.com/claude-code\n' >&2; exit 1; }
+    exec claude --mcp-config "{\"mcpServers\":{\"formlit\":{\"type\":\"stdio\",\"command\":\"$PWD/formlit\",\"args\":[\"mcp\"]}}}" --allowedTools mcp__formlit "$@" ;;
   mcp) exec python3 setup/mcp_stdio.py "$@" ;;
   agents)
     py=python3
