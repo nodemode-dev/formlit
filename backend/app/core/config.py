@@ -105,6 +105,15 @@ def dist_dir() -> Path | None:
     return candidate if (candidate / "index.html").is_file() else None
 
 
+def engine_port() -> int:
+    raw = os.environ.get("FORMLIT_PORT", "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else BACKEND_PORT
+
+
+def engine_url() -> str:
+    return f"http://127.0.0.1:{engine_port()}"
+
+
 def is_desktop() -> bool:
     return os.environ.get("FORMLIT_DESKTOP") == "1"
 

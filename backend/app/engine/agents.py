@@ -1,5 +1,6 @@
 import asyncio
 import itertools
+import secrets
 import threading
 import time
 
@@ -13,6 +14,9 @@ MAX_SEEN = 40
 BLOCKED = "Outside agents are turned off in formlit's Preferences, AI agents, so this call was refused. Tell the person where to change it and stop; do not retry."
 LATER = "The person chose Not now when formlit asked to let outside agents in, so this call was refused. Do not retry in a loop; ask whether they want you to try again."
 WAITING = "Still waiting for the person to allow outside agents in formlit's window. Ask them to open formlit and choose Allow, then try once more; do not retry in a loop."
+
+INAPP_TOKEN = secrets.token_urlsafe(24)
+INAPP_CLIENT = "Claude Code in formlit"
 
 _seen: dict[str, dict] = {}
 _waiting: dict[int, dict] = {}
@@ -45,7 +49,7 @@ async def require(client: str, channel: str) -> None:
     client = (client or "").strip()[:80] or "an outside agent"
     note(client, channel)
     state = setting()
-    if state == "allowed":
+    if state == "allowed" or (channel == "inapp" and state != "blocked"):
         return
     if state == "blocked":
         raise CommandError(BLOCKED, 403)

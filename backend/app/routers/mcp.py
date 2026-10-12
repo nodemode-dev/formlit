@@ -51,6 +51,8 @@ PROMPTS = [
 ]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
 BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
+WINDOW_ONLY = {"terminal", "claudecode"}
+LIST_CACHE = {"ttlMs": 60_000, "cacheScope": "private"}
 SESSIONS: dict[str, str] = {}
 MAX_SESSIONS = 64
 
@@ -152,6 +154,8 @@ def _gradient(args: dict) -> dict:
 
 def _run_command(args: dict) -> Any:
     cid = str(args.get("command") or "")
+    if cid.split(".")[0] in WINDOW_ONLY:
+        raise CommandError(f"{cid} is only available in the formlit window, so a person runs it.", 403)
     if cid in BLOCKED and not ALLOW_DELETE:
         raise CommandError(f"{cid} is only available in the formlit window, so a person confirms it.", 403)
     return dispatch(cid, args.get("params") or {})
@@ -272,6 +276,8 @@ def _open_session(client: str) -> str:
 
 
 def _caller(request: Request, params: dict) -> tuple[str, str]:
+    if request.headers.get("x-formlit-inapp", "") == agents.INAPP_TOKEN:
+        return agents.INAPP_CLIENT, "inapp"
     header = request.headers.get("x-formlit-agent", "").strip()
     if header:
         return header[:80], "stdio"
@@ -352,12 +358,12 @@ async def mcp(request: Request) -> Response:
     elif method == "ping":
         out = _ok(req_id, {}, modern)
     elif method == "prompts/list":
-        out = _ok(req_id, {"prompts": PROMPTS}, modern)
+        out = _ok(req_id, {"prompts": PROMPTS, **(LIST_CACHE if modern else {})}, modern)
     elif method == "prompts/get":
         text = {"culling_workflow": CULLING, "develop_strategy": DEVELOP}.get(params.get("name") if isinstance(params.get("name"), str) else "")
         out = _ok(req_id, {"description": next(p["description"] for p in PROMPTS if p["name"] == params.get("name")), "messages": [{"role": "user", "content": {"type": "text", "text": text}}]}, modern) if text else _err(req_id, -32602, f"No prompt named {params.get('name')}")
     elif method == "tools/list":
-        out = _ok(req_id, {"tools": [t[0] for t in TOOLS]}, modern)
+        out = _ok(req_id, {"tools": [t[0] for t in TOOLS], **(LIST_CACHE if modern else {})}, modern)
     elif method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
         if not isinstance(name, str) or not isinstance(args, dict):

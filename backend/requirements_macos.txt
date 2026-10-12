@@ -12,4 +12,5 @@ exifread
 tifffile
 imagecodecs
 reportlab
+ptyprocess
 onnxruntime
