@@ -10,6 +10,7 @@ use tauri_plugin_updater::UpdaterExt;
 
 struct Backend(Mutex<Option<CommandChild>>);
 
+const ENGINE_PORT: &str = "8390";
 const FALLBACK_LOGICAL: (f64, f64) = (1440.0, 900.0);
 const MIN_LOGICAL: (f64, f64) = (1080.0, 680.0);
 const SCREEN_FRACTION: f64 = 0.9;
@@ -66,7 +67,7 @@ fn main() {
                 .shell()
                 .sidecar("formlit-engine")
                 .expect("sidecar binary is bundled")
-                .env("FORMLIT_PORT", "0")
+                .env("FORMLIT_PORT", ENGINE_PORT)
                 .spawn()
                 .expect("the formlit engine failed to spawn");
             app.state::<Backend>().0.lock().unwrap().replace(child);

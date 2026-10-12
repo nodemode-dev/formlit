@@ -34,6 +34,16 @@ def selfcheck() -> int:
     return 1 if missing else 0
 
 
+def usable_port(port: int) -> int:
+    if not port:
+        return 0
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.5)
+        return 0 if probe.connect_ex(("127.0.0.1", port)) == 0 else port
+
+
 def main() -> int:
     if "--selfcheck" in sys.argv:
         return selfcheck()
@@ -45,7 +55,7 @@ def main() -> int:
 
     from app.main import app as fastapi_app
 
-    port = int(os.environ.get("FORMLIT_PORT", "0") or 0)
+    port = usable_port(int(os.environ.get("FORMLIT_PORT", "0") or 0))
     uvicorn.run(fastapi_app, host="127.0.0.1", port=port, log_level="info")
     return 0
 
