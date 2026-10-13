@@ -2,6 +2,49 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.11.0 · 2026-10-13
+
+This release turns professional workflows into templates you can run. Lightroom's template families are now built in: filename templates, metadata presets, keyword sets, smart collections and export presets. Shoot recipes tie one of each to a genre and set up a whole job in one step, in the window or for an agent. File facts in the templates come from a verified-sourcing pass on primary sources: creativecommons.org, Adobe Stock and Shutterstock contributor pages, Canopy and Unlock MLS, Mpix, Bay Photo and WHCC, and Instagram's help. Single-source claims are recorded as such.
+
+### Added
+
+- **Shoot recipes:** wedding, portrait, headshots, event, news and sports, landscape, real estate, product, concert, stock, family and night sky.
+  - Library, New Shoot from Template (Alt+Shift+Mod+N), or the `setup_shoot` tool / `workflow.setupShoot` command, makes a collection set named for the shoot. It holds All Photos and five stage smart collections limited to it: Picks, To Edit, Edited, Portfolio and Rejects.
+  - All of it is one undo step.
+  - Given card paths, it also imports with the recipe's folder and file naming, metadata template, keyword set and previews, then applies noise reduction by ISO when the recipe calls for it.
+  - It returns the recipe's export presets and workflow prompt.
+- **Templates (`template.list`, `list_templates`, `apply_template`):**
+  - 17 filename templates.
+  - 8 folder templates.
+  - 16 metadata templates: all rights reserved, the six Creative Commons 4.0 licences and CC0 with their deed links, editorial, wedding client, commercial, real estate, event, portfolio, stock, and clear rights. Placeholders are filled from remembered creator, email and website details. A template whose copyright would be half written is refused.
+  - 15 keyword sets.
+  - 23 smart collection templates, including Lightroom's Colored Red, Five Stars, Past Month, Recently Modified and Without Keywords.
+  - In the window: Metadata, Apply Metadata Template and Apply Keyword Set; Library, New Smart Collection from Template. The Keywording panel's keyword set picker now offers all 15 sets.
+- **Noise reduction by ISO** (`develop.noiseByIso`, the `noise_by_iso` tool, and Develop, Noise Reduction by ISO), in place of Lightroom's ISO adaptive presets.
+  - Each photo gets the Noise by ISO preset for its own ISO, touching only Detail.
+  - Photos under ISO 800, or with no ISO recorded, are counted and left alone.
+- **10 more export presets, 18 in all, grouped in the Export dialog:**
+  - Client Gallery (2048 px, small signature) and Proofs (1200 px, centred PROOF watermark).
+  - Print Lab (sRGB JPEG, 300 ppi) and Archive Master (16-bit TIFF, Adobe RGB).
+  - Stock Agency and News Filing.
+  - Real Estate MLS (3000 px, under 6 MB), Instagram (1080 px wide), Blog and 4K Display.
+- **Seven more workflow prompts, 17 in all:** `job_from_template`, `concert_workflow`, `stock_workflow`, `astro_workflow`, `wildlife_workflow`, `social_batch` and `catalog_maintenance`. `client_delivery` now names the new export presets.
+- **The driving skill:**
+  - A "Start a job from a template" section.
+  - A generated `references/templates.md` listing every recipe, preset and template.
+  - Two evaluations (14 and 15).
+- **Counts:** 61 tools and 238 commands.
+
+### Fixed
+
+- **"Shoot Name - Filename" at import:** the window's naming option uses `{shoot}`, which was never filled at import, so files were named `-IMG_0001`. The custom text now fills both `{custom}` and `{shoot}`.
+
+### Not yet in formlit
+
+- Reference View (a fixed reference photo beside the one being edited); `match_look` does the matching.
+- The import dialog's naming and folder lists still show their original short lists, and so does Rename Photos; the full filename and folder template lists are available to agents through `list_templates` and `apply_template`.
+- Meta's own feed and Story sizes could not be read from Meta's pages, so there are no 4:5 or 9:16 export presets yet.
+
 ## v0.10.0 · 2026-10-13
 
 This release covers how professionals work in Lightroom and how formlit does the same. A verified-sourcing pass covered the end-to-end workflow, genre workflows, and batch consistency and output, using Adobe documentation, Julieanne Kost, Lightroom Killer Tips, Lightroom Queen, working pros in Fstoppers, PetaPixel, DPReview, Digital Camera World, SLR Lounge and PPA, and the AP and NPPA ethics codes. It also brings the built-in presets to 300.
