@@ -49,14 +49,14 @@ export class TerminalDock {
 <div class="fl-dock-tabs" role="tablist" aria-label="Terminals"></div>
 <span class="fl-dock-spacer"></span>
 <button type="button" class="cv-tt-btn fl-dock-new" title="New Terminal" aria-label="New Terminal">${icon('plus', 15)}</button>
-<button type="button" class="cv-tt-btn fl-dock-chat" title="Chat with Claude about your photos" aria-label="Chat">${icon('aiSpark', 15)}</button>
-<button type="button" class="cv-tt-btn fl-dock-claude" title="Claude Code" aria-label="Claude Code">${icon('sparkle', 15)}</button>
+<button type="button" class="cv-tt-btn fl-dock-chat" title="Chat with Claude about your photos" aria-label="Chat">${icon('agentChat', 15)}</button>
+<button type="button" class="cv-tt-btn fl-dock-claude" title="Claude Code" aria-label="Claude Code">${icon('agent', 15)}</button>
 <button type="button" class="cv-tt-btn fl-dock-restart" title="Restart this tab" aria-label="Restart this tab">${icon('refresh', 15)}</button>
 <button type="button" class="cv-tt-btn fl-dock-hide" title="Hide Terminal (${mod}+J); programs keep running" aria-label="Hide Terminal">${icon('close', 15)}</button>
 </div>`),
-      el(`<div class="fl-dock-stage"><p class="fl-dock-empty cv-note" hidden>No terminal is open. Start a shell with the plus button or Claude Code with the sparkle.</p></div>`),
+      el(`<div class="fl-dock-stage"><p class="fl-dock-empty cv-note" hidden>No terminal is open. Start a shell with the plus button, Claude Code with the agent button, or Chat with the speech bubble.</p></div>`),
       el(`<form class="fl-dock-ask" autocomplete="off">
-<span class="fl-dock-ask-mark">${icon('sparkle', 14)}</span>
+<span class="fl-dock-ask-mark">${icon('agent', 15)}</span>
 <input class="cv-input fl-dock-ask-input" type="text" spellcheck="false" placeholder="Ask Claude Code to work on your photos" aria-label="Ask Claude Code">
 <button type="submit" class="cv-tt-btn" title="Send to Claude Code" aria-label="Send to Claude Code">${icon('send', 14)}</button>
 </form>`));
@@ -96,7 +96,7 @@ export class TerminalDock {
       this.stage.appendChild(chat.root);
     }
     if (!this.chatTab) {
-      const tab = el(`<button type="button" class="fl-dock-tab is-chat" role="tab" aria-selected="false">${icon('aiSpark', 12)}<span class="fl-dock-tab-title">Chat</span><span class="fl-dock-tab-x" role="button" aria-label="Close the Chat tab">${icon('close', 11)}</span></button>`);
+      const tab = el(`<button type="button" class="fl-dock-tab is-chat" role="tab" aria-selected="false">${icon('agentChat', 13)}<span class="fl-dock-tab-title">Chat</span><span class="fl-dock-tab-x" role="button" aria-label="Close the Chat tab">${icon('close', 11)}</span></button>`);
       tab.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('.fl-dock-tab-x')) this.closeChat();
         else this.select('chat');
@@ -177,7 +177,7 @@ export class TerminalDock {
     const fit = new FitAddon();
     term.loadAddon(fit);
     const host = el(`<div class="fl-term" data-id="${escapeHtml(info.id)}" hidden></div>`);
-    const tab = el(`<button type="button" class="fl-dock-tab${kind === 'claude' ? ' is-claude' : ''}" role="tab" aria-selected="false">${icon(kind === 'claude' ? 'sparkle' : 'terminal', 12)}<span class="fl-dock-tab-title"></span><span class="fl-dock-tab-x" role="button" aria-label="Close this tab">${icon('close', 11)}</span></button>`);
+    const tab = el(`<button type="button" class="fl-dock-tab${kind === 'claude' ? ' is-claude' : ''}" role="tab" aria-selected="false">${icon(kind === 'claude' ? 'agent' : 'terminal', 13)}<span class="fl-dock-tab-title"></span><span class="fl-dock-tab-x" role="button" aria-label="Close this tab">${icon('close', 11)}</span></button>`);
     setText(q(tab, '.fl-dock-tab-title'), info.title);
     tab.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.fl-dock-tab-x')) void this.close(info.id);

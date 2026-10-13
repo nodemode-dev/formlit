@@ -165,7 +165,7 @@ export class DevelopPanels {
     const pDetail = this.panel('dev.detail', 'Detail', 'detail');
     pDetail.body.append(el('<div class="fl-sub">Sharpening</div>'), s('detail.sharpenAmount', 'Amount'), s('detail.sharpenRadius'), s('detail.sharpenDetail'), s('detail.sharpenMasking'),
       el('<div class="fl-sub">Noise Reduction</div>'), s('detail.nrLuminance', 'Luminance'), s('detail.nrDetail'), s('detail.nrContrast'), s('detail.nrColor', 'Color'), s('detail.nrColorDetail'), s('detail.nrColorSmoothness'),
-      el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Zoom to 1:1 (Z) to judge sharpening and noise.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.aiDenoise">${icon('aiSpark', 13)} Denoise...</button></div>`));
+      el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Zoom to 1:1 (Z) to judge sharpening and noise.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.aiDenoise">${icon('aiChip', 13)} Denoise...</button></div>`));
 
     const pOptics = this.panel('dev.optics', 'Lens Corrections', 'optics');
     const lensRow = el('<div class="fl-row"><label class="fl-check-sm fl-lens-check"><input type="checkbox"> Enable Profile Corrections</label><span class="fl-muted fl-grow fl-lens-note"></span></div>');
@@ -281,7 +281,7 @@ export class DevelopPanels {
     const shapeSel = q<HTMLSelectElement>(shapeRow, 'select');
     shapeSel.addEventListener('change', () => develop.patch('lensBlur', { ...((develop.settings.lensBlur as Record<string, unknown> | undefined) ?? {}), shape: shapeSel.value }, 'end', 'Bokeh Shape'));
     develop.listen(() => setValue(shapeSel, String(((develop.settings.lensBlur as Record<string, unknown> | undefined) ?? {}).shape ?? 'circle')));
-    pBlur.body.append(el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Uses a depth map made on this computer.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurDepth">${icon('aiSpark', 13)} Build Depth</button></div>`), s('lensBlur.amount', 'Blur Amount'), shapeRow, s('lensBlur.focalDistance'), s('lensBlur.focalRange'), s('lensBlur.bokeh'),
+    pBlur.body.append(el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Uses a depth map made on this computer.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurDepth">${icon('aiChip', 13)} Build Depth</button></div>`), s('lensBlur.amount', 'Blur Amount'), shapeRow, s('lensBlur.focalDistance'), s('lensBlur.focalRange'), s('lensBlur.bokeh'),
       el(`<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.visualizeDepth">Visualize Depth</button><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.lensBlurRefine">${icon('eyeDropper', 13)} Focus and Refine</button></div>`));
 
     const pCal = this.panel('dev.calibration', 'Calibration', 'calibration', false);
