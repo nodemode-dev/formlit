@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import numpy as np
 
@@ -118,10 +119,141 @@ def findings(m: dict, iso: float | None, treatment: str) -> list[dict]:
     return out
 
 
-@command("develop.analyze", "Analyze Photo", {"id": {"type": "integer"}, "values": {"type": "object"}, "preset": {"type": "string"}, "amount": {"type": "number"}}, mutates=False,
-         description="Measures the photo as developed (or with proposed values or a preset, unsaved): luminance percentiles, tonal zones, clipping, saturation, colour cast in neutral areas, the share of each colour-mixer band, and findings with suggested develop values. Numbers are 0 to 100.")
-def analyze(id: int, values: dict | None = None, preset: str | None = None, amount: float = 100.0) -> dict:
+def summary(m: dict, found: list[dict]) -> dict:
+    lum, c = m["luminance"], m["clipping"]
+    return {"median": lum["p50"], "p1": lum["p1"], "p99": lum["p99"], "contrast": lum["contrast"], "clipHighlights": c["highlightsAllChannels"], "clipAnyChannel": c["highlightsAnyChannel"],
+            "crushed": c["shadowsCrushed"], "saturation": m["saturation"]["mean"], "warmCool": m["cast"]["warmCool"], "greenMagenta": m["cast"]["greenMagenta"],
+            "issues": [f["issue"] for f in found]}
+
+
+def quick(pid: int, rgb8: np.ndarray | None = None) -> dict:
     from app.services import previews
+    row = catalog_mod.get().row("SELECT develop, iso FROM photos WHERE id=?", (int(pid),))
+    if row is None:
+        raise CommandError(f"No photo with id {pid}", 404)
+    m = measure(rgb8 if rgb8 is not None else previews.render_rgb8(int(pid), 384, None))
+    treatment = (loads(row["develop"], {}) or {}).get("treatment", "color")
+    return {"id": int(pid), **summary(m, findings(m, float(row["iso"]) if row["iso"] else None, treatment))}
+
+
+MATCH_LONG = 384
+MATCH_ROUNDS = 6
+LIMITS = {"light.exposure": 1.5, "light.contrast": 60, "light.whites": 60, "light.blacks": 60, "light.highlights": 60, "light.shadows": 60, "color.saturation": 60, "color.vibrance": 40,
+          "wb.temp": 3000, "wb.tint": 40, **{f"mixer.{b}.{k}": 50 for b, _, _ in BANDS for k in ("sat", "lum")}}
+
+
+def _look(rgb8: np.ndarray) -> dict:
+    m = measure(rgb8)
+    px = rgb8.reshape(-1, 3).astype(np.float32) / 255.0
+    m["tone"] = {"warm": float((px[:, 0] - px[:, 2]).mean() * 100), "green": float(((px[:, 0] + px[:, 2]) / 2 - px[:, 1]).mean() * 100)}
+    return m
+
+
+def _distance(a: dict, b: dict) -> float:
+    la, lb = a["luminance"], b["luminance"]
+    d = abs(la["p50"] - lb["p50"]) * 1.0 + abs(la["contrast"] - lb["contrast"]) * 1.2 + abs(la["p5"] - lb["p5"]) * 0.6 + abs(la["p95"] - lb["p95"]) * 0.6
+    d += abs(a["saturation"]["mean"] - b["saturation"]["mean"]) * 1.2
+    d += abs(a["tone"]["warm"] - b["tone"]["warm"]) * 1.0 + abs(a["tone"]["green"] - b["tone"]["green"]) * 1.5
+    for band, r in b["bands"].items():
+        c = a["bands"].get(band)
+        if c and r["share"] >= 1.0:
+            d += (abs(r["sat"] - c["sat"]) * 0.25 + abs(r["lum"] - c["lum"]) * 0.15) * min(1.0, r["share"] / 20.0)
+    return round(d, 2)
+
+
+def _step(dev: dict, cur: dict, ref: dict, base: dict, tone: bool, color: bool) -> dict:
+    out = json.loads(json.dumps(dev))
+    lc, lr = cur["luminance"], ref["luminance"]
+
+    def nudge(cid: str, delta: float) -> None:
+        now = S.get(out, cid)
+        lim = LIMITS.get(cid)
+        start = S.get(base, cid)
+        val = now + delta
+        if lim is not None:
+            val = max(start - lim, min(start + lim, val))
+        S.put(out, cid, val)
+
+    if tone:
+        nudge("light.exposure", (lr["p50"] - lc["p50"]) / 22.0)
+        nudge("light.contrast", (lr["contrast"] - lc["contrast"]) * 2.2)
+        nudge("light.highlights", (lr["p95"] - lc["p95"]) * 1.2)
+        nudge("light.shadows", (lr["p5"] - lc["p5"]) * 1.2)
+        nudge("light.whites", (lr["p99"] - lc["p99"]) * 0.8)
+        nudge("light.blacks", (lr["p1"] - lc["p1"]) * 0.8)
+    if color:
+        nudge("color.saturation", (ref["saturation"]["mean"] - cur["saturation"]["mean"]) * 1.6)
+        nudge("wb.temp", (ref["tone"]["warm"] - cur["tone"]["warm"]) * 45.0)
+        nudge("wb.tint", (ref["tone"]["green"] - cur["tone"]["green"]) * 2.0)
+        for band, r in ref["bands"].items():
+            c = cur["bands"].get(band)
+            if c and r["share"] >= 1.0 and c["share"] >= 1.0:
+                nudge(f"mixer.{band}.sat", (r["sat"] - c["sat"]) * 0.9)
+                nudge(f"mixer.{band}.lum", (r["lum"] - c["lum"]) * 0.7)
+    return out
+
+
+@command("develop.match", "Match Look", {"ids": {"type": "array"}, "reference": {"type": "integer"}, "strength": {"type": "number"},
+                                         "tone": {"type": "boolean"}, "color": {"type": "boolean"}, "apply": {"type": "boolean"}},
+         description="Matches photos to a reference photo's look as developed: measures the reference, then adjusts each target's exposure, contrast, highlights, shadows, whites, blacks, saturation and white balance over several internal render and measure rounds until their tone and colour statistics converge. strength 0 to 100 scales the result; tone or color false leaves that part alone; apply false returns the proposal without saving.")
+def match(reference: int, ids: Any = None, strength: float = 100.0, tone: bool = True, color: bool = True, apply: bool = True) -> dict:
+    from app.engine.cmd_develop import after, current, seed_wb, store
+    from app.engine.commands import resolve_ids
+    from app.services import previews
+    pids = [p for p in resolve_ids(ids) if p != int(reference)]
+    if not pids:
+        raise CommandError("ids must name at least one photo other than the reference")
+    ref = _look(previews.render_rgb8(int(reference), MATCH_LONG, None))
+    results, staged = [], []
+    for pid in pids:
+        dev, _ = current(pid)
+        if color:
+            dev = seed_wb(pid, dev)
+        base = json.loads(json.dumps(dev))
+        cur = _look(previews.render_rgb8(pid, MATCH_LONG, dev))
+        start_d = _distance(cur, ref)
+        best, best_d = dev, start_d
+        for _ in range(MATCH_ROUNDS):
+            dev = _step(dev, cur, ref, base, tone, color)
+            cur = _look(previews.render_rgb8(pid, MATCH_LONG, dev))
+            d = _distance(cur, ref)
+            if d < best_d:
+                best, best_d = dev, d
+            elif d > best_d * 1.15:
+                break
+        k = max(0.0, min(1.0, float(strength) / 100.0))
+        final = json.loads(json.dumps(base))
+        changed = {}
+        for cid in LIMITS:
+            a, b = S.get(base, cid), S.get(best, cid)
+            if abs(b - a) > 1e-6:
+                S.put(final, cid, a + (b - a) * k)
+                changed[cid] = round(S.get(final, cid) - a, 3)
+        end = _look(previews.render_rgb8(pid, MATCH_LONG, final))
+        staged.append((pid, final))
+        results.append({"id": pid, "changes": changed, "distanceBefore": start_d, "distanceAfter": _distance(end, ref),
+                        "after": {"median": end["luminance"]["p50"], "contrast": end["luminance"]["contrast"], "saturation": end["saturation"]["mean"]},
+                        "reference": {"median": ref["luminance"]["p50"], "contrast": ref["luminance"]["contrast"], "saturation": ref["saturation"]["mean"]}})
+    if apply:
+        with catalog_mod.get().change("Match Look") as ch:
+            for pid, final in staged:
+                store(ch, pid, final, "Match Look")
+        after([p for p, _ in staged])
+    return {"reference": int(reference), "applied": bool(apply), "results": results,
+            "note": "distance is a weighted gap in median, contrast, end points, saturation and colour balance; lower is closer. Grading, masks and creative colour are not copied: add them with presets or develop_set."}
+
+
+@command("develop.analyze", "Analyze Photo", {"id": {"type": "integer"}, "ids": {"type": "array"}, "values": {"type": "object"}, "preset": {"type": "string"}, "amount": {"type": "number"}}, mutates=False,
+         description="Measures the photo as developed (or with proposed values or a preset, unsaved): luminance percentiles, tonal zones, clipping, saturation, colour cast in neutral areas, the share of each colour-mixer band, and findings with suggested develop values. Numbers are 0 to 100. With ids instead of id, returns a compact line per photo (up to 60) for checking a set at once.")
+def analyze(id: int | None = None, ids: Any = None, values: dict | None = None, preset: str | None = None, amount: float = 100.0) -> dict:
+    from app.services import previews
+    if id is None:
+        from app.engine.commands import resolve_ids
+        pids = resolve_ids(ids)[:60]
+        rows = [quick(p) for p in pids]
+        med = [r["median"] for r in rows]
+        return {"photos": rows, "count": len(rows), "spread": {"median": round(max(med) - min(med), 1) if med else 0.0,
+                                                               "contrast": round(max(r["contrast"] for r in rows) - min(r["contrast"] for r in rows), 1) if rows else 0.0}}
     row = catalog_mod.get().row("SELECT develop, iso FROM photos WHERE id=?", (int(id),))
     if row is None:
         raise CommandError(f"No photo with id {id}", 404)
