@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.8.0
-Last updated: 2026-10-13 · v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.9.0
+Last updated: 2026-10-13 · v0.9.0 match_look, reports on writes, set analysis, save_preset, part masks, a forgiving run_command, 66 more presets; v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -34,8 +34,8 @@ backend/
     │   ├── query.py               photo queries, smart rules, text filter, facets
     │   ├── records.py             row decoding, summaries and details
     │   ├── presets.py             develop presets, adaptive presets, search, blended previews, import and export
-    │   ├── preset_library.py      the 134 researched built-ins with descriptions and tags
-    │   ├── cmd_analyze.py         develop.analyze: tonal zones, clipping, cast, colour bands, findings
+    │   ├── preset_library.py      the 200 researched built-ins with descriptions and tags
+    │   ├── cmd_analyze.py         develop.analyze and develop.match: measurement, findings, reference matching
     │   ├── cmd_library.py         catalog, import, folders, collections, keywords, stacks, metadata
     │   ├── cmd_develop.py         settings, history, snapshots, copy and sync, Before
     │   ├── cmd_ai.py              models, AI masks, remove, merges, enhance, faces, culling
@@ -513,6 +513,20 @@ Twelve of the original built-ins named profiles (`fl.film.warm`, `fl.film.faded`
 - logged: v0.8.0 · 2026-10-13
 
 Agents judged exposure from a 1024 px JPEG and guessed. `develop.analyze` renders the photo at 640 px through the same pipeline as previews (with proposed values or a preset when given, unsaved) and returns numbers: Rec.709 luminance on the 8-bit output, its percentiles and spread, the share in Adobe's tonal bands (blacks 0 to 10, shadows 10 to 30, midtones 30 to 70, highlights 70 to 90, whites 90 to 100, from Adobe's Tone Control Adjustment page), clipping per channel and in all channels, saturation, and each colour-mixer band's share, saturation and luminance (hue ranges chosen to match the mixer's eight bands). The cast is measured only on near-neutral midtone pixels, and its finding says what share of the photo that was, because a sunset or a night scene is warm or cool on purpose. Findings are suggestions with control ids and starting values, not edits.
+
+### app/engine/cmd_analyze.py · match, the engine iterates instead of the agent
+- refers-to: app/engine/cmd_analyze.py :: match, _step, _distance, _look, LIMITS, MATCH_ROUNDS
+- kind: rationale
+- logged: v0.9.0 · 2026-10-13
+
+An agent matching a look by hand needed a dozen preview, guess and commit rounds, each a tool call and an image. `develop.match` does the loop in the engine at 384 px: measure the reference once, then up to six rounds of nudging exposure, contrast, highlights, shadows, whites, blacks, saturation, temperature, tint and each shared mixer band toward the reference's statistics, keeping the best round and stopping when a round gets 15 percent worse. Every control is held within `LIMITS` of where the photo started so a strange reference cannot wreck it. White balance starts from `seed_wb`, the photo's effective values, so raws and JPEGs shift the same way. Tint moves with the reference's green-magenta balance (positive is magenta, as in Lightroom; the first version had the sign reversed and pushed a violet reference green). Grading, masks and selective colour are left alone: statistics cannot tell a deliberate selective grade from a global one, so the result says to add those after.
+
+### app/engine/cmd_analyze.py · quick and summary
+- refers-to: app/engine/cmd_analyze.py :: quick, summary, analyze (ids); app/routers/mcp.py :: _report, _preview (analyze)
+- kind: rationale
+- logged: v0.9.0 · 2026-10-13
+
+`quick` is the compact measurement (median, end points, contrast, clipping, saturation, cast, issue names) that writes return with `report` and previews return with `analyze`, so an edit and its check are one call. `get_preview` measures the very render it returns instead of rendering again.
 
 ---
 
@@ -1059,6 +1073,20 @@ The endpoint stays stateless: no header is needed to call it and a client that s
 - logged: v0.7.0 · 2026-10-12
 
 `run_command` reaches every engine command, and `terminal.write` is a shell. Every `terminal.*` and `claudecode.*` command is refused there whatever the consent setting or `FORMLIT_MCP_ALLOW_DELETE` say, so allowing an agent to develop photos never also hands it a shell on the person's computer. The window and `./formlit cli` still reach them through `/api/commands`.
+
+### app/routers/mcp.py · _params, a forgiving run_command
+- refers-to: app/routers/mcp.py :: _params, _run_command; app/ai/models.py :: ModelMissing
+- kind: rationale
+- logged: v0.9.0 · 2026-10-13
+
+A real Claude Code run spent four calls on `ai.download` because each try shaped the arguments differently (`args` as a JSON string, flat `model`, `id` for the command). `_params` takes `params` or `args`, an object or a JSON string, plus any extra top-level keys, and `id` names the command when `command` is missing, so the first reasonable shape works. The missing-model refusal names the exact call and tells the agent to fall back to the mixer or a gradient if the install fails, which is what stopped the retry loop.
+
+### app/routers/mcp.py · add_ai_mask parts
+- refers-to: app/routers/mcp.py :: _add_mask; app/engine/cmd_ai.py :: ai_parts
+- kind: explainer
+- logged: v0.9.0 · 2026-10-13
+
+The engine could mask people and landscape parts (the adaptive presets used them) but the tool could not ask for them, so agents reached for an object box. `parts` with kind people or landscape goes through `develop.aiParts` and puts every requested part in one mask as added components.
 
 ### app/routers/mcp.py · LIST_CACHE, ttlMs and cacheScope
 - refers-to: app/routers/mcp.py :: LIST_CACHE, mcp (tools/list, prompts/list)

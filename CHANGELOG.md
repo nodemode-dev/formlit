@@ -2,6 +2,37 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.9.0 · 2026-10-13
+
+Agents now finish a look in a handful of calls. They can copy a reference photo's look in one call, and there are 66 more presets, 233 in all.
+
+### Added
+
+- **`match_look`** (MCP) and `develop.match`: fits each target to a reference photo as developed, in about a second. It renders and measures over several internal rounds, adjusting exposure, contrast, highlights, shadows, whites, blacks, saturation, white balance and colour-mixer saturation and luminance. It returns the changes and a distance before and after, takes `strength`, `tone`, `color` and `apply: false` for a proposal, and needs no AI model. On the example pair (a vivid painting and its overcast grade) the distance fell from 95 to 12.
+- **One call instead of two.**
+  - `develop_set`, `develop_patch`, `apply_preset`, `sync_settings` and `match_look` take `report: true` and return a compact measurement of each changed photo.
+  - `get_preview` takes `analyze: true` and measures the same render.
+  - `analyze_photo` takes `ids` for one line per photo plus the spread across a set.
+  - `get_preview` defaults to 768 px and the skill uses 512 for checks.
+- **`save_preset`** stores a photo's look as a user preset.
+- **`add_ai_mask`** takes `parts`: people (face skin, body skin, eyebrows, sclera, iris, lips, teeth, hair, clothes, one person by index) and landscape (sky, water, vegetation, mountains, architecture, natural and artificial ground), several in one mask.
+- **66 more presets, 233 in 43 groups.**
+  - New groups: Weather (including Overcast Calm, measured from the example pair), Illustration for digital art, Toning (cyanotype, platinum, gold, duotones), Aerial, Macro and Flowers, Wildlife, Pets, Sports, Product, Wedding, Newborn, Social, HDR and Utility (clear grading, curve, mixer or effects).
+  - New film looks: Ektar, Kodachrome, Tungsten Night, HP5 and Superia styles.
+  - More cinematic, portrait and adaptive presets.
+- The driving skill has a Work efficiently section: batch values, `report` on writes, `match_look` for references, numbers before pictures, set checks with `ids`, and stop when done. It also covers selective colour through the mixer without any AI model, and gains two evaluations.
+
+### Fixed
+
+- **`run_command` accepted only `params` as an object.** An agent that sent `args`, a JSON string or flat keys got four failures in a row. It now accepts all of those, and `id` when `command` is missing.
+- **Missing-model refusals now name the exact install call** and tell the agent to fall back to the mixer or a gradient instead of retrying.
+- In a real Claude Code run of "make photo 2 look like photo 1 and keep the hair richer", formlit calls fell from 13 to 4 and the time from 28 s to 11 s.
+
+### Not verified yet
+
+- `match_look` statistics copy tone and colour balance, not selective grades: a reference that keeps one colour saturated while greying the rest is approximated.
+- People-part masks need the people model, which could not be downloaded on the test machine. Landscape parts were exercised.
+
 ## v0.8.0 · 2026-10-13
 
 Agents can now measure a photo, find and preview the right preset, and edit with a sourced understanding of every develop control. There are five times as many built-in presets.
