@@ -54,7 +54,7 @@ PROVIDERS = ("CoreMLExecutionProvider", "DmlExecutionProvider", "CUDAExecutionPr
 class ModelMissing(Exception):
     def __init__(self, model: str):
         spec = MODELS[model]
-        super().__init__(f"{spec['name']} is not installed yet ({spec['size']} MB, {spec['license']}). Install it in Preferences, or run ai.download with model {model}.")
+        super().__init__(f"{spec['name']} is not installed yet ({spec['size']} MB, {spec['license']}). Install it in Preferences, or call run_command with {{\"command\": \"ai.download\", \"params\": {{\"model\": \"{model}\", \"wait\": true}}}} once; if that fails, do the edit without this mask (the colour mixer or a gradient mask) rather than retrying.")
         self.model = model
 
 

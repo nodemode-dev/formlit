@@ -21,7 +21,8 @@ VERSIONS = ["2026-07-28", "2025-11-25"]
 INSTRUCTIONS = ("formlit is a photo library and raw developer running on this computer, a Lightroom alternative. Every tool works on its catalog "
                 "with or without the window open, and every change is one undoable step (undo). Start with get_catalog, then find_photos to get "
                 "photo ids. Measure with analyze_photo (tonal zones, clipping, colour cast, findings with suggested values) and look with get_preview before and after developing; "
-                "both take proposed values or a preset without saving. list_presets takes a query (\"moody forest\", \"bw street\") and describes each preset. Develop values use dotted ids from get_develop_controls (for "
+                "both take proposed values or a preset without saving. list_presets takes a query (\"moody forest\", \"bw street\") and describes each preset. "
+                "match_look copies a reference photo's look in one call. Be efficient: batch every slider into one develop_set, pass report true on edits instead of a separate analyze_photo, and preview at max_size 512. Develop values use dotted ids from get_develop_controls (for "
                 "example light.exposure, color.vibrance, effects.clarity); pass delta true to nudge. Long jobs (import, AI, export) wait until done. For a full "
                 "plan, get the culling_workflow or develop_strategy prompt. run_command reaches every engine command listed by list_commands. The first call asks the person "
                 "to allow outside agents in formlit's window; if a call is refused with a message about outside agents, tell them to open formlit and answer there, or to "
@@ -108,7 +109,24 @@ def _preview(args: dict) -> dict:
     rgb = previews.render_rgb8(pid, long, dev)
     buf = io.BytesIO()
     Image.fromarray(rgb, "RGB").save(buf, "JPEG", quality=88)
-    return {"__image": base64.b64encode(buf.getvalue()).decode(), "meta": {"id": pid, "width": int(rgb.shape[1]), "height": int(rgb.shape[0]), "proposed": bool(args.get("values")), "before": bool(args.get("before"))}}
+    meta = {"id": pid, "width": int(rgb.shape[1]), "height": int(rgb.shape[0]), "proposed": bool(args.get("values") or args.get("preset")), "before": bool(args.get("before"))}
+    if args.get("analyze"):
+        from app.engine import cmd_analyze
+        meta["analysis"] = cmd_analyze.quick(pid, rgb)
+    return {"__image": base64.b64encode(buf.getvalue()).decode(), "meta": meta}
+
+
+def _report(args: dict, result: Any, ids: Any) -> Any:
+    if not args.get("report"):
+        return result
+    from app.engine import cmd_analyze
+    from app.engine.commands import resolve_ids
+    out = result if isinstance(result, dict) else {"result": result}
+    out["report"] = [cmd_analyze.quick(p) for p in resolve_ids(ids)[:12]]
+    return out
+
+
+REPORT = {"type": "boolean", "default": False, "description": "Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed."}
 
 
 def _find(args: dict) -> dict:
@@ -134,14 +152,19 @@ def _catalog(_: dict) -> dict:
 
 def _add_mask(args: dict, shape: dict | None = None) -> dict:
     pid = int(args["id"])
-    if shape is None:
-        got = _cmd("develop.aiMask", id=pid, kind=args.get("kind", "subject"), box=args.get("box"))
-        shape = got["shape"]
+    kind = args.get("kind", "subject")
+    shapes = [shape] if shape is not None else []
+    if not shapes and (args.get("parts") or kind == "landscape"):
+        group = "landscape" if kind == "landscape" else "people"
+        shapes = _cmd("develop.aiParts", id=pid, group=group, parts=args.get("parts") or [], person=args.get("person"))["shapes"]
+    elif not shapes:
+        shapes = [_cmd("develop.aiMask", id=pid, kind=kind, box=args.get("box"))["shape"]]
+    shape = shapes[0]
     dev = _cmd("develop.get", id=pid)["settings"]
     masks = list(dev.get("masks") or [])
     mid = max([int(m.get("id", 0)) for m in masks] + [0]) + 1
-    masks.append({"id": mid, "name": args.get("name") or f"{str(shape.get('kind', 'Mask')).title()} {mid}", "visible": True,
-                  "components": [{"shape": shape, "op": "add"}], "adjust": args.get("adjust") or {}})
+    masks.append({"id": mid, "name": args.get("name") or f"{str(shape.get('label') or shape.get('kind', 'Mask')).title()} {mid}", "visible": True,
+                  "components": [{"shape": s, "op": "add"} for s in shapes], "adjust": args.get("adjust") or {}})
     _cmd("develop.update", ids=[pid], patch={"masks": masks}, label=f"Add {shape.get('kind', 'mask')} mask")
     return {"id": pid, "mask": mid, "masks": len(masks)}
 
@@ -156,13 +179,28 @@ def _gradient(args: dict) -> dict:
     return _add_mask(args, shape)
 
 
+def _params(args: dict) -> dict:
+    raw = args.get("params", args.get("args"))
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw.strip() else {}
+        except ValueError:
+            raise CommandError("params must be an object, for example {\"command\": \"ai.download\", \"params\": {\"model\": \"objects\"}}") from None
+    out = dict(raw) if isinstance(raw, dict) else {}
+    skip = {"command", "params", "args"} | ({"id"} if not args.get("command") else set())
+    for k, v in args.items():
+        if k not in skip:
+            out.setdefault(k, v)
+    return out
+
+
 def _run_command(args: dict) -> Any:
-    cid = str(args.get("command") or "")
+    cid = str(args.get("command") or args.get("id") or "")
     if cid.split(".")[0] in WINDOW_ONLY:
         raise CommandError(f"{cid} is only available in the formlit window, so a person runs it.", 403)
     if cid in BLOCKED and not ALLOW_DELETE:
         raise CommandError(f"{cid} is only available in the formlit window, so a person confirms it.", 403)
-    return dispatch(cid, args.get("params") or {})
+    return dispatch(cid, _params(args))
 
 
 def _show(args: dict) -> dict:
@@ -175,12 +213,16 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("find_photos", "Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.",
            {"source": {"type": "object"}, "filter": {"type": "object"}, "sort": {"type": "object"}, "limit": {"type": "integer", "minimum": 1, "maximum": 5000, "default": 200}}, read=True, idempotent=True), _find),
     (_tool("get_photo", "One photo in full: path, camera, lens, exposure, GPS, metadata, keywords, collections and develop settings.", {"id": ID}, ["id"], read=True, idempotent=True), lambda a: _cmd("photo.get", id=a["id"])),
-    (_tool("get_preview", "The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits.",
-           {"id": ID, "max_size": {"type": "integer", "minimum": 64, "maximum": 2048, "default": 1024}, "values": {"type": "object", "description": "Develop ids to values, e.g. {\"light.exposure\": 0.5}."},
-            "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}, "before": {"type": "boolean", "default": False}}, ["id"], read=True, idempotent=True), _preview),
-    (_tool("analyze_photo", "Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye.",
-           {"id": ID, "values": {"type": "object", "description": "Proposed develop ids to values."}, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}}, ["id"], read=True, idempotent=True),
-     lambda a: _cmd("develop.analyze", id=a["id"], values=a.get("values"), preset=a.get("preset"), amount=a.get("amount", 100))),
+    (_tool("get_preview", "The photo as developed, as a JPEG image (long side max_size; 512 is enough to judge a look and costs a quarter of 1024). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits; analyze true adds the compact measurement of the same render.",
+           {"id": ID, "max_size": {"type": "integer", "minimum": 64, "maximum": 2048, "default": 768}, "values": {"type": "object", "description": "Develop ids to values, e.g. {\"light.exposure\": 0.5}."},
+            "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}, "before": {"type": "boolean", "default": False}, "analyze": {"type": "boolean", "default": False}}, ["id"], read=True, idempotent=True), _preview),
+    (_tool("analyze_photo", "Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye. Pass ids instead of id for one compact line per photo and the spread across the set.",
+           {"id": ID, "ids": IDS, "values": {"type": "object", "description": "Proposed develop ids to values."}, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}}, [], read=True, idempotent=True),
+     lambda a: _cmd("develop.analyze", id=a.get("id"), ids=a.get("ids") if a.get("id") is None else None, values=a.get("values"), preset=a.get("preset"), amount=a.get("amount", 100))),
+    (_tool("match_look", "Matches photos to a reference photo's look in one call: measures the reference as developed, then adjusts each target's exposure, contrast, highlights, shadows, whites, blacks, saturation, white balance and colour-mixer saturation and luminance over several internal render rounds until tone and colour converge. Returns the changes and the distance before and after. Use it when the person points at an example (\"make these look like this one\") or to make a set consistent; then add creative grading or masks.",
+           {"ids": IDS, "reference": ID, "strength": {"type": "number", "minimum": 0, "maximum": 100, "default": 100}, "tone": {"type": "boolean", "default": True}, "color": {"type": "boolean", "default": True},
+            "apply": {"type": "boolean", "default": True, "description": "false returns the proposal without saving."}, "report": REPORT}, ["ids", "reference"]),
+     lambda a: _report(a, _cmd("develop.match", ids=a["ids"], reference=a["reference"], strength=a.get("strength", 100), tone=a.get("tone", True), color=a.get("color", True), apply=a.get("apply", True)), a["ids"])),
     (_tool("import_photos", "Adds photos from folders or files (absolute paths) to the catalog; mode add keeps them in place, copy or move put them under destination.",
            {"paths": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "enum": ["add", "copy", "move"], "default": "add"}, "destination": {"type": "string"}, "keywords": {"type": "array", "items": {"type": "string"}}}, ["paths"]),
      lambda a: _cmd("library.import", paths=a["paths"], mode=a.get("mode", "add"), destination=a.get("destination"), keywords=a.get("keywords"), wait=True)),
@@ -203,21 +245,27 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("name_person", "Names a group of faces (face ids from list_people); adds a People keyword to their photos.", {"faces": {"type": "array", "items": {"type": "integer"}}, "name": {"type": "string"}}, ["faces", "name"]), lambda a: _cmd("people.name", faces=a["faces"], name=a["name"])),
     (_tool("get_develop_controls", "Every develop setting id with its label, range and default, the local (mask) adjustment ids, white balance presets and crop aspects.", {}, read=True, idempotent=True), lambda a: _cmd("develop.controls")),
     (_tool("get_develop", "A photo's develop settings and their effective values.", {"id": ID}, ["id"], read=True, idempotent=True), lambda a: _cmd("develop.get", id=a["id"])),
-    (_tool("develop_set", "Sets develop values on photos: values maps ids from get_develop_controls to numbers; delta true adds to the current values.",
-           {"ids": IDS, "values": {"type": "object"}, "delta": {"type": "boolean", "default": False}}, ["ids", "values"]), lambda a: _cmd("develop.set", ids=a["ids"], values=a["values"], delta=a.get("delta", False))),
-    (_tool("develop_patch", "Merges a nested develop object into the photos' settings: treatment (\"color\" or \"bw\"), crop (rect [x0,y0,x1,y1] 0 to 1, angle), geometry, masks, curve points. Plain numbers such as grading.shadows.hue go through develop_set.", {"ids": IDS, "patch": {"type": "object"}, "label": {"type": "string"}}, ["ids", "patch"]),
-     lambda a: _cmd("develop.update", ids=a["ids"], patch=a["patch"], label=a.get("label") or "Agent edit")),
+    (_tool("develop_set", "Sets develop values on photos in one undo step: values maps ids from get_develop_controls to numbers (send every change together rather than one call per slider); delta true adds to the current values; report true returns the measurement after the change.",
+           {"ids": IDS, "values": {"type": "object"}, "delta": {"type": "boolean", "default": False}, "report": REPORT}, ["ids", "values"]),
+     lambda a: _report(a, _cmd("develop.set", ids=a["ids"], values=a["values"], delta=a.get("delta", False)), a["ids"])),
+    (_tool("develop_patch", "Merges a nested develop object into the photos' settings: treatment (\"color\" or \"bw\"), crop (rect [x0,y0,x1,y1] 0 to 1, angle), geometry, masks, curve points. Plain numbers such as grading.shadows.hue go through develop_set.", {"ids": IDS, "patch": {"type": "object"}, "label": {"type": "string"}, "report": REPORT}, ["ids", "patch"]),
+     lambda a: _report(a, _cmd("develop.update", ids=a["ids"], patch=a["patch"], label=a.get("label") or "Agent edit"), a["ids"])),
     (_tool("auto_tone", "Auto exposure, contrast, highlights, shadows, whites and blacks, like the Auto button.", {"ids": IDS}, ["ids"]), lambda a: _cmd("develop.auto", ids=a["ids"])),
     (_tool("auto_white_balance", "Auto white balance.", {"ids": IDS}, ["ids"]), lambda a: _cmd("develop.autoWhiteBalance", ids=a["ids"])),
     (_tool("reset_develop", "Resets develop settings to defaults (undoable).", {"ids": IDS}, ["ids"], destructive=True), lambda a: _cmd("develop.reset", ids=a["ids"])),
     (_tool("list_presets", "Develop presets with ids for apply_preset, each with its group, a description of what it does and what it suits, and tags. query (for example \"moody forest\", \"portrait warm\", \"bw street\") and group narrow the list.",
            {"query": {"type": "string"}, "group": {"type": "string"}}, read=True, idempotent=True), lambda a: _cmd("preset.list", query=a.get("query"), group=a.get("group"))),
-    (_tool("apply_preset", "Applies a develop preset at an amount (0 to 200 percent).", {"ids": IDS, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}}, ["ids", "preset"]),
-     lambda a: _cmd("preset.apply", ids=a["ids"], preset=a["preset"], amount=a.get("amount", 100))),
+    (_tool("apply_preset", "Applies a develop preset at an amount (0 to 200 percent).", {"ids": IDS, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}, "report": REPORT}, ["ids", "preset"]),
+     lambda a: _report(a, _cmd("preset.apply", ids=a["ids"], preset=a["preset"], amount=a.get("amount", 100)), a["ids"])),
+    (_tool("save_preset", "Saves a photo's current develop settings as a user preset the person can apply in the window and that list_presets returns. groups limits what it stores (whiteBalance, basicTone, presence, toneCurve, colorMixer, bwMix, treatment, colorGrading, detail, effects, calibration, profile, masks); by default everything but crop, masks, spots and red eye.",
+           {"id": ID, "name": {"type": "string"}, "group": {"type": "string", "default": "User Presets"}, "groups": {"type": "array", "items": {"type": "string"}}}, ["id", "name"]),
+     lambda a: _cmd("preset.create", id=a["id"], name=a["name"], group=a.get("group") or "User Presets", groups=a.get("groups"))),
     (_tool("sync_settings", "Copies develop settings from one photo to others, limited to groups when given (whiteBalance, basicTone, presence, toneCurve, colorMixer, pointColor, bwMix, treatment, colorGrading, detail, lensCorrections, transform, effects, calibration, profile, crop, masks, spots, redEye, lensBlur); with no groups, everything but crop, masks, spots and red eye.",
-           {"from": ID, "ids": IDS, "groups": {"type": "array", "items": {"type": "string"}}}, ["from", "ids"]), lambda a: _cmd("develop.sync", ids=a["ids"], **{"from": a["from"]}, groups=a.get("groups"))),
-    (_tool("add_ai_mask", "Adds a local adjustment through an AI mask (sky, subject, background, people, object with box [x0,y0,x1,y1] 0 to 1, or depth). adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, saturation, texture, clarity, dehaze, sharpness, noise.",
-           {"id": ID, "kind": {"type": "string", "enum": ["sky", "subject", "background", "people", "object", "depth"]}, "box": {"type": "array", "items": {"type": "number"}}, "adjust": {"type": "object"}, "name": {"type": "string"}}, ["id", "kind"]), _add_mask),
+           {"from": ID, "ids": IDS, "groups": {"type": "array", "items": {"type": "string"}}, "report": REPORT}, ["from", "ids"]),
+     lambda a: _report(a, _cmd("develop.sync", ids=a["ids"], **{"from": a["from"]}, groups=a.get("groups")), a["ids"])),
+    (_tool("add_ai_mask", "Adds a local adjustment through an AI mask: sky, subject, background, people, object (with box [x0,y0,x1,y1] 0 to 1), depth, or parts: kind people with parts (faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; person for one person by index) or kind landscape with parts (sky, water, vegetation, mountains, architecture, naturalGround, artificialGround), several parts in one mask. adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, saturation, texture, clarity, dehaze, sharpness, noise. Each kind needs its AI model; a refusal names the exact install call.",
+           {"id": ID, "kind": {"type": "string", "enum": ["sky", "subject", "background", "people", "object", "depth", "landscape"]}, "parts": {"type": "array", "items": {"type": "string"}},
+            "person": {"type": "integer"}, "box": {"type": "array", "items": {"type": "number"}}, "adjust": {"type": "object"}, "name": {"type": "string"}}, ["id", "kind"]), _add_mask),
     (_tool("add_gradient_mask", "Adds a linear gradient (start and end points, 0 to 1 of the frame) or a radial gradient (center, rx, ry, feather, invert) with local adjust values.",
            {"id": ID, "kind": {"type": "string", "enum": ["linear", "radial"]}, "start": {"type": "array", "items": {"type": "number"}}, "end": {"type": "array", "items": {"type": "number"}},
             "center": {"type": "array", "items": {"type": "number"}}, "rx": {"type": "number"}, "ry": {"type": "number"}, "feather": {"type": "number"}, "invert": {"type": "boolean"}, "adjust": {"type": "object"}}, ["id", "kind"]), _gradient),
