@@ -90,8 +90,10 @@ def workdir() -> Path:
     return folder
 
 
-def argv(path: str, prompt: str | None) -> list[str]:
+def argv(path: str, prompt: str | None, resume: str | None = None) -> list[str]:
     cmd = [path, "--mcp-config", mcp_config(), "--allowedTools", "mcp__formlit", "--append-system-prompt", NOTE]
+    if resume:
+        cmd += ["--resume", resume]
     if prompt:
         cmd.append(prompt)
     if os.name == "nt":
@@ -109,11 +111,12 @@ def status() -> dict:
 
 
 @command("claudecode.open", "Open Claude Code", {"prompt": {"type": "string", "description": "a first message to start the session with"},
-                                                  "cols": {"type": "integer"}, "rows": {"type": "integer"}, "fresh": {"type": "boolean"}}, mutates=False,
-         description="Starts the person's own Claude Code sign-in in a terminal tab of formlit's dock, connected to formlit's MCP tools without the outside-agent prompt. Reuses the running tab unless fresh is true. The window only.")
-def open_(prompt: str | None = None, cols: int | None = None, rows: int | None = None, fresh: bool | None = None) -> dict:
+                                                  "cols": {"type": "integer"}, "rows": {"type": "integer"}, "fresh": {"type": "boolean"},
+                                                  "resume": {"type": "string", "description": "a Claude Code session id to continue, such as the Chat tab's"}}, mutates=False,
+         description="Starts the person's own Claude Code sign-in in a terminal tab of formlit's dock, connected to formlit's MCP tools without the outside-agent prompt. Reuses the running tab unless fresh is true or resume names a conversation to continue. The window only.")
+def open_(prompt: str | None = None, cols: int | None = None, rows: int | None = None, fresh: bool | None = None, resume: str | None = None) -> dict:
     running = next((s for s in terminal.SESSIONS.values() if s.kind == "claude" and s.alive), None)
-    if running is not None and not fresh:
+    if running is not None and not fresh and not resume:
         if prompt:
             terminal.write(running.id, prompt + "\r")
         return running.describe()
@@ -121,5 +124,5 @@ def open_(prompt: str | None = None, cols: int | None = None, rows: int | None =
     if not found["installed"]:
         raise CommandError(INSTALL, 400)
     prompt = prompt or _pref("claudeFirstMessage") or None
-    session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code", argv(found["path"], prompt), child_env(), "claude")
+    session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code (from Chat)" if resume else "Claude Code", argv(found["path"], prompt, resume), child_env(), "claude")
     return session.describe()
