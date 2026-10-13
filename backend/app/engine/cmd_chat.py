@@ -25,6 +25,17 @@ def _tool_name(name: str) -> str:
     return name.split("__")[-1] if name.startswith("mcp__") else name
 
 
+def _photos(args: Any) -> list[int]:
+    out: list[int] = []
+    if isinstance(args, dict):
+        for key in ("id", "ids", "reference", "from", "photo"):
+            v = args.get(key)
+            for x in v if isinstance(v, list) else [v]:
+                if isinstance(x, int) and not isinstance(x, bool) and x not in out:
+                    out.append(x)
+    return out[:200]
+
+
 def _brief(value: Any) -> str:
     text = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
     return text if len(text) <= 160 else text[:157] + "..."
@@ -74,9 +85,10 @@ def _run(text: str, path: str, folder: str) -> None:
             elif t == "assistant":
                 for b in (ev.get("message") or {}).get("content") or []:
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") not in HIDDEN:
-                        part = {"kind": "tool", "id": b.get("id"), "name": _tool_name(str(b.get("name") or "")), "input": _brief(b.get("input") or {}), "status": "running"}
+                        part = {"kind": "tool", "id": b.get("id"), "name": _tool_name(str(b.get("name") or "")), "input": _brief(b.get("input") or {}),
+                                "photos": _photos(b.get("input")), "status": "running"}
                         reply["parts"].append(part)
-                        _publish("tool", **{k: part[k] for k in ("id", "name", "input")})
+                        _publish("tool", **{k: part[k] for k in ("id", "name", "input", "photos")})
             elif t == "user":
                 for b in (ev.get("message") or {}).get("content") or []:
                     if isinstance(b, dict) and b.get("type") == "tool_result" and any(p["kind"] == "tool" and p["id"] == b.get("tool_use_id") for p in reply["parts"]):
