@@ -4,7 +4,7 @@ import { el, q, setClass, setHidden, setText } from './dom';
 import { icon } from './icons';
 
 interface Part { kind: 'text' | 'tool'; text?: string; id?: string; name?: string; input?: string; status?: string }
-interface Message { role: 'user' | 'assistant'; text?: string; parts?: Part[]; error?: string; meta?: { seconds?: number; turns?: number | null } }
+interface Message { role: 'user' | 'assistant'; text?: string; note?: string; parts?: Part[]; error?: string; meta?: { seconds?: number; turns?: number | null } }
 interface State { busy: boolean; messages: Message[]; turn: number }
 
 export class ChatPane {
@@ -29,7 +29,7 @@ export class ChatPane {
     this.empty = q(this.root, '.fl-chat-empty');
     q(this.root, '.fl-chat-stop').addEventListener('click', () => void this.api.cmd('chat.cancel').catch((e) => this.onFail(e)));
     q(this.root, '.fl-chat-new').addEventListener('click', () => void this.api.cmd('chat.reset').catch((e) => this.onFail(e)));
-    events.on('chat.start', (e) => { this.user(String(e.text ?? '')); this.begin(); });
+    events.on('chat.start', (e) => { this.user(String(e.text ?? ''), String(e.note ?? '')); this.begin(); });
     events.on('chat.delta', (e) => this.delta(String(e.text ?? '')));
     events.on('chat.tool', (e) => this.tool({ kind: 'tool', id: String(e.id ?? ''), name: String(e.name ?? ''), input: String(e.input ?? ''), status: 'running' }));
     events.on('chat.toolDone', (e) => { const c = this.chips.get(String(e.id ?? '')); if (c) this.status(c, String(e.status ?? 'done')); });
@@ -43,7 +43,7 @@ export class ChatPane {
     try {
       const s = await this.api.cmd<State>('chat.state');
       for (const m of s.messages) {
-        if (m.role === 'user') { this.user(m.text ?? ''); continue; }
+        if (m.role === 'user') { this.user(m.text ?? '', m.note ?? ''); continue; }
         this.begin();
         for (const p of m.parts ?? []) {
           if (p.kind === 'text') this.delta(p.text ?? '');
@@ -55,8 +55,8 @@ export class ChatPane {
     } catch (err) { this.onFail(err); }
   }
 
-  async send(text: string): Promise<void> {
-    try { await this.api.cmd('chat.send', { text }); } catch (err) { this.onFail(err); }
+  async send(text: string, context = '', note = ''): Promise<void> {
+    try { await this.api.cmd('chat.send', { text, context, note }); } catch (err) { this.onFail(err); }
   }
 
   isBusy(): boolean { return this.busy; }
@@ -73,10 +73,11 @@ export class ChatPane {
     if (l.scrollHeight - l.scrollTop - l.clientHeight < 80) l.scrollTop = l.scrollHeight;
   }
 
-  private user(text: string): void {
+  private user(text: string, note = ''): void {
     setHidden(this.empty, true);
-    const n = el('<div class="fl-chat-msg is-user"></div>');
-    setText(n, text);
+    const n = el('<div class="fl-chat-msg is-user"><span class="fl-chat-said"></span></div>');
+    setText(q(n, '.fl-chat-said'), text);
+    if (note) { const m = el('<span class="fl-chat-note"></span>'); setText(m, note); n.appendChild(m); }
     this.log.appendChild(n);
     this.scroll();
   }

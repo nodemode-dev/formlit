@@ -30,6 +30,7 @@
 .fl-chat-msg.is-user { align-self: flex-end; padding: 6px 10px; border-radius: 8px; background: var(--surface-raised); color: var(--text-primary); white-space: pre-wrap; }
 .fl-chat-msg.is-claude { align-self: flex-start; color: var(--text-primary); }
 .fl-chat-text { white-space: pre-wrap; }
+.fl-chat-note { color: var(--text-muted); font-size: var(--fs-11); }
 .fl-chat-tool { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 8px; border: 1px solid var(--line-1); border-radius: 6px; color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-11); align-self: flex-start; }
 .fl-chat-tool-mark { display: inline-grid; place-items: center; }
 .fl-chat-tool-name { color: var(--text-primary); }

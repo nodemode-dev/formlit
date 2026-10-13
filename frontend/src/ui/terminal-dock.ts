@@ -32,6 +32,7 @@ export class TerminalDock {
   readonly root: HTMLElement;
   onFail: (err: unknown) => void = () => undefined;
   context: () => string = () => '';
+  note: () => string = () => '';
   private readonly tabsEl: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly empty: HTMLElement;
@@ -147,9 +148,8 @@ export class TerminalDock {
     const extra = this.context();
     if (this.active === 'chat' && this.chat?.isBusy()) return;
     this.ask.value = '';
-    const message = extra ? `${text} (${extra})` : text;
-    if (this.active === 'chat' && this.chat) await this.chat.send(message);
-    else await this.claude(message);
+    if (this.active === 'chat' && this.chat) await this.chat.send(text, extra, this.note());
+    else await this.claude(extra ? `${text} (${extra})` : text);
   }
 
   private size(): { cols: number; rows: number } {

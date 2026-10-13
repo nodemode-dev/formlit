@@ -14,6 +14,10 @@ export function registerTerminal(ctx: Ctx): void {
       if (!ids.length) return '';
       return `formlit selection: photo ${ids.length === 1 ? 'id' : 'ids'} ${ids.slice(0, 200).join(', ')}${ids.length > 200 ? ` and ${ids.length - 200} more` : ''}`;
     };
+    dock.note = () => {
+      const n = library.targets().length;
+      return n ? `with ${n} selected ${n === 1 ? 'photo' : 'photos'}` : '';
+    };
     return dock;
   };
   const show = async (): Promise<TerminalDock> => {
