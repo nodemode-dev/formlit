@@ -174,10 +174,18 @@ def pick_groups(dev: dict, groups: list[str] | None = None) -> dict:
 def scale(dev: dict, amount: float) -> dict:
     out = copy.deepcopy(dev)
     for cid, spec in controls().items():
+        if cid.startswith("grading.") and cid.endswith(".hue"):
+            continue
         parent, key = _parent(out, cid)
         if parent is not None and _num(parent.get(key)):
             d = float(spec["default"])
             parent[key] = clamp(cid, d + (parent[key] - d) * float(amount))
+    curve = out.get("curve")
+    if isinstance(curve, dict):
+        k = max(0.0, min(2.0, float(amount)))
+        for ch in CURVE_CHANNELS:
+            if _pairs(curve.get(ch)):
+                curve[ch] = [[float(p[0]), min(1.0, max(0.0, float(p[0]) + (float(p[1]) - float(p[0])) * k))] for p in curve[ch]]
     return out
 
 
