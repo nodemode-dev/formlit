@@ -2,6 +2,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import type { Api } from '../io/api';
+import { ChatPane } from './chat-pane';
 import { escapeHtml, isMac, q, setDisabled, setHidden, setText, el } from './dom';
 import { icon } from './icons';
 
@@ -37,6 +38,8 @@ export class TerminalDock {
   private readonly ask: HTMLInputElement;
   private readonly tabs = new Map<string, Tab>();
   private active: string | null = null;
+  private chat: ChatPane | null = null;
+  private chatTab: HTMLElement | null = null;
 
   constructor(host: HTMLElement, private readonly api: Api, onHide: () => void) {
     this.root = host;
@@ -45,6 +48,7 @@ export class TerminalDock {
 <div class="fl-dock-tabs" role="tablist" aria-label="Terminals"></div>
 <span class="fl-dock-spacer"></span>
 <button type="button" class="cv-tt-btn fl-dock-new" title="New Terminal" aria-label="New Terminal">${icon('plus', 15)}</button>
+<button type="button" class="cv-tt-btn fl-dock-chat" title="Chat with Claude about your photos" aria-label="Chat">${icon('aiSpark', 15)}</button>
 <button type="button" class="cv-tt-btn fl-dock-claude" title="Claude Code" aria-label="Claude Code">${icon('sparkle', 15)}</button>
 <button type="button" class="cv-tt-btn fl-dock-restart" title="Restart this tab" aria-label="Restart this tab">${icon('refresh', 15)}</button>
 <button type="button" class="cv-tt-btn fl-dock-hide" title="Hide Terminal (${mod}+J); programs keep running" aria-label="Hide Terminal">${icon('close', 15)}</button>
@@ -61,6 +65,7 @@ export class TerminalDock {
     this.ask = q<HTMLInputElement>(host, '.fl-dock-ask-input');
     q(host, '.fl-dock-new').addEventListener('click', () => void this.open());
     q(host, '.fl-dock-claude').addEventListener('click', () => void this.claude());
+    q(host, '.fl-dock-chat').addEventListener('click', () => void this.showChat());
     q(host, '.fl-dock-restart').addEventListener('click', () => void this.restart());
     q(host, '.fl-dock-hide').addEventListener('click', onHide);
     q(host, '.fl-dock-ask').addEventListener('submit', (e) => { e.preventDefault(); void this.send(); });
@@ -71,14 +76,53 @@ export class TerminalDock {
   async ensure(): Promise<void> {
     const listed = await this.api.cmd<{ terminals: TermInfo[] }>('terminal.list').catch(() => ({ terminals: [] as TermInfo[] }));
     for (const t of listed.terminals) if (!this.tabs.has(t.id)) this.mount(t, false);
-    if (!this.tabs.size) await this.open();
-    else if (!this.active) this.select([...this.tabs.keys()][0]);
+    if (!this.tabs.size && !this.chatTab) await this.open();
+    else if (!this.active) this.select([...this.tabs.keys()][0] ?? 'chat');
     else this.fitActive();
     this.focus();
   }
 
   focus(): void {
-    if (this.active) this.tabs.get(this.active)?.term.focus();
+    if (this.active === 'chat') this.ask.focus();
+    else if (this.active) this.tabs.get(this.active)?.term.focus();
+  }
+
+  async showChat(): Promise<void> {
+    if (!this.chat) {
+      const chat = new ChatPane(this.api);
+      chat.onFail = (err) => this.onFail(err);
+      this.chat = chat;
+      this.stage.appendChild(chat.root);
+    }
+    if (!this.chatTab) {
+      const tab = el(`<button type="button" class="fl-dock-tab is-chat" role="tab" aria-selected="false">${icon('aiSpark', 12)}<span class="fl-dock-tab-title">Chat</span><span class="fl-dock-tab-x" role="button" aria-label="Close the Chat tab">${icon('close', 11)}</span></button>`);
+      tab.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('.fl-dock-tab-x')) this.closeChat();
+        else this.select('chat');
+      });
+      this.tabsEl.prepend(tab);
+      this.chatTab = tab;
+    }
+    setHidden(this.empty, true);
+    this.select('chat');
+    await this.chat.load();
+  }
+
+  private closeChat(): void {
+    this.chatTab?.remove();
+    this.chatTab = null;
+    if (this.chat) setHidden(this.chat.root, true);
+    if (this.active === 'chat') {
+      this.active = null;
+      const next = [...this.tabs.keys()].pop();
+      if (next) this.select(next);
+      else setHidden(this.empty, false);
+    }
+    this.syncAsk();
+  }
+
+  private syncAsk(): void {
+    this.ask.placeholder = this.active === 'chat' ? 'Ask Claude about your photos (Enter to send)' : 'Ask Claude Code to work on your photos';
   }
 
   async open(): Promise<void> {
@@ -101,8 +145,11 @@ export class TerminalDock {
     const text = this.ask.value.trim();
     if (!text) return;
     const extra = this.context();
+    if (this.active === 'chat' && this.chat?.isBusy()) return;
     this.ask.value = '';
-    await this.claude(extra ? `${text} (${extra})` : text);
+    const message = extra ? `${text} (${extra})` : text;
+    if (this.active === 'chat' && this.chat) await this.chat.send(message);
+    else await this.claude(message);
   }
 
   private size(): { cols: number; rows: number } {
@@ -184,7 +231,10 @@ export class TerminalDock {
       t.tab.classList.toggle('is-on', on);
       t.tab.setAttribute('aria-selected', String(on));
     }
-    setDisabled(q<HTMLButtonElement>(this.root, '.fl-dock-restart'), false);
+    if (this.chat) setHidden(this.chat.root, id !== 'chat');
+    if (this.chatTab) { this.chatTab.classList.toggle('is-on', id === 'chat'); this.chatTab.setAttribute('aria-selected', String(id === 'chat')); }
+    this.syncAsk();
+    setDisabled(q<HTMLButtonElement>(this.root, '.fl-dock-restart'), id === 'chat');
     this.fitActive();
     this.focus();
   }
@@ -210,10 +260,10 @@ export class TerminalDock {
     await this.api.cmd('terminal.close', { id }).catch(() => undefined);
     if (this.active === id) {
       this.active = null;
-      const next = [...this.tabs.keys()].pop();
+      const next = [...this.tabs.keys()].pop() ?? (this.chatTab ? 'chat' : undefined);
       if (next) this.select(next);
       else setDisabled(q<HTMLButtonElement>(this.root, '.fl-dock-restart'), true);
     }
-    setHidden(this.empty, this.tabs.size > 0);
+    setHidden(this.empty, this.tabs.size > 0 || !!this.chatTab);
   }
 }

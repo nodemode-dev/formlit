@@ -524,6 +524,13 @@ When the engine reports `develop` or `edited` changing on the reference photo (a
 - kind: explainer
 - logged: v0.13.0 · 2026-10-13
 
+### src/ui/chat-pane.ts, terminal-dock.ts · the Chat tab
+- refers-to: src/ui/chat-pane.ts :: ChatPane; src/ui/terminal-dock.ts :: showChat, closeChat, select, send, syncAsk; src/modules/shared/terminal.ts :: agent.chat; src/styles/lit-dock.css :: .fl-chat*
+- kind: rationale
+- logged: v0.15.0 · 2026-10-13
+
+The Chat tab is a dock tab without a terminal: `select('chat')` hides the terminals and shows the pane, and the Ask line sends to the chat when the Chat tab is on (to the Claude Code tab otherwise). The pane only ever appends: a user bubble on `chat.start`, text appended to the current text node on each `chat.delta`, a chip per `chat.tool` whose class changes on `chat.toolDone`, and a meta line on `chat.done`; nothing already shown is rebuilt (checked under 4x CPU: no nodes removed from the log while an answer streamed, no layout shifts). It scrolls only when the reader is already near the bottom. New Chat is the one place the log is cleared. `chat.state` restores the transcript once, when the tab first opens after a reload.
+
 Preferences, AI agents also holds Claude Code in formlit (v0.14.0): a status line from `claudecode.status` and three fields (Starts in folder, Claude Code program, Start with message) saved on change, each save refreshing the status line so a bad path is reported at once.
 
 Preferences, Metadata holds Creator, Email and Website: the `identity` preference the metadata templates, New Shoot from Template and agents use for {creator}, {email} and {url}. Saved on change as one object (an emptied field clears it); a field being typed in is not overwritten when the stored values arrive.

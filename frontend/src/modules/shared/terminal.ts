@@ -35,5 +35,10 @@ export function registerTerminal(ctx: Ctx): void {
       if (!shell.dockOpen()) shell.setDock(true);
       await d.claude();
     } },
+    { id: 'agent.chat', label: 'Chat with Claude', keys: ['Alt+Mod+J'], run: async () => {
+      const d = get();
+      if (!shell.dockOpen()) shell.setDock(true);
+      await d.showChat();
+    } },
   );
 }
