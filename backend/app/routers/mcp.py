@@ -23,7 +23,8 @@ INSTRUCTIONS = ("formlit is a photo library and raw developer running on this co
                 "with or without the window open, and every change is one undoable step (undo). Start with get_catalog, then find_photos to get "
                 "photo ids. Measure with analyze_photo (tonal zones, clipping, colour cast, findings with suggested values) and look with get_preview before and after developing; "
                 "both take proposed values or a preset without saving. list_presets takes a query (\"moody forest\", \"bw street\") and describes each preset. "
-                "match_look copies a reference photo's look in one call. Be efficient: batch every slider into one develop_set, pass report true on edits instead of a separate analyze_photo, and preview at max_size 512. Develop values use dotted ids from get_develop_controls (for "
+                "match_look copies a reference photo's look in one call. For a new job, setup_shoot with a recipe builds the shoot's collections and imports with its naming, metadata and keywords; "
+                "list_templates and apply_template give the filename, metadata, keyword set, smart collection and export templates. Be efficient: batch every slider into one develop_set, pass report true on edits instead of a separate analyze_photo, and preview at max_size 512. Develop values use dotted ids from get_develop_controls (for "
                 "example light.exposure, color.vibrance, effects.clarity); pass delta true to nudge. Long jobs (import, AI, export) wait until done. For a full "
                 "plan, get the culling_workflow or develop_strategy prompt. run_command reaches every engine command listed by list_commands. The first call asks the person "
                 "to allow outside agents in formlit's window; if a call is refused with a message about outside agents, tell them to open formlit and answer there, or to "
@@ -204,6 +205,19 @@ def _snapshot(args: dict) -> Any:
     raise CommandError("action is create, list or apply")
 
 
+def _apply_template(args: dict) -> Any:
+    kind, ref = args.get("kind"), args.get("template")
+    if kind == "metadata":
+        return _cmd("template.applyMetadata", ids=args.get("ids"), template=ref, values=args.get("values"))
+    if kind == "keywordSet":
+        return _cmd("template.applyKeywords", ids=args.get("ids"), set=ref, keywords=args.get("keywords"))
+    if kind == "filename":
+        return _cmd("template.rename", ids=args.get("ids"), template=ref, custom=args.get("custom") or "", preview=args.get("preview", False))
+    if kind == "smartCollection":
+        return _cmd("template.smartCollection", template=ref, name=args.get("name") or "", within=args.get("within"), parent=args.get("parent"))
+    raise CommandError("kind is metadata, keywordSet, filename or smartCollection")
+
+
 def _params(args: dict) -> dict:
     raw = args.get("params", args.get("args"))
     if isinstance(raw, str):
@@ -264,6 +278,22 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("snapshot", "Named develop states inside one photo: action create saves the current settings under name, list shows them, apply restores one by its id.",
            {"action": {"type": "string", "enum": ["create", "list", "apply"]}, "id": ID, "name": {"type": "string"}, "snapshot": {"type": "integer"}}, ["action"]),
      lambda a: _snapshot(a)),
+    (_tool("setup_shoot", "Starts a job from a shoot recipe (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro; list_templates kind shoot): makes a collection set named for the shoot with All Photos and smart collections for Picks, To Edit, Edited, Portfolio and Rejects limited to it, in one undo step. With paths it imports straight into it with the recipe's folder and file naming, metadata template, keyword set and previews, then applies noise reduction by ISO when the recipe calls for it. values fills the metadata (creator, email, url, client, event, job; creator, email and url are remembered). Returns the stage collection ids, the recipe's export presets and its workflow prompt to follow next.",
+           {"recipe": {"type": "string"}, "name": {"type": "string", "description": "the shoot, client or event, used for the set, the folders and {custom} in names"}, "values": {"type": "object"},
+            "paths": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "enum": ["add", "copy", "move", "dng"], "default": "copy"}, "destination": {"type": "string"}, "backup": {"type": "string"},
+            "skipDuplicates": {"type": "boolean", "default": True}}, ["recipe", "name"]),
+     lambda a: _cmd("workflow.setupShoot", recipe=a["recipe"], name=a["name"], values=a.get("values"), paths=a.get("paths"), mode=a.get("mode", "copy"), destination=a.get("destination") or "",
+                    backup=a.get("backup") or "", skipDuplicates=a.get("skipDuplicates", True))),
+    (_tool("list_templates", "Built-in templates: filename (rename patterns), folder (import folder patterns), metadata (copyright, Creative Commons, editorial, client licences), keywordSet, smartCollection, shoot (whole-job recipes) and export (delivery presets with what each is for). kind and query narrow it; the result also shows the remembered creator, email and url.",
+           {"kind": {"type": "string", "enum": ["filename", "folder", "metadata", "keywordSet", "smartCollection", "shoot", "export"]}, "query": {"type": "string"}}, read=True, idempotent=True),
+     lambda a: _cmd("template.list", kind=a.get("kind"), query=a.get("query"))),
+    (_tool("apply_template", "Applies a template by id or name: kind metadata writes its IPTC fields (values fills creator, email, url, client, event, job); keywordSet adds its keywords (or the listed subset); filename renames the files on disk (custom fills {custom}; preview true shows the names first); smartCollection creates a smart collection (within limits it to a collection id, parent puts it in a set). One undo step each.",
+           {"kind": {"type": "string", "enum": ["metadata", "keywordSet", "filename", "smartCollection"]}, "template": {"type": "string"}, "ids": IDS, "values": {"type": "object"},
+            "keywords": {"type": "array", "items": {"type": "string"}}, "custom": {"type": "string"}, "preview": {"type": "boolean", "default": False}, "name": {"type": "string"},
+            "within": {"type": "integer"}, "parent": {"type": "integer"}}, ["kind", "template"]), _apply_template),
+    (_tool("noise_by_iso", "Lightroom's ISO adaptive noise reduction: gives each photo the Noise by ISO preset for its own ISO (800, 1600, 3200, 6400, 12800 and up), Detail only, in one undo step; photos under ISO 800 or without ISO are counted and left alone. AI denoise (denoise) is still better for the worst raws.",
+           {"ids": IDS, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}, "report": REPORT}, ["ids"]),
+     lambda a: _report(a, _cmd("develop.noiseByIso", ids=a["ids"], amount=a.get("amount", 100)), a["ids"])),
     (_tool("set_rating", "Sets star ratings, 0 to 5.", {"ids": IDS, "rating": {"type": "integer", "minimum": 0, "maximum": 5}}, ["ids", "rating"], idempotent=True), lambda a: _cmd("photo.rate", ids=a["ids"], rating=a["rating"])),
     (_tool("set_flag", "Flags photos as pick, reject or none.", {"ids": IDS, "flag": {"type": "string", "enum": ["pick", "reject", "none"]}}, ["ids", "flag"], idempotent=True), lambda a: _cmd("photo.flag", ids=a["ids"], flag=a["flag"])),
     (_tool("set_label", "Sets colour labels.", {"ids": IDS, "label": {"type": "string", "enum": ["red", "yellow", "green", "blue", "purple", "none"]}}, ["ids", "label"], idempotent=True), lambda a: _cmd("photo.label", ids=a["ids"], label=a["label"])),

@@ -90,6 +90,88 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
 2. Social: crop to the platform's ratio first, then a long edge such as 1080 px for square or landscape and 1350 px for portrait.
 3. Print: builtin.print (300 ppi, Adobe RGB) or builtin.tiff (16-bit ProPhoto) for a lab or retoucher; sharpening for matte or glossy paper.
 4. Metadata: copyright only or copyright and contact for clients; remove location for private places; a watermark only for previews.
-5. Several deliverables at once: export_photos once per preset into one parent folder; publish keeps a gallery or folder in step when edits change.""",
+5. Several deliverables at once: export_photos once per preset into one parent folder; publish keeps a gallery or folder in step when edits change.
+6. Ready-made deliverables: list_templates kind export lists them with what each is for: builtin.client-gallery (2048 px, small signature), builtin.proof (1200 px, centred PROOF watermark), builtin.print-lab (sRGB JPEG at 300 ppi; Mpix asks for sRGB), builtin.mls, builtin.instagram, builtin.stock, builtin.news, builtin.4k, builtin.archive. Before delivery, find_photos in the shoot's Edited stage and apply_template kind metadata so every file carries copyright.""",
+    },
+    "job_from_template": {
+        "title": "Start a job from a shoot template",
+        "description": "One call sets up the shoot's collections and imports with the recipe's naming, metadata and keywords; then follow its workflow.",
+        "text": """Start any job from a shoot recipe in formlit.
+
+1. list_templates kind shoot shows the recipes (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro) with what each sets.
+2. setup_shoot with recipe, name (the client, event, listing or SKU), values {"creator": ..., "email": ..., "url": ...} the first time (they are remembered), and paths with mode copy and destination to ingest now. It makes a collection set named for the shoot holding All Photos and five stage smart collections: Picks, To Edit, Edited, Portfolio (4 stars and up), Rejects.
+3. Cull: analyze_culling and apply_culling on All Photos, then refine_photos; the stage collections fill by themselves as flags, stars and edits change (find_photos with source {"kind": "collection", "id": <stage id>}).
+4. Edit from To Edit: the recipe's workflow prompt (returned as workflow) has the genre steps. noise_by_iso already ran when the recipe calls for it.
+5. Deliver from Edited with the recipe's export presets (returned as exports), one export_photos per preset.
+6. Templates on their own: apply_template kind metadata, keywordSet, filename (preview first) or smartCollection on any photos.""",
+    },
+    "concert_workflow": {
+        "title": "Concert and low light",
+        "description": "Burst-heavy, high-ISO, mixed stage light: cull hard, noise by ISO, tame coloured light, deliver fast.",
+        "text": """Concert and low-light workflow in formlit.
+
+1. setup_shoot with recipe concert (time-sorted names across bodies, the concert keyword set, noise by ISO at import).
+2. Cull hard: analyze_culling, apply_culling with pickBest and rejectDuplicates for bursts, then refine_photos; the Possibly Soft smart collection template finds motion blur.
+3. Stage light: analyze_photo shows clipping and cast; saturated LED light clips one channel first, so pull highlights and that colour's saturation and luminance in the mixer (develop_set color mixer ids) before global saturation. A black and white version (virtual_copy, then develop_patch treatment bw) rescues frames lit by one strong colour.
+4. Noise: noise_by_iso set Detail per ISO; denoise for the few frames that will be printed or cropped hard.
+5. Consistency per song or lighting look: edit one frame, sync_settings to its neighbours.
+6. Deliver the same night: export_photos with builtin.web or builtin.client-gallery.""",
+    },
+    "stock_workflow": {
+        "title": "Stock submission",
+        "description": "Agency-ready files: technically clean, keyworded, titled, full-size sRGB JPEG of at least 4 MP.",
+        "text": """Stock submission workflow in formlit (file rules from Adobe Stock's and Shutterstock's contributor pages: JPEG, sRGB, at least 4 MP).
+
+1. setup_shoot with recipe stock, or import and apply_template kind metadata stock.
+2. Cull for technical quality: analyze_culling, reject soft frames (the Possibly Soft smart collection), check analyze_photo at 100 percent detail for noise, and do not crop below 4 MP.
+3. Develop clean and neutral rather than stylised; noise_by_iso and lens corrections; remove dust (develop.findDust through run_command).
+4. Title and caption every photo with set_metadata (title, caption); keywords with add_keywords, most important first; remove logos and trademarks or leave those frames out.
+5. Export with builtin.stock (full size, sRGB JPEG, all metadata).""",
+    },
+    "astro_workflow": {
+        "title": "Night sky and astro",
+        "description": "Milky Way and nightscapes: white balance for the sky, noise by ISO, sky and land masks, star trails and panoramas.",
+        "text": """Night sky workflow in formlit.
+
+1. setup_shoot with recipe astro (date and time names, the night sky keyword set, noise by ISO).
+2. White balance first: set wb.temp low (a cool sky) with develop_set and check the cast with analyze_photo on a dark sky area; tint usually needs a little magenta against light pollution.
+3. Tone: exposure and shadows up, blacks down to keep the sky dark, dehaze and clarity a little to lift the Milky Way's structure; or the Night & Astro presets (list_presets query "astro").
+4. Local: add_ai_mask kind landscape parts sky for the sky and the inverse foreground with different white balance and exposure; a radial gradient to lift the galactic core.
+5. Noise: noise_by_iso, then denoise for prints; merge_panorama for multi-row Milky Way panoramas, stack_photos for star trail sets.
+6. Deliver with builtin.4k and builtin.print-lab.""",
+    },
+    "wildlife_workflow": {
+        "title": "Wildlife and birds",
+        "description": "Long bursts at long lenses: cull for eye sharpness, crop, subject masks, noise by ISO.",
+        "text": """Wildlife workflow in formlit.
+
+1. Import with the Time-sorted Multi-camera or Date and Time names (list_templates kind filename) and apply_template kind keywordSet wildlife.
+2. Cull bursts: analyze_culling then apply_culling with pickBest and rejectDuplicates; the Best of Each Group and Telephoto (200 mm+) smart collection templates narrow it; refine_photos for a second pass.
+3. Crop for the subject (develop_patch crop rect), keeping enough pixels for the output.
+4. Subject and background: add_ai_mask kind subject with texture and a little exposure, and kind background with clarity and saturation down to separate the animal.
+5. noise_by_iso for the whole set, denoise for keepers shot at high ISO, sync_settings within a burst.
+6. Deliver with builtin.4k, builtin.print-lab or builtin.instagram.""",
+    },
+    "catalog_maintenance": {
+        "title": "Catalog maintenance and archive",
+        "description": "Find missing files, untagged and uncopyrighted photos, rejects to clear, and make archive masters.",
+        "text": """Catalog maintenance in formlit.
+
+1. apply_template kind smartCollection for Missing Files, Without Copyright, Without Keywords, Without GPS and Rejects (one set: create a set with run_command collection.create kind set, then pass its id as parent).
+2. Missing files: run_command library.findMissing, then relink in the window.
+3. Without Copyright: apply_template kind metadata all-rights on those photos; Without Keywords: apply_template kind keywordSet or add_keywords.
+4. Rejects: review them in the window; deleting stays with the person.
+5. Finished work: export_photos with builtin.archive (16-bit TIFF, Adobe RGB, all metadata) to an archive drive, and run_command photo.saveMetadata so XMP sidecars carry ratings, keywords and settings.""",
+    },
+    "social_batch": {
+        "title": "Social media batch",
+        "description": "Crop to the platform's ratio, consistent look, light watermark, 1080 px wide exports.",
+        "text": """Social media batch in formlit.
+
+1. find_photos in the shoot's Portfolio or Edited stage.
+2. Crop each for the feed (develop_patch crop rect at a 4:5 portrait or 1:1 ratio of the frame's pixels), checking the subject with get_preview at max_size 512.
+3. Make the set consistent: match_look against one hero, then analyze_photo ids for outliers.
+4. apply_template kind metadata portfolio so the files carry copyright and a link back.
+5. export_photos with builtin.instagram (1080 px wide; Instagram's help says it keeps photos up to 1080 px across) or builtin.blog for the website.""",
     },
 }
