@@ -2,6 +2,24 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.16.0 · 2026-10-13
+
+### Added
+
+- **`build_app.bat`: the one-shot desktop build on Windows, the twin of `./build_app`.**
+  - It checks Python, Node 22 and Rust, then installs the engine and the window (`--lite` passes through).
+  - It installs the desktop packages, builds the window, freezes the engine and runs the Tauri build.
+  - It stops at the first failing step with a sentence saying so, and `--open` opens the folder with the installers.
+  - `./build_app` on Windows now points to it.
+
+### Changed
+
+- **Chat messages show only what you typed, with a short note such as "with 7 selected photos".** The selected photo ids still go to Claude with the message, as before.
+
+### Verified
+
+- **Stop in the Chat tab** ends a long answer within about half a second, marks it Stopped and leaves no Claude Code process behind. The next message works normally.
+
 ## v0.15.0 · 2026-10-13
 
 ### Added

@@ -57,7 +57,7 @@ formlit.bat install
 formlit.bat boot
 ```
 
-`./formlit install` installs the engine with ONNX Runtime and the frontend; `--lite` skips the AI extra. For the desktop app, `./build_app` does everything from a fresh clone on macOS or Linux: it checks the tools (installing Rust with rustup when missing), installs the engine and the frontend, builds the window, freezes the engine into the sidecar, bundles the app, and on macOS copies it to Applications (`--no-install` keeps it in place, `--open` opens it, `--lite` skips the AI extra, `--clean` rebuilds from nothing); every step is logged to `build_app.log`. `./formlit desktop build` runs the same script, and `./formlit desktop dev` runs the app from source. `./formlit help` lists every command, and `./formlit doctor` checks the toolchain and ports.
+`./formlit install` installs the engine with ONNX Runtime and the frontend; `--lite` skips the AI extra. For the desktop app, `./build_app` does everything from a fresh clone on macOS or Linux: it checks the tools (installing Rust with rustup when missing), installs the engine and the frontend, builds the window, freezes the engine into the sidecar, bundles the app, and on macOS copies it to Applications (`--no-install` keeps it in place, `--open` opens it, `--lite` skips the AI extra, `--clean` rebuilds from nothing); every step is logged to `build_app.log`. On Windows, `build_app.bat` runs the same steps (`--lite`, `--open`). `./formlit desktop build` runs the same script, and `./formlit desktop dev` runs the app from source. `./formlit help` lists every command, and `./formlit doctor` checks the toolchain and ports.
 
 | Service | URL | Notes |
 | --- | --- | --- |
@@ -90,6 +90,7 @@ The engine reads `backend/.env`, which is never committed; `backend/.env.example
 ```text
 formlit/
 ├── build_app                       one-shot desktop build: tools, install, window, sidecar, bundle, install to Applications
+├── build_app.bat                   the same on Windows: tools, install, window, sidecar, installers
 ├── formlit, formlit.bat            root dispatcher: install, boot, build, serve, desktop, claude, mcp, agents, cli, doctor, counts
 ├── formlit_oc_install(.bat)        one-command install
 ├── setup/                          one script per task, each with a .bat twin; lib.sh holds shared helpers
