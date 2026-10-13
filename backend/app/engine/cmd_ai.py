@@ -27,6 +27,9 @@ def cat():
     return catalog_mod.get()
 
 
+FACE_PARTS = {"faceSkin", "eyebrows", "sclera", "iris", "lips", "teeth", "hair"}
+
+
 def _need(model: str) -> None:
     try:
         models.require(model)
@@ -104,6 +107,9 @@ def ai_parts(group: str, parts: list[str], id: int | None = None, person: int | 
     want = [p for p in parts if p in names]
     if not want:
         raise CommandError("Choose one or more parts: " + ", ".join(names))
+    if group == "people" and set(want) & FACE_PARTS:
+        _need("people")
+        _need("faces")
     maps = _part_maps(view_rgb8(pid), group, person if group == "people" else None)
     shapes = []
     stamp = int(time.time() * 1000)
@@ -166,7 +172,7 @@ def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, po
         a = nets.depth(rgb8)
     key = f"{kind}-{int(time.time() * 1000)}"
     save_bitmap(pid, key, a)
-    shape: dict = {"kind": "depthRange" if kind == "depth" else kind, "bitmap": key}
+    shape: dict = {"kind": "depthRange" if kind == "depth" else kind, "bitmap": key, "coverage": round(float(a.mean()), 4)}
     if kind == "object":
         shape["box"] = [round(float(v), 4) for v in (box or [0.25, 0.25, 0.75, 0.75])]
         if points:

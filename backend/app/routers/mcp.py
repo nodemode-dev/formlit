@@ -159,6 +159,10 @@ def _add_mask(args: dict, shape: dict | None = None) -> dict:
         shapes = _cmd("develop.aiParts", id=pid, group=group, parts=args.get("parts") or [], person=args.get("person"))["shapes"]
     elif not shapes:
         shapes = [_cmd("develop.aiMask", id=pid, kind=kind, box=args.get("box"))["shape"]]
+    empty = [str(s.get("part") or s.get("kind")) for s in shapes if "coverage" in s and float(s["coverage"]) < 0.002]
+    shapes = [s for s in shapes if "coverage" not in s or float(s["coverage"]) >= 0.002]
+    if not shapes:
+        raise CommandError(f"The {', '.join(empty)} mask came out empty: the model found nothing there in this photo, so no mask was added. Try another kind (subject, people, a box with object) or a gradient.", 422)
     shape = shapes[0]
     dev = _cmd("develop.get", id=pid)["settings"]
     masks = list(dev.get("masks") or [])
@@ -166,7 +170,10 @@ def _add_mask(args: dict, shape: dict | None = None) -> dict:
     masks.append({"id": mid, "name": args.get("name") or f"{str(shape.get('label') or shape.get('kind', 'Mask')).title()} {mid}", "visible": True,
                   "components": [{"shape": s, "op": "add"} for s in shapes], "adjust": args.get("adjust") or {}})
     _cmd("develop.update", ids=[pid], patch={"masks": masks}, label=f"Add {shape.get('kind', 'mask')} mask")
-    return {"id": pid, "mask": mid, "masks": len(masks)}
+    out = {"id": pid, "mask": mid, "masks": len(masks), "coverage": {str(s.get("part") or s.get("kind")): s["coverage"] for s in shapes if "coverage" in s}}
+    if empty:
+        out["empty"] = empty
+    return out
 
 
 def _gradient(args: dict) -> dict:
@@ -263,7 +270,7 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("sync_settings", "Copies develop settings from one photo to others, limited to groups when given (whiteBalance, basicTone, presence, toneCurve, colorMixer, pointColor, bwMix, treatment, colorGrading, detail, lensCorrections, transform, effects, calibration, profile, crop, masks, spots, redEye, lensBlur); with no groups, everything but crop, masks, spots and red eye.",
            {"from": ID, "ids": IDS, "groups": {"type": "array", "items": {"type": "string"}}, "report": REPORT}, ["from", "ids"]),
      lambda a: _report(a, _cmd("develop.sync", ids=a["ids"], **{"from": a["from"]}, groups=a.get("groups")), a["ids"])),
-    (_tool("add_ai_mask", "Adds a local adjustment through an AI mask: sky, subject, background, people, object (with box [x0,y0,x1,y1] 0 to 1), depth, or parts: kind people with parts (faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; person for one person by index) or kind landscape with parts (sky, water, vegetation, mountains, architecture, naturalGround, artificialGround), several parts in one mask. adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, saturation, texture, clarity, dehaze, sharpness, noise. Each kind needs its AI model; a refusal names the exact install call.",
+    (_tool("add_ai_mask", "Adds a local adjustment through an AI mask: sky, subject, background, people, object (with box [x0,y0,x1,y1] 0 to 1), depth, or parts: kind people with parts (faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; person for one person by index) or kind landscape with parts (sky, water, vegetation, mountains, architecture, naturalGround, artificialGround), several parts in one mask. adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, hue, saturation, texture, clarity, dehaze, sharpness, noise, plus a local colour grade: colorHue (0 to 359) with colorSat (0 to 100) tints the masked area, and curve ({\"master\"|\"red\"|\"green\"|\"blue\": [[x, y], ...]}, 0 to 1) is a local tone curve. To grade a subject and its background differently, add a subject mask and a background mask with different adjust values. The result reports each mask's coverage of the frame; an empty mask is refused. Each kind runs a local model (subject and background: U2-Net; people: U2-Net human segmentation; face, hair, eye, lip and teeth parts also need the YuNet face model; sky: the sky segmenter; object: SAM 2.1; depth: Depth Anything V2); a refusal names the exact install call.",
            {"id": ID, "kind": {"type": "string", "enum": ["sky", "subject", "background", "people", "object", "depth", "landscape"]}, "parts": {"type": "array", "items": {"type": "string"}},
             "person": {"type": "integer"}, "box": {"type": "array", "items": {"type": "number"}}, "adjust": {"type": "object"}, "name": {"type": "string"}}, ["id", "kind"]), _add_mask),
     (_tool("add_gradient_mask", "Adds a linear gradient (start and end points, 0 to 1 of the frame) or a radial gradient (center, rx, ry, feather, invert) with local adjust values.",

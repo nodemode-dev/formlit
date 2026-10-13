@@ -34,7 +34,7 @@ MODELS: dict[str, dict] = {
                "files": {"lama_fp32.onnx": ("https://huggingface.co/Carve/LaMa-ONNX/resolve/c3c0c9e468934d62e79c329e35d82dd09ff8c444/lama_fp32.onnx",
                                             "1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6")}},
     "upscale": {"name": "Real-ESRGAN x4plus (super resolution)", "license": "BSD-3-Clause", "size": 67,
-                "files": {"realesrgan-x4plus.onnx": ("https://huggingface.co/skillsafe-ai/realesrgan-x4plus/resolve/main/model.onnx",
+                "files": {"realesrgan-x4plus.onnx": ("https://huggingface.co/skillsafe-ai/realesrgan-x4plus/resolve/107475e49b7d46412cc966481efccc3500955801/model.onnx",
                                                      "4851ec156207d271f5328605d0582eeb851e656227da8aca093ced9e60789291")}},
     "faces": {"name": "YuNet face detector and SFace recognizer (OpenCV Zoo)", "license": "MIT and Apache-2.0", "size": 39,
               "files": {
