@@ -16,6 +16,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_analyze",
     "app.engine.cmd_workflow",
     "app.engine.cmd_templates",
+    "app.engine.cmd_chat",
     "app.engine.claude_code",
 ]
 
