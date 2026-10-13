@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.7.0
-Last updated: 2026-10-12 · v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.8.0
+Last updated: 2026-10-13 · v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -33,7 +33,9 @@ backend/
     │   ├── tasks.py               background tasks with progress and cancel
     │   ├── query.py               photo queries, smart rules, text filter, facets
     │   ├── records.py             row decoding, summaries and details
-    │   ├── presets.py             develop presets, adaptive presets, import and export
+    │   ├── presets.py             develop presets, adaptive presets, search, blended previews, import and export
+    │   ├── preset_library.py      the 134 researched built-ins with descriptions and tags
+    │   ├── cmd_analyze.py         develop.analyze: tonal zones, clipping, cast, colour bands, findings
     │   ├── cmd_library.py         catalog, import, folders, collections, keywords, stacks, metadata
     │   ├── cmd_develop.py         settings, history, snapshots, copy and sync, Before
     │   ├── cmd_ai.py              models, AI masks, remove, merges, enhance, faces, culling
@@ -129,7 +131,9 @@ backend/
 - [app/engine/cmd_develop.py](#engine-cmd-develop)
 - [app/engine/cmd_ai.py](#engine-cmd-ai)
 - [app/engine/cmd_output.py](#engine-cmd-output)
-- [app/engine/presets.py](#engine-presets)
+- [app/engine/presets.py, preset_library.py](#engine-presets)
+- [app/engine/cmd_analyze.py](#engine-analyze)
+- [app/develop/settings.py](#develop-settings)
 - [app/develop/render.py](#develop-render)
 - [app/develop/finish.py and kernel.py](#develop-finish-kernel)
 - [app/develop/masks.py](#develop-masks)
@@ -477,6 +481,49 @@ A user preset id is `user:` plus a path under the Develop presets folder. `prese
 - logged: v0.1.0 · 2026-10-07
 
 Applying a preset with masks merges them into the photo's masks (scaled by the preset amount) rather than replacing them; the nine adaptive built-ins (sky, subject, portrait) carry AI mask shapes that `adapt` computes per photo.
+
+### app/engine/presets.py · profile ids that did not exist
+- refers-to: app/engine/presets.py :: BUILTIN (Golden Negative, Faded Print, Chrome Slide, Teal Night, Warm Glow, Sepia Tone, Selenium Tone, Infrared Dream, Matte Fade, Pastel Day, Earth Tones, Vintage Vignette); app/develop/profiles.py :: BY_ID
+- kind: warning-context
+- logged: v0.8.0 · 2026-10-13
+
+Twelve of the original built-ins named profiles (`fl.film.warm`, `fl.film.faded`, `fl.film.slide`, `fl.film.matte`, `fl.cine.teal`, `fl.cine.golden`, `fl.bw.sepia`, `fl.bw.selenium`, `fl.bw.ir`, `fl.muted.pastel`, `fl.muted.earth`) that `profiles.py` never defined, and an unknown profile id is ignored, so Sepia Tone and Selenium Tone changed nothing at all and the others did only their extra sliders. They are now explicit settings (treatment, B&W mix, grading, the matte curve) or point at profiles that exist. Every built-in is checked against `profiles.BY_ID`, the control ranges and the sanitizer before a change ships.
+
+### app/engine/preset_library.py · where the values come from
+- refers-to: app/engine/preset_library.py :: LIBRARY, MATTE, NOTES; .claude/skills/formlit-driving/references/editing-guide.md
+- kind: rationale
+- logged: v0.8.0 · 2026-10-13
+
+134 presets in Adobe's preset categories (Portrait, Cinematic, Film-Inspired, Vintage, B&W, Seasons, Landscape, Golden Hour, Night and Astro, Travel, Food, Urban Architecture, Concerts, Lifestyle, Moody, Futuristic, Underwater, Curves, Detail, Effects, Color Fixes, and adaptive sky, subject, portrait and landscape). Magnitudes follow the sourced research in the driving skill's editing guide: grading saturation about 7 to 20, the matte curve 0,20 64,55 128,128 192,196 255,235 and the Cinematic Teal and Orange, Moody PNW, Portra and Tri-X values from real exported .xmp files, the low-key portrait recipe, the winter and underwater white-balance advice. They avoid `wb` (an absolute temperature) so they behave the same on raws and JPEGs; warmth comes from grading. `description` and `tags` feed `preset.list` search and the generated `references/presets.md`; `NOTES` describes the original built-ins without editing each entry.
+
+### app/engine/presets.py · blended, preset previews
+- refers-to: app/engine/presets.py :: blended, apply, list_presets; app/routers/mcp.py :: _preview; app/engine/cmd_analyze.py :: _settings
+- kind: explainer
+- logged: v0.8.0 · 2026-10-13
+
+`blended` is the one way a preset meets a photo's settings, shared by `preset.apply`, `get_preview` and `develop.analyze`, so a preview is exactly what applying would store. Adaptive presets preview without their masks until `adapt` has computed the bitmaps for that photo.
+
+---
+
+## app/engine/cmd_analyze.py {#engine-analyze}
+
+### app/engine/cmd_analyze.py · what it measures
+- refers-to: app/engine/cmd_analyze.py :: measure, findings, analyze, ZONES, BANDS
+- kind: rationale
+- logged: v0.8.0 · 2026-10-13
+
+Agents judged exposure from a 1024 px JPEG and guessed. `develop.analyze` renders the photo at 640 px through the same pipeline as previews (with proposed values or a preset when given, unsaved) and returns numbers: Rec.709 luminance on the 8-bit output, its percentiles and spread, the share in Adobe's tonal bands (blacks 0 to 10, shadows 10 to 30, midtones 30 to 70, highlights 70 to 90, whites 90 to 100, from Adobe's Tone Control Adjustment page), clipping per channel and in all channels, saturation, and each colour-mixer band's share, saturation and luminance (hue ranges chosen to match the mixer's eight bands). The cast is measured only on near-neutral midtone pixels, and its finding says what share of the photo that was, because a sunset or a night scene is warm or cool on purpose. Findings are suggestions with control ids and starting values, not edits.
+
+---
+
+## app/develop/settings.py {#develop-settings}
+
+### app/develop/settings.py · scale keeps grading hues, eases curves
+- refers-to: app/develop/settings.py :: scale; app/engine/presets.py :: blended
+- kind: warning-context
+- logged: v0.8.0 · 2026-10-13
+
+A preset applied at an amount scales every number toward its default. Grading hues (`grading.*.hue`) default to 0, so at 50 percent an orange highlight tint (hue 40) became hue 20, a different colour; hues now stay and only saturation, luminance, blending and balance scale, which is what weaker means for a tint. Point curves were copied at full strength whatever the amount; each point now moves toward the diagonal by the amount, so a matte curve at 50 percent lifts the blacks half as far.
 
 ---
 

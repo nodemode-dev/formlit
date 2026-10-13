@@ -8,7 +8,7 @@ A command is a function decorated with `@command("group.name", "Label", params, 
 
 - REST: `GET /api/commands` lists them, `POST /api/commands/{id}` runs one, `POST /api/batch` runs several.
 - CLI: `./formlit cli <id> key=value` (values are parsed as JSON when they can be).
-- MCP: 50 curated tools in `backend/app/routers/mcp.py`, and `run_command` for any command. Each tool call first passes the AI agents setting (`backend/app/engine/agents.py`, preference `outsideAgents`: ask, allowed or blocked). Deleting photos or folders and opening or creating catalogs are blocked for agents unless `FORMLIT_MCP_ALLOW_DELETE=1`.
+- MCP: 51 curated tools in `backend/app/routers/mcp.py`, and `run_command` for any command. Each tool call first passes the AI agents setting (`backend/app/engine/agents.py`, preference `outsideAgents`: ask, allowed or blocked). Deleting photos or folders and opening or creating catalogs are blocked for agents unless `FORMLIT_MCP_ALLOW_DELETE=1`.
 
 ## The catalog
 
