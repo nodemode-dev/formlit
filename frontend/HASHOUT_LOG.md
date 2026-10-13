@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.7.0
-Last updated: 2026-10-12 · v0.7.0 the terminal dock, Claude Code and the Ask line; v0.6.0 the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
+Current build version: v0.10.0
+Last updated: 2026-10-13 · v0.10.0 Refine Photos in the Library menu; v0.7.0 the terminal dock, Claude Code and the Ask line; v0.6.0 the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
 
 ---
 
@@ -454,6 +454,17 @@ Colours only formlit needs (label colours, clipping, the map and page surfaces) 
 - logged: v0.7.0 · 2026-10-12
 
 The terminal dock streams through a WebSocket at `/api/terminal/{id}` on the page's own host. The built app and the desktop window are served by the engine, so that host is the engine; on the dev server the `/api` proxy needs `ws: true` to pass the upgrade through.
+
+---
+
+## src/modules/shared/actions.ts · library.refine {#shared-refine}
+
+### src/modules/shared/actions.ts · Refine Photos
+- refers-to: src/modules/shared/actions.ts :: library.refine; src/app.ts :: buildMenus (Library); backend/app/engine/cmd_workflow.py :: refine
+- kind: explainer
+- logged: v0.10.0 · 2026-10-13
+
+Library, Refine Photos (Alt+Mod+R) runs the engine's `library.refine` on every photo in view after a confirmation, because it changes flags across the whole source. Only menu and toast change; the grid follows through the engine's flag events, with no rebuild.
 
 ---
 

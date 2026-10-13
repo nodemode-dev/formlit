@@ -2,6 +2,35 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.10.0 · 2026-10-13
+
+This release covers how professionals work in Lightroom and how formlit does the same. A verified-sourcing pass covered the end-to-end workflow, genre workflows, and batch consistency and output, using Adobe documentation, Julieanne Kost, Lightroom Killer Tips, Lightroom Queen, working pros in Fstoppers, PetaPixel, DPReview, Digital Camera World, SLR Lounge and PPA, and the AP and NPPA ethics codes. It also brings the built-in presets to 300.
+
+### Added
+
+- **Ten workflow prompts on the MCP server**, each mapped to formlit's tools and citing its sources:
+  - The new ones: `pro_ingest_and_cull`, `wedding_event_workflow`, `portrait_session_workflow`, `landscape_workflow`, `news_sports_workflow` (with the AP and NPPA editing limits), `real_estate_workflow`, `product_workflow` and `client_delivery`.
+  - The existing ones: `culling_workflow` and `develop_strategy`.
+- **Professional ingest through `import_photos`:** Copy as DNG, folder and rename templates, a copyright metadata preset, a develop preset, keywords, a collection, a second copy, duplicate skipping and preview building. The engine could already do all of this; the tool now exposes it.
+- **`refine_photos`** and the window's Library, Refine Photos (Alt+Mod+R), backed by a new `library.refine` command. As in Lightroom, unflagged photos become rejects and picks become unflagged, for the next culling pass.
+- **New tools for existing engine features:** `match_exposures` (Match Total Exposures), `virtual_copy` and `snapshot`. `find_photos` documents its field operators (`iso>=3200`, `camera:`, `lens:`). That makes 57 tools and 231 commands.
+- **67 more presets, 300 in 54 groups.**
+  - Wedding Signature Base with Indoor and Night variants: pros keep one look plus lighting variants.
+  - Noise by ISO steps: pros fix one frame per ISO level and sync noise only.
+  - Documentary News Neutral presets that stay within news ethics.
+  - New groups: Headshot, Real Estate, Event, Fashion, Fine Art, Street, Automotive, Family and Interiors.
+  - The Warm Vibrant Landscape grade (after Christian Mohrle), and more film, toning, cinematic, portrait and adaptive presets.
+- **The driving skill gains `references/pro-workflows.md`:** a Lightroom-to-formlit mapping and genre steps with a source on each claim, single-source claims flagged and gaps listed. Two new evaluations: news ethics and a professional ingest and cull.
+
+### Fixed
+
+- **Match Total Exposures used the window's active photo as its reference even when it was not one of the given photos.** It now uses the first given photo unless the active one is among them, and its error names what is missing.
+
+### Not yet in formlit
+
+- Reference View (a fixed reference beside the photo being edited); `match_look` does the matching.
+- ISO adaptive presets.
+
 ## v0.9.1 · 2026-10-13
 
 This release checks that subject isolation with separate grading is formlit's own capability: local models, formlit's engine and formlit's renderer. It also checks the local models themselves.

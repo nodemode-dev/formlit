@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.9.1
-Last updated: 2026-10-13 · v0.9.1 face-part model requirement, empty masks refused, model pins verified; v0.9.0 match_look, reports on writes, set analysis, save_preset, part masks, a forgiving run_command, 66 more presets; v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.10.0
+Last updated: 2026-10-13 · v0.10.0 professional workflow prompts, pro ingest, Refine Photos, version tools, 300 presets; v0.9.1 face-part model requirement, empty masks refused, model pins verified; v0.9.0 match_look, reports on writes, set analysis, save_preset, part masks, a forgiving run_command, 66 more presets; v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -1094,6 +1094,27 @@ A real Claude Code run spent four calls on `ai.download` because each try shaped
 - logged: v0.9.1 · 2026-10-13
 
 Every file is pinned to a revision and a SHA-256, and the downloader discards a file whose hash differs. At v0.9.1 all 15 files were checked: two by downloading through `ai.download`, the rest against the SHA-256 Hugging Face shows at the pinned revision. Real-ESRGAN pointed at `main` and is now pinned to 107475e. Its file is a third-party ONNX conversion (skillsafe-ai) of xinntao's RealESRGAN_x4plus under BSD-3-Clause; the sky model is a mirror (JianyuanWang/skyseg) of xiongzhu666's MIT model. Both are protected by the pinned hash, so a changed upload fails closed instead of loading.
+
+### app/routers/mcp_workflows.py · professional workflows as prompts
+- refers-to: app/routers/mcp_workflows.py :: WORKFLOWS; app/routers/mcp.py :: PROMPTS, prompts/get; .claude/skills/formlit-driving/references/pro-workflows.md
+- kind: rationale
+- logged: v0.10.0 · 2026-10-13
+
+Each prompt is a professional workflow from the v0.10.0 verified research, written as steps that name formlit's tools, with its sources named in the first line. They are prompts rather than skill text so every MCP client gets them, skill or not. The news prompt leads with the AP and NPPA limits because an agent's default is to "make it look great", which for news is the wrong instinct. Kept in their own module so `mcp.py` stays the protocol and the catalogue.
+
+### app/engine/cmd_workflow.py · library.refine
+- refers-to: app/engine/cmd_workflow.py :: refine; frontend/src/modules/shared/actions.ts :: library.refine
+- kind: explainer
+- logged: v0.10.0 · 2026-10-13
+
+Lightroom's Refine Photos, as Adobe and Julieanne Kost describe it: unflagged become rejects (-1), picks become unflagged (0), rejects stay. One undo step. The window asks for confirmation first because it touches every photo in view.
+
+### app/engine/cmd_develop.py · match_exposure reference
+- refers-to: app/engine/cmd_develop.py :: match_exposure
+- kind: warning-context
+- logged: v0.10.0 · 2026-10-13
+
+The reference was `SESSION.active or pids[0]`: the window's active photo even when an agent passed other ids, so an agent's call matched against whatever the person had open. It is now the active photo only when it is among the ids, as in the window's own use.
 
 ### app/routers/mcp.py · add_ai_mask parts
 - refers-to: app/routers/mcp.py :: _add_mask; app/engine/cmd_ai.py :: ai_parts
