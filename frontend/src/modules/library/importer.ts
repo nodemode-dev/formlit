@@ -4,6 +4,7 @@ import { confirmAction, Dialog, promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
+import { patternOptions } from '../shared/templates';
 import { loadMetaPresets, type MetaPresets } from './metadata-presets';
 
 interface Root { name: string; path: string; kind: string }
@@ -41,6 +42,7 @@ class ImportDialog extends Dialog {
   private volumes: string[] = [];
   private presetName = '';
   private seq = 0;
+  private templatesFilled = false;
 
   constructor(private readonly ctx: Ctx) {
     super('Import Photos and Videos', 1180);
@@ -174,7 +176,24 @@ class ImportDialog extends Dialog {
     this.fillPresets();
   }
 
+  private async fillTemplates(): Promise<void> {
+    if (this.templatesFilled) return;
+    const [names, folders] = await Promise.all([patternOptions(this.ctx, 'filename'), patternOptions(this.ctx, 'folder')]);
+    if (!names.length || !folders.length) return;
+    this.templatesFilled = true;
+    const fill = (key: 'rename' | 'organize', listed: Array<[string, string, string]>, base: Array<[string, string]>): void => {
+      const rows = listed.map(([v, l, d]): [string, string, string] => [key === 'rename' && v === '{name}' ? '' : v, l, d]);
+      for (const [v, l] of base) if (!rows.some(([x, y]) => x === v || y === l)) rows.push([v, l, '']);
+      const sel = q<HTMLSelectElement>(this.body, `select[data-preset-for="${key}"]`);
+      sel.replaceChildren(...rows.map(([v, l, d]) => { const o = new Option(l, v); o.title = d; return o; }), new Option('Custom', '__custom'));
+    };
+    fill('rename', names, RENAMES);
+    fill('organize', folders, ORGANIZE);
+    this.syncFields();
+  }
+
   async show(start?: string): Promise<void> {
+    await this.fillTemplates();
     this.open(this.go);
     const roots = await this.ctx.api.get<{ roots: Root[]; library: string }>('/api/files/roots');
     if (!this.prefs.destination) this.prefs.destination = roots.library;

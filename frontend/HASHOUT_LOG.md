@@ -489,6 +489,29 @@ The built-in keyword sets now come from the engine (one list for the window and 
 
 Each export preset row shows its group (General, Client Delivery, Print, Licensing, Web and Social, or User) and carries its description as the tooltip.
 
+### src/modules/library/importer.ts, shared/photo-dialogs.ts · template lists before paint
+- refers-to: src/modules/library/importer.ts :: fillTemplates, show; src/modules/shared/photo-dialogs.ts :: library.rename; src/modules/shared/templates.ts :: patternOptions
+- kind: rationale
+- logged: v0.12.0 · 2026-10-13
+
+The import dialog's naming and folder selects and the Rename Photos template list come from `template.list` (cached per session by `patternOptions`). The import dialog awaits them before its first `open`, so the selects never change while visible; the old short lists remain as a fallback when the engine call fails, and an old entry is kept only when neither its pattern nor its label is in the engine list (so "Shoot Name - Filename" appears once). Filename (unchanged) maps the engine's `{name}` to the dialog's empty pattern, which stored import preferences use.
+
+## src/modules/develop/view.ts, index.ts · Reference View {#develop-reference}
+
+### src/modules/develop/view.ts · the reference pane
+- refers-to: src/modules/develop/view.ts :: Compare 'ref', setReference, refRect, renderReference, referenceChanged; src/styles/lit-develop.css :: .fl-dv-before.is-empty
+- kind: rationale
+- logged: v0.12.0 · 2026-10-13
+
+Reference View reuses the Before pane: the active photo takes the right half exactly as in Left/Right, and the left half fits the reference photo by its own aspect, rendered with its stored settings at the pane's size. Whenever the pane's content changes source (into or out of Reference View, or a new reference) it is marked `is-empty`, which hides its image until the right render has decoded; so neither a stale Before image nor the previous reference is ever shown, and the pane is resized only after the new image is in (checked under 4x CPU: the pane became visible only with the new image). The tags read Reference and Active. The reference re-renders when its revision changes and the active photo renders.
+
+### src/modules/develop/index.ts · commands and the agent hook
+- refers-to: src/modules/develop/index.ts :: develop.referenceView, develop.setReference, develop.matchReference, showReference; src/app.ts :: agent.show
+- kind: explainer
+- logged: v0.12.0 · 2026-10-13
+
+Reference View (Shift+R, and Reference in the compare segment) uses the active photo as the reference when none is set and says so; Set as Reference Photo fixes the active photo; Match Look to Reference runs the engine's `develop.match` from the reference to the selected photos (not the reference itself) and reports the distance before and after. `show_in_window` with `reference` reaches `showReference` through the `agent.show` event so an agent can put a match and its reference side by side.
+
 ---
 
 ## src/ui/terminal-dock.ts, src/modules/shared/terminal.ts {#ui-terminal-dock}

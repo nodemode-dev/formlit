@@ -9,6 +9,18 @@ interface Listing { templates: Record<string, Template[]>; identity: Record<stri
 interface Shoot { set: number; stages: Record<string, number>; exports: string[]; workflow: string; metadataSkipped: string[] }
 
 const plural = (n: number, w: string): string => `${n} ${w}${n === 1 ? '' : 's'}`;
+const patterns = new Map<string, Array<[string, string, string]>>();
+
+export async function patternOptions(ctx: Ctx, kind: 'filename' | 'folder'): Promise<Array<[string, string, string]>> {
+  const hit = patterns.get(kind);
+  if (hit) return hit;
+  try {
+    const r = await ctx.api.cmd<Listing>('template.list', { kind });
+    const out = (r.templates[kind] ?? []).map((t): [string, string, string] => [String(t.value), t.name, t.description]);
+    patterns.set(kind, out);
+    return out;
+  } catch { return []; }
+}
 
 async function listing(ctx: Ctx, kind: string): Promise<Listing | null> {
   try { return await ctx.api.cmd<Listing>('template.list', { kind }); } catch (err) { ctx.fail(err, 'Templates'); return null; }
