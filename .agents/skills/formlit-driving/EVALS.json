@@ -1,6 +1,6 @@
 {
   "skill_name": "formlit-driving",
-  "notes": "Seven evaluations for using formlit through the plugin: two shoots from first call to files written, the first-call consent, the refusal and not-open paths, the clients that cannot reach the computer, and the neighbour that gets compositing. Expected behaviours are observable in the transcript or on disk.",
+  "notes": "Nine evaluations for using formlit through the plugin: two shoots from first call to files written, the first-call consent, the refusal and not-open paths, the clients that cannot reach the computer, the neighbour that gets compositing, a measured fix with analyze_photo, and finding and previewing a preset before applying it. Expected behaviours are observable in the transcript or on disk.",
   "evals": [
     {
       "id": 1,
@@ -83,6 +83,31 @@
         "Offers formlit's Edit In (photo.editIn) to hand the photo to formvis rather than faking compositing with masks",
         "Does not run develop_set or export_photos as a substitute for compositing"
       ]
+    },
+    {
+      "id": 8,
+      "name": "measured-fix-of-a-backlit-portrait",
+      "prompt": "Photo 412 is a backlit portrait, her face is too dark and the sky behind her is blown out. Fix it but keep it natural, no crazy filters.",
+      "files": [],
+      "expected_behavior": [
+        "Calls analyze_photo on 412 before changing anything and quotes its clipping and zone numbers",
+        "Proposes values through analyze_photo or get_preview with values (highlights or whites down, shadows or a subject mask brighter) and compares the clipping figures before committing",
+        "Brightens the face locally (add_ai_mask subject or people faceSkin) rather than raising global exposure until the sky clips further",
+        "Commits with develop_set or add_ai_mask, runs analyze_photo again, and reports the change in highlight clipping as numbers",
+        "Uses no colour-grading saturation above 25 and applies no stylised preset, because the person asked for natural"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "find-preview-and-tune-a-film-preset",
+      "prompt": "Give my Lisbon street set (collection 7) a Kodak film kind of look, warm but not orange, a little grain. Show me one before you do all of them.",
+      "files": [],
+      "expected_behavior": [
+        "Searches with list_presets and a query such as film, warm or portra instead of guessing preset ids, or reads references/presets.md",
+        "Previews the candidate on one photo with get_preview preset and amount before applying anything, and shows it to the person",
+        "Waits for the person's go-ahead, then applies with apply_preset at an amount below 100 if the preview looked too strong, or tunes grading saturation into the 7 to 20 range with develop_set",
+        "Applies to the rest of collection 7 (apply_preset with the ids or sync_settings without crop) only after the go-ahead, and spot-checks two frames"
+      ]
     }
   ],
   "trigger_evals": [
@@ -91,6 +116,8 @@
     { "query": "Please produce a 4 x 5 contact sheet PDF of the client selects in formlit.", "should_trigger": true },
     { "query": "my raws look too orange and dark, fix the white balance and brighten them in the catalog", "should_trigger": true },
     { "query": "make a slideshow video with music from my Lisbon picks", "should_trigger": true },
+    { "query": "colour grade these shots teal and orange in formlit, subtle", "should_trigger": true },
+    { "query": "which formlit preset would suit a snowy landscape, try a couple", "should_trigger": true },
     { "query": "formlit says it is not open and Claude cannot see my photos, what do I do", "should_trigger": true },
     { "query": "add a new slider to the develop pipeline and mirror it in the numba kernel", "should_trigger": false },
     { "query": "the Book module in frontend/src/modules/output flashes when I change templates", "should_trigger": false },

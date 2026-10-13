@@ -4,7 +4,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 
 ## Contents
 
-- Look: `get_catalog`, `find_photos`, `get_photo`, `get_preview`, `list_people`, `get_develop_controls`, `get_develop`, `list_presets`, `list_export_presets`
+- Look: `get_catalog`, `find_photos`, `get_photo`, `get_preview`, `analyze_photo`, `list_people`, `get_develop_controls`, `get_develop`, `list_presets`, `list_export_presets`
 - Import and organize: `import_photos`, `set_rating`, `set_flag`, `set_label`, `add_keywords`, `set_metadata`, `set_location`, `create_collection`, `add_to_collection`, `stack_photos`
 - Cull and people: `analyze_culling`, `apply_culling`, `find_faces`, `name_person`
 - Develop: `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
@@ -41,12 +41,25 @@ Note: read-only.
 
 ## get_preview
 
-The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; before true shows it with no edits.
+The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits.
 
 - `id`: integer; required; A photo id from find_photos.
 - `max_size`: integer; default 1024
 - `values`: object; Develop ids to values, e.g. {"light.exposure": 0.5}.
+- `preset`: string
+- `amount`: number; default 100
 - `before`: boolean; default false
+
+Note: read-only.
+
+## analyze_photo
+
+Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye.
+
+- `id`: integer; required; A photo id from find_photos.
+- `values`: object; Proposed develop ids to values.
+- `preset`: string
+- `amount`: number; default 100
 
 Note: read-only.
 
@@ -215,9 +228,10 @@ Note: replaces or removes.
 
 ## list_presets
 
-Develop presets by group, with ids for apply_preset.
+Develop presets with ids for apply_preset, each with its group, a description of what it does and what it suits, and tags. query (for example "moody forest", "portrait warm", "bw street") and group narrow the list.
 
-- no parameters
+- `query`: string
+- `group`: string
 
 Note: read-only.
 

@@ -2,7 +2,7 @@
 
 Starting points, not answers. Propose with `get_preview` values, adjust by eye, then commit.
 
-Presets (`list_presets`, ids like `builtin:color/clean-punch`) are applied with `apply_preset`. Profiles (`fl.color`, `fl.camera`, `fl.monochrome`, `fl.film.warm`, `fl.cine.teal`, `fl.bw.punch` and the rest from `develop.info`) are set with `develop_patch` `{"profile": {"id": "...", "amount": 100}}`.
+Presets (`list_presets` with a `query`, ids like `builtin:color/clean-punch`) are previewed with `get_preview` `preset` and applied with `apply_preset`; `formlit-driving` `references/presets.md` lists all of them. Profiles (`fl.color`, `fl.camera`, `fl.monochrome`, `fl.creative.warmfade`, `fl.creative.tealorange`, `fl.bw.punch` and the rest from `develop.info`) are set with `develop_patch` `{"profile": {"id": "...", "amount": 100}}`.
 
 | Request | Values | Notes |
 | --- | --- | --- |
@@ -17,6 +17,6 @@ Presets (`list_presets`, ids like `builtin:color/clean-punch`) are applied with 
 | High ISO cleanup | `detail.nrLuminance` 30 to 50, `detail.nrColor` 25, `detail.sharpenAmount` 40, `detail.sharpenMasking` 40; or `denoise` amount 50 for a DNG | the AI denoise result beats the sliders above ISO 3200 |
 | Hazy landscape | `effects.dehaze` +20, `light.blacks` -10, `color.vibrance` +15 | dehaze over 40 shifts colour; check the preview |
 | Product on white | `light.whites` +30, `light.exposure` until the background reads 250, `color.saturation` 0 | square crop with `develop_patch` `{"crop": {"rect": [x0, y0, x1, y1]}}` sized to the frame's aspect |
-| Teal and orange | `grading.shadows.hue` 190, `grading.shadows.sat` 30, `grading.highlights.hue` 35, `grading.highlights.sat` 25, `mixer.green.sat` -15 | the profile `{"profile": {"id": "fl.cine.teal", "amount": 100}}` does the same, with `profile.amount` to scale it |
+| Teal and orange | `grading.shadows.hue` 205 to 210, `grading.shadows.sat` 15 to 20, `grading.highlights.hue` 35, `grading.highlights.sat` 15, `grading.blending` 75, `mixer.green.sat` -15 | wheel saturation above about 20 to 25 makes the cast obvious; the preset `Teal and Orange` (Cinematic) or the profile `{"profile": {"id": "fl.creative.tealorange", "amount": 100}}` is a fast start |
 | Match a set | develop one, `sync_settings` with `groups: ["whiteBalance", "basicTone", "presence"]` | re-check exposure per frame afterwards with `delta` |
 | Match the camera's picture style | `{"profile": {"id": "fl.camera.vivid"}}`, or a maker style from `develop.info` such as `fl.camera.canon.faithful` or `fl.camera.fujifilm.classicchrome` | raws only; Camera Look (`fl.camera`) is the photo as shot, the styles are built relative to it |

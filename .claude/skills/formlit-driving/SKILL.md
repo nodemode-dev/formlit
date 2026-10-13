@@ -1,6 +1,6 @@
 ---
 name: formlit-driving
-description: Cull, develop and deliver photos in formlit, the local Lightroom alternative, through its MCP tools. Use whenever the person wants photos imported, rated, flagged, culled, keyworded, geotagged, developed (exposure, white balance, masks, presets, denoise, HDR or panorama merges) or exported, printed, made into a book, slideshow or web gallery, and the formlit tools (find_photos, get_preview, develop_set, export_photos and the rest) are available or formlit is named. Also use when a formlit tool fails, says formlit is not open or is refused, and the next step is unclear. Not for changing formlit's own source code (that is formlit-harness) and not for layered compositing (formvis).
+description: Cull, develop and deliver photos in formlit, the local Lightroom alternative, through its MCP tools. Use whenever the person wants photos imported, rated, flagged, culled, keyworded, geotagged, developed or colour graded (exposure, white balance, colour grading, black and white, masks, presets and film looks, denoise, HDR or panorama merges) or exported, printed, made into a book, slideshow or web gallery, and the formlit tools (find_photos, get_preview, develop_set, export_photos and the rest) are available or formlit is named. Also use when a formlit tool fails, says formlit is not open or is refused, and the next step is unclear. Not for changing formlit's own source code (that is formlit-harness) and not for layered compositing (formvis).
 ---
 
 # Working with photos in formlit
@@ -20,9 +20,9 @@ Work in small verified steps. Ids come from `find_photos`; looks come from `get_
 
 1. `get_catalog`: folders, collections and keywords with their ids, and the photo count.
 2. `find_photos` with a `source` (`{"kind": "folder", "id": 3}`, `{"kind": "previousImport"}`, `{"kind": "collection", "id": 7}`) and a `filter` (`{"rating": 3, "ratingOp": ">="}`, `{"flags": ["pick"]}`, `{"text": "beach"}`).
-3. `get_preview` on one or two photos before changing anything.
+3. `get_preview` and `analyze_photo` on one or two photos before changing anything.
 
-The server's `culling_workflow` and `develop_strategy` prompts hold the full decision trees; `references/tools.md` lists every tool with its parameters.
+The server's `culling_workflow` and `develop_strategy` prompts hold the full decision trees. References: `references/tools.md` lists every tool with its parameters, `references/editing-guide.md` explains the develop controls and editing practice with sources, and `references/presets.md` lists every built-in preset.
 
 ## Workflow 1: cull a shoot
 
@@ -34,14 +34,20 @@ The server's `culling_workflow` and `develop_strategy` prompts hold the full dec
 
 ## Workflow 2: develop a look
 
-1. `get_photo` for camera, lens and the current settings; `auto_tone` for a starting point when the photo has no edits.
-2. Propose with `get_preview` and `values` (for example `{"light.exposure": 0.4, "light.highlights": -40}`): it renders without saving. Commit with `develop_set` when it looks right.
-3. Local work: `add_ai_mask` with `kind: "sky"` and `adjust: {"exposure": -0.5, "saturation": 15}`, or `add_gradient_mask` for a graduated sky or a radial spotlight.
-4. A whole shoot: develop one photo, then `sync_settings` from it to the others. Without `groups` it copies everything but crop, masks, spots and red eye; `groups: ["whiteBalance", "basicTone", "presence"]` copies only exposure and colour.
-5. Presets: `list_presets`, then `apply_preset` with an `amount` (100 is the preset as made).
-6. Noise and detail: `denoise` writes an enhanced DNG beside the raw and stacks it; develop that DNG from then on.
+Measure, propose, check, commit. Read `references/editing-guide.md` before grading colour, toning black and white, or working on skin: it explains every control the way Lightroom photographers use it, with sources and the typical strengths.
 
-Setting ids and ranges are in `get_develop_controls`. The ones used most: `wb.temp`, `wb.tint`, `light.exposure`, `light.contrast`, `light.highlights`, `light.shadows`, `light.whites`, `light.blacks`, `effects.texture`, `effects.clarity`, `effects.dehaze`, `color.vibrance`, `color.saturation`, `detail.sharpenAmount`, `detail.nrLuminance`.
+1. `get_photo` for camera, lens, ISO and the current settings, then `analyze_photo`: luminance percentiles, tonal zones (Adobe's blacks, shadows, midtones, highlights, whites bands), clipping, saturation, colour cast on near-neutral pixels, how much of each colour-mixer band the photo holds, and `findings` with suggested values. Use the numbers, not a guess from a small preview.
+2. Agree the intent (natural, bright and airy, moody, film, black and white, a named preset) when the person has not said.
+3. Start: `auto_tone` for an unedited photo, or a preset. Find presets by purpose with `list_presets` and a `query` ("moody forest", "portrait warm", "bw street", "snow"); `references/presets.md` lists all 167 built-ins with what each does. Preview first: `get_preview` and `analyze_photo` take `preset` and `amount` and save nothing.
+4. Refine with proposals: `get_preview` and `analyze_photo` take `values` (for example `{"light.highlights": -40, "grading.shadows.hue": 210, "grading.shadows.sat": 12}`). Compare the before and after numbers, then look. Commit with `develop_set`; curve points, `treatment: "bw"` and crops go through `develop_patch`.
+5. Local work beats global: `add_ai_mask` with `kind: "sky"` and `adjust: {"exposure": -0.5, "saturation": 15}`, people parts for skin, eyes, lips and teeth, landscape parts for water, vegetation, mountains and buildings, or `add_gradient_mask` for a graduated sky or a radial spotlight.
+6. `analyze_photo` again: stop when the findings that matter are gone and the preview reads right. Say what changed in photographer's words (recovered highlights, warmer skin, darker sky).
+7. A whole shoot: develop one photo, then `sync_settings` from it to the others. Without `groups` it copies everything but crop, masks, spots and red eye; `groups: ["whiteBalance", "basicTone", "presence"]` copies only exposure and colour. Re-check two or three synced frames with `analyze_photo`.
+8. Noise: when `analyze_photo` flags high ISO on a raw, `denoise` first (it writes an enhanced DNG beside the raw and stacks it) and develop that DNG.
+
+Setting ids and ranges are in `get_develop_controls`. Families: `light.*` (exposure, contrast, highlights, shadows, whites, blacks), `effects.*` (texture, clarity, dehaze), `color.*` (vibrance, saturation), `wb.*`, `curve.*` (parametric regions and splits), `mixer.[band].hue|sat|lum` (red, orange, yellow, green, aqua, blue, purple, magenta), `bw.[band]`, `grading.shadows|midtones|highlights|global.hue|sat|lum` plus `grading.blending` and `grading.balance`, `calibration.*`, `detail.*`, `vignette.*`, `grain.*`, `profile.amount`.
+
+Strength guide from real presets and practitioners (details and sources in the editing guide): colour-grading saturation usually 7 to 20, obvious above about 20 to 25; film grain about 25 to 35; a matte look is a raised black point in the curve; prefer vibrance over saturation near skin.
 
 ## Workflow 3: deliver
 

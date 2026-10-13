@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """./formlit agents: formlit for Claude Code, Codex and Cursor.
 
-  sync [--check]            regenerate the driving skill's tool reference from the engine's catalogue and mirror the
+  sync [--check]            regenerate the driving skill's tool and preset references from the engine and mirror the
                             skill from .claude/skills to .agents/skills; --check exits 1 when either has drifted
   install [--dry-run] [claude|codex|cursor ...]
                             register the MCP server (./formlit mcp at this folder's absolute path) and the driving skill
@@ -25,7 +25,7 @@ SKILL = ROOT / ".claude" / "skills" / NAME
 MIRROR = ROOT / ".agents" / "skills" / NAME
 LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
 GROUPS = [
-    ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
+    ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
     ("Cull and people", ["analyze_culling", "apply_culling", "find_faces", "name_person"]),
     ("Develop", ["develop_set", "develop_patch", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
@@ -66,19 +66,40 @@ def tools_reference() -> str:
     return "\n".join(out)
 
 
+def presets_reference() -> str:
+    sys.path.insert(0, str(ROOT / "backend"))
+    os.environ.setdefault("FORMLIT_CATALOG", str(Path(os.environ.get("TMPDIR", "/tmp")) / "formlit-agents-sync" / "sync.fldb"))
+    from app.engine import presets
+    items = [{"id": f"builtin:{presets._slug(p['group'])}/{presets._slug(p['name'])}", **p} for p in presets.BUILTIN]
+    groups: dict[str, list[dict]] = {}
+    for p in items:
+        groups.setdefault(p["group"], []).append(p)
+    out = ["# formlit built-in presets", "", "Generated from formlit's preset list; do not edit by hand. Preview one with `get_preview` or `analyze_photo` and `preset`, apply it with `apply_preset` and an `amount` (100 is the preset as made, 50 half strength: colour-grading hues stay fixed and only their saturation scales, and curves ease toward straight).",
+           "`list_presets` with a `query` searches names, groups, descriptions and tags; the person's own presets are listed there too.", "",
+           f"{len(items)} presets in {len(groups)} groups. Adaptive presets add AI masks, which are computed for each photo they reach.", "", "## Contents", ""]
+    out += [f"- {name} ({len(ps)})" for name, ps in groups.items()] + [""]
+    for name, ps in groups.items():
+        out += [f"## {name}", "", "| Preset | What it does | Touches |", "| --- | --- | --- |"]
+        for p in ps:
+            desc = (p.get("description") or presets.NOTES.get(p["name"], "")).replace("|", "/")
+            touches = ", ".join(sorted(k for k in p["settings"]))
+            out.append(f"| {p['name']} (`{p['id']}`) | {desc} | {touches} |")
+        out.append("")
+    return "\n".join(out)
+
+
 def _files(folder: Path) -> dict:
     return {str(p.relative_to(folder)): p.read_bytes() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
 def sync(check: bool) -> int:
-    ref = SKILL / "references" / "tools.md"
-    want = tools_reference()
     drift = []
-    if not ref.exists() or ref.read_text(encoding="utf-8") != want:
-        drift.append(str(ref.relative_to(ROOT)))
-        if not check:
-            ref.parent.mkdir(parents=True, exist_ok=True)
-            ref.write_text(want, encoding="utf-8")
+    for ref, want in ((SKILL / "references" / "tools.md", tools_reference()), (SKILL / "references" / "presets.md", presets_reference())):
+        if not ref.exists() or ref.read_text(encoding="utf-8") != want:
+            drift.append(str(ref.relative_to(ROOT)))
+            if not check:
+                ref.parent.mkdir(parents=True, exist_ok=True)
+                ref.write_text(want, encoding="utf-8")
     if not MIRROR.exists() or _files(MIRROR) != _files(SKILL):
         drift.append(str(MIRROR.relative_to(ROOT)))
         if not check:
