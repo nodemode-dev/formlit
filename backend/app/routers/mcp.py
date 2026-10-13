@@ -15,6 +15,7 @@ from app.engine import agents
 from app.engine import catalog as catalog_mod
 from app.engine import events
 from app.engine.commands import REGISTRY, CommandError, catalogue, dispatch
+from app.routers.mcp_workflows import WORKFLOWS
 
 router = APIRouter()
 VERSIONS = ["2026-07-28", "2025-11-25"]
@@ -50,7 +51,7 @@ DEVELOP = """How to develop a photo in formlit.
 PROMPTS = [
     {"name": "culling_workflow", "title": "Cull a shoot", "description": "Score, group, pick and reject a shoot with formlit's tools.", "arguments": []},
     {"name": "develop_strategy", "title": "Develop a photo", "description": "The order formlit's develop tools work best in, with the setting ids.", "arguments": []},
-]
+] + [{"name": k, "title": v["title"], "description": v["description"], "arguments": []} for k, v in WORKFLOWS.items()]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
 BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
 WINDOW_ONLY = {"terminal", "claudecode"}
@@ -186,6 +187,23 @@ def _gradient(args: dict) -> dict:
     return _add_mask(args, shape)
 
 
+def _snapshot(args: dict) -> Any:
+    action = args.get("action")
+    if action == "create":
+        if args.get("id") is None:
+            raise CommandError("snapshot create needs id (the photo) and a name")
+        return _cmd("snapshot.create", id=args["id"], name=args.get("name") or "")
+    if action == "list":
+        if args.get("id") is None:
+            raise CommandError("snapshot list needs id (the photo)")
+        return _cmd("snapshot.list", id=args["id"])
+    if action == "apply":
+        if args.get("snapshot") is None:
+            raise CommandError("snapshot apply needs snapshot (an id from snapshot list)")
+        return _cmd("snapshot.apply", snapshot=args["snapshot"])
+    raise CommandError("action is create, list or apply")
+
+
 def _params(args: dict) -> dict:
     raw = args.get("params", args.get("args"))
     if isinstance(raw, str):
@@ -217,7 +235,7 @@ def _show(args: dict) -> dict:
 
 TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("get_catalog", "The catalog: name and counts, folders (id, path, count), collections (id, name, kind, count) and keywords. Use the ids as find_photos sources.", {}, read=True, idempotent=True), _catalog),
-    (_tool("find_photos", "Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.",
+    (_tool("find_photos", "Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, which also takes field operators such as iso>=3200, rating>=3, camera:x100, lens:35; rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.",
            {"source": {"type": "object"}, "filter": {"type": "object"}, "sort": {"type": "object"}, "limit": {"type": "integer", "minimum": 1, "maximum": 5000, "default": 200}}, read=True, idempotent=True), _find),
     (_tool("get_photo", "One photo in full: path, camera, lens, exposure, GPS, metadata, keywords, collections and develop settings.", {"id": ID}, ["id"], read=True, idempotent=True), lambda a: _cmd("photo.get", id=a["id"])),
     (_tool("get_preview", "The photo as developed, as a JPEG image (long side max_size; 512 is enough to judge a look and costs a quarter of 1024). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits; analyze true adds the compact measurement of the same render.",
@@ -230,9 +248,22 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
            {"ids": IDS, "reference": ID, "strength": {"type": "number", "minimum": 0, "maximum": 100, "default": 100}, "tone": {"type": "boolean", "default": True}, "color": {"type": "boolean", "default": True},
             "apply": {"type": "boolean", "default": True, "description": "false returns the proposal without saving."}, "report": REPORT}, ["ids", "reference"]),
      lambda a: _report(a, _cmd("develop.match", ids=a["ids"], reference=a["reference"], strength=a.get("strength", 100), tone=a.get("tone", True), color=a.get("color", True), apply=a.get("apply", True)), a["ids"])),
-    (_tool("import_photos", "Adds photos from folders or files (absolute paths) to the catalog; mode add keeps them in place, copy or move put them under destination.",
-           {"paths": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "enum": ["add", "copy", "move"], "default": "add"}, "destination": {"type": "string"}, "keywords": {"type": "array", "items": {"type": "string"}}}, ["paths"]),
-     lambda a: _cmd("library.import", paths=a["paths"], mode=a.get("mode", "add"), destination=a.get("destination"), keywords=a.get("keywords"), wait=True)),
+    (_tool("import_photos", "Adds photos from folders or files (absolute paths) to the catalog the way working photographers ingest: mode add keeps them in place, copy or move put them under destination, dng copies as DNG. folderTemplate builds the folders (default {date:%Y}/{date:%Y-%m-%d}); renameTemplate renames files with tokens {custom} {shoot} {date:%Y%m%d} {seq:4} {name} {camera} {iso}; metadata applies a copyright preset to every file ({\"copyright\": ..., \"creator\": ..., \"city\": ...}); develop applies a preset id at import; backup makes a second copy in another folder; buildPreviews standard or 1:1; collection adds them to a collection id.",
+           {"paths": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "enum": ["add", "copy", "move", "dng"], "default": "add"}, "destination": {"type": "string"},
+            "folderTemplate": {"type": "string"}, "renameTemplate": {"type": "string"}, "custom": {"type": "string"}, "metadata": {"type": "object"}, "develop": {"type": "string"},
+            "keywords": {"type": "array", "items": {"type": "string"}}, "collection": {"type": "integer"}, "backup": {"type": "string"}, "skipDuplicates": {"type": "boolean", "default": True},
+            "buildPreviews": {"type": "string", "enum": ["", "standard", "1:1"]}, "smartPreviews": {"type": "boolean", "default": False}}, ["paths"]),
+     lambda a: _cmd("library.import", paths=a["paths"], mode=a.get("mode", "add"), destination=a.get("destination") or "", keywords=a.get("keywords"), wait=True,
+                    **{k: a[k] for k in ("folderTemplate", "renameTemplate", "custom", "metadata", "develop", "collection", "backup", "skipDuplicates", "buildPreviews", "smartPreviews") if k in a})),
+    (_tool("refine_photos", "Lightroom's Refine Photos for a multi-pass cull: unflagged photos become rejects and picks become unflagged, so the next pass sees only the survivors. Rejects stay rejects; nothing is deleted.",
+           {"ids": IDS}, ["ids"]), lambda a: _cmd("library.refine", ids=a["ids"])),
+    (_tool("match_exposures", "Lightroom's Match Total Exposures: evens out the brightness of a run of photos of the same scene to the first id (the best-exposed frame), using their exposure metadata. For bracket sets and uneven series; match_look also matches colour.",
+           {"ids": IDS, "report": REPORT}, ["ids"]), lambda a: _report(a, _cmd("develop.matchExposure", ids=a["ids"]), a["ids"])),
+    (_tool("virtual_copy", "Makes virtual copies (catalog-only versions that share the original file) for alternate edits such as colour and black and white, or another crop; returns the new ids.",
+           {"ids": IDS, "name": {"type": "string"}}, ["ids"]), lambda a: _cmd("photo.virtualCopy", ids=a["ids"], name=a.get("name"))),
+    (_tool("snapshot", "Named develop states inside one photo: action create saves the current settings under name, list shows them, apply restores one by its id.",
+           {"action": {"type": "string", "enum": ["create", "list", "apply"]}, "id": ID, "name": {"type": "string"}, "snapshot": {"type": "integer"}}, ["action"]),
+     lambda a: _snapshot(a)),
     (_tool("set_rating", "Sets star ratings, 0 to 5.", {"ids": IDS, "rating": {"type": "integer", "minimum": 0, "maximum": 5}}, ["ids", "rating"], idempotent=True), lambda a: _cmd("photo.rate", ids=a["ids"], rating=a["rating"])),
     (_tool("set_flag", "Flags photos as pick, reject or none.", {"ids": IDS, "flag": {"type": "string", "enum": ["pick", "reject", "none"]}}, ["ids", "flag"], idempotent=True), lambda a: _cmd("photo.flag", ids=a["ids"], flag=a["flag"])),
     (_tool("set_label", "Sets colour labels.", {"ids": IDS, "label": {"type": "string", "enum": ["red", "yellow", "green", "blue", "purple", "none"]}}, ["ids", "label"], idempotent=True), lambda a: _cmd("photo.label", ids=a["ids"], label=a["label"])),
@@ -424,7 +455,7 @@ async def mcp(request: Request) -> Response:
     elif method == "prompts/list":
         out = _ok(req_id, {"prompts": PROMPTS, **(LIST_CACHE if modern else {})}, modern)
     elif method == "prompts/get":
-        text = {"culling_workflow": CULLING, "develop_strategy": DEVELOP}.get(params.get("name") if isinstance(params.get("name"), str) else "")
+        text = {"culling_workflow": CULLING, "develop_strategy": DEVELOP, **{k: v["text"] for k, v in WORKFLOWS.items()}}.get(params.get("name") if isinstance(params.get("name"), str) else "")
         out = _ok(req_id, {"description": next(p["description"] for p in PROMPTS if p["name"] == params.get("name")), "messages": [{"role": "user", "content": {"type": "text", "text": text}}]}, modern) if text else _err(req_id, -32602, f"No prompt named {params.get('name')}")
     elif method == "tools/list":
         out = _ok(req_id, {"tools": [t[0] for t in TOOLS], **(LIST_CACHE if modern else {})}, modern)
