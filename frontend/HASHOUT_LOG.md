@@ -512,6 +512,20 @@ Reference View reuses the Before pane: the active photo takes the right half exa
 
 Reference View (Shift+R, and Reference in the compare segment) uses the active photo as the reference when none is set and says so; Set as Reference Photo fixes the active photo; Match Look to Reference runs the engine's `develop.match` from the reference to the selected photos (not the reference itself) and reports the distance before and after. `show_in_window` with `reference` reaches `showReference` through the `agent.show` event so an agent can put a match and its reference side by side.
 
+### src/modules/develop/index.ts · the reference follows its edits
+- refers-to: src/modules/develop/index.ts :: mount (photos.changed); src/modules/develop/view.ts :: referenceChanged
+- kind: rationale
+- logged: v0.13.0 · 2026-10-13
+
+When the engine reports `develop` or `edited` changing on the reference photo (an agent, Sync, undo, or the person editing it in another window), the reference pane re-renders at once instead of waiting for the active photo's next render. It swaps in place without hiding the pane, so an update never blanks it (checked under 4x CPU: hidden 0 times).
+
+### src/ui/preferences.ts · identity
+- refers-to: src/ui/preferences.ts :: identity; backend/app/engine/cmd_templates.py :: identity, keep_identity
+- kind: explainer
+- logged: v0.13.0 · 2026-10-13
+
+Preferences, Metadata holds Creator, Email and Website: the `identity` preference the metadata templates, New Shoot from Template and agents use for {creator}, {email} and {url}. Saved on change as one object (an emptied field clears it); a field being typed in is not overwritten when the stored values arrive.
+
 ---
 
 ## src/ui/terminal-dock.ts, src/modules/shared/terminal.ts {#ui-terminal-dock}

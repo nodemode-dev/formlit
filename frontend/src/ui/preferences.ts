@@ -18,6 +18,11 @@ class Preferences extends Dialog {
   private readonly models = el('<div class="fl-models"></div>');
   private readonly autoXmp = el('<label class="fl-check"><input type="checkbox"> Automatically write changes into XMP</label>');
   private readonly intoFiles = el('<label class="fl-check"><input type="checkbox"> Write metadata into JPEG, TIFF and DNG files instead of sidecars</label>');
+  private readonly identity: Record<'creator' | 'email' | 'url', HTMLInputElement> = {
+    creator: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="your name or studio">'),
+    email: el<HTMLInputElement>('<input class="cv-input" type="email" spellcheck="false" placeholder="optional">'),
+    url: el<HTMLInputElement>('<input class="cv-input" type="url" spellcheck="false" placeholder="optional">'),
+  };
 
   constructor(private readonly ctx: Ctx) {
     super('Preferences', 620);
@@ -31,6 +36,16 @@ class Preferences extends Dialog {
     this.body.append(this.autoXmp, this.intoFiles);
     for (const [box, key] of [[this.autoXmp, 'autoWriteXmp'], [this.intoFiles, 'xmpIntoFiles']] as Array<[HTMLElement, string]>) {
       q<HTMLInputElement>(box, 'input').addEventListener('change', (e) => void this.ctx.api.cmd('prefs.set', { values: { [key]: (e.target as HTMLInputElement).checked } }).catch((err) => this.ctx.fail(err)));
+    }
+    this.body.appendChild(el('<p class="cv-note">Your details for metadata templates, New Shoot from Template and agents: they fill {creator}, {email} and {url} in copyright and licence text.</p>'));
+    this.field('Creator', this.identity.creator);
+    this.field('Email', this.identity.email);
+    this.field('Website', this.identity.url);
+    for (const input of Object.values(this.identity)) {
+      input.addEventListener('change', () => {
+        const values = Object.fromEntries(Object.entries(this.identity).map(([k, i]) => [k, i.value.trim()]));
+        void this.ctx.api.cmd('prefs.set', { values: { identity: values } }).catch((err) => this.ctx.fail(err));
+      });
     }
     this.body.appendChild(el('<div class="fl-sub">AI agents</div>'));
     this.body.appendChild(el('<p class="cv-note">Claude and other AI agents can work in formlit through its plugin: add the formlit plugin from the Form marketplace in Claude (Customize, Plugins), keep formlit open, and ask in plain words. Agents use the same commands as this window and every change can be undone. Deleting files and switching catalogs always stay with you.</p>'));
@@ -76,6 +91,8 @@ class Preferences extends Dialog {
       q<HTMLInputElement>(this.autoXmp, 'input').checked = !!p.autoWriteXmp;
       q<HTMLInputElement>(this.intoFiles, 'input').checked = p.xmpIntoFiles !== false;
       setValue(this.access, typeof p.outsideAgents === 'string' ? p.outsideAgents : 'ask');
+      const id = (p.identity ?? {}) as Record<string, unknown>;
+      for (const [k, input] of Object.entries(this.identity)) if (document.activeElement !== input) setValue(input, String(id[k] ?? ''));
     }, () => undefined);
     void this.ctx.api.cmd<{ clients: Array<{ name: string }> }>('agents.status').then((s) => {
       const names = s.clients.map((c) => c.name).join(', ') || 'none yet';
