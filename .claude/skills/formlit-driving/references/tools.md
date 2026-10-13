@@ -493,10 +493,11 @@ Publishes a published collection: new and edited photos go out, removed ones are
 
 ## show_in_window
 
-Shows something in the formlit window if it is open: a module (library, develop, map, book, slideshow, print, web), a photo id, a source like find_photos takes, and a short message for the person.
+Shows something in the formlit window if it is open: a module (library, develop, map, book, slideshow, print, web), a photo id, a source like find_photos takes, and a short message for the person. reference (a photo id) opens Develop's Reference View with that photo fixed on the left and photo on the right, so the person can compare a match_look result with its reference.
 
 - `module`: string
 - `photo`: integer
+- `reference`: integer
 - `source`: object
 - `message`: string
 
