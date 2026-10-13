@@ -1109,6 +1109,28 @@ Each prompt is a professional workflow from the v0.10.0 verified research, writt
 
 Lightroom's Refine Photos, as Adobe and Julieanne Kost describe it: unflagged become rejects (-1), picks become unflagged (0), rejects stay. One undo step. The window asks for confirmation first because it touches every photo in view.
 
+### app/engine/cmd_workflow.py · develop.noiseByIso
+- refers-to: app/engine/cmd_workflow.py :: ISO_BANDS, iso_preset, noise_by_iso; app/engine/preset_library.py :: Noise by ISO group
+- kind: rationale
+- logged: v0.11.0 · 2026-10-13
+
+Stands in for Lightroom's ISO adaptive presets: each photo gets the Noise by ISO preset for the highest band at or under its ISO (800, 1600, 3200, 6400, 12800). Bands rather than interpolation, because the presets are the reviewed values and an in-between value would be invented. `blended` touches only the Detail group the preset carries. Under ISO 800 and no ISO are counted, not guessed.
+
+### app/engine/template_library.py, cmd_templates.py · templates and shoot recipes
+- refers-to: app/engine/template_library.py :: FILENAME, FOLDER, METADATA, KEYWORDS, SMART, STAGES, SHOOTS; app/engine/cmd_templates.py :: template.*, workflow.setupShoot; app/output/export_library.py :: LIBRARY
+- kind: rationale
+- logged: v0.11.0 · 2026-10-13
+
+Lightroom's template families (filename templates, metadata presets, keyword sets, smart collections, export presets) as data, plus shoot recipes that bind one of each to a genre. Facts in them come from the v0.11.0 research: Creative Commons 4.0 deed URLs and CC0 from creativecommons.org; Adobe Stock and Shutterstock ask for JPEG, sRGB, at least 4 MP; Canopy MLS and Unlock MLS both ask for at least 2048 x 1536 and Canopy caps at 3000 px and 6 MB; Mpix asks for sRGB JPEG and prints at 250 ppi, WHCC prints most products at 300 dpi; Instagram's help says it keeps photos up to 1080 px across. Facts that research could not confirm are left out: no Meta aspect sizes, no claim about Lightroom's built-in filename template names. The four built-in keyword sets the window had are kept word for word (as Outdoor, Portrait, Wedding and Event Photography) so Alt+1 to Alt+9 still type the same words.
+Metadata placeholders resolve from `values`, then the remembered `identity` pref (creator, email, url only), then `year`. A field whose placeholder has no value is skipped; a template whose creator, copyright or usage terms would be skipped is refused, so a half-written copyright never lands. `setupShoot` creates the set, All Photos and the stage smart collections in one change with direct inserts, because `collection.create` makes one undo step each; stage rules are scoped with a `collection = All Photos` rule plus a nested group, which `compile_rules` already supports.
+
+### app/services/importer.py · {shoot} at import
+- refers-to: app/services/importer.py :: _destination
+- kind: warning-context
+- logged: v0.11.0 · 2026-10-13
+
+The window's import naming list offers "Shoot Name - Filename" (`{shoot}-{name}`) but `_destination` never passed a shoot, so files came out as `-IMG_0001`. The custom text now fills both `{custom}` and `{shoot}` at import.
+
 ### app/engine/cmd_develop.py · match_exposure reference
 - refers-to: app/engine/cmd_develop.py :: match_exposure
 - kind: warning-context

@@ -18,6 +18,7 @@ from app.develop.geometry import Frame
 from app.engine import catalog as catalog_mod
 from app.engine.records import detail, loads
 from app.output import encode
+from app.output.export_library import LIBRARY as EXPORT_LIBRARY
 from app.services import previews, rename
 
 DEFAULTS: dict = {
@@ -44,7 +45,7 @@ BUILTIN = [
     {"id": "builtin.dng", "name": "DNG with Edits", "settings": {"file": {"format": "dng"}}},
     {"id": "builtin.hdr", "name": "Ultra HDR JPEG (gain map)", "settings": {"file": {"format": "jpeg", "quality": 90, "space": "srgb", "hdr": True, "hdrStops": "2"},
                                                                      "size": {"resize": True, "mode": "long", "value": 3840}}},
-]
+] + EXPORT_LIBRARY
 SHARPEN = {"screen": (0.6, {"low": 0.35, "standard": 0.6, "high": 0.9}), "matte": (1.0, {"low": 0.55, "standard": 0.85, "high": 1.25}),
            "glossy": (0.8, {"low": 0.4, "standard": 0.65, "high": 1.0})}
 ANCHORS = {"tl": (0, 0), "t": (0.5, 0), "tr": (1, 0), "l": (0, 0.5), "c": (0.5, 0.5), "r": (1, 0.5), "bl": (0, 1), "b": (0.5, 1), "br": (1, 1)}
@@ -69,7 +70,7 @@ def presets_dir() -> Path:
 
 
 def list_presets() -> list[dict]:
-    out = [dict(p, builtin=True) for p in BUILTIN]
+    out = [{"group": "General", **p, "builtin": True} for p in BUILTIN]
     for f in sorted(presets_dir().glob("*.json")):
         try:
             d = json.loads(f.read_text())
