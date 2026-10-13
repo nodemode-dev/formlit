@@ -243,7 +243,7 @@ def _run_command(args: dict) -> Any:
 
 
 def _show(args: dict) -> dict:
-    events.publish("agent.show", module=args.get("module"), photo=args.get("photo"), source=args.get("source"), message=args.get("message"))
+    events.publish("agent.show", module=args.get("module"), photo=args.get("photo"), reference=args.get("reference"), source=args.get("source"), message=args.get("message"))
     return {"shown": True, "note": "The formlit window follows when it is open."}
 
 
@@ -359,8 +359,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("export_web_gallery", "Writes a web gallery folder (index.html plus images); settings as the Web module (site.title, layout, colors).", {"ids": IDS, "settings": {"type": "object"}, "folder": {"type": "string"}}, ["ids"]),
      lambda a: _cmd("web.export", ids=a["ids"], settings=a.get("settings") or {}, folder=a.get("folder"), wait=True)),
     (_tool("publish", "Publishes a published collection: new and edited photos go out, removed ones are deleted from the service.", {"collection": {"type": "integer"}}, ["collection"]), lambda a: _cmd("publish.run", collection=a["collection"], wait=True)),
-    (_tool("show_in_window", "Shows something in the formlit window if it is open: a module (library, develop, map, book, slideshow, print, web), a photo id, a source like find_photos takes, and a short message for the person.",
-           {"module": {"type": "string"}, "photo": {"type": "integer"}, "source": {"type": "object"}, "message": {"type": "string", "maxLength": 200}}, idempotent=True), _show),
+    (_tool("show_in_window", "Shows something in the formlit window if it is open: a module (library, develop, map, book, slideshow, print, web), a photo id, a source like find_photos takes, and a short message for the person. reference (a photo id) opens Develop's Reference View with that photo fixed on the left and photo on the right, so the person can compare a match_look result with its reference.",
+           {"module": {"type": "string"}, "photo": {"type": "integer"}, "reference": {"type": "integer"}, "source": {"type": "object"}, "message": {"type": "string", "maxLength": 200}}, idempotent=True), _show),
     (_tool("undo", "Undoes the last change.", {}), lambda a: _cmd("edit.undo")),
     (_tool("redo", "Redoes the last undone change.", {}), lambda a: _cmd("edit.redo")),
     (_tool("list_commands", "Every engine command (id, group, parameters) for run_command, optionally one group.", {"group": {"type": "string"}}, read=True, idempotent=True),

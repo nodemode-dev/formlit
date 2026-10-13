@@ -202,7 +202,7 @@ class DevelopModule {
     const t = this.hosts.toolbar;
     const bar = el(`<div class="fl-tb">
 <button class="cv-icon-btn" type="button" data-cmd="develop.loupe" aria-label="Loupe">${icon('viewLoupe', 16)}</button>
-<div class="cv-seg fl-seg-sm fl-tb-compare"><button type="button" data-c="off" title="After only">After</button><button type="button" data-c="lr" title="Before and After, Left and Right (Y)">Left/Right</button><button type="button" data-c="tb" title="Before and After, Top and Bottom">Top/Bottom</button><button type="button" data-c="split" title="Split view">Split</button><button type="button" data-c="before" title="Before only (\\)">Before</button></div>
+<div class="cv-seg fl-seg-sm fl-tb-compare"><button type="button" data-c="off" title="After only">After</button><button type="button" data-c="lr" title="Before and After, Left and Right (Y)">Left/Right</button><button type="button" data-c="tb" title="Before and After, Top and Bottom">Top/Bottom</button><button type="button" data-c="split" title="Split view">Split</button><button type="button" data-c="before" title="Before only (\\)">Before</button><button type="button" data-c="ref" title="Reference View: a fixed reference photo beside the one you edit (Shift+R)">Reference</button></div>
 <span class="fl-tb-sep"></span>
 <button class="cv-icon-btn" type="button" data-cmd="develop.clipping" aria-label="Show Clipping (J)">${icon('clipHighlights', 16)}</button>
 <button class="cv-icon-btn" type="button" data-cmd="develop.wbPicker" aria-label="White Balance Selector (W)">${icon('eyeDropper', 16)}</button>
@@ -238,7 +238,14 @@ class DevelopModule {
     this.view.onZoom(this.view.zoom);
   }
 
+  compareTo(c: Compare): void { this.setCompare(c); }
+
   private setCompare(c: Compare): void {
+    if (c === 'ref' && this.view.reference === null) {
+      if (library.active === null) { toast('Choose a photo to use as the reference first'); return; }
+      this.view.setReference(library.active);
+      toast('This photo is now the reference; pick another photo in the filmstrip to edit beside it');
+    }
     this.view.setCompare(c);
     for (const b of Array.from(this.hosts.toolbar.querySelectorAll<HTMLElement>('[data-c]'))) setClass(b, 'is-on', b.dataset.c === c);
   }
@@ -296,6 +303,24 @@ class DevelopModule {
       { id: 'develop.beforeAfter', label: 'Before/After Left/Right', keys: ['Y'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'lr' ? 'off' : 'lr'); }, checked: () => this.view.compare === 'lr' },
       { id: 'develop.before', label: 'Show Before', keys: ['\\'], run: () => { if (ctx.module() === 'develop') this.setCompare(this.view.compare === 'before' ? 'off' : 'before'); else ctx.run('view.filterBar'); }, checked: () => this.view.compare === 'before' },
       { id: 'develop.loupe', label: 'Loupe', run: () => this.setCompare('off') },
+      { id: 'develop.referenceView', label: 'Reference View', keys: ['Shift+R'], run: () => { if (ctx.module() !== 'develop') ctx.toModule('develop'); this.setCompare(this.view.compare === 'ref' ? 'off' : 'ref'); }, checked: () => this.view.compare === 'ref' },
+      { id: 'develop.setReference', label: 'Set as Reference Photo', enabled: has, run: () => {
+        if (library.active === null) return;
+        this.view.setReference(library.active);
+        if (ctx.module() !== 'develop') ctx.toModule('develop');
+        if (this.view.compare !== 'ref') this.setCompare('ref');
+        toast('Reference set; pick another photo to edit beside it');
+      } },
+      { id: 'develop.matchReference', label: 'Match Look to Reference', enabled: () => this.view.reference !== null && library.targets().some((i) => i !== this.view.reference), run: async () => {
+        const ref = this.view.reference;
+        const ids = (await this.targets()).filter((i) => i !== ref);
+        if (ref === null || !ids.length) return;
+        try {
+          const r = await ctx.api.cmd<{ results?: Array<{ distanceBefore: number; distanceAfter: number }> }>('develop.match', { ids, reference: ref });
+          const d = r.results?.[0];
+          toast(`Matched ${ids.length} ${ids.length === 1 ? 'photo' : 'photos'} to the reference${d ? `; difference ${Math.round(d.distanceBefore)} to ${Math.round(d.distanceAfter)}` : ''}`);
+        } catch (err) { ctx.fail(err, 'Match Look to Reference'); }
+      } },
       { id: 'develop.copyAfterToBefore', label: "Copy After's Settings to Before", keys: ['Alt+Shift+Mod+Left'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.setBefore', { id: develop.id, source: 'after' })).then(() => toast('Before now matches After'), (e) => ctx.fail(e)); }, enabled: has },
       { id: 'develop.copyBeforeToAfter', label: "Copy Before's Settings to After", keys: ['Alt+Shift+Mod+Right'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.beforeToAfter', { id: develop.id })).catch((e) => ctx.fail(e)); }, enabled: has },
       { id: 'develop.swapBeforeAfter', label: 'Swap Before and After Settings', keys: ['Alt+Shift+Mod+Up'], run: () => { if (develop.id !== null) void develop.flush().then(() => ctx.api.cmd('develop.beforeToAfter', { id: develop.id, swap: true })).catch((e) => ctx.fail(e)); }, enabled: has },
@@ -347,6 +372,12 @@ class DevelopModule {
 }
 
 const mod = new DevelopModule();
+
+export function showReference(id: number): void {
+  if (!mod.view) return;
+  mod.view.setReference(id);
+  mod.compareTo('ref');
+}
 
 registerModule({
   id: 'develop', label: 'Develop', icon: 'modDevelop', key: 'D', order: 2,

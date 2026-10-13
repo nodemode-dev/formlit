@@ -1,12 +1,12 @@
 import { api } from '../../io/api';
 import { develop } from '../../state/develop';
-import type { Photo } from '../../state/library';
-import { el, pendingClass, q, setClass, setHidden, setStyleVar, type Disposer } from '../../ui/dom';
+import { library, type Photo } from '../../state/library';
+import { el, pendingClass, q, setClass, setHidden, setStyleVar, setText, type Disposer } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 
 export interface Geo { norm: number[]; w: number; h: number; ow: number; oh: number; rect: number[]; angle: number; flipH: boolean; flipV: boolean }
 export type Zoom = 'fit' | 'fill' | number;
-export type Compare = 'off' | 'before' | 'lr' | 'tb' | 'split';
+export type Compare = 'off' | 'before' | 'lr' | 'tb' | 'split' | 'ref';
 
 export interface Pt { sx: number; sy: number; u: number; v: number; nx: number; ny: number; e: PointerEvent }
 
@@ -75,6 +75,9 @@ export class DevelopView {
   private regionSeq = 0;
   private regionTimer = 0;
   private beforeFor = '';
+  reference: number | null = null;
+  private refFor = '';
+  private refAspect = 1.5;
   private pending: Disposer | null = null;
   private aspect = 1.5;
   private shown: number | null = null;
@@ -131,10 +134,30 @@ export class DevelopView {
   }
 
   setCompare(c: Compare): void {
+    if ((c === 'ref') !== (this.compare === 'ref')) setClass(this.beforeBox, 'is-empty', true);
     this.compare = c;
     this.beforeFor = '';
+    this.refFor = '';
+    setText(q(this.beforeBox, '.fl-dv-tag'), c === 'ref' ? 'Reference' : 'Before');
+    setText(this.tag, c === 'ref' ? 'Active' : 'After');
     this.place();
     this.schedule();
+  }
+
+  setReference(id: number | null): void {
+    if (id === this.reference) return;
+    this.reference = id;
+    this.refFor = '';
+    if (this.compare === 'ref') setClass(this.beforeBox, 'is-empty', true);
+    this.refAspect = library.photo(id)?.a || 1.5;
+    if (this.compare === 'ref') { this.place(); this.schedule(); }
+  }
+
+  private refRect(): { x: number; y: number; w: number; h: number } {
+    const { w, h } = this.stageRect();
+    const pw = w / 2 - 4 - 24, ph = h - 24, a = this.refAspect || 1.5;
+    const rw = pw / ph > a ? ph * a : pw, rh = pw / ph > a ? ph : pw / a;
+    return { x: (w / 2 - 4 - rw) / 2, y: (h - rh) / 2, w: rw, h: rh };
   }
 
   private stageRect(): { w: number; h: number } {
@@ -143,7 +166,7 @@ export class DevelopView {
 
   private panes(): { x: number; y: number; w: number; h: number; bx: number; by: number } {
     const { w, h } = this.stageRect();
-    if (this.compare === 'lr') return { x: w / 2 + 4, y: 0, w: w / 2 - 4, h, bx: 0, by: 0 };
+    if (this.compare === 'lr' || this.compare === 'ref') return { x: w / 2 + 4, y: 0, w: w / 2 - 4, h, bx: 0, by: 0 };
     if (this.compare === 'tb') return { x: 0, y: h / 2 + 4, w, h: h / 2 - 4, bx: 0, by: 0 };
     return { x: 0, y: 0, w, h, bx: 0, by: 0 };
   }
@@ -189,9 +212,13 @@ export class DevelopView {
       for (const [k, v] of [['--x', r.x], ['--y', r.y], ['--w', r.w], ['--h', r.h]] as Array<[string, number]>) setStyleVar(this.box, k, `${Math.round(v)}px`);
     }
     const p = this.panes();
-    const before = this.compare === 'lr' || this.compare === 'tb' || this.compare === 'before' || this.compare === 'split';
+    const before = this.compare === 'lr' || this.compare === 'tb' || this.compare === 'before' || this.compare === 'split' || this.compare === 'ref';
     setHidden(this.beforeBox, !before);
-    if (before) {
+    if (this.compare === 'ref') {
+      const rr = this.refRect();
+      for (const [k, v] of [['--x', rr.x], ['--y', rr.y], ['--w', rr.w], ['--h', rr.h]] as Array<[string, number]>) setStyleVar(this.beforeBox, k, `${Math.round(v)}px`);
+      setStyleVar(this.beforeBox, '--clip', 'none');
+    } else if (before) {
       const { w, h } = this.stageRect();
       const bp = this.compare === 'lr' ? { x: 0, y: 0, w: w / 2 - 4, h } : this.compare === 'tb' ? { x: 0, y: 0, w, h: h / 2 - 4 } : { x: p.x, y: p.y, w: p.w, h: p.h };
       const bx = bp.x + (r.x - p.x) * (bp.w / p.w) + 0;
@@ -206,7 +233,7 @@ export class DevelopView {
     setClass(this.root, 'is-before-only', this.compare === 'before');
     setHidden(q(this.root, '.fl-dv-split'), this.compare !== 'split');
     if (this.compare === 'split') setStyleVar(q(this.root, '.fl-dv-split'), 'left', `${Math.round(r.x + r.w * this.split)}px`);
-    setHidden(this.tag, !(this.compare === 'lr' || this.compare === 'tb' || this.compare === 'split'));
+    setHidden(this.tag, !(this.compare === 'lr' || this.compare === 'tb' || this.compare === 'split' || this.compare === 'ref'));
     const { w, h } = this.stageRect();
     setClass(this.root, 'is-zoomed', r.w > p.w + 1 || r.h > p.h + 1);
     if (this.canvas.width !== Math.round(w * devicePixelRatio) || this.canvas.height !== Math.round(h * devicePixelRatio)) {
@@ -270,7 +297,8 @@ export class DevelopView {
           if (!this.dragging) this.scheduleRegion(80);
         }
       }
-      if (this.compare !== 'off' && this.beforeFor !== `${p.id}:${p.rev}`) void this.renderBefore(p);
+      if (this.compare === 'ref') this.renderReference();
+      else if (this.compare !== 'off' && this.beforeFor !== `${p.id}:${p.rev}`) void this.renderBefore(p);
     } catch (err) {
       this.onError?.(err);
     } finally {
@@ -285,13 +313,41 @@ export class DevelopView {
     this.beforeFor = `${p.id}:${p.rev}`;
     try {
       const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ before: true, long: this.renderLong(), view: 'before', crop: true }) });
-      if (r.ok) await this.before.swap(await r.blob());
+      if (r.ok && await this.before.swap(await r.blob()) && this.compare !== 'ref') setClass(this.beforeBox, 'is-empty', false);
     } catch { this.beforeFor = ''; }
+  }
+
+  private renderReference(): void {
+    const ref = library.photo(this.reference);
+    if (!ref || this.refFor === `${ref.id}:${ref.rev}`) return;
+    const key = `${ref.id}:${ref.rev}`;
+    this.refFor = key;
+    const rr = this.refRect();
+    const long = Math.round(Math.max(320, Math.min(Math.max(rr.w, rr.h) * Math.min(2, devicePixelRatio || 1), MAX_LONG)));
+    void (async () => {
+      try {
+        const r = await fetch(api.url(`/api/photos/${ref.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ long, view: 'develop', crop: true }) });
+        if (!r.ok || this.refFor !== key || this.compare !== 'ref') return;
+        const geo = JSON.parse(r.headers.get('X-Geometry') || 'null') as Geo | null;
+        const blob = await r.blob();
+        if (this.refFor !== key || this.compare !== 'ref') return;
+        if (await this.before.swap(blob) && this.refFor === key) {
+          if (geo) this.refAspect = geo.w / Math.max(1, geo.h);
+          setClass(this.beforeBox, 'is-empty', false);
+          this.place();
+        }
+      } catch { if (this.refFor === key) this.refFor = ''; }
+    })();
+  }
+
+  referenceChanged(): void {
+    this.refFor = '';
+    if (this.compare === 'ref') this.renderReference();
   }
 
   beforeChanged(): void {
     this.beforeFor = '';
-    if (this.compare !== 'off' && this.photo) void this.renderBefore(this.photo);
+    if (this.compare !== 'off' && this.compare !== 'ref' && this.photo) void this.renderBefore(this.photo);
   }
 
   private scheduleRegion(ms: number): void {
