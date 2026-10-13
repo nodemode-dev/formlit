@@ -6,8 +6,9 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 
 - Look: `get_catalog`, `find_photos`, `get_photo`, `get_preview`, `analyze_photo`, `list_people`, `get_develop_controls`, `get_develop`, `list_presets`, `list_export_presets`
 - Import and organize: `import_photos`, `set_rating`, `set_flag`, `set_label`, `add_keywords`, `set_metadata`, `set_location`, `create_collection`, `add_to_collection`, `stack_photos`
+- Jobs and templates: `setup_shoot`, `list_templates`, `apply_template`
 - Cull and people: `refine_photos`, `analyze_culling`, `apply_culling`, `find_faces`, `name_person`
-- Develop: `match_look`, `match_exposures`, `virtual_copy`, `snapshot`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
+- Develop: `match_look`, `match_exposures`, `virtual_copy`, `snapshot`, `noise_by_iso`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
@@ -124,6 +125,51 @@ Named develop states inside one photo: action create saves the current settings 
 - `id`: integer; A photo id from find_photos.
 - `name`: string
 - `snapshot`: integer
+
+## setup_shoot
+
+Starts a job from a shoot recipe (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro; list_templates kind shoot): makes a collection set named for the shoot with All Photos and smart collections for Picks, To Edit, Edited, Portfolio and Rejects limited to it, in one undo step. With paths it imports straight into it with the recipe's folder and file naming, metadata template, keyword set and previews, then applies noise reduction by ISO when the recipe calls for it. values fills the metadata (creator, email, url, client, event, job; creator, email and url are remembered). Returns the stage collection ids, the recipe's export presets and its workflow prompt to follow next.
+
+- `recipe`: string; required
+- `name`: string; required; the shoot, client or event, used for the set, the folders and {custom} in names
+- `values`: object
+- `paths`: array
+- `mode`: string (add | copy | move | dng); default "copy"
+- `destination`: string
+- `backup`: string
+- `skipDuplicates`: boolean; default true
+
+## list_templates
+
+Built-in templates: filename (rename patterns), folder (import folder patterns), metadata (copyright, Creative Commons, editorial, client licences), keywordSet, smartCollection, shoot (whole-job recipes) and export (delivery presets with what each is for). kind and query narrow it; the result also shows the remembered creator, email and url.
+
+- `kind`: string (filename | folder | metadata | keywordSet | smartCollection | shoot | export)
+- `query`: string
+
+Note: read-only.
+
+## apply_template
+
+Applies a template by id or name: kind metadata writes its IPTC fields (values fills creator, email, url, client, event, job); keywordSet adds its keywords (or the listed subset); filename renames the files on disk (custom fills {custom}; preview true shows the names first); smartCollection creates a smart collection (within limits it to a collection id, parent puts it in a set). One undo step each.
+
+- `kind`: string (metadata | keywordSet | filename | smartCollection); required
+- `template`: string; required
+- `ids`: array; Photo ids from find_photos.
+- `values`: object
+- `keywords`: array
+- `custom`: string
+- `preview`: boolean; default false
+- `name`: string
+- `within`: integer
+- `parent`: integer
+
+## noise_by_iso
+
+Lightroom's ISO adaptive noise reduction: gives each photo the Noise by ISO preset for its own ISO (800, 1600, 3200, 6400, 12800 and up), Detail only, in one undo step; photos under ISO 800 or without ISO are counted and left alone. AI denoise (denoise) is still better for the worst raws.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `amount`: number; default 100
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
 
 ## set_rating
 

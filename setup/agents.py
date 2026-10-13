@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """./formlit agents: formlit for Claude Code, Codex and Cursor.
 
-  sync [--check]            regenerate the driving skill's tool and preset references from the engine and mirror the
+  sync [--check]            regenerate the driving skill's tool, preset and template references from the engine and mirror the
                             skill from .claude/skills to .agents/skills; --check exits 1 when either has drifted
   install [--dry-run] [claude|codex|cursor ...]
                             register the MCP server (./formlit mcp at this folder's absolute path) and the driving skill
@@ -27,8 +27,9 @@ LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
+    ("Jobs and templates", ["setup_shoot", "list_templates", "apply_template"]),
     ("Cull and people", ["analyze_culling", "apply_culling", "refine_photos", "find_faces", "name_person"]),
-    ("Develop", ["develop_set", "develop_patch", "match_look", "match_exposures", "virtual_copy", "snapshot", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "save_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
+    ("Develop", ["develop_set", "develop_patch", "match_look", "match_exposures", "noise_by_iso", "virtual_copy", "snapshot", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "save_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
     ("Enhance and merge", ["denoise", "super_resolution", "merge_hdr", "merge_panorama"]),
     ("Output", ["export_photos", "print_pdf", "make_book", "export_slideshow", "export_web_gallery", "publish"]),
     ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command", "get_agent_access"]),
@@ -88,13 +89,43 @@ def presets_reference() -> str:
     return "\n".join(out)
 
 
+def templates_reference() -> str:
+    sys.path.insert(0, str(ROOT / "backend"))
+    from app.engine.template_library import FILENAME, FOLDER, KEYWORDS, METADATA, SHOOTS, SMART
+    from app.output.export import BUILTIN as EXPORTS
+    cell = lambda s: str(s).replace("|", "/")
+    out = ["# formlit built-in templates", "", "Generated from formlit's template library; do not edit by hand. `list_templates` returns the same with a `query`; "
+           "`apply_template` applies one by id or name; `setup_shoot` runs a whole shoot recipe.", "",
+           "Metadata placeholders: {creator} {email} {url} (remembered after the first use), {client} {event} {job} (per call), {year} (this year). A field whose placeholder has no value is skipped.", "",
+           "## Contents", "", "- Shoot recipes", "- Export presets", "- Filename templates", "- Folder templates", "- Metadata templates", "- Keyword sets", "- Smart collection templates", "",
+           "## Shoot recipes", "", "| Recipe | What it sets | Naming, metadata, keywords | Exports | Workflow prompt |", "| --- | --- | --- | --- | --- |"]
+    for s in SHOOTS:
+        v = s["value"]
+        extra = " Noise by ISO at import." if v["isoNoise"] else ""
+        out.append(f"| {s['name']} (`{s['id']}`) | {cell(s['description'])}{extra} | {v['folder']}, {v['rename']}, {v['metadata']}, {v['keywords']} | {', '.join(v['exports'])} | {v['workflow']} |")
+    out += ["", "## Export presets", "", "| Preset | Group | What it is for |", "| --- | --- | --- |"]
+    out += [f"| {p['name']} (`{p['id']}`) | {p.get('group', 'General')} | {cell(p.get('description', ''))} |" for p in EXPORTS]
+    for title, items in (("Filename templates", FILENAME), ("Folder templates", FOLDER)):
+        out += ["", f"## {title}", "", "| Template | Pattern | Use |", "| --- | --- | --- |"]
+        out += [f"| {t['name']} (`{t['id']}`) | `{t['value'] or '(none)'}` | {cell(t['description'])} |" for t in items]
+    out += ["", "## Metadata templates", "", "| Template | Fields | Use |", "| --- | --- | --- |"]
+    out += [f"| {t['name']} (`{t['id']}`) | {', '.join(t['value'])} | {cell(t['description'])} |" for t in METADATA]
+    out += ["", "## Keyword sets", "", "| Set | Keywords |", "| --- | --- |"]
+    out += [f"| {t['name']} (`{t['id']}`) | {', '.join(t['value'])} |" for t in KEYWORDS]
+    out += ["", "## Smart collection templates", "", "| Template | Rules | Use |", "| --- | --- | --- |"]
+    out += [f"| {t['name']} (`{t['id']}`) | {'; '.join(cell(r['field'] + ' ' + r['op'] + ('' if r.get('value') in (None, '') else ' ' + str(r['value']))) for r in t['value']['rules'])} | {cell(t['description'])} |" for t in SMART]
+    out.append("")
+    return "\n".join(out)
+
+
 def _files(folder: Path) -> dict:
     return {str(p.relative_to(folder)): p.read_bytes() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
 def sync(check: bool) -> int:
     drift = []
-    for ref, want in ((SKILL / "references" / "tools.md", tools_reference()), (SKILL / "references" / "presets.md", presets_reference())):
+    for ref, want in ((SKILL / "references" / "tools.md", tools_reference()), (SKILL / "references" / "presets.md", presets_reference()),
+                      (SKILL / "references" / "templates.md", templates_reference())):
         if not ref.exists() or ref.read_text(encoding="utf-8") != want:
             drift.append(str(ref.relative_to(ROOT)))
             if not check:

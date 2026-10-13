@@ -156,6 +156,30 @@
         "Reports how many photos were imported, rejected and kept, as numbers from the tool results",
         "Deletes nothing and leaves deleting rejects to the person in the window"
       ]
+    },
+    {
+      "id": 14,
+      "name": "job-from-shoot-template",
+      "prompt": "Just got back from the Rivera wedding. Card is at /Volumes/EOS_DIGITAL/DCIM, put it under ~/Pictures/Clients. I'm Dana Cole Photography. Set the job up properly.",
+      "files": [],
+      "expected_behavior": [
+        "Calls setup_shoot once with recipe wedding, name for the Rivera wedding, values with creator Dana Cole Photography, the card path, mode copy and destination ~/Pictures/Clients, instead of separate import, collection and metadata calls",
+        "Reports the stage collections (Picks, To Edit, Edited, Portfolio, Rejects), how many photos were imported and whether noise by ISO ran, from the tool result",
+        "Names the next steps from the result: the wedding_event_workflow prompt and the export presets it returned",
+        "Does not invent a copyright text; the metadata comes from the recipe's template"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "licence-and-deliver",
+      "prompt": "These 40 picks from my landscape trip (collection 12) are going on my site under Creative Commons, non-commercial. Tag them, make sure the licence is in the files and give me web and print versions in ~/Desktop/out.",
+      "files": [],
+      "expected_behavior": [
+        "Uses apply_template kind metadata with the CC BY-NC 4.0 template (cc-by-nc), asking for or using the remembered creator rather than writing licence text by hand",
+        "Uses apply_template kind keywordSet with the Outdoor Photography set, or add_keywords, on the same ids",
+        "Exports with export_photos twice: a web preset (builtin.web, builtin.blog or builtin.4k) and builtin.print-lab, each into a folder under ~/Desktop/out",
+        "Reports the licence link written (https://creativecommons.org/licenses/by-nc/4.0/) and the written paths from the results"
+      ]
     }
   ],
   "trigger_evals": [
