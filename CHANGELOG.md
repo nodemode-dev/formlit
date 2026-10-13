@@ -2,6 +2,18 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.15.0 · 2026-10-13
+
+### Added
+
+- **A Chat tab in the dock:** the chat button, Window or Help, Chat with Claude, or Alt+Cmd or Ctrl+J.
+  - Type in the Ask line and Claude answers as a plain conversation. It runs through `claude -p` with formlit's tools only, the way Format's chat does.
+  - Each tool call appears as a small chip with its arguments as it happens, and the answer streams in word by word.
+  - It shows the time and number of steps when done, and offers Stop and New Chat.
+  - The conversation continues across messages (`--resume`) and is restored when the window reloads.
+  - The current selection is passed along, as it already was for the Claude Code tab.
+  - Engine side: `chat.send`, `chat.state`, `chat.cancel` and `chat.reset`. They are window-only: outside agents are refused, like the terminal and Claude Code commands.
+
 ## v0.14.0 · 2026-10-13
 
 ### Added

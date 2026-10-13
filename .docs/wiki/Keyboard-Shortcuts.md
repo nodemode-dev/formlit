@@ -51,6 +51,7 @@ Mod is Command on macOS and Ctrl elsewhere. Help > Keyboard Shortcuts (Mod+/) li
 | --- | --- |
 | Shift+Mod+I | Import |
 | Alt+Shift+Mod+N | New Shoot from Template |
+| Alt+Mod+J | Chat with Claude in the dock |
 | Alt+Mod+R | Refine Photos |
 | Shift+Mod+E, Alt+Shift+Mod+E | Export, export with previous |
 | Mod+E | Edit In |
