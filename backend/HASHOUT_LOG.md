@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the engine. Source files stay comment-free; everything they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.9.0
-Last updated: 2026-10-13 · v0.9.0 match_look, reports on writes, set analysis, save_preset, part masks, a forgiving run_command, 66 more presets; v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
+Current build version: v0.9.1
+Last updated: 2026-10-13 · v0.9.1 face-part model requirement, empty masks refused, model pins verified; v0.9.0 match_look, reports on writes, set analysis, save_preset, part masks, a forgiving run_command, 66 more presets; v0.8.0 photo analysis, 134 researched presets, preset previews and search, broken built-in profiles, scaled hues and curves; v0.7.0 the terminal, Claude Code in formlit, the in-app consent token, modern list fields; v0.6.0 outside-agent consent, MCP sessions, the sidecar port; v0.3.4 the preview deadlock, keyword and stack integrity, value ranges; v0.3.3 previews read before answering, search operators; v0.3.2 originals protected, undo moves files, typed parameters, sanitized settings; v0.3.0 look tables, maker notes, DCP baselines, the frozen engine
 
 ---
 
@@ -1080,6 +1080,20 @@ The endpoint stays stateless: no header is needed to call it and a client that s
 - logged: v0.9.0 · 2026-10-13
 
 A real Claude Code run spent four calls on `ai.download` because each try shaped the arguments differently (`args` as a JSON string, flat `model`, `id` for the command). `_params` takes `params` or `args`, an object or a JSON string, plus any extra top-level keys, and `id` names the command when `command` is missing, so the first reasonable shape works. The missing-model refusal names the exact call and tells the agent to fall back to the mixer or a gradient if the install fails, which is what stopped the retry loop.
+
+### app/engine/cmd_ai.py · FACE_PARTS need the face model; coverage on every mask
+- refers-to: app/engine/cmd_ai.py :: FACE_PARTS, ai_parts, ai_mask; app/routers/mcp.py :: _add_mask; app/ai/parts.py :: people_parts
+- kind: warning-context
+- logged: v0.9.1 · 2026-10-13
+
+`people_parts` places face skin, hair, eyebrows, eyes, lips and teeth from face boxes. With the people model installed but not YuNet, `_people` returned no faces and those parts came back with zero coverage; the tool still added the empty mask and reported success, so an agent believed it had masked the hair. `ai_parts` now requires the `faces` model for those parts. `ai_mask` reports coverage like `ai_parts`, and `_add_mask` refuses shapes under 0.2 percent, naming them, and returns each mask's coverage. People parts are rules on top of the person mask and face boxes, not a learned face parser; that is stated in the skill so agents check them with a preview.
+
+### app/ai/models.py · pins and their verification
+- refers-to: app/ai/models.py :: MODELS
+- kind: rationale
+- logged: v0.9.1 · 2026-10-13
+
+Every file is pinned to a revision and a SHA-256, and the downloader discards a file whose hash differs. At v0.9.1 all 15 files were checked: two by downloading through `ai.download`, the rest against the SHA-256 Hugging Face shows at the pinned revision. Real-ESRGAN pointed at `main` and is now pinned to 107475e. Its file is a third-party ONNX conversion (skillsafe-ai) of xinntao's RealESRGAN_x4plus under BSD-3-Clause; the sky model is a mirror (JianyuanWang/skyseg) of xiongzhu666's MIT model. Both are protected by the pinned hash, so a changed upload fails closed instead of loading.
 
 ### app/routers/mcp.py · add_ai_mask parts
 - refers-to: app/routers/mcp.py :: _add_mask; app/engine/cmd_ai.py :: ai_parts

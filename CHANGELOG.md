@@ -2,6 +2,30 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.9.1 · 2026-10-13
+
+This release checks that subject isolation with separate grading is formlit's own capability: local models, formlit's engine and formlit's renderer. It also checks the local models themselves.
+
+### Verified
+
+- **Subject isolation and separate grading run entirely in formlit.** Driven only through the engine's HTTP API, with no agent involved:
+  - `develop.match` set the overall moody look.
+  - U2-Net isolated the subject in 1.2 s (28.6 percent of the frame).
+  - A subject mask with a warm local grade and a background mask with a cool one were stored as develop settings and rendered by formlit's pipeline.
+  - A real Claude Code session did the same through formlit's tools in 5 calls and 15 s, and the masks it asked for are in the catalog.
+- **Every pinned model file matches its source.** That is 15 files across 9 models. `subject` and `people` were downloaded through formlit's installer and their SHA-256 matched the pins. The other 13 files match the SHA-256 that Hugging Face publishes at the pinned revisions. Licences were checked on the model cards: U2-Net Apache-2.0, sky segmenter MIT, Depth Anything V2 Small Apache-2.0, SAM 2.1 Apache-2.0, LaMa Apache-2.0, Real-ESRGAN BSD-3-Clause, YuNet MIT, SFace Apache-2.0.
+
+### Fixed
+
+- **People-part masks came back empty without a word when the face model was missing.** Hair, face skin, eyebrows, eyes, lips and teeth are placed from face boxes; without YuNet they returned 0 percent coverage and the mask was still added. Those parts now require the `faces` model and say how to install it.
+- **Empty masks are refused.** Every AI mask result reports its coverage, and a mask that covers nothing is not added.
+- **The mask tool did not mention its local colour grade.** `add_ai_mask` now documents `colorHue`, `colorSat`, a local `curve`, and which model each kind runs. The driving skill has a recipe for isolating and grading a subject, and a table of the local models and what needs them.
+- **Real-ESRGAN was fetched from a moving `main` branch.** It is now pinned to revision 107475e.
+
+### Not verified yet
+
+- The people-part masks with the face model installed: the test machine cannot reach the face model's download hosts.
+
 ## v0.9.0 · 2026-10-13
 
 Agents now finish a look in a handful of calls. They can copy a reference photo's look in one call, and there are 66 more presets, 233 in all.
