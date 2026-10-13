@@ -541,7 +541,7 @@ def match_exposure(ids: Any = None) -> dict:
     pids = resolve_ids(ids)
     if not pids:
         raise CommandError("Select the photos to match")
-    ref = SESSION.active or pids[0]
+    ref = SESSION.active if SESSION.active in pids else pids[0]
     c = cat()
 
     def ev_of(pid: int) -> float | None:
@@ -551,7 +551,7 @@ def match_exposure(ids: Any = None) -> dict:
         return math.log2(float(r["shutter"]) * float(r["iso"]) / (float(r["aperture"]) ** 2))
     base = ev_of(ref)
     if base is None:
-        raise CommandError("The active photo has no exposure data")
+        raise CommandError("The reference photo (the active photo, or the first id) has no shutter, ISO and aperture data, which Match Total Exposures needs; match_look matches by the rendered image instead")
     ref_dev, _ = current(ref)
     ref_exp = S.get(ref_dev, "light.exposure")
     with c.change("Match Total Exposures") as ch:

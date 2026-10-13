@@ -86,6 +86,14 @@ export function registerPhotoActions(ctx: Ctx): void {
     { id: 'photo.autoStack', label: 'Auto-Stack by Capture Time...', run: () => void ctx.api.cmd('stack.auto', { seconds: 60, ids: library.targets().length > 1 ? library.targets() : undefined }).then((r) => toast(`${(r as { stacks: number }).stacks} stacks made`), (e) => ctx.fail(e)) },
     { id: 'photo.remove', label: 'Remove Photos...', keys: ['Backspace', 'Delete'], run: () => void removePhotos(ctx), enabled: has },
     { id: 'photo.delete', label: 'Delete Photos from Disk...', keys: ['Alt+Shift+Mod+Backspace'], run: () => void removePhotos(ctx, true), enabled: has },
+    { id: 'library.refine', label: 'Refine Photos...', keys: ['Alt+Mod+R'], enabled: () => library.ids.length > 0, run: async () => {
+      const ids = library.ids;
+      if (!await confirmAction('Refine Photos', `Unflagged photos among these ${ids.length} become rejects and picks become unflagged, for the next culling pass. Rejects stay rejected.`, 'Refine')) return;
+      try {
+        const r = await ctx.api.cmd<{ rejected: number; unflagged: number }>('library.refine', { ids });
+        toast(`${r.rejected} rejected, ${r.unflagged} picks unflagged for the next pass`);
+      } catch (err) { ctx.fail(err, 'Refine Photos'); }
+    } },
     { id: 'photo.deleteRejected', label: 'Delete Rejected Photos...', keys: ['Mod+Backspace'], run: () => { library.selectWhere((p) => p.f < 0); void removePhotos(ctx); }, enabled: () => library.ids.some((id) => (library.photo(id)?.f ?? 0) < 0) },
     { id: 'photo.reveal', label: /Mac/.test(navigator.platform) ? 'Show in Finder' : 'Show in Explorer', keys: ['Mod+R'], run: () => { const id = library.active; if (id !== null) void ctx.api.cmd('photo.reveal', { id }).catch((e) => ctx.fail(e)); }, enabled: has },
     { id: 'photo.saveMetadata', label: 'Save Metadata to Files', keys: ['Mod+S'], run: () => void act(ctx, 'photo.saveMetadata', {}).then(() => toast('Metadata saved to XMP')), enabled: has },
