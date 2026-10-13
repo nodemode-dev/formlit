@@ -13,6 +13,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_output",
     "app.engine.agents",
     "app.engine.cmd_terminal",
+    "app.engine.cmd_analyze",
     "app.engine.claude_code",
 ]
 

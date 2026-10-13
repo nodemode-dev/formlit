@@ -20,7 +20,8 @@ router = APIRouter()
 VERSIONS = ["2026-07-28", "2025-11-25"]
 INSTRUCTIONS = ("formlit is a photo library and raw developer running on this computer, a Lightroom alternative. Every tool works on its catalog "
                 "with or without the window open, and every change is one undoable step (undo). Start with get_catalog, then find_photos to get "
-                "photo ids. Look with get_preview before and after developing. Develop values use dotted ids from get_develop_controls (for "
+                "photo ids. Measure with analyze_photo (tonal zones, clipping, colour cast, findings with suggested values) and look with get_preview before and after developing; "
+                "both take proposed values or a preset without saving. list_presets takes a query (\"moody forest\", \"bw street\") and describes each preset. Develop values use dotted ids from get_develop_controls (for "
                 "example light.exposure, color.vibrance, effects.clarity); pass delta true to nudge. Long jobs (import, AI, export) wait until done. For a full "
                 "plan, get the culling_workflow or develop_strategy prompt. run_command reaches every engine command listed by list_commands. The first call asks the person "
                 "to allow outside agents in formlit's window; if a call is refused with a message about outside agents, tell them to open formlit and answer there, or to "
@@ -36,9 +37,9 @@ CULLING = """How to cull a shoot in formlit.
 """
 DEVELOP = """How to develop a photo in formlit.
 
-1. get_photo tells you the camera, lens, exposure and current settings; get_preview shows it (long side up to 2048).
-2. auto_tone gives a balanced starting point; develop_set refines. Basic ids: wb.temp, wb.tint, light.exposure, light.contrast, light.highlights, light.shadows, light.whites, light.blacks, effects.texture, effects.clarity, effects.dehaze, color.vibrance, color.saturation. get_develop_controls lists every id with its range.
-3. Preview a change before committing: get_preview with values renders the proposal without saving it.
+1. get_photo tells you the camera, lens, exposure and current settings; get_preview shows it (long side up to 2048); analyze_photo measures it: luminance percentiles, tonal zones, clipping, colour cast and findings with suggested values.
+2. auto_tone gives a balanced starting point, or a preset: list_presets with a query finds one by purpose, and get_preview or analyze_photo with preset and amount previews it before apply_preset. develop_set refines. Basic ids: wb.temp, wb.tint, light.exposure, light.contrast, light.highlights, light.shadows, light.whites, light.blacks, effects.texture, effects.clarity, effects.dehaze, color.vibrance, color.saturation. get_develop_controls lists every id with its range.
+3. Preview a change before committing: get_preview and analyze_photo with values render the proposal without saving it. Colour grading (grading.shadows.hue, .sat, grading.blending, grading.balance) reads best at saturation 7 to 20.
 4. Local edits: add_ai_mask with kind sky, subject, background, people or depth and an adjust object (exposure, contrast, highlights, shadows, temp, tint, saturation, clarity, dehaze, texture, sharpness, noise). add_gradient_mask adds a linear or radial mask.
 5. Presets: list_presets then apply_preset with an amount. sync_settings copies one photo's look to others, by group (whiteBalance, basicTone, presence, toneCurve, colorMixer, colorGrading, treatment, detail, lensCorrections, transform, effects, calibration, profile, crop, masks); with no groups it copies everything except crop, masks, spots and red eye.
 6. Geometry: auto_straighten levels the horizon; upright applies auto, level, vertical or full perspective correction.
@@ -94,11 +95,14 @@ def _preview(args: dict) -> dict:
     pid = int(args["id"])
     long = max(64, min(2048, int(args.get("max_size", 1024))))
     dev = None
-    if args.get("values") or args.get("before"):
+    if args.get("values") or args.get("before") or args.get("preset"):
         row = catalog_mod.get().row("SELECT develop FROM photos WHERE id=?", (pid,))
         if row is None:
             raise CommandError(f"No photo with id {pid}", 404)
         dev = {} if args.get("before") else json.loads(json.dumps(loads(row["develop"], {})))
+        if args.get("preset") and not args.get("before"):
+            from app.engine import presets
+            dev = presets.blended(dev, str(args["preset"]), float(args.get("amount", 100)))
         for k, v in (args.get("values") or {}).items():
             S.put(dev, k, float(v))
     rgb = previews.render_rgb8(pid, long, dev)
@@ -171,8 +175,12 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("find_photos", "Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.",
            {"source": {"type": "object"}, "filter": {"type": "object"}, "sort": {"type": "object"}, "limit": {"type": "integer", "minimum": 1, "maximum": 5000, "default": 200}}, read=True, idempotent=True), _find),
     (_tool("get_photo", "One photo in full: path, camera, lens, exposure, GPS, metadata, keywords, collections and develop settings.", {"id": ID}, ["id"], read=True, idempotent=True), lambda a: _cmd("photo.get", id=a["id"])),
-    (_tool("get_preview", "The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; before true shows it with no edits.",
-           {"id": ID, "max_size": {"type": "integer", "minimum": 64, "maximum": 2048, "default": 1024}, "values": {"type": "object", "description": "Develop ids to values, e.g. {\"light.exposure\": 0.5}."}, "before": {"type": "boolean", "default": False}}, ["id"], read=True, idempotent=True), _preview),
+    (_tool("get_preview", "The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits.",
+           {"id": ID, "max_size": {"type": "integer", "minimum": 64, "maximum": 2048, "default": 1024}, "values": {"type": "object", "description": "Develop ids to values, e.g. {\"light.exposure\": 0.5}."},
+            "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}, "before": {"type": "boolean", "default": False}}, ["id"], read=True, idempotent=True), _preview),
+    (_tool("analyze_photo", "Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye.",
+           {"id": ID, "values": {"type": "object", "description": "Proposed develop ids to values."}, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}}, ["id"], read=True, idempotent=True),
+     lambda a: _cmd("develop.analyze", id=a["id"], values=a.get("values"), preset=a.get("preset"), amount=a.get("amount", 100))),
     (_tool("import_photos", "Adds photos from folders or files (absolute paths) to the catalog; mode add keeps them in place, copy or move put them under destination.",
            {"paths": {"type": "array", "items": {"type": "string"}}, "mode": {"type": "string", "enum": ["add", "copy", "move"], "default": "add"}, "destination": {"type": "string"}, "keywords": {"type": "array", "items": {"type": "string"}}}, ["paths"]),
      lambda a: _cmd("library.import", paths=a["paths"], mode=a.get("mode", "add"), destination=a.get("destination"), keywords=a.get("keywords"), wait=True)),
@@ -202,7 +210,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("auto_tone", "Auto exposure, contrast, highlights, shadows, whites and blacks, like the Auto button.", {"ids": IDS}, ["ids"]), lambda a: _cmd("develop.auto", ids=a["ids"])),
     (_tool("auto_white_balance", "Auto white balance.", {"ids": IDS}, ["ids"]), lambda a: _cmd("develop.autoWhiteBalance", ids=a["ids"])),
     (_tool("reset_develop", "Resets develop settings to defaults (undoable).", {"ids": IDS}, ["ids"], destructive=True), lambda a: _cmd("develop.reset", ids=a["ids"])),
-    (_tool("list_presets", "Develop presets by group, with ids for apply_preset.", {}, read=True, idempotent=True), lambda a: _cmd("preset.list")),
+    (_tool("list_presets", "Develop presets with ids for apply_preset, each with its group, a description of what it does and what it suits, and tags. query (for example \"moody forest\", \"portrait warm\", \"bw street\") and group narrow the list.",
+           {"query": {"type": "string"}, "group": {"type": "string"}}, read=True, idempotent=True), lambda a: _cmd("preset.list", query=a.get("query"), group=a.get("group"))),
     (_tool("apply_preset", "Applies a develop preset at an amount (0 to 200 percent).", {"ids": IDS, "preset": {"type": "string"}, "amount": {"type": "number", "minimum": 0, "maximum": 200, "default": 100}}, ["ids", "preset"]),
      lambda a: _cmd("preset.apply", ids=a["ids"], preset=a["preset"], amount=a.get("amount", 100))),
     (_tool("sync_settings", "Copies develop settings from one photo to others, limited to groups when given (whiteBalance, basicTone, presence, toneCurve, colorMixer, pointColor, bwMix, treatment, colorGrading, detail, lensCorrections, transform, effects, calibration, profile, crop, masks, spots, redEye, lensBlur); with no groups, everything but crop, masks, spots and red eye.",
