@@ -7,7 +7,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Look: `get_catalog`, `find_photos`, `get_photo`, `get_preview`, `analyze_photo`, `list_people`, `get_develop_controls`, `get_develop`, `list_presets`, `list_export_presets`
 - Import and organize: `import_photos`, `set_rating`, `set_flag`, `set_label`, `add_keywords`, `set_metadata`, `set_location`, `create_collection`, `add_to_collection`, `stack_photos`
 - Cull and people: `analyze_culling`, `apply_culling`, `find_faces`, `name_person`
-- Develop: `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
+- Develop: `match_look`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
@@ -41,27 +41,41 @@ Note: read-only.
 
 ## get_preview
 
-The photo as developed, as a JPEG image (long side max_size). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits.
+The photo as developed, as a JPEG image (long side max_size; 512 is enough to judge a look and costs a quarter of 1024). values renders proposed develop values without saving them; preset (an id or name from list_presets) with amount previews a preset before apply_preset; before true shows it with no edits; analyze true adds the compact measurement of the same render.
 
 - `id`: integer; required; A photo id from find_photos.
-- `max_size`: integer; default 1024
+- `max_size`: integer; default 768
 - `values`: object; Develop ids to values, e.g. {"light.exposure": 0.5}.
 - `preset`: string
 - `amount`: number; default 100
 - `before`: boolean; default false
+- `analyze`: boolean; default false
 
 Note: read-only.
 
 ## analyze_photo
 
-Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye.
+Measures a photo as developed, or with proposed values or a preset without saving: luminance percentiles and tonal zones (blacks, shadows, midtones, highlights, whites), clipping, saturation, colour cast in neutral areas, the share and strength of each colour-mixer band, and findings with suggested develop values. Use it before and after edits instead of judging exposure by eye. Pass ids instead of id for one compact line per photo and the spread across the set.
 
-- `id`: integer; required; A photo id from find_photos.
+- `id`: integer; A photo id from find_photos.
+- `ids`: array; Photo ids from find_photos.
 - `values`: object; Proposed develop ids to values.
 - `preset`: string
 - `amount`: number; default 100
 
 Note: read-only.
+
+## match_look
+
+Matches photos to a reference photo's look in one call: measures the reference as developed, then adjusts each target's exposure, contrast, highlights, shadows, whites, blacks, saturation, white balance and colour-mixer saturation and luminance over several internal render rounds until tone and colour converge. Returns the changes and the distance before and after. Use it when the person points at an example ("make these look like this one") or to make a set consistent; then add creative grading or masks.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `reference`: integer; required; A photo id from find_photos.
+- `strength`: number; default 100
+- `tone`: boolean; default true
+- `color`: boolean; default true
+- `apply`: boolean; default true; false returns the proposal without saving.
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
 
 ## import_photos
 
@@ -192,11 +206,12 @@ Note: read-only.
 
 ## develop_set
 
-Sets develop values on photos: values maps ids from get_develop_controls to numbers; delta true adds to the current values.
+Sets develop values on photos in one undo step: values maps ids from get_develop_controls to numbers (send every change together rather than one call per slider); delta true adds to the current values; report true returns the measurement after the change.
 
 - `ids`: array; required; Photo ids from find_photos.
 - `values`: object; required
 - `delta`: boolean; default false
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
 
 ## develop_patch
 
@@ -205,6 +220,7 @@ Merges a nested develop object into the photos' settings: treatment ("color" or 
 - `ids`: array; required; Photo ids from find_photos.
 - `patch`: object; required
 - `label`: string
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
 
 ## auto_tone
 
@@ -242,6 +258,16 @@ Applies a develop preset at an amount (0 to 200 percent).
 - `ids`: array; required; Photo ids from find_photos.
 - `preset`: string; required
 - `amount`: number; default 100
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
+
+## save_preset
+
+Saves a photo's current develop settings as a user preset the person can apply in the window and that list_presets returns. groups limits what it stores (whiteBalance, basicTone, presence, toneCurve, colorMixer, bwMix, treatment, colorGrading, detail, effects, calibration, profile, masks); by default everything but crop, masks, spots and red eye.
+
+- `id`: integer; required; A photo id from find_photos.
+- `name`: string; required
+- `group`: string; default "User Presets"
+- `groups`: array
 
 ## sync_settings
 
@@ -250,13 +276,16 @@ Copies develop settings from one photo to others, limited to groups when given (
 - `from`: integer; required; A photo id from find_photos.
 - `ids`: array; required; Photo ids from find_photos.
 - `groups`: array
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
 
 ## add_ai_mask
 
-Adds a local adjustment through an AI mask (sky, subject, background, people, object with box [x0,y0,x1,y1] 0 to 1, or depth). adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, saturation, texture, clarity, dehaze, sharpness, noise.
+Adds a local adjustment through an AI mask: sky, subject, background, people, object (with box [x0,y0,x1,y1] 0 to 1), depth, or parts: kind people with parts (faceSkin, bodySkin, eyebrows, sclera, iris, lips, teeth, hair, clothes; person for one person by index) or kind landscape with parts (sky, water, vegetation, mountains, architecture, naturalGround, artificialGround), several parts in one mask. adjust uses local ids: exposure, contrast, highlights, shadows, whites, blacks, temp, tint, saturation, texture, clarity, dehaze, sharpness, noise. Each kind needs its AI model; a refusal names the exact install call.
 
 - `id`: integer; required; A photo id from find_photos.
-- `kind`: string (sky | subject | background | people | object | depth); required
+- `kind`: string (sky | subject | background | people | object | depth | landscape); required
+- `parts`: array
+- `person`: integer
 - `box`: array
 - `adjust`: object
 - `name`: string

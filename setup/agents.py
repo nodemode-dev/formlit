@@ -28,7 +28,7 @@ GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
     ("Cull and people", ["analyze_culling", "apply_culling", "find_faces", "name_person"]),
-    ("Develop", ["develop_set", "develop_patch", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
+    ("Develop", ["develop_set", "develop_patch", "match_look", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "save_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
     ("Enhance and merge", ["denoise", "super_resolution", "merge_hdr", "merge_panorama"]),
     ("Output", ["export_photos", "print_pdf", "make_book", "export_slideshow", "export_web_gallery", "publish"]),
     ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command", "get_agent_access"]),

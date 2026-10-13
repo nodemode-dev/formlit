@@ -3,22 +3,22 @@
 Generated from formlit's preset list; do not edit by hand. Preview one with `get_preview` or `analyze_photo` and `preset`, apply it with `apply_preset` and an `amount` (100 is the preset as made, 50 half strength: colour-grading hues stay fixed and only their saturation scales, and curves ease toward straight).
 `list_presets` with a `query` searches names, groups, descriptions and tags; the person's own presets are listed there too.
 
-167 presets in 29 groups. Adaptive presets add AI masks, which are computed for each photo they reach.
+233 presets in 43 groups. Adaptive presets add AI masks, which are computed for each photo they reach.
 
 ## Contents
 
 - Color (3)
 - Film (3)
-- Cinematic (11)
+- Cinematic (14)
 - B&W (18)
-- Portrait (13)
+- Portrait (15)
 - Landscape (11)
 - Urban (2)
 - Style (4)
-- Adaptive: Sky (6)
-- Adaptive: Subject (7)
-- Adaptive: Portrait (6)
-- Film-Inspired (10)
+- Adaptive: Sky (7)
+- Adaptive: Subject (8)
+- Adaptive: Portrait (7)
+- Film-Inspired (15)
 - Vintage (5)
 - Seasons (5)
 - Golden Hour (4)
@@ -35,7 +35,21 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - Detail (4)
 - Effects (5)
 - Color Fixes (5)
-- Adaptive: Landscape (4)
+- Adaptive: Landscape (5)
+- Weather (6)
+- Illustration (7)
+- Toning (7)
+- Aerial (3)
+- Macro & Flowers (3)
+- Wildlife (3)
+- Pets (3)
+- Sports (3)
+- Product (3)
+- Wedding (3)
+- Newborn (2)
+- Social (3)
+- HDR (2)
+- Utility (4)
 
 ## Color
 
@@ -68,6 +82,9 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Cold Thriller (`builtin:cinematic/cold-thriller`) | Steel-blue overall cast with crushed blacks, for tense, cold scenes. | color, grading, light, vignette |
 | Golden Matte (`builtin:cinematic/golden-matte`) | Warm golden highlights over a matte curve, for late-afternoon story frames. | color, curve, grading, light |
 | Wide Screen Fade (`builtin:cinematic/wide-screen-fade`) | Low-contrast, slightly cool cinema fade with soft highlights. | color, curve, grading, light |
+| Pastel Cinema (`builtin:cinematic/pastel-cinema`) | Soft pastel film grade: violet shadows, peach highlights, low contrast. | color, curve, grading, light |
+| Noir Color (`builtin:cinematic/noir-color`) | Dark, desaturated colour with hard shadows and a cold cast. | color, grading, light, vignette |
+| Sunlit Drama (`builtin:cinematic/sunlit-drama`) | Warm highlights and cool shadows with strong contrast for character scenes. | grading, light |
 
 ## B&W
 
@@ -109,6 +126,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Group Bright (`builtin:portrait/group-bright`) | Even, bright exposure for group photos: open shadows, protected highlights, mild clarity. | color, effects, light |
 | Low-Key Portrait (`builtin:portrait/low-key-portrait`) | Dark, dramatic portrait after a Digital Camera World low-key recipe (exposure down, strong contrast, crushed highlights), in colour. | color, light, vignette |
 | High-Key Portrait (`builtin:portrait/high-key-portrait`) | Bright, white-background portrait: lifted exposure and whites, soft contrast. | color, light |
+| Freckles and Detail (`builtin:portrait/freckles-and-detail`) | Keeps skin texture and freckles while warming slightly. | effects, grading, mixer |
+| Red Hair Glow (`builtin:portrait/red-hair-glow`) | Richer copper and red hair with natural skin. | effects, grading, mixer |
 
 ## Landscape
 
@@ -152,6 +171,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Sunset Sky (`builtin:adaptive-sky/sunset-sky`) | Warms and deepens only the sky for sunsets. | masks |
 | Soften Sky (`builtin:adaptive-sky/soften-sky`) | Softens a harsh sky: lower contrast and clarity in the sky only. | masks |
 | Night Sky (`builtin:adaptive-sky/night-sky`) | Darker, cooler, clearer sky for night scenes. | masks |
+| Overcast Sky Recovery (`builtin:adaptive-sky/overcast-sky-recovery`) | Brings back detail and tone in a white overcast sky. | masks |
 
 ## Adaptive: Subject
 
@@ -164,6 +184,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Subject Detail (`builtin:adaptive-subject/subject-detail`) | Adds texture and clarity to the subject only. | masks |
 | Desaturate Background (`builtin:adaptive-subject/desaturate-background`) | Removes most colour from the background so the subject stands out. | masks |
 | Cool Background (`builtin:adaptive-subject/cool-background`) | Cools and darkens the background slightly. | masks |
+| Warm Subject Cool World (`builtin:adaptive-subject/warm-subject-cool-world`) | Warms the subject and cools the background in one preset, a quick separation grade. | masks |
 
 ## Adaptive: Portrait
 
@@ -175,6 +196,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Define Brows (`builtin:adaptive-portrait/define-brows`) | Darkens eyebrows a little, as in Adobe's portrait-mask tutorial. | masks |
 | Lip Color (`builtin:adaptive-portrait/lip-color`) | Adds saturation and a touch of contrast to lips. | masks |
 | Hair Shine (`builtin:adaptive-portrait/hair-shine`) | Adds texture and slight brightness to hair. | masks |
+| Brighten Face (`builtin:adaptive-portrait/brighten-face`) | Lifts face skin slightly for backlit portraits. | masks |
 
 ## Film-Inspired
 
@@ -190,6 +212,11 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Faded Blue (`builtin:film-inspired/faded-blue`) | Cool faded film with blue shadows and soft highlights. | color, curve, grading, grain |
 | Light Sage (`builtin:film-inspired/light-sage`) | Muted green-grey film tone, calm and earthy. | color, curve, grading |
 | Instant Print (`builtin:film-inspired/instant-print`) | Instant-camera look: cool shadows, warm creamy highlights, low contrast, faded top end. | curve, grading, grain, light, vignette |
+| Ektar Style (`builtin:film-inspired/ektar-style`) | Punchy, saturated, fine-grain colour negative look for landscapes. | color, grain, light, mixer |
+| Kodachrome Style (`builtin:film-inspired/kodachrome-style`) | Deep reds and blues, rich contrast, slightly warm. | grading, grain, light, mixer |
+| Tungsten Night (`builtin:film-inspired/tungsten-night`) | Night film balanced for tungsten: cool shadows, warm practical lights, grain. | grading, grain, light |
+| HP5 Style (`builtin:film-inspired/hp5-style`) | Classic medium-contrast black and white film with visible grain. | bw, grain, light, treatment |
+| Superia Green (`builtin:film-inspired/superia-green`) | Consumer film with green-cyan shadows and soft magenta highlights. | grading, grain, mixer |
 
 ## Vintage
 
@@ -348,3 +375,126 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Clear Water (`builtin:adaptive-landscape/clear-water`) | Clearer, deeper water only. | masks |
 | Mountain Detail (`builtin:adaptive-landscape/mountain-detail`) | Cuts haze and adds structure to mountains only. | masks |
 | Building Detail (`builtin:adaptive-landscape/building-detail`) | Crisper buildings and architecture only. | masks |
+| Warm Ground (`builtin:adaptive-landscape/warm-ground`) | Warms natural ground and sand. | masks |
+
+## Weather
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Overcast Calm (`builtin:weather/overcast-calm`) | Muted, cool overcast mood measured from a vivid-to-overcast example pair with match_look: darker, much flatter, desaturated, cooler, with blues and reds held back. | color, grading, light, mixer |
+| Rainy Day (`builtin:weather/rainy-day`) | Wet, dark and cool: lower exposure, gentle contrast, blue-grey cast, deeper greens. | color, effects, grading, light, mixer |
+| Foggy Hush (`builtin:weather/foggy-hush`) | Keeps fog soft and pale: negative dehaze and clarity, lifted blacks, low saturation. | color, effects, light |
+| Storm Light (`builtin:weather/storm-light`) | Dark sky with a bright, warm foreground, for light breaking through storms. | effects, grading, light |
+| Hazy Sun (`builtin:weather/hazy-sun`) | Soft hazy sunshine: lower dehaze, warm highlights, lifted shadows. | effects, grading, light |
+| Bright Overcast Fix (`builtin:weather/bright-overcast-fix`) | Rescues flat grey-day photos: more contrast and vibrance, darker sky top end, crisper midtones. | color, effects, light |
+
+## Illustration
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Painterly Muted (`builtin:illustration/painterly-muted`) | Gentle, desaturated grade for digital paintings and illustration that keeps brush texture visible. | color, effects, grading, light |
+| Poster Pop (`builtin:illustration/poster-pop`) | Bold poster colour: strong saturation and contrast, deep blacks. | color, effects, light |
+| Gouache Soft (`builtin:illustration/gouache-soft`) | Chalky, matte, low-contrast finish like gouache. | color, curve, effects, light |
+| Ink Line (`builtin:illustration/ink-line`) | High-contrast black and white for line art and comics. | effects, light, treatment |
+| Neon Print (`builtin:illustration/neon-print`) | Saturated magenta and cyan, like a riso or neon print. | grading, light, mixer |
+| Storybook Warm (`builtin:illustration/storybook-warm`) | Warm, soft, golden storybook palette. | color, curve, effects, grading |
+| Cool Concept Art (`builtin:illustration/cool-concept-art`) | Cool, atmospheric concept-art grade with blue shadows and soft contrast. | color, effects, grading, light |
+
+## Toning
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Cyanotype (`builtin:toning/cyanotype`) | Blue-toned monochrome like a cyanotype print. | grading, light, treatment |
+| Platinum (`builtin:toning/platinum`) | Neutral-warm, soft, long-scale monochrome like a platinum print. | curve, grading, light, treatment |
+| Gold Tone (`builtin:toning/gold-tone`) | Warm gold toning on black and white. | grading, treatment |
+| Teal Rose Duotone (`builtin:toning/teal-rose-duotone`) | Teal shadows and rose highlights on black and white. | grading, treatment |
+| Blue Orange Duotone (`builtin:toning/blue-orange-duotone`) | Blue shadows and orange highlights on black and white. | grading, treatment |
+| Purple Haze Duotone (`builtin:toning/purple-haze-duotone`) | Violet shadows and pale yellow highlights. | grading, treatment |
+| Split Tone Colour (`builtin:toning/split-tone-colour`) | Light split toning on a colour photo: cool shadows, warm highlights at low saturation. | grading |
+
+## Aerial
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Aerial Clarity (`builtin:aerial/aerial-clarity`) | Drone and aerial: strong dehaze for atmospheric haze, clarity, vivid ground colour. | color, effects, light |
+| Aerial Teal Coast (`builtin:aerial/aerial-teal-coast`) | Turquoise shallows and warm sand from above. | effects, mixer |
+| Aerial Muted (`builtin:aerial/aerial-muted`) | Calm, desaturated top-down look. | color, curve, effects |
+
+## Macro & Flowers
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Petal Soft (`builtin:macro-flowers/petal-soft`) | Soft, glowing flowers: lifted exposure, low clarity, saturated petals. | color, effects, light |
+| Macro Detail (`builtin:macro-flowers/macro-detail`) | Crisp macro detail with texture and sharpening. | detail, effects |
+| Garden Rich (`builtin:macro-flowers/garden-rich`) | Deep greens and rich flower colour. | color, light, mixer |
+
+## Wildlife
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Wildlife Natural (`builtin:wildlife/wildlife-natural`) | Natural wildlife colour with feather and fur detail and a darker background feel. | color, effects, light |
+| Savanna Gold (`builtin:wildlife/savanna-gold`) | Warm golden grass and dust. | effects, grading, mixer |
+| Bird in Flight (`builtin:wildlife/bird-in-flight`) | Clean sky and sharp bird: recovered highlights, texture, noise control. | detail, effects, light |
+
+## Pets
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Pet Portrait (`builtin:pets/pet-portrait`) | Bright eyes and fur detail with soft background feel. | color, effects, light |
+| Black Fur Detail (`builtin:pets/black-fur-detail`) | Opens shadows to show detail in dark fur. | effects, light |
+| White Fur Detail (`builtin:pets/white-fur-detail`) | Holds detail in white fur: lower highlights and whites. | effects, light |
+
+## Sports
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Sports Punch (`builtin:sports/sports-punch`) | High-energy sports: contrast, clarity, vivid team colours. | color, effects, light |
+| Indoor Arena (`builtin:sports/indoor-arena`) | Indoor arena light: recovered highlights, warmer cast neutralised slightly, noise control. | detail, grading, light |
+| Gritty Action (`builtin:sports/gritty-action`) | Desaturated, crunchy action look. | color, effects, light, vignette |
+
+## Product
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Product Clean White (`builtin:product/product-clean-white`) | Bright, neutral product on white: high whites, low saturation shift. | color, effects, light |
+| Product Crisp (`builtin:product/product-crisp`) | Crisp product detail and accurate colour. | detail, effects, light |
+| Product Moody (`builtin:product/product-moody`) | Dark, premium product look with deep shadows. | color, light, vignette |
+
+## Wedding
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Wedding Classic (`builtin:wedding/wedding-classic`) | Timeless wedding colour: soft contrast, protected whites, gentle warmth. | effects, grading, light |
+| Wedding Film (`builtin:wedding/wedding-film`) | Film-style wedding look with warm highlights, soft greens and fine grain. | grading, grain, mixer |
+| Wedding B&W (`builtin:wedding/wedding-b-w`) | Soft, bright black and white for wedding moments. | bw, light, treatment |
+
+## Newborn
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Newborn Soft (`builtin:newborn/newborn-soft`) | Very soft, bright, low-contrast with gentle skin. | effects, light, mixer |
+| Newborn Creamy (`builtin:newborn/newborn-creamy`) | Warm creamy tones with lifted blacks. | curve, grading, light |
+
+## Social
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Clean Feed (`builtin:social/clean-feed`) | Consistent, bright, clean look for a social feed. | color, effects, light |
+| Warm Feed (`builtin:social/warm-feed`) | Warm, cohesive feed look. | color, curve, grading |
+| Muted Feed (`builtin:social/muted-feed`) | Muted, minimal feed look with soft greens. | color, curve, mixer |
+
+## HDR
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Natural HDR (`builtin:hdr/natural-hdr`) | Wide tonal recovery that still looks natural. | color, effects, light |
+| Grunge HDR (`builtin:hdr/grunge-hdr`) | Strong local contrast and detail, desaturated. | color, effects, light |
+
+## Utility
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Clear Color Grading (`builtin:utility/clear-color-grading`) | Removes every colour-grading tint (applies zero to all wheels). | grading |
+| Clear Tone Curve (`builtin:utility/clear-tone-curve`) | Flattens the point curves and parametric regions. | curve |
+| Clear Effects (`builtin:utility/clear-effects`) | Removes vignette and grain. | grain, vignette |
+| Clear Color Mixer (`builtin:utility/clear-color-mixer`) | Returns every colour-mixer band to zero. | mixer |

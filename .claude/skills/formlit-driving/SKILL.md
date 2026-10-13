@@ -32,18 +32,30 @@ The server's `culling_workflow` and `develop_strategy` prompts hold the full dec
 4. Spot-check picks and rejects with `get_preview`; correct with `set_flag`, `set_rating`, `set_label`.
 5. `create_collection` with the picks so they are easy to find again. Nothing is ever deleted from here.
 
+## Work efficiently
+
+Every call costs the person time, and every image costs context. A single-photo look should take about four to six calls, not twenty.
+
+- **Batch values.** One `develop_set` with every slider you mean to change, never one call per slider. Pass several `ids` at once.
+- **Ask for the result in the same call.** `develop_set`, `develop_patch`, `apply_preset`, `sync_settings` and `match_look` take `report: true` and return the measurement after the change; `get_preview` takes `analyze: true` and measures the same render. Do not follow a commit with a separate `analyze_photo`.
+- **Let the engine iterate.** When the person shows an example ("make it look like this one", a before and after pair, a hero frame), use `match_look` with that photo as `reference`: it fits tone, white balance and colour bands in about a second. Then add only what statistics cannot copy: grading, masks, a selective colour.
+- **Numbers before pictures.** Decide with `analyze_photo`; look with `get_preview` at `max_size` 512 once the numbers say it is right. Check a set with `analyze_photo` `ids` (one line per photo and the spread), not a preview per photo.
+- **Search, do not scroll.** `list_presets` with a `query` returns a handful; never page through all of them.
+- **Stop when it is done.** When the findings that matter are gone and one preview confirms it, report and stop.
+
 ## Workflow 2: develop a look
 
 Measure, propose, check, commit. Read `references/editing-guide.md` before grading colour, toning black and white, or working on skin: it explains every control the way Lightroom photographers use it, with sources and the typical strengths.
 
 1. `get_photo` for camera, lens, ISO and the current settings, then `analyze_photo`: luminance percentiles, tonal zones (Adobe's blacks, shadows, midtones, highlights, whites bands), clipping, saturation, colour cast on near-neutral pixels, how much of each colour-mixer band the photo holds, and `findings` with suggested values. Use the numbers, not a guess from a small preview.
 2. Agree the intent (natural, bright and airy, moody, film, black and white, a named preset) when the person has not said.
-3. Start: `auto_tone` for an unedited photo, or a preset. Find presets by purpose with `list_presets` and a `query` ("moody forest", "portrait warm", "bw street", "snow"); `references/presets.md` lists all 167 built-ins with what each does. Preview first: `get_preview` and `analyze_photo` take `preset` and `amount` and save nothing.
+3. Start: `match_look` when there is a reference photo, `auto_tone` for an unedited photo, or a preset. Find presets by purpose with `list_presets` and a `query` ("moody forest", "portrait warm", "bw street", "overcast", "illustration"); `references/presets.md` lists all 233 built-ins with what each does. Preview first: `get_preview` and `analyze_photo` take `preset` and `amount` and save nothing.
 4. Refine with proposals: `get_preview` and `analyze_photo` take `values` (for example `{"light.highlights": -40, "grading.shadows.hue": 210, "grading.shadows.sat": 12}`). Compare the before and after numbers, then look. Commit with `develop_set`; curve points, `treatment: "bw"` and crops go through `develop_patch`.
-5. Local work beats global: `add_ai_mask` with `kind: "sky"` and `adjust: {"exposure": -0.5, "saturation": 15}`, people parts for skin, eyes, lips and teeth, landscape parts for water, vegetation, mountains and buildings, or `add_gradient_mask` for a graduated sky or a radial spotlight.
+5. Local work beats global: `add_ai_mask` with `kind: "sky"` and `adjust: {"exposure": -0.5, "saturation": 15}`; `kind: "people"` with `parts` (`["hair"]`, `["faceSkin", "bodySkin"]`, `["lips"]`, `["iris", "sclera"]`); `kind: "landscape"` with `parts` (`["water"]`, `["vegetation"]`, `["mountains"]`, `["architecture"]`); or `add_gradient_mask` for a graduated sky or a radial spotlight. A change to one colour (richer red hair, bluer sky, greener grass) needs no mask at all: one `develop_set` on that colour's `mixer.[band]` values, which works without any AI model. AI masks need their model installed; if a mask call says the model is missing, offer the install once, and if it fails use the mixer or a gradient instead of retrying.
 6. `analyze_photo` again: stop when the findings that matter are gone and the preview reads right. Say what changed in photographer's words (recovered highlights, warmer skin, darker sky).
-7. A whole shoot: develop one photo, then `sync_settings` from it to the others. Without `groups` it copies everything but crop, masks, spots and red eye; `groups: ["whiteBalance", "basicTone", "presence"]` copies only exposure and colour. Re-check two or three synced frames with `analyze_photo`.
-8. Noise: when `analyze_photo` flags high ISO on a raw, `denoise` first (it writes an enhanced DNG beside the raw and stacks it) and develop that DNG.
+7. A whole shoot: develop one photo, then `sync_settings` from it to the others. Without `groups` it copies everything but crop, masks, spots and red eye; `groups: ["whiteBalance", "basicTone", "presence"]` copies only exposure and colour. Frames shot in changing light match better with `match_look` against the hero frame after the sync. Check the set with `analyze_photo` `ids`.
+8. Keep a look the person likes: `save_preset` from the finished photo, with a name and a group, so it appears in the window and in `list_presets`.
+9. Noise: when `analyze_photo` flags high ISO on a raw, `denoise` first (it writes an enhanced DNG beside the raw and stacks it) and develop that DNG.
 
 Setting ids and ranges are in `get_develop_controls`. Families: `light.*` (exposure, contrast, highlights, shadows, whites, blacks), `effects.*` (texture, clarity, dehaze), `color.*` (vibrance, saturation), `wb.*`, `curve.*` (parametric regions and splits), `mixer.[band].hue|sat|lum` (red, orange, yellow, green, aqua, blue, purple, magenta), `bw.[band]`, `grading.shadows|midtones|highlights|global.hue|sat|lum` plus `grading.blending` and `grading.balance`, `calibration.*`, `detail.*`, `vignette.*`, `grain.*`, `profile.amount`.
 
@@ -64,7 +76,7 @@ Strength guide from real presets and practitioners (details and sources in the e
 - Paths are absolute on the person's computer; `~` works.
 - Long jobs (import, AI, export) wait until done and return the written paths.
 - Deleting files and switching catalogs are refused here on purpose: the person does those in the window.
-- `run_command` reaches every engine command (`list_commands` shows them) when no curated tool fits.
+- `run_command` reaches every engine command (`list_commands` shows them) when no curated tool fits. Its shape is `{"command": "ai.download", "params": {"model": "objects", "wait": true}}`: one `params` object, never a JSON string.
 
 ## When something fails
 
