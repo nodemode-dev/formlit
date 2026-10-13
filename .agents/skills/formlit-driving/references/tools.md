@@ -6,8 +6,8 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 
 - Look: `get_catalog`, `find_photos`, `get_photo`, `get_preview`, `analyze_photo`, `list_people`, `get_develop_controls`, `get_develop`, `list_presets`, `list_export_presets`
 - Import and organize: `import_photos`, `set_rating`, `set_flag`, `set_label`, `add_keywords`, `set_metadata`, `set_location`, `create_collection`, `add_to_collection`, `stack_photos`
-- Cull and people: `analyze_culling`, `apply_culling`, `find_faces`, `name_person`
-- Develop: `match_look`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
+- Cull and people: `refine_photos`, `analyze_culling`, `apply_culling`, `find_faces`, `name_person`
+- Develop: `match_look`, `match_exposures`, `virtual_copy`, `snapshot`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
@@ -22,7 +22,7 @@ Note: read-only.
 
 ## find_photos
 
-Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.
+Lists photos: source picks where (kind all, folder, collection, keyword, person, previousImport, quick, ids), filter narrows (text, which also takes field operators such as iso>=3200, rating>=3, camera:x100, lens:35; rating with ratingOp >= <= =, flags [pick reject none], labels, kinds [raw jpeg video...], edited, cameras, lenses, keywords [ids], dates [YYYY or YYYY-MM-DD]), sort orders (by captureTime, importTime, editTime, fileName, rating; desc). Returns ids with file, capture time, rating, flag, label and size.
 
 - `source`: object
 - `filter`: object
@@ -79,12 +79,51 @@ Matches photos to a reference photo's look in one call: measures the reference a
 
 ## import_photos
 
-Adds photos from folders or files (absolute paths) to the catalog; mode add keeps them in place, copy or move put them under destination.
+Adds photos from folders or files (absolute paths) to the catalog the way working photographers ingest: mode add keeps them in place, copy or move put them under destination, dng copies as DNG. folderTemplate builds the folders (default {date:%Y}/{date:%Y-%m-%d}); renameTemplate renames files with tokens {custom} {shoot} {date:%Y%m%d} {seq:4} {name} {camera} {iso}; metadata applies a copyright preset to every file ({"copyright": ..., "creator": ..., "city": ...}); develop applies a preset id at import; backup makes a second copy in another folder; buildPreviews standard or 1:1; collection adds them to a collection id.
 
 - `paths`: array; required
-- `mode`: string (add | copy | move); default "add"
+- `mode`: string (add | copy | move | dng); default "add"
 - `destination`: string
+- `folderTemplate`: string
+- `renameTemplate`: string
+- `custom`: string
+- `metadata`: object
+- `develop`: string
 - `keywords`: array
+- `collection`: integer
+- `backup`: string
+- `skipDuplicates`: boolean; default true
+- `buildPreviews`: string ( | standard | 1:1)
+- `smartPreviews`: boolean; default false
+
+## refine_photos
+
+Lightroom's Refine Photos for a multi-pass cull: unflagged photos become rejects and picks become unflagged, so the next pass sees only the survivors. Rejects stay rejects; nothing is deleted.
+
+- `ids`: array; required; Photo ids from find_photos.
+
+## match_exposures
+
+Lightroom's Match Total Exposures: evens out the brightness of a run of photos of the same scene to the first id (the best-exposed frame), using their exposure metadata. For bracket sets and uneven series; match_look also matches colour.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `report`: boolean; default false; Return a compact measurement of each changed photo (median, end points, contrast, clipping, saturation, cast, issues) so no separate analyze_photo call is needed.
+
+## virtual_copy
+
+Makes virtual copies (catalog-only versions that share the original file) for alternate edits such as colour and black and white, or another crop; returns the new ids.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `name`: string
+
+## snapshot
+
+Named develop states inside one photo: action create saves the current settings under name, list shows them, apply restores one by its id.
+
+- `action`: string (create | list | apply); required
+- `id`: integer; A photo id from find_photos.
+- `name`: string
+- `snapshot`: integer
 
 ## set_rating
 

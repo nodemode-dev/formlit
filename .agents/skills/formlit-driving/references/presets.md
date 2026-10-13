@@ -3,30 +3,30 @@
 Generated from formlit's preset list; do not edit by hand. Preview one with `get_preview` or `analyze_photo` and `preset`, apply it with `apply_preset` and an `amount` (100 is the preset as made, 50 half strength: colour-grading hues stay fixed and only their saturation scales, and curves ease toward straight).
 `list_presets` with a `query` searches names, groups, descriptions and tags; the person's own presets are listed there too.
 
-233 presets in 43 groups. Adaptive presets add AI masks, which are computed for each photo they reach.
+300 presets in 54 groups. Adaptive presets add AI masks, which are computed for each photo they reach.
 
 ## Contents
 
 - Color (3)
 - Film (3)
-- Cinematic (14)
-- B&W (18)
-- Portrait (15)
-- Landscape (11)
+- Cinematic (16)
+- B&W (20)
+- Portrait (17)
+- Landscape (13)
 - Urban (2)
 - Style (4)
-- Adaptive: Sky (7)
-- Adaptive: Subject (8)
-- Adaptive: Portrait (7)
-- Film-Inspired (15)
+- Adaptive: Sky (8)
+- Adaptive: Subject (9)
+- Adaptive: Portrait (8)
+- Film-Inspired (17)
 - Vintage (5)
-- Seasons (5)
-- Golden Hour (4)
-- Night & Astro (5)
-- Travel (5)
-- Food (4)
+- Seasons (7)
+- Golden Hour (5)
+- Night & Astro (7)
+- Travel (7)
+- Food (6)
 - Urban Architecture (5)
-- Concerts (3)
+- Concerts (4)
 - Lifestyle (4)
 - Moody (4)
 - Futuristic (3)
@@ -35,21 +35,32 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - Detail (4)
 - Effects (5)
 - Color Fixes (5)
-- Adaptive: Landscape (5)
+- Adaptive: Landscape (6)
 - Weather (6)
 - Illustration (7)
-- Toning (7)
+- Toning (8)
 - Aerial (3)
 - Macro & Flowers (3)
 - Wildlife (3)
 - Pets (3)
 - Sports (3)
 - Product (3)
-- Wedding (3)
+- Wedding (9)
 - Newborn (2)
 - Social (3)
 - HDR (2)
 - Utility (4)
+- Headshot (5)
+- Real Estate (4)
+- Documentary (4)
+- Noise by ISO (5)
+- Event (3)
+- Fashion (3)
+- Fine Art (3)
+- Street (3)
+- Automotive (2)
+- Family (3)
+- Interiors (1)
 
 ## Color
 
@@ -85,6 +96,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Pastel Cinema (`builtin:cinematic/pastel-cinema`) | Soft pastel film grade: violet shadows, peach highlights, low contrast. | color, curve, grading, light |
 | Noir Color (`builtin:cinematic/noir-color`) | Dark, desaturated colour with hard shadows and a cold cast. | color, grading, light, vignette |
 | Sunlit Drama (`builtin:cinematic/sunlit-drama`) | Warm highlights and cool shadows with strong contrast for character scenes. | grading, light |
+| Blue Hour Drama (`builtin:cinematic/blue-hour-drama`) | Deep blue shadows with warm lights for dramatic dusk scenes. | grading, light |
+| Retro Video (`builtin:cinematic/retro-video`) | Washed, slightly magenta retro video colour with soft detail. | color, curve, effects, grading, grain |
 
 ## B&W
 
@@ -108,6 +121,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Cool B&W (`builtin:b-w/cool-b-w`) | Black and white with a light cool tone. | grading, treatment |
 | Split-Tone B&W (`builtin:b-w/split-tone-b-w`) | Classic split toning: cool shadows and warm highlights at blending 100, which Adobe says reproduces the old Split Toning panel. | grading, treatment |
 | Architecture B&W (`builtin:b-w/architecture-b-w`) | Crisp black and white for buildings: dark sky, bright walls, clarity. | bw, effects, light, treatment |
+| Selenium Deep (`builtin:b-w/selenium-deep`) | Deep, cool-purple blacks like strong selenium toning. | grading, light, treatment |
+| Graphic High Contrast (`builtin:b-w/graphic-high-contrast`) | Graphic, near-posterised black and white. | curve, light, treatment |
 
 ## Portrait
 
@@ -128,6 +143,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | High-Key Portrait (`builtin:portrait/high-key-portrait`) | Bright, white-background portrait: lifted exposure and whites, soft contrast. | color, light |
 | Freckles and Detail (`builtin:portrait/freckles-and-detail`) | Keeps skin texture and freckles while warming slightly. | effects, grading, mixer |
 | Red Hair Glow (`builtin:portrait/red-hair-glow`) | Richer copper and red hair with natural skin. | effects, grading, mixer |
+| Golden Backlit Portrait (`builtin:portrait/golden-backlit-portrait`) | Backlit portrait with glowing rim light and lifted face. | effects, grading, light |
+| Window Light B&W (`builtin:portrait/window-light-b-w`) | Soft black and white portrait in window light. | bw, effects, light, treatment |
 
 ## Landscape
 
@@ -144,6 +161,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Desert Tones (`builtin:landscape/desert-tones`) | Warm sand and rock, muted greens, clear sky. | effects, grading, mixer |
 | Seascape Cool (`builtin:landscape/seascape-cool`) | Cool blue-teal seascape with smooth contrast. | grading, light, mixer |
 | Wide Dynamic (`builtin:landscape/wide-dynamic`) | Strong shadow and highlight recovery for high-contrast scenes, HDR-like but natural. | color, effects, light |
+| Warm Vibrant Landscape (`builtin:landscape/warm-vibrant-landscape`) | After Christian Mohrle's grading process: Landscape profile, lower highlights and lifted shadows, darker and richer blues, warm highlights and midtones, a small calibration blue shift. | calibration, grading, light, mixer, profile |
+| Sky and Land Balance (`builtin:landscape/sky-and-land-balance`) | Recovers a bright sky while opening the foreground, a common pairing of highlight and shadow moves. | effects, light |
 
 ## Urban
 
@@ -172,6 +191,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Soften Sky (`builtin:adaptive-sky/soften-sky`) | Softens a harsh sky: lower contrast and clarity in the sky only. | masks |
 | Night Sky (`builtin:adaptive-sky/night-sky`) | Darker, cooler, clearer sky for night scenes. | masks |
 | Overcast Sky Recovery (`builtin:adaptive-sky/overcast-sky-recovery`) | Brings back detail and tone in a white overcast sky. | masks |
+| Burn Sky (`builtin:adaptive-sky/burn-sky`) | Darkens the sky with a small highlights reduction, a landscape burn. | masks |
 
 ## Adaptive: Subject
 
@@ -185,6 +205,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Desaturate Background (`builtin:adaptive-subject/desaturate-background`) | Removes most colour from the background so the subject stands out. | masks |
 | Cool Background (`builtin:adaptive-subject/cool-background`) | Cools and darkens the background slightly. | masks |
 | Warm Subject Cool World (`builtin:adaptive-subject/warm-subject-cool-world`) | Warms the subject and cools the background in one preset, a quick separation grade. | masks |
+| Product Background White (`builtin:adaptive-subject/product-background-white`) | Pushes the background to white for product shots (starting values: exposure +1.0, whites +40). | masks |
 
 ## Adaptive: Portrait
 
@@ -197,6 +218,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Lip Color (`builtin:adaptive-portrait/lip-color`) | Adds saturation and a touch of contrast to lips. | masks |
 | Hair Shine (`builtin:adaptive-portrait/hair-shine`) | Adds texture and slight brightness to hair. | masks |
 | Brighten Face (`builtin:adaptive-portrait/brighten-face`) | Lifts face skin slightly for backlit portraits. | masks |
+| Skin Soften Natural (`builtin:adaptive-portrait/skin-soften-natural`) | Softens face and body skin while keeping pores, the people-mask approach professionals use instead of global softening. | masks |
 
 ## Film-Inspired
 
@@ -217,6 +239,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Tungsten Night (`builtin:film-inspired/tungsten-night`) | Night film balanced for tungsten: cool shadows, warm practical lights, grain. | grading, grain, light |
 | HP5 Style (`builtin:film-inspired/hp5-style`) | Classic medium-contrast black and white film with visible grain. | bw, grain, light, treatment |
 | Superia Green (`builtin:film-inspired/superia-green`) | Consumer film with green-cyan shadows and soft magenta highlights. | grading, grain, mixer |
+| Cine Tungsten 500 (`builtin:film-inspired/cine-tungsten-500`) | Cinema negative balanced for tungsten: cool shadows, soft contrast, fine grain. | curve, grading, grain |
+| Expired Slide (`builtin:film-inspired/expired-slide`) | Shifted, saturated expired slide film with heavy contrast. | color, grading, grain, light |
 
 ## Vintage
 
@@ -237,6 +261,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Autumn Gold (`builtin:seasons/autumn-gold`) | Pushes greens and yellows toward orange and gold, deepens oranges, for fall foliage. | color, grading, mixer |
 | Winter Crisp (`builtin:seasons/winter-crisp`) | Snow and winter: positive exposure (cameras underexpose snow), higher whites without clipping, cool shadows and slightly warm highlights. | color, grading, light |
 | Winter Soft (`builtin:seasons/winter-soft`) | Soft, raised-black winter look for snowy scenes. | color, grading, light |
+| Cherry Blossom (`builtin:seasons/cherry-blossom`) | Pink blossoms brightened, greens softened, airy light. | light, mixer |
+| Autumn Fog (`builtin:seasons/autumn-fog`) | Muted autumn colour in fog with lifted blacks. | curve, effects, mixer |
 
 ## Golden Hour
 
@@ -246,6 +272,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Sunset Fire (`builtin:golden-hour/sunset-fire`) | Intense sunset: deeper oranges and reds, darker sky top. | grading, light, mixer |
 | Backlit Haze (`builtin:golden-hour/backlit-haze`) | Soft backlit portrait or field: low dehaze, warm highlights, open shadows. | effects, grading, light |
 | Pink Dusk (`builtin:golden-hour/pink-dusk`) | Rose and violet dusk tones. | grading, mixer |
+| Sunrise Pastel (`builtin:golden-hour/sunrise-pastel`) | Soft pastel sunrise with pink and peach tones. | color, grading, light |
 
 ## Night & Astro
 
@@ -256,6 +283,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Neon Nights (`builtin:night-astro/neon-nights`) | Saturated neon magentas and blues with deep blacks. | color, light, mixer |
 | Low-Light Clean (`builtin:night-astro/low-light-clean`) | Noise reduction and gentle tone for high-ISO night shots; run Denoise first on raw files when available. | detail, effects, light |
 | Moonlight (`builtin:night-astro/moonlight`) | Cool, dim moonlit look. | color, grading, light |
+| Aurora (`builtin:night-astro/aurora`) | Keeps aurora greens and magentas strong against a dark sky. | detail, light, mixer |
+| Star Trails (`builtin:night-astro/star-trails`) | Clean dark sky for star trails with reduced colour noise. | detail, effects, grading, light |
 
 ## Travel
 
@@ -266,6 +295,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Mediterranean (`builtin:travel/mediterranean`) | Warm stone, deep blue sea, sunny highlights. | grading, light, mixer |
 | Travel Muted (`builtin:travel/travel-muted`) | Calm, desaturated travel look with a slight fade. | color, curve, grading |
 | Market Colors (`builtin:travel/market-colors`) | Pops the many colours of markets and street scenes without blowing skin. | color, effects, light |
+| Old Town Warm (`builtin:travel/old-town-warm`) | Warm stone streets and soft afternoon light. | grading, light, mixer |
+| Nordic Cool (`builtin:travel/nordic-cool`) | Cool, clean Scandinavian light with muted colour. | color, grading, light |
 
 ## Food
 
@@ -275,6 +306,8 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Moody Food (`builtin:food/moody-food`) | Dark, rich food styling: low exposure, deep shadows, warm highlights. | color, grading, light, vignette |
 | Bakery Warm (`builtin:food/bakery-warm`) | Warm, golden tones for bread, pastry and coffee. | effects, grading, mixer |
 | Clean White Plate (`builtin:food/clean-white-plate`) | Neutral, bright whites for light food on white plates. | color, light |
+| Overhead Flat Lay (`builtin:food/overhead-flat-lay`) | Even, bright overhead food and flat lay look with crisp texture. | color, effects, light |
+| Cafe Coffee (`builtin:food/cafe-coffee`) | Warm cafe tones for coffee and drinks with deep browns. | grading, light, mixer |
 
 ## Urban Architecture
 
@@ -293,6 +326,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Stage Lights (`builtin:concerts/stage-lights`) | Concert base: recovers coloured stage highlights, deepens blacks, controls noise. | color, detail, light |
 | Concert B&W (`builtin:concerts/concert-b-w`) | High-contrast black and white for stage photos under mixed light. | effects, grain, light, treatment |
 | Club Neon (`builtin:concerts/club-neon`) | Saturated club lighting with smooth noise. | color, detail, light, mixer |
+| Moody Stage (`builtin:concerts/moody-stage`) | Dark, moody stage colour with saturated spotlights. | color, detail, light |
 
 ## Lifestyle
 
@@ -376,6 +410,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Mountain Detail (`builtin:adaptive-landscape/mountain-detail`) | Cuts haze and adds structure to mountains only. | masks |
 | Building Detail (`builtin:adaptive-landscape/building-detail`) | Crisper buildings and architecture only. | masks |
 | Warm Ground (`builtin:adaptive-landscape/warm-ground`) | Warms natural ground and sand. | masks |
+| Dodge Vegetation (`builtin:adaptive-landscape/dodge-vegetation`) | Brightens foliage slightly to draw the eye, a landscape dodge. | masks |
 
 ## Weather
 
@@ -411,6 +446,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Blue Orange Duotone (`builtin:toning/blue-orange-duotone`) | Blue shadows and orange highlights on black and white. | grading, treatment |
 | Purple Haze Duotone (`builtin:toning/purple-haze-duotone`) | Violet shadows and pale yellow highlights. | grading, treatment |
 | Split Tone Colour (`builtin:toning/split-tone-colour`) | Light split toning on a colour photo: cool shadows, warm highlights at low saturation. | grading |
+| Sepia Warm Split (`builtin:toning/sepia-warm-split`) | Warm sepia highlights with neutral-dark shadows. | grading, treatment |
 
 ## Aerial
 
@@ -467,6 +503,12 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Wedding Classic (`builtin:wedding/wedding-classic`) | Timeless wedding colour: soft contrast, protected whites, gentle warmth. | effects, grading, light |
 | Wedding Film (`builtin:wedding/wedding-film`) | Film-style wedding look with warm highlights, soft greens and fine grain. | grading, grain, mixer |
 | Wedding B&W (`builtin:wedding/wedding-b-w`) | Soft, bright black and white for wedding moments. | bw, light, treatment |
+| Signature Base (`builtin:wedding/signature-base`) | A wedding base preset of the kind pros apply to a whole batch before editing by lens or part of the day: medium-contrast curve, slightly raised exposure and shadows, a little more colour. | color, curve, effects, light |
+| Signature Indoor (`builtin:wedding/signature-indoor`) | Indoor variant of the signature base: warmer light tamed, more shadow lift, noise kept down. | color, curve, detail, grading, light |
+| Signature Night (`builtin:wedding/signature-night`) | Night and reception variant: protected highlights, deeper blacks, noise reduction for high ISO. | color, curve, detail, light |
+| Church Tungsten (`builtin:wedding/church-tungsten`) | Calms heavy tungsten warmth in churches and halls while keeping skin natural. | grading, light, mixer |
+| Dance Floor (`builtin:wedding/dance-floor`) | Mixed coloured light on the dance floor: recovered highlights, reined-in saturation, noise control. | color, detail, light |
+| Bright Airy Bride (`builtin:wedding/bright-airy-bride`) | Very light, soft and airy with clean whites, popular for bridal portraits. | color, light, mixer |
 
 ## Newborn
 
@@ -498,3 +540,94 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Clear Tone Curve (`builtin:utility/clear-tone-curve`) | Flattens the point curves and parametric regions. | curve |
 | Clear Effects (`builtin:utility/clear-effects`) | Removes vignette and grain. | grain, vignette |
 | Clear Color Mixer (`builtin:utility/clear-color-mixer`) | Returns every colour-mixer band to zero. | mixer |
+
+## Headshot
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Corporate Clean (`builtin:headshot/corporate-clean`) | Neutral, crisp corporate headshot: even tone, true colour, gentle skin. | effects, light, mixer |
+| Actor Natural (`builtin:headshot/actor-natural`) | Natural, true-to-life actor headshot with honest skin texture. | color, effects, light |
+| Studio High-Key (`builtin:headshot/studio-high-key`) | Bright white studio background with soft contrast. | color, light |
+| Studio Low-Key (`builtin:headshot/studio-low-key`) | Dark studio background with sculpted light. | light, vignette |
+| Warm Profile (`builtin:headshot/warm-profile`) | Warm, friendly profile-photo look. | grading, light, mixer |
+
+## Real Estate
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Interior Balanced (`builtin:real-estate/interior-balanced`) | Interior base after real estate practice: strong highlight recovery for windows, opened shadows, neutral whites. | color, effects, light |
+| Exterior Blue Sky (`builtin:real-estate/exterior-blue-sky`) | Exterior with a clean blue sky and bright facade. | effects, light, mixer |
+| Twilight Exterior (`builtin:real-estate/twilight-exterior`) | Dusk exterior: blue sky, glowing warm windows. | grading, light, mixer |
+| Kitchen and Bath Clean (`builtin:real-estate/kitchen-and-bath-clean`) | Crisp, bright, neutral whites for kitchens and bathrooms. | color, grading, light |
+
+## Documentary
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| News Neutral (`builtin:documentary/news-neutral`) | Within news ethics: only normal toning (exposure, contrast, whites and blacks) and no colour styling, for agency and editorial use. | light |
+| News Neutral B&W (`builtin:documentary/news-neutral-b-w`) | Greyscale conversion and normal toning only, which news ethics allow. | light, treatment |
+| Reportage Colour (`builtin:documentary/reportage-colour`) | Quiet, slightly muted documentary colour for features and long-form stories (not for hard news). | color, curve, light |
+| Reportage Grain B&W (`builtin:documentary/reportage-grain-b-w`) | Gritty documentary black and white with grain (for features, not hard news). | grain, light, treatment |
+
+## Noise by ISO
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| ISO 800 (`builtin:noise-by-iso/iso-800`) | Light noise reduction for ISO 800: fix one frame per ISO level and sync only Detail across the rest. | detail |
+| ISO 1600 (`builtin:noise-by-iso/iso-1600`) | Noise reduction for ISO 1600. | detail |
+| ISO 3200 (`builtin:noise-by-iso/iso-3200`) | Noise reduction for ISO 3200. | detail |
+| ISO 6400 (`builtin:noise-by-iso/iso-6400`) | Noise reduction for ISO 6400; AI Denoise on the raw is usually better. | detail |
+| ISO 12800+ (`builtin:noise-by-iso/iso-12800`) | Strong noise reduction for ISO 12800 and above; AI Denoise on the raw is usually better. | detail |
+
+## Event
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Flash Fill Balance (`builtin:event/flash-fill-balance`) | Balances on-camera flash with ambient: softer flash highlights, warmer background. | effects, grading, light |
+| Conference Clean (`builtin:event/conference-clean`) | Clean, bright conference and corporate event look under mixed stage light. | detail, grading, light |
+| Party Vibe (`builtin:event/party-vibe`) | Warm, punchy party colour with deep blacks. | color, grading, light |
+
+## Fashion
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Editorial Pastel (`builtin:fashion/editorial-pastel`) | Soft, pale editorial colour with lifted blacks. | color, curve, grading, light |
+| High Fashion Contrast (`builtin:fashion/high-fashion-contrast`) | Bold, high-contrast fashion look with rich colour. | color, curve, effects, light |
+| Beauty Glow (`builtin:fashion/beauty-glow`) | Luminous beauty-style skin with soft highlights. | effects, light, mixer |
+
+## Fine Art
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Silver Print (`builtin:fine-art/silver-print`) | Long-scale, delicate black and white like a fibre silver print. | grain, light, treatment |
+| Muted Fine Art (`builtin:fine-art/muted-fine-art`) | Quiet, low-saturation fine art colour. | color, curve, light |
+| Minimal Seascape (`builtin:fine-art/minimal-seascape`) | Smooth, minimal, cool long-exposure seascape tone. | color, effects, grading, light |
+
+## Street
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Street Colour Pop (`builtin:street/street-colour-pop`) | Vivid street colour with crunchy midtones. | color, effects, light |
+| Street Muted Film (`builtin:street/street-muted-film`) | Muted, filmic street colour with grain. | color, curve, grading, grain |
+| Street Night (`builtin:street/street-night`) | Night street colour with controlled highlights and noise. | color, detail, light |
+
+## Automotive
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Car Gloss (`builtin:automotive/car-gloss`) | Glossy, contrasty car look with rich paint and clean reflections. | color, effects, light |
+| Car Dark Moody (`builtin:automotive/car-dark-moody`) | Dark, desaturated, dramatic car look. | color, effects, light, vignette |
+
+## Family
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Family Warm (`builtin:family/family-warm`) | Warm, gentle family session look with soft skin. | effects, grading, light, mixer |
+| Kids Bright Colour (`builtin:family/kids-bright-colour`) | Bright, cheerful colour for children and play. | color, effects, light |
+| Lifestyle Golden Field (`builtin:family/lifestyle-golden-field`) | Golden backlit field look for outdoor family sessions. | effects, grading, light |
+
+## Interiors
+
+| Preset | What it does | Touches |
+| --- | --- | --- |
+| Warm Interior Mood (`builtin:interiors/warm-interior-mood`) | Cosy, warm interior with deep shadows for design and hospitality. | grading, light, vignette |
