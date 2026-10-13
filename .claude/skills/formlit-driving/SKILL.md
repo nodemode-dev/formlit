@@ -52,6 +52,7 @@ Measure, propose, check, commit. Read `references/editing-guide.md` before gradi
 3. Start: `match_look` when there is a reference photo, `auto_tone` for an unedited photo, or a preset. Find presets by purpose with `list_presets` and a `query` ("moody forest", "portrait warm", "bw street", "overcast", "illustration"); `references/presets.md` lists all 233 built-ins with what each does. Preview first: `get_preview` and `analyze_photo` take `preset` and `amount` and save nothing.
 4. Refine with proposals: `get_preview` and `analyze_photo` take `values` (for example `{"light.highlights": -40, "grading.shadows.hue": 210, "grading.shadows.sat": 12}`). Compare the before and after numbers, then look. Commit with `develop_set`; curve points, `treatment: "bw"` and crops go through `develop_patch`.
 5. Local work beats global: `add_ai_mask` with `kind: "sky"` and `adjust: {"exposure": -0.5, "saturation": 15}`; `kind: "people"` with `parts` (`["hair"]`, `["faceSkin", "bodySkin"]`, `["lips"]`, `["iris", "sclera"]`); `kind: "landscape"` with `parts` (`["water"]`, `["vegetation"]`, `["mountains"]`, `["architecture"]`); or `add_gradient_mask` for a graduated sky or a radial spotlight. A change to one colour (richer red hair, bluer sky, greener grass) needs no mask at all: one `develop_set` on that colour's `mixer.[band]` values, which works without any AI model. AI masks need their model installed; if a mask call says the model is missing, offer the install once, and if it fails use the mixer or a gradient instead of retrying.
+   **Isolate the subject and grade it differently** (all done by formlit's local models and its own renderer, not by you): set the overall mood first (`match_look`, a preset or `develop_set`), then two masks in the same turn: `add_ai_mask` `kind: "subject"` with the subject's grade, and `kind: "background"` with the background's grade, for example subject `{"saturation": 30, "temp": 15, "exposure": 0.2, "colorHue": 28, "colorSat": 15}` and background `{"saturation": -15, "colorHue": 220, "colorSat": 12, "exposure": -0.15}`. `colorHue` and `colorSat` are the mask's colour tint (Lightroom's mask colour swatch) and `curve` is a local tone curve. Each result reports the mask's `coverage`; a subject usually covers 10 to 60 percent of the frame, and an empty mask is refused rather than silently added. Confirm with one `get_preview`.
 6. `analyze_photo` again: stop when the findings that matter are gone and the preview reads right. Say what changed in photographer's words (recovered highlights, warmer skin, darker sky).
 7. A whole shoot: develop one photo, then `sync_settings` from it to the others. Without `groups` it copies everything but crop, masks, spots and red eye; `groups: ["whiteBalance", "basicTone", "presence"]` copies only exposure and colour. Frames shot in changing light match better with `match_look` against the hero frame after the sync. Check the set with `analyze_photo` `ids`.
 8. Keep a look the person likes: `save_preset` from the finished photo, with a name and a group, so it appears in the window and in `list_presets`.
@@ -77,6 +78,23 @@ Strength guide from real presets and practitioners (details and sources in the e
 - Long jobs (import, AI, export) wait until done and return the written paths.
 - Deleting files and switching catalogs are refused here on purpose: the person does those in the window.
 - `run_command` reaches every engine command (`list_commands` shows them) when no curated tool fits. Its shape is `{"command": "ai.download", "params": {"model": "objects", "wait": true}}`: one `params` object, never a JSON string.
+
+## Local AI models
+
+Every model runs on the person's computer through ONNX Runtime, downloads once on first use from a pinned revision, and is checked against its SHA-256 before it is kept. `run_command` `ai.models` lists which are installed.
+
+| Model id | Model | Licence | Needed for |
+| --- | --- | --- | --- |
+| `subject` | U2-Net | Apache-2.0 | subject and background masks, adaptive subject presets |
+| `people` | U2-Net human segmentation | Apache-2.0 | people masks and every people part |
+| `faces` | YuNet face detector, SFace recognizer | MIT, Apache-2.0 | face skin, hair, eyebrows, eyes, lips and teeth parts; finding and naming faces |
+| `sky` | U-2-Net sky segmenter (xiongzhu666) | MIT | sky masks; sharper landscape parts |
+| `objects` | SAM 2.1 tiny | Apache-2.0 | object masks from a box |
+| `depth` | Depth Anything V2 Small | Apache-2.0 | depth masks, Lens Blur; sharper landscape parts |
+| `remove` | LaMa | Apache-2.0 | generative Remove |
+| `upscale` | Real-ESRGAN x4plus | BSD-3-Clause | Super Resolution |
+
+People parts are built from the person mask and the face boxes with skin-colour rules, not a dedicated face-parsing model, so check them with a preview. Landscape parts work without any model and get sharper with `sky` and `depth`. When a model is missing the refusal gives the one install call; colour-mixer bands and gradient masks need no model at all.
 
 ## When something fails
 
