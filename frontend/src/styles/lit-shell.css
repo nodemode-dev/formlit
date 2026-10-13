@@ -3,9 +3,23 @@ html, body { height: 100%; }
 .fl-mark { display: inline-flex; flex: none; }
 .fl-mark svg { display: block; width: 100%; height: 100%; }
 
-.fl-app { position: relative; display: grid; grid-template-rows: var(--cv-titlebar-h) minmax(0, 1fr) var(--fl-filmstrip-h) var(--fl-dock-h) var(--cv-status-h); height: 100%; background: var(--bg-primary); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
-.fl-app.is-filmstrip-hidden { --fl-filmstrip-h: 0px; }
+.fl-app { --fl-strip-row: var(--fl-filmstrip-h); position: relative; display: grid; grid-template-rows: var(--cv-titlebar-h) minmax(0, 1fr) var(--fl-strip-row) var(--fl-dock-h) var(--cv-status-h); height: 100%; background: var(--bg-primary); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
+.fl-app.is-filmstrip-collapsed { --fl-strip-row: 28px; }
+.fl-app.is-filmstrip-collapsed .fl-filmstrip { grid-template-rows: 28px calc(var(--fl-filmstrip-h) - 28px); overflow: hidden; }
+.fl-app.is-filmstrip-collapsed .fl-filmstrip > .fl-grid, .fl-app.is-filmstrip-collapsed .fl-strip-rsz { visibility: hidden; }
+.fl-app.is-filmstrip-collapsed .fl-fs-collapse .icon { transform: rotate(180deg); }
+.fl-app.is-filmstrip-top { grid-template-rows: var(--cv-titlebar-h) var(--fl-strip-row) minmax(0, 1fr) var(--fl-dock-h) var(--cv-status-h); }
+.fl-app.is-filmstrip-top > .fl-titlebar { grid-row: 1; }
+.fl-app.is-filmstrip-top > .fl-filmstrip { grid-row: 2; border-top: 0; border-bottom: 1px solid var(--line-0); }
+.fl-app.is-filmstrip-top > .fl-main { grid-row: 3; }
+.fl-app.is-filmstrip-top > .fl-dock { grid-row: 4; }
+.fl-app.is-filmstrip-top > .fl-status { grid-row: 5; }
+.fl-app.is-filmstrip-top .fl-strip-rsz { top: auto; bottom: -3px; }
+.fl-app.is-filmstrip-top.is-filmstrip-collapsed .fl-fs-collapse .icon { transform: none; }
+.fl-app.is-filmstrip-top:not(.is-filmstrip-collapsed) .fl-fs-collapse .icon { transform: rotate(180deg); }
+.fl-app.is-filmstrip-hidden { --fl-strip-row: 0px; }
 .fl-app.is-filmstrip-hidden .fl-filmstrip { display: none; }
+.fl-fs-collapse .icon { transition: transform var(--transition-fast); }
 .fl-app.is-left-hidden { --fl-left-w: 0px; }
 .fl-app.is-right-hidden { --fl-right-w: 0px; }
 .fl-app.is-left-hidden .fl-left, .fl-app.is-left-hidden .fl-rsz-left { visibility: hidden; }

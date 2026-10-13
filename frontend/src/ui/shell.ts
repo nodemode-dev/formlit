@@ -37,9 +37,10 @@ const DOCK_KEY = 'formlit_dock_h';
 const LAYOUT_KEY = 'formlit_layout';
 const STRIP_KEY = 'formlit_filmstrip_h';
 const MODULES_KEY = 'formlit_modules_hidden';
-const AREAS = ['is-left-hidden', 'is-right-hidden', 'is-filmstrip-hidden'] as const;
+const AREAS = ['is-left-hidden', 'is-right-hidden', 'is-filmstrip-hidden', 'is-filmstrip-collapsed', 'is-filmstrip-top'] as const;
+export type ShellArea = typeof AREAS[number];
 
-export interface ShellLayout { left: number | null; right: number | null; leftHidden: boolean; rightHidden: boolean; filmstripHidden: boolean; toolbarHidden: boolean; dockH: number | null; stripH?: number | null }
+export interface ShellLayout { left: number | null; right: number | null; leftHidden: boolean; rightHidden: boolean; filmstripHidden: boolean; toolbarHidden: boolean; dockH: number | null; stripH?: number | null; stripCollapsed?: boolean; stripTop?: boolean }
 
 export class Shell {
   readonly app: HTMLElement;
@@ -97,9 +98,10 @@ export class Shell {
       if (e.button !== 0) return;
       const start = e.clientY;
       const from = this.filmstrip.getBoundingClientRect().height;
+      const dir = this.app.classList.contains('is-filmstrip-top') ? 1 : -1;
       handle.setPointerCapture(e.pointerId);
       setClass(handle, 'is-dragging', true);
-      const move = (ev: PointerEvent) => setStyleVar(this.app, '--fl-filmstrip-h', `${Math.round(Math.max(72, Math.min(320, from - (ev.clientY - start))))}px`);
+      const move = (ev: PointerEvent) => setStyleVar(this.app, '--fl-filmstrip-h', `${Math.round(Math.max(72, Math.min(320, from + (ev.clientY - start) * dir)))}px`);
       const up = () => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
@@ -199,7 +201,7 @@ export class Shell {
     this.app.dataset.module = id;
   }
 
-  toggle(cls: 'is-left-hidden' | 'is-right-hidden' | 'is-filmstrip-hidden', on?: boolean): void {
+  toggle(cls: ShellArea, on?: boolean): void {
     setClass(this.app, cls, on ?? !this.app.classList.contains(cls));
     this.saveAreas();
   }
@@ -218,6 +220,7 @@ export class Shell {
       left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: px('--fl-dock-open-h'), stripH: px('--fl-filmstrip-h'),
       leftHidden: this.app.classList.contains('is-left-hidden'), rightHidden: this.app.classList.contains('is-right-hidden'),
       filmstripHidden: this.app.classList.contains('is-filmstrip-hidden'), toolbarHidden: this.center.classList.contains('is-toolbar-hidden'),
+      stripCollapsed: this.app.classList.contains('is-filmstrip-collapsed'), stripTop: this.app.classList.contains('is-filmstrip-top'),
     };
   }
 
@@ -238,6 +241,8 @@ export class Shell {
     if (l.leftHidden !== undefined) setClass(this.app, 'is-left-hidden', l.leftHidden);
     if (l.rightHidden !== undefined) setClass(this.app, 'is-right-hidden', l.rightHidden);
     if (l.filmstripHidden !== undefined) setClass(this.app, 'is-filmstrip-hidden', l.filmstripHidden);
+    if (l.stripCollapsed !== undefined) setClass(this.app, 'is-filmstrip-collapsed', l.stripCollapsed);
+    if (l.stripTop !== undefined) setClass(this.app, 'is-filmstrip-top', l.stripTop);
     if (l.toolbarHidden !== undefined) setClass(this.center, 'is-toolbar-hidden', l.toolbarHidden);
     this.saveAreas();
     try {

@@ -93,6 +93,7 @@ export const LIT_ICONS: Record<string, string> = {
   tether: S('<rect x="3" y="7" width="12" height="10" rx="2"/><circle cx="9" cy="12" r="2.5"/><path d="M15 12h3a3 3 0 0 0 3-3V5"/>'),
   terminal: S('<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5"/>'),
   faceScan: S('<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><circle cx="9.5" cy="10" r="0.8" fill="currentColor"/><circle cx="14.5" cy="10" r="0.8" fill="currentColor"/><path d="M9 15c1.7 1.3 4.3 1.3 6 0"/>'),
+  stripMove: S('<rect x="3" y="3" width="13" height="18" rx="2"/><path d="M3 16h13"/><path d="M20 7v10M18 9l2-2 2 2M18 15l2 2 2-2"/>'),
 };
 
 Object.assign(ICONS, LIT_ICONS);

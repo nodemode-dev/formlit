@@ -12,10 +12,10 @@ interface Builtin extends Workspace { id: string }
 
 const CURRENT_KEY = 'formlit_workspace';
 const BUILTIN: Builtin[] = [
-  { id: 'default', name: 'Default', dock: false, layout: { left: null, right: null, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: null, stripH: null }, panels: { solo: { left: false, right: false } } },
+  { id: 'default', name: 'Default', dock: false, layout: { left: null, right: null, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: null, stripH: null, stripCollapsed: false, stripTop: false }, panels: { solo: { left: false, right: false } } },
   { id: 'culling', name: 'Culling: Big Grid', dock: false, layout: { leftHidden: true, rightHidden: true, filmstripHidden: true, toolbarHidden: false } },
   { id: 'editing', name: 'Editing: Wide Panels, One at a Time', dock: false, layout: { left: 220, right: 380, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false }, panels: { solo: { left: false, right: true } } },
-  { id: 'agent', name: 'Working with Claude', dock: true, layout: { leftHidden: true, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: 340 } },
+  { id: 'agent', name: 'Working with Claude', dock: true, layout: { leftHidden: true, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: 340, stripCollapsed: true } },
   { id: 'photo', name: 'Photo Only', dock: false, layout: { leftHidden: true, rightHidden: true, filmstripHidden: true, toolbarHidden: true } },
 ];
 
@@ -116,6 +116,17 @@ export function registerWorkspace(ctx: Ctx): void {
     menu.setItems([...modules().map((m) => moduleCommand(m.id, m.label))]);
     menu.openAt(e.clientX, e.clientY);
   });
+  const stripHead = (e: Event): boolean => {
+    const t = e.target as HTMLElement;
+    return !!t.closest('.fl-fs-head') && !t.closest('button');
+  };
+  ctx.shell.filmstrip.addEventListener('contextmenu', (e) => {
+    if (!stripHead(e)) return;
+    e.preventDefault();
+    menu.setItems(['view.filmstripCollapse', 'view.filmstripTop', '-', 'view.toggleFilmstrip']);
+    menu.openAt(e.clientX, e.clientY);
+  });
+  ctx.shell.filmstrip.addEventListener('dblclick', (e) => { if (stripHead(e)) ctx.run('view.filmstripCollapse'); });
 
   const watch = (sel: string) => {
     const host = document.querySelector(sel);
