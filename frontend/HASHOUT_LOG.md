@@ -2,8 +2,8 @@
 
 Living log of all comment content, explainers, rationale, TODOs and removed code for the interface. Source files stay comment-free (vendored formvis files keep their upstream headers); everything else they would have said lives here, indexed. Read this first, then edit code surgically.
 
-Current build version: v0.10.0
-Last updated: 2026-10-13 · v0.10.0 Refine Photos in the Library menu; v0.7.0 the terminal dock, Claude Code and the Ask line; v0.6.0 the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
+Current build version: v0.11.0
+Last updated: 2026-10-13 · v0.11.0 template commands, keyword sets from the engine, export preset groups; v0.10.0 Refine Photos in the Library menu; v0.7.0 the terminal dock, Claude Code and the Ask line; v0.6.0 the AI agent access prompt and the Preferences AI agents section; v0.3.3 buttons follow state, shared shortcuts by module, panel header tools, toolbars that fit; v0.3.1 relative white balance; v0.3.0 view geometry, Navigator, dev font preloads
 
 ---
 
