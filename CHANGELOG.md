@@ -2,6 +2,19 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.17.0 · 2026-10-13
+
+### Added
+
+- **Photo strips in the Chat tab.**
+  - When Claude uses a tool on photos (rating, flagging, developing, matching, a preview), the tool's chip is followed by small thumbnails of those photos: up to eight, then a count.
+  - Clicking the strip selects those photos in the window.
+  - The engine's `chat.tool` events carry the photo ids, read from the tool's `id`, `ids`, `reference`, `from` and `photo` arguments.
+
+### Still not in formlit
+
+- Instagram 4:5 and Stories 9:16 presets: Meta's help pages still refuse automated reading, so their sizes remain unverified and are not built in.
+
 ## v0.16.0 · 2026-10-13
 
 ### Added
