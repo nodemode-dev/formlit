@@ -2,6 +2,29 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.19.0 · 2026-10-13
+
+### Added
+
+- **The Chat tab as a real bridge to Claude Code, for people who never open a terminal:**
+  - **Formatting:** answers are formatted as they arrive: paragraphs, **bold**, bulleted and numbered lists, headings, small tables and code. Finished paragraphs are rendered once, and only the line still being written shows as plain text. The renderer builds page elements, never raw HTML, and links cannot navigate the window away.
+  - **Previews:** the photos Claude looks at (`get_preview`) appear in the chat under the step that fetched them.
+  - **Live token tracking** in the Chat bar, with a plain-language tooltip:
+    - how much of Claude's working memory the conversation uses, against the model's window (for example "Memory 19.8k of 1M"; it turns the accent colour above 80 percent);
+    - the reply's tokens as they are written;
+    - the whole chat's tokens and cost.
+    - Each answer ends with its time, steps, tokens and cost.
+  - **Open in Claude Code** continues the same conversation in a Claude Code terminal tab (`claude --resume`). **From Claude Code...** lists the Claude Code conversations started in formlit and brings one into the Chat, with its messages, tool calls and photo strips.
+  - **Context:** every message now also tells Claude the current module and the active photo, along with the selection.
+- **More customization:**
+  - The filmstrip's height can be dragged (72 to 320 px). It is kept between sessions and saved with workspaces.
+  - Right-click the module picker to show or hide modules. Hidden ones stay in the Window menu and keep their shortcuts.
+  - While you drag a panel near the top or bottom of its column, the column scrolls, so Develop's long column can be reordered end to end.
+
+### Fixed
+
+- **Dragging a panel stopped after its first move in Develop, and the new order was not saved.** The v0.18.0 rewrite of `panel.ts` captured the pointer on the panel header, and moving the panel releases that capture. Dragging now follows the pointer on the window, saves the order and survives a reload. Every panel in all seven modules was re-checked: open, close, Alt-click solo, on/off switches and drag.
+
 ## v0.18.0 · 2026-10-13
 
 ### Added

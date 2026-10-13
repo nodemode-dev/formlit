@@ -10,6 +10,10 @@
 
 `src/ui/panel.ts` gives every panel a header that opens and closes it (Alt-click opens it alone), a right-click menu, and drag to reorder within its column. Hidden panels, the order per module and column, and Solo Mode per side live in the window's local storage (`formlit_panels_hidden`, `formlit_panels_order`, `formlit_panels_solo`) beside the open states (`formlit_panels`). The shell keeps the side widths, the dock height and which areas are hidden (`formlit_layout`), so a layout survives a restart. `src/modules/shared/workspace.ts` adds Window, Workspace: five built-in workspaces, Save and Delete Workspace (stored in the engine's preferences as `workspaces`, so they survive a cleared browser cache), Solo Mode for each side and Reset Panels; it reorders panels as modules mount them, through a MutationObserver on the panel columns.
 
+The filmstrip has its own resize handle (`formlit_filmstrip_h`, saved in workspaces as `stripH`), and the module picker's right-click menu shows or hides modules (`formlit_modules_hidden`; hidden modules stay in the Window menu). Panel drag follows the pointer on the window rather than capturing it on the header, because moving the panel would release the capture, and it scrolls the column while the pointer rests near its top or bottom.
+
+The Chat tab (`src/ui/chat-pane.ts`) renders Claude's Markdown through `src/ui/markdown.ts`, which builds DOM nodes and never parses HTML; `MarkdownStream` appends each finished block once and keeps only the unfinished tail as plain text. Its bar shows live token use from the engine's `chat.usage` events, and its two bridge buttons hand the conversation to a Claude Code tab (`claudecode.open` with `resume`) or bring one back (`chat.sessions`, `chat.adopt`).
+
 The AI icons: `agent` (a small robot head) marks Claude Code and the Ask line, `agentChat` (a speech bubble with the same eyes) marks Chat, and `aiChip` (a processor) marks features run by local models such as Denoise and Build Depth.
 
 ## State
