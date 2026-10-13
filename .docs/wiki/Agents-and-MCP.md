@@ -19,7 +19,7 @@ formlit's terminal dock (Window, Show Terminal, Ctrl or Cmd+J) runs real shells,
 
 The tab starts in `~/Formlit/Agent` (`FORMLIT_AGENT_DIR`) with formlit's server added over HTTP and its tools allowed, so you see Claude work in the terminal and the catalog change in the window at the same time. You started it, so it does not get the outside-agent prompt; it is listed as Claude Code in formlit under Seen, and Blocked still refuses it. Type in the tab as in any terminal, or use the Ask line under the dock: it sends your request with the selected photo ids, starting Claude Code when it is not running.
 
-`./formlit claude` starts the same thing in your own terminal over stdio; that session is an outside agent and goes through the prompt.
+`./formlit claude` (`formlit.bat claude` on Windows, through `setup/claude_launch.py`) starts the same thing in your own terminal over stdio; that session is an outside agent and goes through the prompt.
 
 ## The server
 

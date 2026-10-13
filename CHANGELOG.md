@@ -2,6 +2,17 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.13.0 · 2026-10-13
+
+### Added
+
+- **Preferences, Metadata: Creator, Email and Website.** These are the details the metadata templates, New Shoot from Template and agents fill into copyright and licence text. Until now they were only remembered from the first use.
+- **`formlit.bat claude` on Windows:** Claude Code in the terminal with formlit's tools attached, the twin of `./formlit claude`. It goes through a new `setup/claude_launch.py`, which works on every platform.
+
+### Fixed
+
+- **The reference updates as soon as it is edited.** In Reference View it used to refresh only when the photo being edited re-rendered. It now re-renders when its own settings change from anywhere: an agent, Sync, undo, or another window.
+
 ## v0.12.0 · 2026-10-13
 
 This release closes the two gaps v0.11.0 left open: Reference View, and the import and rename dialogs' template lists.
