@@ -177,31 +177,51 @@ export class Panel {
       const col = this.root.parentElement;
       if (!col) return;
       const startY = e.clientY;
+      const scroller = col.closest<HTMLElement>('.fl-col-page');
       let active = false;
-      this.head.setPointerCapture(e.pointerId);
-      const move = (ev: PointerEvent) => {
-        if (!active) {
-          if (Math.abs(ev.clientY - startY) < 6) return;
-          active = true;
-          setClass(this.root, 'is-dragging', true);
-        }
+      let lastY = startY;
+      let frame = 0;
+      const place = () => {
         const others = panelsIn(col).filter((p) => p !== this.root && !p.hidden);
-        const before = others.find((p) => { const r = p.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; }) ?? null;
+        const before = others.find((p) => { const r = p.getBoundingClientRect(); return lastY < r.top + r.height / 2; }) ?? null;
         const anchor = before ?? (others.length ? others[others.length - 1].nextSibling : null);
         if (this.root.nextSibling !== anchor && this.root !== anchor) col.insertBefore(this.root, anchor);
       };
+      const edge = () => {
+        frame = 0;
+        if (!active || !scroller) return;
+        const r = scroller.getBoundingClientRect();
+        const step = lastY < r.top + 36 ? -16 : lastY > r.bottom - 36 ? 16 : 0;
+        if (!step) return;
+        const was = scroller.scrollTop;
+        scroller.scrollTop += step;
+        if (scroller.scrollTop !== was) place();
+        frame = window.requestAnimationFrame(edge);
+      };
+      const move = (ev: PointerEvent) => {
+        lastY = ev.clientY;
+        if (!active) {
+          if (Math.abs(lastY - startY) < 6) return;
+          active = true;
+          setClass(this.root, 'is-dragging', true);
+        }
+        place();
+        if (!frame) frame = window.requestAnimationFrame(edge);
+      };
       const up = () => {
-        this.head.removeEventListener('pointermove', move);
-        this.head.removeEventListener('pointerup', up);
-        this.head.removeEventListener('pointercancel', up);
+        if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
         if (!active) return;
         setClass(this.root, 'is-dragging', false);
         this.dragged = true;
+        window.setTimeout(() => { this.dragged = false; }, 0);
         saveOrder(col);
       };
-      this.head.addEventListener('pointermove', move);
-      this.head.addEventListener('pointerup', up);
-      this.head.addEventListener('pointercancel', up);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     });
   }
 
