@@ -1124,6 +1124,13 @@ Stands in for Lightroom's ISO adaptive presets: each photo gets the Noise by ISO
 Lightroom's template families (filename templates, metadata presets, keyword sets, smart collections, export presets) as data, plus shoot recipes that bind one of each to a genre. Facts in them come from the v0.11.0 research: Creative Commons 4.0 deed URLs and CC0 from creativecommons.org; Adobe Stock and Shutterstock ask for JPEG, sRGB, at least 4 MP; Canopy MLS and Unlock MLS both ask for at least 2048 x 1536 and Canopy caps at 3000 px and 6 MB; Mpix asks for sRGB JPEG and prints at 250 ppi, WHCC prints most products at 300 dpi; Instagram's help says it keeps photos up to 1080 px across. Facts that research could not confirm are left out: no Meta aspect sizes, no claim about Lightroom's built-in filename template names. The four built-in keyword sets the window had are kept word for word (as Outdoor, Portrait, Wedding and Event Photography) so Alt+1 to Alt+9 still type the same words.
 Metadata placeholders resolve from `values`, then the remembered `identity` pref (creator, email, url only), then `year`. A field whose placeholder has no value is skipped; a template whose creator, copyright or usage terms would be skipped is refused, so a half-written copyright never lands. `setupShoot` creates the set, All Photos and the stage smart collections in one change with direct inserts, because `collection.create` makes one undo step each; stage rules are scoped with a `collection = All Photos` rule plus a nested group, which `compile_rules` already supports.
 
+### app/routers/mcp.py · show_in_window reference
+- refers-to: app/routers/mcp.py :: _show, show_in_window; frontend/src/app.ts :: agent.show
+- kind: explainer
+- logged: v0.12.0 · 2026-10-13
+
+`reference` rides on the existing `agent.show` event; the window opens Develop's Reference View with it. The engine keeps no reference state: Reference View is a view, not a catalog change, so nothing is undoable or stored.
+
 ### app/services/importer.py · {shoot} at import
 - refers-to: app/services/importer.py :: _destination
 - kind: warning-context
