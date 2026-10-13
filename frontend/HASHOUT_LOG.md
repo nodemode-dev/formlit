@@ -475,6 +475,27 @@ Library, Refine Photos (Alt+Mod+R) runs the engine's `library.refine` on every p
 
 Every Panel registers in `PANELS` so the workspace can show, hide, open and order panels it did not create. Drag reorders with pointer events, not HTML drag and drop, because Tauri's webview takes native drag events for file drops; the panel moves in place while dragging, so there is no ghost element, and the click that follows a drag is swallowed so a drag never toggles the panel. Order is kept per module and side (`orderKey`); `arrange` only moves nodes when the saved order differs, and records the natural order the first time it sees a container so Reset Panels can restore it. Solo Mode per side turns a normal open into Alt-click's open-alone. The right-click menu is a CustomEvent (`fl-panel-menu`) so the panel does not need the command registry. Rewritten in one pass at v0.18.0 rather than in single-region edits, an exception to the edit rule noted in BUILD_NOTES.
 
+### src/ui/panel.ts · drag follows the window, and auto-scrolls (v0.19.0 fix)
+- refers-to: src/ui/panel.ts :: Panel.dragging (place, edge, move, up)
+- kind: warning-context
+- logged: v0.19.0 · 2026-10-13
+
+v0.18.0 captured the pointer on the panel header; `insertBefore` on the panel releases that capture, so a drag stopped after its first move and nothing was saved whenever the header left the pointer (always in Develop's long column). Listeners now sit on `window` for the drag; the click after a drag is swallowed through a flag cleared on the next task, because the click may land on another element after the panel moved. A rAF loop scrolls the column (`.fl-col-page`, the element that scrolls) while the pointer rests within 36 px of its edge and re-places the panel as it scrolls. Re-checked: 61 panels in 7 modules open, close, solo and switch; a Develop drag from the bottom to near the top saved and survived a reload. These fixes were single-region edits.
+
+### src/ui/markdown.ts, chat-pane.ts · formatted chat, previews, token meter, bridge
+- refers-to: src/ui/markdown.ts :: renderMarkdown, MarkdownStream; src/ui/chat-pane.ts :: delta, endText, images, showUsage, handoff, adopt; src/ui/terminal-dock.ts :: claude(resume), showChat; src/modules/shared/terminal.ts :: context
+- kind: rationale
+- logged: v0.19.0 · 2026-10-13
+
+Claude writes Markdown; showing raw asterisks to people who never use a terminal was the main complaint. The renderer covers what Claude actually writes (paragraphs, bold, italic, inline code, lists, headings, tables, fences, rules), builds elements with `textContent` only, and turns links into underlined text with the URL as a tooltip, because a click must not navigate the desktop window. Streaming: a block is rendered once when a blank line closes it (fences are kept whole), so the only replacement is the live tail paragraph becoming its formatted self; verified under 4x CPU (only `fl-md-live` nodes removed). Preview images come back from the engine as saved files and load through `/api/files/thumb`. The meter reads `chat.usage`: memory is the prompt size of the latest step (input plus cache read and write), which is what fills the context window; "Chat" totals everything sent and written, which is large because each step re-reads the conversation from cache, and the tooltip says so in plain words. The handoff passes the Chat's session id to `claudecode.open` as `resume`; From Claude Code lists sessions from Claude Code's own project folder for formlit's agent folder.
+
+### src/ui/shell.ts · filmstrip height and module picker (v0.19.0)
+- refers-to: src/ui/shell.ts :: stripResizer, hiddenModules, setModuleShown, ShellLayout.stripH; src/modules/shared/workspace.ts :: module picker menu
+- kind: explainer
+- logged: v0.19.0 · 2026-10-13
+
+The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
+
 ### src/ui/shell.ts · layout in and out
 - refers-to: src/ui/shell.ts :: ShellLayout, layout, applyLayout, saveAreas, LAYOUT_KEY
 - kind: explainer

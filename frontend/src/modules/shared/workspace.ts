@@ -5,13 +5,14 @@ import { PopupMenu, type MenuItem } from '../../ui/menu';
 import { applyPanelState, arrange, isPanelHidden, isSolo, PANELS, panelState, setPanelVisible, setSolo, sideOf, type PanelState, type Side } from '../../ui/panel';
 import type { ShellLayout } from '../../ui/shell';
 import { toast } from '../../ui/toast';
+import { modules } from '../registry';
 
 interface Workspace { name: string; layout: Partial<ShellLayout>; dock: boolean; panels?: Partial<PanelState> }
 interface Builtin extends Workspace { id: string }
 
 const CURRENT_KEY = 'formlit_workspace';
 const BUILTIN: Builtin[] = [
-  { id: 'default', name: 'Default', dock: false, layout: { left: null, right: null, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: null }, panels: { solo: { left: false, right: false } } },
+  { id: 'default', name: 'Default', dock: false, layout: { left: null, right: null, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: null, stripH: null }, panels: { solo: { left: false, right: false } } },
   { id: 'culling', name: 'Culling: Big Grid', dock: false, layout: { leftHidden: true, rightHidden: true, filmstripHidden: true, toolbarHidden: false } },
   { id: 'editing', name: 'Editing: Wide Panels, One at a Time', dock: false, layout: { left: 220, right: 380, leftHidden: false, rightHidden: false, filmstripHidden: false, toolbarHidden: false }, panels: { solo: { left: false, right: true } } },
   { id: 'agent', name: 'Working with Claude', dock: true, layout: { leftHidden: true, rightHidden: false, filmstripHidden: false, toolbarHidden: false, dockH: 340 } },
@@ -97,6 +98,23 @@ export function registerWorkspace(ctx: Ctx): void {
     const items: MenuItem[] = [...ids.map(panelCommand), '-', ...(side ? [`view.solo.${side}`] : []), 'workspace.resetPanels'];
     menu.setItems(items);
     menu.openAt(x, y);
+  });
+
+  const moduleCommand = (id: string, label: string): string => {
+    const cid = `module.show.${id}`;
+    if (!ctx.commands.get(cid)) {
+      ctx.commands.add({ id: cid, label, checked: () => !ctx.shell.hiddenModules().includes(id), run: () => {
+        const show = ctx.shell.hiddenModules().includes(id);
+        if (!show && modules().filter((m) => !ctx.shell.hiddenModules().includes(m.id)).length <= 1) { toast('Keep at least one module in the picker'); return; }
+        ctx.shell.setModuleShown(id, show);
+      } });
+    }
+    return cid;
+  };
+  ctx.shell.modulesBar.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    menu.setItems([...modules().map((m) => moduleCommand(m.id, m.label))]);
+    menu.openAt(e.clientX, e.clientY);
   });
 
   const watch = (sel: string) => {

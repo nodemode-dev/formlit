@@ -71,7 +71,9 @@ html, body { height: 100%; }
 .fl-tb-label { color: var(--text-muted); font-size: var(--fs-11); white-space: nowrap; }
 .fl-tb-spacer { flex: 1; }
 
-.fl-filmstrip { display: grid; grid-template-rows: 28px minmax(0, 1fr); min-width: 0; background: var(--surface-1); border-top: 1px solid var(--line-0); }
+.fl-filmstrip { position: relative; display: grid; grid-template-rows: 28px minmax(0, 1fr); min-width: 0; background: var(--surface-1); border-top: 1px solid var(--line-0); }
+.fl-strip-rsz { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize; z-index: var(--z-raised); }
+.fl-strip-rsz:hover, .fl-strip-rsz.is-dragging { background: var(--accent-line); }
 .fl-fs-head { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); color: var(--text-muted); font-size: var(--fs-11); min-width: 0; }
 .fl-fs-source { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fl-fs-source strong { color: var(--text-secondary); font-weight: 500; }

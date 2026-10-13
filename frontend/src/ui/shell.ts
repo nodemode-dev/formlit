@@ -25,7 +25,7 @@ const SHELL = `<div class="fl-app">
 <div class="fl-rsz fl-rsz-right" role="separator" aria-orientation="vertical" aria-label="Resize the right panels"></div>
 <aside class="fl-col fl-right" aria-label="Right panels"><div class="fl-col-pages"></div><div class="fl-col-foots"></div></aside>
 </div>
-<div class="fl-filmstrip"></div>
+<div class="fl-filmstrip"><div class="fl-strip-rsz" role="separator" aria-orientation="horizontal" aria-label="Resize the filmstrip"></div></div>
 <section class="fl-dock" aria-label="Terminal" hidden></section>
 <footer class="cv-status fl-status">
 <span class="fl-st-count"></span><span class="fl-st-sel"></span><span class="fl-st-busy">${icon('loading', 12)}<span class="fl-st-busy-label"></span></span><span class="fl-st-gpu"></span><span class="fl-st-hint"></span>
@@ -35,9 +35,11 @@ const SHELL = `<div class="fl-app">
 const WIDTH_KEY = 'formlit_cols';
 const DOCK_KEY = 'formlit_dock_h';
 const LAYOUT_KEY = 'formlit_layout';
+const STRIP_KEY = 'formlit_filmstrip_h';
+const MODULES_KEY = 'formlit_modules_hidden';
 const AREAS = ['is-left-hidden', 'is-right-hidden', 'is-filmstrip-hidden'] as const;
 
-export interface ShellLayout { left: number | null; right: number | null; leftHidden: boolean; rightHidden: boolean; filmstripHidden: boolean; toolbarHidden: boolean; dockH: number | null }
+export interface ShellLayout { left: number | null; right: number | null; leftHidden: boolean; rightHidden: boolean; filmstripHidden: boolean; toolbarHidden: boolean; dockH: number | null; stripH?: number | null }
 
 export class Shell {
   readonly app: HTMLElement;
@@ -82,6 +84,43 @@ export class Shell {
     this.resizer(q(host, '.fl-rsz-left'), '--fl-left-w', 1);
     this.resizer(q(host, '.fl-rsz-right'), '--fl-right-w', -1);
     this.dockResizer();
+    this.stripResizer();
+  }
+
+  private stripResizer(): void {
+    try {
+      const h = Number(localStorage.getItem(STRIP_KEY));
+      if (h) setStyleVar(this.app, '--fl-filmstrip-h', `${h}px`);
+    } catch { /* first run */ }
+    const handle = q(this.filmstrip, '.fl-strip-rsz');
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const start = e.clientY;
+      const from = this.filmstrip.getBoundingClientRect().height;
+      handle.setPointerCapture(e.pointerId);
+      setClass(handle, 'is-dragging', true);
+      const move = (ev: PointerEvent) => setStyleVar(this.app, '--fl-filmstrip-h', `${Math.round(Math.max(72, Math.min(320, from - (ev.clientY - start))))}px`);
+      const up = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        setClass(handle, 'is-dragging', false);
+        try { localStorage.setItem(STRIP_KEY, String(Math.round(this.filmstrip.getBoundingClientRect().height))); } catch { return; }
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+    });
+  }
+
+  hiddenModules(): string[] {
+    try { return JSON.parse(localStorage.getItem(MODULES_KEY) || '[]') as string[]; } catch { return []; }
+  }
+
+  setModuleShown(id: string, on: boolean): void {
+    const hidden = new Set(this.hiddenModules());
+    if (on) hidden.delete(id); else hidden.add(id);
+    try { localStorage.setItem(MODULES_KEY, JSON.stringify([...hidden])); } catch { /* kept for this session */ }
+    const tab = this.tabs.get(id);
+    if (tab) setHidden(tab, !on);
   }
 
   dockOpen(): boolean { return this.app.classList.contains('is-dock-open'); }
@@ -123,6 +162,7 @@ export class Shell {
     setText(q(b, '.fl-module-label'), label);
     b.title = title;
     b.addEventListener('click', () => this.onModule?.(id));
+    if (this.hiddenModules().includes(id)) setHidden(b, true);
     this.modulesBar.appendChild(b);
     this.tabs.set(id, b);
   }
@@ -175,7 +215,7 @@ export class Shell {
   layout(): ShellLayout {
     const px = (prop: string): number | null => { const v = this.app.style.getPropertyValue(prop); return v ? Math.round(parseFloat(v)) : null; };
     return {
-      left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: px('--fl-dock-open-h'),
+      left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: px('--fl-dock-open-h'), stripH: px('--fl-filmstrip-h'),
       leftHidden: this.app.classList.contains('is-left-hidden'), rightHidden: this.app.classList.contains('is-right-hidden'),
       filmstripHidden: this.app.classList.contains('is-filmstrip-hidden'), toolbarHidden: this.center.classList.contains('is-toolbar-hidden'),
     };
@@ -190,6 +230,10 @@ export class Shell {
     width('--fl-right-w', l.right);
     if (l.dockH !== undefined) {
       if (l.dockH === null) this.app.style.removeProperty('--fl-dock-open-h'); else setStyleVar(this.app, '--fl-dock-open-h', `${Math.round(Math.max(140, l.dockH))}px`);
+    }
+    if (l.stripH !== undefined) {
+      if (l.stripH === null) this.app.style.removeProperty('--fl-filmstrip-h'); else setStyleVar(this.app, '--fl-filmstrip-h', `${Math.round(Math.max(72, Math.min(320, l.stripH)))}px`);
+      try { if (l.stripH) localStorage.setItem(STRIP_KEY, String(Math.round(l.stripH))); else localStorage.removeItem(STRIP_KEY); } catch { /* kept for this session */ }
     }
     if (l.leftHidden !== undefined) setClass(this.app, 'is-left-hidden', l.leftHidden);
     if (l.rightHidden !== undefined) setClass(this.app, 'is-right-hidden', l.rightHidden);
