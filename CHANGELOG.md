@@ -2,6 +2,19 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.14.0 · 2026-10-13
+
+### Added
+
+- **Preferences, AI agents, Claude Code in formlit:**
+  - A status line shows the Claude Code version, where it was found and the folder it starts in.
+  - Starts in folder replaces `FORMLIT_AGENT_DIR`.
+  - Claude Code program replaces `FORMLIT_CLAUDE_BIN`.
+  - Start with message gives every new Claude Code tab a first message.
+  - The environment variables still work; a setting in Preferences comes first.
+  - A program path that cannot run is reported, and the one found on the computer is used instead.
+  - A folder that cannot be created is refused with a message naming it.
+
 ## v0.13.0 · 2026-10-13
 
 ### Added
