@@ -1124,6 +1124,13 @@ Stands in for Lightroom's ISO adaptive presets: each photo gets the Noise by ISO
 Lightroom's template families (filename templates, metadata presets, keyword sets, smart collections, export presets) as data, plus shoot recipes that bind one of each to a genre. Facts in them come from the v0.11.0 research: Creative Commons 4.0 deed URLs and CC0 from creativecommons.org; Adobe Stock and Shutterstock ask for JPEG, sRGB, at least 4 MP; Canopy MLS and Unlock MLS both ask for at least 2048 x 1536 and Canopy caps at 3000 px and 6 MB; Mpix asks for sRGB JPEG and prints at 250 ppi, WHCC prints most products at 300 dpi; Instagram's help says it keeps photos up to 1080 px across. Facts that research could not confirm are left out: no Meta aspect sizes, no claim about Lightroom's built-in filename template names. The four built-in keyword sets the window had are kept word for word (as Outdoor, Portrait, Wedding and Event Photography) so Alt+1 to Alt+9 still type the same words.
 Metadata placeholders resolve from `values`, then the remembered `identity` pref (creator, email, url only), then `year`. A field whose placeholder has no value is skipped; a template whose creator, copyright or usage terms would be skipped is refused, so a half-written copyright never lands. `setupShoot` creates the set, All Photos and the stage smart collections in one change with direct inserts, because `collection.create` makes one undo step each; stage rules are scoped with a `collection = All Photos` rule plus a nested group, which `compile_rules` already supports.
 
+### app/engine/claude_code.py · settings from Preferences
+- refers-to: app/engine/claude_code.py :: _pref, _runnable, cli, workdir, status, open_; app/core/prefs.py :: DEFAULTS claudeFolder, claudeBin, claudeFirstMessage
+- kind: rationale
+- logged: v0.14.0 · 2026-10-13
+
+Order of choice: the preference, then the environment variable, then the default (the `Agent` folder; `claude` on the PATH, the usual install folders, the login shell). A preferred program that is not an executable file is skipped rather than failing the tab, and `claudecode.status` says so in `binNote`, so a typo never leaves the person without Claude Code. A folder that cannot be created raises a CommandError naming it instead of an OSError. The first message is only used when a tab is started, never typed into a running one, and an explicit `prompt` wins; it is passed as one argument through `shlex.join`, so quotes in it are safe (checked with an apostrophe).
+
 ### app/routers/mcp.py · show_in_window reference
 - refers-to: app/routers/mcp.py :: _show, show_in_window; frontend/src/app.ts :: agent.show
 - kind: explainer

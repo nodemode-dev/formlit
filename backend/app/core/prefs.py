@@ -9,6 +9,9 @@ DEFAULTS: dict = {
     "editIn": {"format": "tiff", "space": "prophoto", "depth": 16, "ppi": 300, "naming": "{name}-Edit"},
     "slideshowMusic": "",
     "outsideAgents": "ask",
+    "claudeFolder": "",
+    "claudeBin": "",
+    "claudeFirstMessage": "",
 }
 CHOICES: dict[str, tuple] = {"outsideAgents": ("ask", "allowed", "blocked")}
 _lock = threading.Lock()

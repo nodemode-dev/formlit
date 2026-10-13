@@ -37,7 +37,21 @@ def _from_login_shell() -> str | None:
     return found[0] if found and os.path.isabs(found[0]) else None
 
 
+def _pref(key: str) -> str:
+    from app.core import prefs
+    value = prefs.load().get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _runnable(path: str) -> bool:
+    p = Path(path).expanduser()
+    return p.is_file() and os.access(p, os.X_OK)
+
+
 def cli() -> str | None:
+    chosen = _pref("claudeBin")
+    if chosen and _runnable(chosen):
+        return str(Path(chosen).expanduser())
     found = os.environ.get("FORMLIT_CLAUDE_BIN") or shutil.which("claude")
     if found:
         return found
@@ -67,9 +81,12 @@ def mcp_config() -> str:
 
 
 def workdir() -> Path:
-    raw = os.environ.get("FORMLIT_AGENT_DIR", "").strip()
+    raw = _pref("claudeFolder") or os.environ.get("FORMLIT_AGENT_DIR", "").strip()
     folder = Path(raw).expanduser() if raw else config.data_dir() / "Agent"
-    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise CommandError(f"Claude Code cannot start in {folder}: {e.strerror or e}; choose another folder in Preferences, AI agents", 400) from None
     return folder
 
 
@@ -86,7 +103,9 @@ def argv(path: str, prompt: str | None) -> list[str]:
          description="Whether the Claude Code CLI is installed (its path and version), the folder it starts in, and the terminal tab it runs in when open.")
 def status() -> dict:
     tab = next((s.describe() for s in terminal.SESSIONS.values() if s.kind == "claude"), None)
-    return info(fresh=True) | {"folder": str(workdir()), "terminal": tab}
+    chosen = _pref("claudeBin")
+    note = f"{chosen} is not a program formlit can run, so it uses the one found on this computer" if chosen and not _runnable(chosen) else ""
+    return info(fresh=True) | {"folder": str(workdir()), "terminal": tab, "binNote": note, "firstMessage": _pref("claudeFirstMessage")}
 
 
 @command("claudecode.open", "Open Claude Code", {"prompt": {"type": "string", "description": "a first message to start the session with"},
@@ -101,5 +120,6 @@ def open_(prompt: str | None = None, cols: int | None = None, rows: int | None =
     found = info(fresh=True)
     if not found["installed"]:
         raise CommandError(INSTALL, 400)
+    prompt = prompt or _pref("claudeFirstMessage") or None
     session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code", argv(found["path"], prompt), child_env(), "claude")
     return session.describe()
