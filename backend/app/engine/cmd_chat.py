@@ -111,12 +111,14 @@ def state() -> dict:
     return {"busy": STATE["busy"], "messages": STATE["messages"], "session": bool(STATE["session"]), "turn": STATE["turn"]}
 
 
-@command("chat.send", "Ask in Chat", {"text": {"type": "string"}}, mutates=False,
+@command("chat.send", "Ask in Chat", {"text": {"type": "string"}, "context": {"type": "string", "description": "what the window adds for Claude, such as the selected photo ids"},
+                                      "note": {"type": "string", "description": "a short label for the context shown under the message"}}, mutates=False,
          description="Sends a message to Claude Code from the Chat tab: it answers through claude -p with formlit's tools only, continuing the same conversation. The window only.")
-def send(text: str) -> dict:
-    text = str(text or "").strip()
-    if not text:
+def send(text: str, context: str = "", note: str = "") -> dict:
+    shown = str(text or "").strip()
+    if not shown:
         raise CommandError("Type a message first")
+    text = f"{shown} ({context.strip()})" if context.strip() else shown
     found = claude_code.info(fresh=True)
     if not found["installed"]:
         raise CommandError(claude_code.INSTALL, 400)
@@ -126,8 +128,8 @@ def send(text: str) -> dict:
             raise CommandError("Claude is still answering; wait or press Stop", 409)
         STATE["busy"] = True
         STATE["turn"] += 1
-        STATE["messages"].append({"role": "user", "text": text})
-    _publish("start", text=text)
+        STATE["messages"].append({"role": "user", "text": shown, "note": note.strip()})
+    _publish("start", text=shown, note=note.strip())
     threading.Thread(target=_run, args=(text, found["path"], folder), daemon=True).start()
     return {"turn": STATE["turn"]}
 
