@@ -80,6 +80,11 @@ class DevelopModule {
     hosts.stage.appendChild(this.view.root);
     events.on('before', (e) => { if (Number(e.id) === develop.id) this.view.beforeChanged(); });
     events.on('masks.updated', (e) => { if (Number(e.id) === develop.id) { this.view.beforeChanged(); this.view.schedule(); } });
+    events.on('photos.changed', (e) => {
+      const ref = this.view.reference;
+      const fields = ref === null ? undefined : ((e.photos ?? {}) as Record<string, string[]>)[String(ref)];
+      if (fields?.some((f) => f === 'develop' || f === 'edited')) this.view.referenceChanged();
+    });
     this.drawer = el('<div class="fl-drawer" hidden></div>');
     const strip = toolStrip();
     void develop.init().then(() => {
