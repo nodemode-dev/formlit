@@ -466,6 +466,29 @@ The terminal dock streams through a WebSocket at `/api/terminal/{id}` on the pag
 
 Library, Refine Photos (Alt+Mod+R) runs the engine's `library.refine` on every photo in view after a confirmation, because it changes flags across the whole source. Only menu and toast change; the grid follows through the engine's flag events, with no rebuild.
 
+## src/modules/shared/templates.ts, keyword-sets.ts, export.ts · templates {#shared-templates}
+
+### src/modules/shared/templates.ts · template commands
+- refers-to: src/modules/shared/templates.ts :: registerTemplateActions; src/app.ts :: buildMenus (Library, Metadata, Develop); backend/app/engine/cmd_templates.py
+- kind: explainer
+- logged: v0.11.0 · 2026-10-13
+
+Library, New Shoot from Template (Alt+Shift+Mod+N) and New Smart Collection from Template; Metadata, Apply Metadata Template and Apply Keyword Set; Develop, Noise Reduction by ISO. Each fetches `template.list` for its kind before opening the shared form dialog, so the dialog opens complete, and the form's preview line shows the chosen template's description (or a keyword set's words). Results come back as one toast; collections and keywords appear through the engine's change events.
+
+### src/modules/library/keyword-sets.ts · built-in sets from the engine
+- refers-to: src/modules/library/keyword-sets.ts :: KeywordSets.render, loaded
+- kind: rationale
+- logged: v0.11.0 · 2026-10-13
+
+The built-in keyword sets now come from the engine (one list for the window and agents). Until they arrive, a remembered set that is not loaded yet is kept as the select's only extra option instead of falling back to Recent Keywords, so the visible choice never swaps; checked under 4x CPU and a slow network, the selected text stayed the same throughout.
+
+### src/modules/shared/export.ts · preset groups
+- refers-to: src/modules/shared/export.ts :: syncAll
+- kind: explainer
+- logged: v0.11.0 · 2026-10-13
+
+Each export preset row shows its group (General, Client Delivery, Print, Licensing, Web and Social, or User) and carries its description as the tooltip.
+
 ---
 
 ## src/ui/terminal-dock.ts, src/modules/shared/terminal.ts {#ui-terminal-dock}

@@ -4,12 +4,7 @@ import { askForm } from '../../ui/askform';
 import { el, escapeHtml, setDisabled, setText, setValue } from '../../ui/dom';
 import { toast } from '../../ui/toast';
 
-const BUILTIN: Record<string, string[]> = {
-  'Outdoor Photography': ['Landscape', 'Wildlife', 'Macro', 'Sunset', 'Mountains', 'Forest', 'Water', 'Sky', 'Snow'],
-  'Portrait Photography': ['Portrait', 'Headshot', 'Family', 'Couple', 'Children', 'Group', 'Studio', 'Natural Light', 'Black and White'],
-  'Wedding Photography': ['Ceremony', 'Reception', 'Getting Ready', 'Details', 'Bride', 'Groom', 'Family', 'First Dance', 'Candid'],
-  'Event Photography': ['Stage', 'Speaker', 'Audience', 'Venue', 'Candid', 'Group', 'Details', 'Food', 'Signage'],
-};
+interface SetTemplate { name: string; value: string[] }
 const RECENT_KEY = 'formlit_recent_keywords';
 const SET_KEY = 'formlit_keyword_set';
 
@@ -27,12 +22,22 @@ export class KeywordSets {
   private readonly select = this.root.querySelector('select') as HTMLSelectElement;
   private readonly grid = this.root.querySelector('.fl-kwset-grid') as HTMLElement;
   private user: Record<string, string[]> = {};
+  private builtin: Record<string, string[]> = {};
+  private loaded = false;
   private current = 'Recent Keywords';
 
   constructor(private readonly ctx: Ctx) {
     try { this.current = localStorage.getItem(SET_KEY) || 'Recent Keywords'; } catch { this.current = 'Recent Keywords'; }
     this.render();
-    void ctx.api.cmd<Record<string, unknown>>('prefs.get').then((p) => { this.user = (p.keywordSets as Record<string, string[]>) ?? {}; this.render(); }, () => this.render());
+    void Promise.all([
+      ctx.api.cmd<Record<string, unknown>>('prefs.get').catch(() => ({} as Record<string, unknown>)),
+      ctx.api.cmd<{ templates: { keywordSet?: SetTemplate[] } }>('template.list', { kind: 'keywordSet' }).catch(() => ({ templates: {} as { keywordSet?: SetTemplate[] } })),
+    ]).then(([p, t]) => {
+      this.user = (p.keywordSets as Record<string, string[]>) ?? {};
+      this.builtin = Object.fromEntries((t.templates.keywordSet ?? []).map((s) => [s.name, s.value]));
+      this.loaded = true;
+      this.render();
+    });
     this.select.addEventListener('change', () => { this.current = this.select.value; try { localStorage.setItem(SET_KEY, this.current); } catch { this.render(); } this.render(); });
     this.grid.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-i]');
@@ -43,13 +48,14 @@ export class KeywordSets {
   }
 
   private sets(): Record<string, string[]> {
-    return { 'Recent Keywords': recent(), ...BUILTIN, ...this.user };
+    return { 'Recent Keywords': recent(), ...this.builtin, ...this.user };
   }
 
   words(): string[] { return (this.sets()[this.current] ?? []).slice(0, 9); }
 
   render(): void {
-    const names = Object.keys(this.sets());
+    const all = Object.keys(this.sets());
+    const names = this.loaded || all.includes(this.current) ? all : [this.current, ...all];
     if (!names.includes(this.current)) this.current = 'Recent Keywords';
     const opts = names.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
     if (this.select.dataset.key !== opts) { this.select.dataset.key = opts; this.select.innerHTML = opts; }

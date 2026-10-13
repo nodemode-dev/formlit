@@ -7,7 +7,7 @@ import { toast } from '../../ui/toast';
 import { actionToast, openOutput, whenDone } from './tasks';
 
 type Settings = Record<string, Record<string, unknown>>;
-interface Preset { id: string; name: string; settings: Settings; builtin: boolean }
+interface Preset { id: string; name: string; settings: Settings; builtin: boolean; group?: string; description?: string }
 interface Options { formats: Record<string, { ext: string; label: string; depths: number[]; quality: boolean }>; spaces: Record<string, string>; metadata: Record<string, string>; tokens: Record<string, string>; defaults: Settings; ffmpeg: boolean }
 
 const LAST_KEY = 'formlit_export_last';
@@ -153,8 +153,8 @@ class ExportDialog extends Dialog {
     for (const f of this.forms) f.sync();
     patchList(this.list, this.presets, {
       key: (p) => p.id,
-      create: (p) => el(`<button class="fl-list-row" type="button"><span>${escapeHtml(p.name)}</span>${p.builtin ? '' : '<em>User</em>'}</button>`),
-      update: (n, p) => { setText(q(n, 'span'), p.name); setClass(n, 'is-on', this.current === p.id || this.current === `~${p.id}`); },
+      create: (p) => el(`<button class="fl-list-row" type="button" title="${escapeHtml(p.description ?? '')}"><span>${escapeHtml(p.name)}</span><em>${escapeHtml(p.builtin ? p.group ?? '' : 'User')}</em></button>`),
+      update: (n, p) => { setText(q(n, 'span'), p.name); setText(q(n, 'em'), p.builtin ? p.group ?? '' : 'User'); setClass(n, 'is-on', this.current === p.id || this.current === `~${p.id}`); },
     });
     const cur = this.presets.find((p) => p.id === this.current.replace(/^~/, ''));
     setDisabled(this.removeBtn, !cur || cur.builtin);
