@@ -38,6 +38,7 @@ Mod is Command on macOS and Ctrl elsewhere. Help > Keyboard Shortcuts (Mod+/) li
 | Shift+T | Guided Upright |
 | J | Clipping |
 | Y, \\ | Before and after side by side, show Before |
+| Shift+R | Reference View: a fixed reference photo beside the one you edit |
 | Shift+Mod+C, Shift+Mod+V, Alt+Mod+V | Copy, paste, paste from previous |
 | Shift+Mod+S, Alt+Shift+Mod+A | Sync settings, auto sync |
 | Shift+Mod+U, Shift+Mod+R | Auto settings, reset all settings |
@@ -49,6 +50,8 @@ Mod is Command on macOS and Ctrl elsewhere. Help > Keyboard Shortcuts (Mod+/) li
 | Keys | Action |
 | --- | --- |
 | Shift+Mod+I | Import |
+| Alt+Shift+Mod+N | New Shoot from Template |
+| Alt+Mod+R | Refine Photos |
 | Shift+Mod+E, Alt+Shift+Mod+E | Export, export with previous |
 | Mod+E | Edit In |
 | Mod+H, Mod+M, Shift+Mod+M | HDR, panorama and HDR panorama merge |

@@ -2,6 +2,18 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.12.0 · 2026-10-13
+
+This release closes the two gaps v0.11.0 left open: Reference View, and the import and rename dialogs' template lists.
+
+### Added
+
+- **Reference View in Develop** (Shift+R, Reference in the compare buttons, Develop, Reference View). A fixed reference photo sits on the left and the photo you are editing on the right, as in Lightroom Classic. Set as Reference Photo fixes the active photo. Match Look to Reference fits the selected photos to the reference with the engine's match and reports how close they got. The reference pane shows only once the right image has loaded, so it never flashes an old Before image or the previous reference.
+- **`show_in_window` takes `reference`**, so an agent can open Reference View with a match result and its reference side by side.
+- **Full template lists in the window:**
+  - The import dialog's file naming offers all 17 filename templates and its Organize list all 8 folder templates. The lists are in place before the dialog first appears.
+  - Rename Photos offers the same 17 filename templates.
+
 ## v0.11.0 · 2026-10-13
 
 This release turns professional workflows into templates you can run. Lightroom's template families are now built in: filename templates, metadata presets, keyword sets, smart collections and export presets. Shoot recipes tie one of each to a genre and set up a whole job in one step, in the window or for an agent. File facts in the templates come from a verified-sourcing pass on primary sources: creativecommons.org, Adobe Stock and Shutterstock contributor pages, Canopy and Unlock MLS, Mpix, Bay Photo and WHCC, and Instagram's help. Single-source claims are recorded as such.
@@ -41,8 +53,8 @@ This release turns professional workflows into templates you can run. Lightroom'
 
 ### Not yet in formlit
 
-- Reference View (a fixed reference photo beside the one being edited); `match_look` does the matching.
-- The import dialog's naming and folder lists still show their original short lists, and so does Rename Photos; the full filename and folder template lists are available to agents through `list_templates` and `apply_template`.
+- Reference View (a fixed reference photo beside the one being edited); `match_look` does the matching. Added in v0.12.0.
+- The import dialog's naming and folder lists still show their original short lists, and so does Rename Photos; the full filename and folder template lists are available to agents through `list_templates` and `apply_template`. Fixed in v0.12.0.
 - Meta's own feed and Story sizes could not be read from Meta's pages, so there are no 4:5 or 9:16 export presets yet.
 
 ## v0.10.0 · 2026-10-13
