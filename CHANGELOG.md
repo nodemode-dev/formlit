@@ -2,6 +2,19 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.20.0 · 2026-10-13
+
+### Added
+
+- **The filmstrip (the All Photographs strip) collapses and moves:**
+  - **Collapse** to just its header bar with the arrow button at its right end, a double-click on the header, Alt+F6, or View, Collapse Filmstrip. Expanding returns it to the height you dragged it to.
+  - **Move** it above the photo area with the button beside the arrow or View, Filmstrip at Top; the same button moves it back. Its resize edge follows it.
+  - Right-click the header for Collapse, Top and Show. Both settings are kept between sessions and saved with workspaces; Default puts it back at the bottom, open, and Working with Claude collapses it to give the Chat more room.
+
+### Fixed
+
+- **Hiding the filmstrip (F6) after resizing it left an empty band** where it had been. The row now closes whatever height it was dragged to.
+
 ## v0.19.0 · 2026-10-13
 
 ### Added

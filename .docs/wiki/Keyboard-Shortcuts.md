@@ -14,6 +14,7 @@ Mod is Command on macOS and Ctrl elsewhere. Help > Keyboard Shortcuts (Mod+/) li
 | I | Cycle the info overlay |
 | Tab, Shift+Tab, Shift+F6 | Side panels, left panels, hide all panels |
 | F6, T, \\ | Filmstrip, toolbar, filter bar |
+| Alt+F6 | Collapse or expand the filmstrip |
 | L, Shift+F | Lights Out, full screen |
 | F11 | Second window |
 

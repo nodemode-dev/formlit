@@ -496,6 +496,15 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### src/ui/shell.ts · filmstrip collapse, top or bottom, and the hidden-row fix (v0.20.0)
+- refers-to: src/ui/shell.ts :: AREAS, ShellArea, ShellLayout.stripCollapsed, stripTop, stripResizer; src/styles/lit-shell.css :: --fl-strip-row, is-filmstrip-collapsed, is-filmstrip-top; src/ui/filmstrip.ts :: head buttons; src/app.ts :: view.filmstripCollapse, view.filmstripTop; src/modules/shared/workspace.ts :: filmstrip head menu
+- kind: rationale, removed-bug
+- logged: v0.20.0 · 2026-10-13
+
+Bug found while adding this: the v0.19.0 handle writes `--fl-filmstrip-h` inline on `.fl-app`, and an inline custom property beats the `.is-filmstrip-hidden` rule that set it to 0, so after any resize F6 hid the filmstrip but left its row empty. The app grid now sizes the row from `--fl-strip-row`, which defaults to `--fl-filmstrip-h` and is overridden by the classes (28 px collapsed, 0 hidden); the inline height stays untouched, so expanding or showing again returns to the dragged height.
+
+Collapse keeps the strip laid out at its full height inside a clipped 28 px box (`visibility: hidden`), so expanding never rebuilds or re-measures thumbnails: verified 0 nodes removed from the strip across collapse, reload and expand. Top or bottom is pure grid placement (explicit `grid-row` on the five shell children with the rows reordered), no DOM move, so the grid, its scroll and listeners survive the switch; the handle moves to the bottom edge and the drag direction flips. Both are areas in `formlit_layout` and fields in workspaces; Default resets them, Working with Claude collapses the filmstrip to give the dock room. Verified under 4x CPU and slow network: collapse button, reload, double-click on the header, move to top, resize from the top, right-click menu ticks, F6 with no empty row, Alt+F6, Default, no page errors.
+
 ### src/ui/shell.ts · layout in and out
 - refers-to: src/ui/shell.ts :: ShellLayout, layout, applyLayout, saveAreas, LAYOUT_KEY
 - kind: explainer
