@@ -31,6 +31,10 @@
 .fl-chat-msg.is-claude { align-self: flex-start; color: var(--text-primary); }
 .fl-chat-text { white-space: pre-wrap; }
 .fl-chat-note { color: var(--text-muted); font-size: var(--fs-11); }
+.fl-chat-photos { display: inline-flex; align-items: center; gap: 3px; align-self: flex-start; padding: 2px; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; }
+.fl-chat-photos:hover { border-color: var(--line-2); }
+.fl-chat-photos img { width: 44px; height: 32px; object-fit: cover; border-radius: 3px; background: var(--surface-2); }
+.fl-chat-more { padding: 0 4px; color: var(--text-muted); font-size: var(--fs-11); }
 .fl-chat-tool { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 8px; border: 1px solid var(--line-1); border-radius: 6px; color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-11); align-self: flex-start; }
 .fl-chat-tool-mark { display: inline-grid; place-items: center; }
 .fl-chat-tool-name { color: var(--text-primary); }

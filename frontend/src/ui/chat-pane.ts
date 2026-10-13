@@ -1,9 +1,12 @@
 import type { Api } from '../io/api';
 import { events, type EngineEvent } from '../io/events';
+import { library } from '../state/library';
 import { el, q, setClass, setHidden, setText } from './dom';
 import { icon } from './icons';
+import { thumbUrl } from './thumbs';
 
-interface Part { kind: 'text' | 'tool'; text?: string; id?: string; name?: string; input?: string; status?: string }
+interface Part { kind: 'text' | 'tool'; text?: string; id?: string; name?: string; input?: string; status?: string; photos?: number[] }
+const STRIP = 8;
 interface Message { role: 'user' | 'assistant'; text?: string; note?: string; parts?: Part[]; error?: string; meta?: { seconds?: number; turns?: number | null } }
 interface State { busy: boolean; messages: Message[]; turn: number }
 
@@ -31,7 +34,11 @@ export class ChatPane {
     q(this.root, '.fl-chat-new').addEventListener('click', () => void this.api.cmd('chat.reset').catch((e) => this.onFail(e)));
     events.on('chat.start', (e) => { this.user(String(e.text ?? ''), String(e.note ?? '')); this.begin(); });
     events.on('chat.delta', (e) => this.delta(String(e.text ?? '')));
-    events.on('chat.tool', (e) => this.tool({ kind: 'tool', id: String(e.id ?? ''), name: String(e.name ?? ''), input: String(e.input ?? ''), status: 'running' }));
+    events.on('chat.tool', (e) => this.tool({ kind: 'tool', id: String(e.id ?? ''), name: String(e.name ?? ''), input: String(e.input ?? ''), status: 'running', photos: Array.isArray(e.photos) ? (e.photos as number[]) : [] }));
+    this.log.addEventListener('click', (e) => {
+      const strip = (e.target as HTMLElement).closest<HTMLElement>('.fl-chat-photos');
+      if (strip?.dataset.ids) this.pick(strip.dataset.ids.split(',').map(Number));
+    });
     events.on('chat.toolDone', (e) => { const c = this.chips.get(String(e.id ?? '')); if (c) this.status(c, String(e.status ?? 'done')); });
     events.on('chat.done', (e) => this.finish(e));
     events.on('chat.reset', () => { this.log.replaceChildren(this.empty); setHidden(this.empty, false); this.reply = null; this.text = null; this.chips.clear(); this.setBusy(false); });
@@ -107,8 +114,30 @@ export class ChatPane {
     this.status(chip, p.status ?? 'running');
     if (p.id) this.chips.set(p.id, chip);
     this.reply?.appendChild(chip);
+    const ids = (p.photos ?? []).filter((id) => library.photo(id));
+    if (ids.length) {
+      const strip = el(`<button type="button" class="fl-chat-photos" title="Select ${ids.length === 1 ? 'this photo' : `these ${ids.length} photos`} in the window"></button>`);
+      strip.dataset.ids = ids.join(',');
+      for (const id of ids.slice(0, STRIP)) {
+        const photo = library.photo(id);
+        if (!photo) continue;
+        const img = el<HTMLImageElement>('<img alt="" loading="lazy" decoding="async" draggable="false">');
+        img.src = thumbUrl(photo);
+        strip.appendChild(img);
+      }
+      if (ids.length > STRIP) { const more = el('<span class="fl-chat-more"></span>'); setText(more, `+${ids.length - STRIP}`); strip.appendChild(more); }
+      this.reply?.appendChild(strip);
+    }
     this.text = null;
     this.scroll();
+  }
+
+  private pick(ids: number[]): void {
+    const shown = ids.filter((id) => library.photo(id));
+    if (!shown.length) return;
+    library.select(shown[0], 'only');
+    for (const id of shown.slice(1)) library.select(id, 'add');
+    library.setActive(shown[0]);
   }
 
   private status(chip: HTMLElement, s: string): void {
