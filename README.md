@@ -2,7 +2,7 @@
 <h1 align="center">formlit</h1>
 <p align="center"><b>A photo library and raw developer for the web and the desktop, in the form family's Studio Dark design.</b></p>
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.18.0-f97316" alt="version 0.18.0">
+<img src="https://img.shields.io/badge/version-0.19.0-f97316" alt="version 0.19.0">
 <img src="https://img.shields.io/badge/node-22-339933" alt="node 22">
 <img src="https://img.shields.io/badge/python-3.12-3776AB" alt="python 3.12">
 <img src="https://img.shields.io/badge/tauri-2-24C8DB" alt="tauri 2">
@@ -14,7 +14,7 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 14,600 of TypeScript, 2,200 of CSS, 21,000 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 14,900 of TypeScript, 2,200 of CSS, 21,200 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
 **Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
