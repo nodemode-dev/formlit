@@ -2,6 +2,26 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.18.0 · 2026-10-13
+
+### Added
+
+- **Workspace customization:**
+  - **Hide or show panels:** right-click any panel header for a list of that column's panels with checkmarks, plus Solo Mode and Reset Panels.
+  - **Reorder panels:** drag a panel header up or down its column. The order is kept per module and side.
+  - **Solo Mode:** set per side (Window, Workspace, Solo Mode). Opening a panel closes the others in that column, and Alt-click still does this once.
+  - **Workspaces:** Window, Workspace switches between five built-in layouts: Default; Culling: Big Grid; Editing: Wide Panels, One at a Time; Working with Claude (left panels hidden, the dock open on Chat); and Photo Only.
+  - **Your own workspaces:** Save Workspace keeps the side widths, what is shown, panel order and Solo Mode. Delete Workspace removes one. They are stored in formlit's preferences.
+  - **Reset Panels** shows every panel again in its original order.
+- **Hidden areas survive a restart:** which areas you hid (left panels, right panels, filmstrip, toolbar) is now kept between sessions, like the widths already were.
+
+### Changed
+
+- **New AI icons:** the three-star sparkle is gone.
+  - Claude Code and the Ask line use a small robot head.
+  - Chat uses a speech bubble with the same eyes.
+  - Features run by local AI models (Denoise, Build Depth) use a processor chip.
+
 ## v0.17.0 · 2026-10-13
 
 ### Added
