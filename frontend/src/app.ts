@@ -9,6 +9,7 @@ import { api, errorText, type Api } from './io/api';
 import { events } from './io/events';
 import { registerPhotoActions } from './modules/shared/actions';
 import { registerTemplateActions } from './modules/shared/templates';
+import { registerWorkspace, workspaceMenu } from './modules/shared/workspace';
 import { showReference } from './modules/develop/index';
 import { registerAiCommands } from './modules/shared/ai';
 import { registerExport } from './modules/shared/export';
@@ -79,6 +80,7 @@ export class App implements Ctx {
     registerPluginManager(this);
     registerAgentConsent(this);
     registerTerminal(this);
+    registerWorkspace(this);
     this.engineStatus();
     for (const m of modules()) {
       m.mount(this, this.shell.hostsFor(m.id));
@@ -222,7 +224,7 @@ export class App implements Ctx {
       { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'template.metadata', 'template.keywords', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename', '-', 'library.labelSet']) },
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.profileBrowser', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.copyAfterToBefore', 'develop.copyBeforeToAfter', 'develop.swapBeforeAfter', 'develop.resetBefore', '-', 'develop.referenceView', 'develop.setReference', 'develop.matchReference', '-', 'develop.matchExposure', 'develop.noiseByIso', 'develop.autoBw']) },
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', 'view.faceRegions', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
-      { label: 'Window', items: () => tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude', 'agent.chat']) },
+      { label: 'Window', items: () => [workspaceMenu(this), '-', ...tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude', 'agent.chat'])] },
       { label: 'Help', items: () => tidy(['app.shortcuts', 'agent.chat', 'agent.claude', 'app.agents', 'app.about']) },
     ];
     new MenuBar(this.shell.menubar, this.commands, defs);

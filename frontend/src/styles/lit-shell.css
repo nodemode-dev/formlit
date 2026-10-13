@@ -40,6 +40,9 @@ html, body { height: 100%; }
 
 .fl-panel { display: flex; flex-direction: column; border-bottom: 1px solid var(--line-0); }
 .fl-panel[hidden] { display: none; }
+.fl-panel.is-dragging { position: relative; z-index: var(--z-raised); box-shadow: 0 0 0 1px var(--accent-line), var(--shadow-window); opacity: 0.92; }
+.fl-panel.is-dragging .fl-panel-head { cursor: grabbing; background: var(--surface-raised); color: var(--text-primary); }
+.fl-panel[hidden] { display: none; }
 .fl-panel-head { display: flex; align-items: center; gap: 6px; width: 100%; height: var(--fl-panel-head-h); padding: 0 8px 0 6px; border: 0; background: var(--group-head); color: var(--text-secondary); font: inherit; font-size: var(--fs-12); font-weight: 600; letter-spacing: 0.2px; text-align: left; cursor: pointer; }
 .fl-panel-head:hover { color: var(--text-primary); }
 .fl-panel-head .icon { transition: transform var(--transition-fast); color: var(--text-muted); }

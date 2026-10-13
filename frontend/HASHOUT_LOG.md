@@ -466,6 +466,36 @@ The terminal dock streams through a WebSocket at `/api/terminal/{id}` on the pag
 
 Library, Refine Photos (Alt+Mod+R) runs the engine's `library.refine` on every photo in view after a confirmation, because it changes flags across the whole source. Only menu and toast change; the grid follows through the engine's flag events, with no rebuild.
 
+## src/ui/panel.ts, shell.ts, modules/shared/workspace.ts · workspace {#workspace}
+
+### src/ui/panel.ts · panels the person arranges
+- refers-to: src/ui/panel.ts :: PANELS, arrange, restoreOrder, setPanelVisible, isSolo, setSolo, panelState, applyPanelState, Panel.dragging
+- kind: rationale
+- logged: v0.18.0 · 2026-10-13
+
+Every Panel registers in `PANELS` so the workspace can show, hide, open and order panels it did not create. Drag reorders with pointer events, not HTML drag and drop, because Tauri's webview takes native drag events for file drops; the panel moves in place while dragging, so there is no ghost element, and the click that follows a drag is swallowed so a drag never toggles the panel. Order is kept per module and side (`orderKey`); `arrange` only moves nodes when the saved order differs, and records the natural order the first time it sees a container so Reset Panels can restore it. Solo Mode per side turns a normal open into Alt-click's open-alone. The right-click menu is a CustomEvent (`fl-panel-menu`) so the panel does not need the command registry. Rewritten in one pass at v0.18.0 rather than in single-region edits, an exception to the edit rule noted in BUILD_NOTES.
+
+### src/ui/shell.ts · layout in and out
+- refers-to: src/ui/shell.ts :: ShellLayout, layout, applyLayout, saveAreas, LAYOUT_KEY
+- kind: explainer
+- logged: v0.18.0 · 2026-10-13
+
+`layout()` reads the inline width and dock-height variables (null means the stylesheet default) and the hidden-area classes; `applyLayout` sets any subset, clamps widths to the resizers' 200 to 520 px, and writes the same keys the resizers write, so a workspace and a drag agree. Hidden areas are now persisted (`formlit_layout`) and restored in the constructor before first paint, so a restart opens the same layout with no jump.
+
+### src/modules/shared/workspace.ts · workspaces
+- refers-to: src/modules/shared/workspace.ts :: BUILTIN, registerWorkspace, workspaceMenu; src/app.ts :: Window menu
+- kind: rationale
+- logged: v0.18.0 · 2026-10-13
+
+Built-in workspaces change only the layout (and Solo Mode where it is the point, as in Editing), never which panels are hidden or their order, so trying one never loses an arrangement; saved workspaces carry everything. Saved ones live in the engine's preferences so they survive a cleared browser and are shared by every window; each gets a command (`workspace.user.<slug>`) added when it is saved or loaded and removed when deleted, so the Window menu's Workspace submenu is plain command ids. Opening the dock goes through the existing commands (`agent.chat`, `view.terminal`) so the dock mounts its tabs as usual. A MutationObserver on the panel columns applies the saved order when a module mounts its panels, including Develop's, which mount after an await. Verified under 4x CPU and slow network: hiding, dragging, Solo Mode, all built-ins, save, apply, reload and reset, with no layout shifts and no errors.
+
+### src/ui/icons-lit.ts · the AI icons
+- refers-to: src/ui/icons-lit.ts :: agent, agentChat, aiChip; src/ui/shell.ts, src/ui/terminal-dock.ts, src/modules/develop/panels.ts
+- kind: rationale
+- logged: v0.18.0 · 2026-10-13
+
+The owner asked for a better AI icon than the three-star sparkle. Candidates were drawn and compared at 14, 16, 24 and 48 px in the accent and text colours: a robot head, an orbit, a framing reticle and a node graph. The aperture was ruled out because Develop already uses one. The head and a matching speech bubble read clearly at 14 px and say "assistant" without sparkle clichés; Claude Code gets the head, Chat the bubble. Local-model features (Denoise, Build Depth) are not the agent, so they get a processor chip that says "runs on this computer". The vendored `sparkle` in `icons.ts` stays defined but unused.
+
 ## src/modules/shared/templates.ts, keyword-sets.ts, export.ts · templates {#shared-templates}
 
 ### src/modules/shared/templates.ts · template commands

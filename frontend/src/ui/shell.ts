@@ -12,7 +12,7 @@ const SHELL = `<div class="fl-app">
 <div class="fl-title-tools">
 <button class="cv-tt-btn" type="button" data-cmd="edit.undo" title="Undo" aria-label="Undo">${icon('undo', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="edit.redo" title="Redo" aria-label="Redo">${icon('redo', 16)}</button>
-<button class="cv-tt-btn" type="button" data-cmd="agent.claude" title="Claude Code" aria-label="Claude Code">${icon('sparkle', 16)}</button>
+<button class="cv-tt-btn" type="button" data-cmd="agent.claude" title="Claude Code" aria-label="Claude Code">${icon('agent', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="view.terminal" title="Show Terminal" aria-label="Show Terminal">${icon('terminal', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="app.lights" title="Lights Out (L)" aria-label="Lights Out">${icon('lightsOut', 16)}</button>
 <button class="cv-tt-btn" type="button" data-cmd="app.preferences" title="Preferences" aria-label="Preferences">${icon('settings', 16)}</button>
@@ -34,6 +34,10 @@ const SHELL = `<div class="fl-app">
 
 const WIDTH_KEY = 'formlit_cols';
 const DOCK_KEY = 'formlit_dock_h';
+const LAYOUT_KEY = 'formlit_layout';
+const AREAS = ['is-left-hidden', 'is-right-hidden', 'is-filmstrip-hidden'] as const;
+
+export interface ShellLayout { left: number | null; right: number | null; leftHidden: boolean; rightHidden: boolean; filmstripHidden: boolean; toolbarHidden: boolean; dockH: number | null }
 
 export class Shell {
   readonly app: HTMLElement;
@@ -70,6 +74,11 @@ export class Shell {
     this.leftFoots = q(host, '.fl-left .fl-col-foots');
     this.rightFoots = q(host, '.fl-right .fl-col-foots');
     this.restoreWidths();
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') as Record<string, boolean>;
+      for (const cls of AREAS) if (saved[cls]) setClass(this.app, cls, true);
+      if (saved['is-toolbar-hidden']) setClass(this.center, 'is-toolbar-hidden', true);
+    } catch { /* first run */ }
     this.resizer(q(host, '.fl-rsz-left'), '--fl-left-w', 1);
     this.resizer(q(host, '.fl-rsz-right'), '--fl-right-w', -1);
     this.dockResizer();
@@ -152,9 +161,47 @@ export class Shell {
 
   toggle(cls: 'is-left-hidden' | 'is-right-hidden' | 'is-filmstrip-hidden', on?: boolean): void {
     setClass(this.app, cls, on ?? !this.app.classList.contains(cls));
+    this.saveAreas();
   }
 
-  toggleToolbar(): void { setClass(this.center, 'is-toolbar-hidden', !this.center.classList.contains('is-toolbar-hidden')); }
+  toggleToolbar(): void { setClass(this.center, 'is-toolbar-hidden', !this.center.classList.contains('is-toolbar-hidden')); this.saveAreas(); }
+
+  private saveAreas(): void {
+    const s: Record<string, boolean> = { 'is-toolbar-hidden': this.center.classList.contains('is-toolbar-hidden') };
+    for (const cls of AREAS) s[cls] = this.app.classList.contains(cls);
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(s)); } catch { return; }
+  }
+
+  layout(): ShellLayout {
+    const px = (prop: string): number | null => { const v = this.app.style.getPropertyValue(prop); return v ? Math.round(parseFloat(v)) : null; };
+    return {
+      left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: px('--fl-dock-open-h'),
+      leftHidden: this.app.classList.contains('is-left-hidden'), rightHidden: this.app.classList.contains('is-right-hidden'),
+      filmstripHidden: this.app.classList.contains('is-filmstrip-hidden'), toolbarHidden: this.center.classList.contains('is-toolbar-hidden'),
+    };
+  }
+
+  applyLayout(l: Partial<ShellLayout>): void {
+    const width = (prop: string, v: number | null | undefined) => {
+      if (v === undefined) return;
+      if (v === null) this.app.style.removeProperty(prop); else setStyleVar(this.app, prop, `${Math.round(Math.max(200, Math.min(520, v)))}px`);
+    };
+    width('--fl-left-w', l.left);
+    width('--fl-right-w', l.right);
+    if (l.dockH !== undefined) {
+      if (l.dockH === null) this.app.style.removeProperty('--fl-dock-open-h'); else setStyleVar(this.app, '--fl-dock-open-h', `${Math.round(Math.max(140, l.dockH))}px`);
+    }
+    if (l.leftHidden !== undefined) setClass(this.app, 'is-left-hidden', l.leftHidden);
+    if (l.rightHidden !== undefined) setClass(this.app, 'is-right-hidden', l.rightHidden);
+    if (l.filmstripHidden !== undefined) setClass(this.app, 'is-filmstrip-hidden', l.filmstripHidden);
+    if (l.toolbarHidden !== undefined) setClass(this.center, 'is-toolbar-hidden', l.toolbarHidden);
+    this.saveAreas();
+    try {
+      const cur = this.layout();
+      localStorage.setItem(WIDTH_KEY, JSON.stringify({ ...(cur.left ? { left: cur.left } : {}), ...(cur.right ? { right: cur.right } : {}) }));
+      if (cur.dockH) localStorage.setItem(DOCK_KEY, String(cur.dockH)); else localStorage.removeItem(DOCK_KEY);
+    } catch { return; }
+  }
 
   togglePanels(): void {
     const hide = !(this.app.classList.contains('is-left-hidden') && this.app.classList.contains('is-right-hidden'));
