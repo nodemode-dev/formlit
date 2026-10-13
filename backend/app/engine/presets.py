@@ -8,21 +8,26 @@ from app.develop import settings as S
 from app.engine import catalog as catalog_mod
 from app.engine.cmd_develop import after, current, store
 from app.engine.commands import CommandError, command, resolve_ids
+from app.engine.preset_library import LIBRARY, MATTE, NOTES
 
 BUILTIN: list[dict] = [
     {"group": "Color", "name": "Clean Punch", "settings": {"light": {"contrast": 18, "highlights": -20, "shadows": 18, "whites": 8, "blacks": -6}, "effects": {"clarity": 8}, "color": {"vibrance": 18}}},
     {"group": "Color", "name": "Soft Bright", "settings": {"light": {"exposure": 0.25, "contrast": -12, "highlights": -30, "shadows": 30}, "color": {"vibrance": 8, "saturation": -4}}},
     {"group": "Color", "name": "Rich Shadows", "settings": {"light": {"shadows": -14, "blacks": -18, "contrast": 14}, "color": {"vibrance": 12}}},
-    {"group": "Film", "name": "Golden Negative", "settings": {"profile": {"id": "fl.film.warm"}, "grain": {"amount": 18, "size": 30, "roughness": 55}}},
-    {"group": "Film", "name": "Faded Print", "settings": {"profile": {"id": "fl.film.faded"}, "vignette": {"amount": -12, "midpoint": 40}}},
-    {"group": "Film", "name": "Chrome Slide", "settings": {"profile": {"id": "fl.film.slide"}, "grain": {"amount": 10}}},
-    {"group": "Cinematic", "name": "Teal Night", "settings": {"profile": {"id": "fl.cine.teal"}, "light": {"exposure": -0.2}, "vignette": {"amount": -18}}},
-    {"group": "Cinematic", "name": "Warm Glow", "settings": {"profile": {"id": "fl.cine.golden"}, "effects": {"clarity": -10}, "light": {"highlights": -20}}},
+    {"group": "Film", "name": "Golden Negative", "settings": {"profile": {"id": "fl.creative.warmfade"}, "grading": {"highlights": {"hue": 45, "sat": 12}, "shadows": {"hue": 210, "sat": 8}},
+                                                                "grain": {"amount": 18, "size": 30, "roughness": 55}}},
+    {"group": "Film", "name": "Faded Print", "settings": {"curve": {"master": MATTE}, "color": {"saturation": -8}, "grading": {"shadows": {"hue": 40, "sat": 20}, "blending": 75},
+                                                            "vignette": {"amount": -12, "midpoint": 40}}},
+    {"group": "Film", "name": "Chrome Slide", "settings": {"profile": {"id": "fl.vivid"}, "light": {"contrast": 15, "blacks": -10}, "mixer": {"blue": {"sat": 10}}, "grain": {"amount": 10}}},
+    {"group": "Cinematic", "name": "Teal Night", "settings": {"profile": {"id": "fl.creative.tealorange"}, "grading": {"shadows": {"hue": 210, "sat": 18}}, "light": {"exposure": -0.2},
+                                                               "vignette": {"amount": -18}}},
+    {"group": "Cinematic", "name": "Warm Glow", "settings": {"profile": {"id": "fl.creative.golden"}, "effects": {"clarity": -10}, "light": {"highlights": -20}}},
     {"group": "B&W", "name": "Classic Grain", "settings": {"profile": {"id": "fl.monochrome"}, "grain": {"amount": 24, "size": 22, "roughness": 60}}},
     {"group": "B&W", "name": "Hard Light", "settings": {"profile": {"id": "fl.bw.punch"}, "vignette": {"amount": -20}}},
-    {"group": "B&W", "name": "Sepia Tone", "settings": {"profile": {"id": "fl.bw.sepia"}}},
-    {"group": "B&W", "name": "Selenium Tone", "settings": {"profile": {"id": "fl.bw.selenium"}}},
-    {"group": "B&W", "name": "Infrared Dream", "settings": {"profile": {"id": "fl.bw.ir"}, "effects": {"clarity": -15}, "grain": {"amount": 12}}},
+    {"group": "B&W", "name": "Sepia Tone", "settings": {"treatment": "bw", "grading": {"shadows": {"hue": 30, "sat": 20}, "highlights": {"hue": 45, "sat": 15}, "blending": 60}}},
+    {"group": "B&W", "name": "Selenium Tone", "settings": {"treatment": "bw", "light": {"contrast": 10}, "grading": {"shadows": {"hue": 265, "sat": 14}, "highlights": {"hue": 35, "sat": 4}}}},
+    {"group": "B&W", "name": "Infrared Dream", "settings": {"treatment": "bw", "bw": {"green": 60, "yellow": 40, "blue": -50, "aqua": -30}, "light": {"highlights": -20},
+                                                              "effects": {"clarity": -15}, "grain": {"amount": 12}}},
     {"group": "Portrait", "name": "Soft Skin", "settings": {"effects": {"texture": -18, "clarity": -6}, "mixer": {"orange": {"lum": 8, "sat": -6}}, "light": {"shadows": 10}}},
     {"group": "Portrait", "name": "Warm Portrait", "settings": {"profile": {"id": "fl.portrait"}, "grading": {"highlights": {"hue": 40, "sat": 12}}}},
     {"group": "Landscape", "name": "Crisp Landscape", "settings": {"profile": {"id": "fl.landscape"}, "effects": {"dehaze": 12, "clarity": 12}, "light": {"highlights": -35, "shadows": 25}}},
@@ -30,10 +35,14 @@ BUILTIN: list[dict] = [
     {"group": "Landscape", "name": "Haze Cut", "settings": {"effects": {"dehaze": 30}, "light": {"blacks": -10}, "color": {"vibrance": 10}}},
     {"group": "Urban", "name": "Concrete", "settings": {"color": {"saturation": -30}, "effects": {"clarity": 22}, "light": {"contrast": 16}}},
     {"group": "Urban", "name": "Neon", "settings": {"color": {"vibrance": 30}, "mixer": {"blue": {"hue": 10, "sat": 20}, "magenta": {"sat": 20}}, "light": {"blacks": -14}}},
-    {"group": "Style", "name": "Matte Fade", "settings": {"profile": {"id": "fl.film.matte"}}},
-    {"group": "Style", "name": "Pastel Day", "settings": {"profile": {"id": "fl.muted.pastel"}, "light": {"exposure": 0.2}}},
-    {"group": "Style", "name": "Earth Tones", "settings": {"profile": {"id": "fl.muted.earth"}}},
-    {"group": "Style", "name": "Vintage Vignette", "settings": {"profile": {"id": "fl.film.faded"}, "vignette": {"amount": -35, "midpoint": 30, "feather": 70}, "grain": {"amount": 20}}},
+    {"group": "Style", "name": "Matte Fade", "settings": {"curve": {"master": MATTE}, "light": {"contrast": -20, "highlights": -25, "shadows": 15, "whites": 10},
+                                                           "effects": {"dehaze": -8}, "color": {"saturation": -8, "vibrance": -5}}},
+    {"group": "Style", "name": "Pastel Day", "settings": {"light": {"exposure": 0.2, "contrast": -15}, "curve": {"shadows": 15}, "color": {"saturation": -12, "vibrance": 6},
+                                                           "grading": {"shadows": {"hue": 270, "sat": 10}, "highlights": {"hue": 25, "sat": 8}}}},
+    {"group": "Style", "name": "Earth Tones", "settings": {"color": {"saturation": -15}, "mixer": {"blue": {"sat": -30}, "green": {"hue": -20, "sat": -20}, "orange": {"sat": 5}},
+                                                            "grading": {"highlights": {"hue": 40, "sat": 10}}}},
+    {"group": "Style", "name": "Vintage Vignette", "settings": {"curve": {"master": MATTE}, "color": {"saturation": -10}, "vignette": {"amount": -35, "midpoint": 30, "feather": 70},
+                                                                 "grain": {"amount": 20}}},
 ]
 
 
@@ -57,6 +66,7 @@ BUILTIN += [
                                                                                        {"kind": "people", "part": "sclera", "label": "Eye Sclera", "bitmap": "adaptive-sclera"}], {"exposure": 0.3, "clarity": 10, "saturation": 6})},
     {"group": "Adaptive: Portrait", "name": "Whiten Teeth", "settings": _adaptive("Teeth", [{"kind": "people", "part": "teeth", "label": "Teeth", "bitmap": "adaptive-teeth"}], {"exposure": 0.2, "saturation": -40})},
 ]
+BUILTIN += LIBRARY
 
 
 def _slug(s: str) -> str:
@@ -70,7 +80,8 @@ def user_dir() -> Path:
 
 
 def all_presets() -> list[dict]:
-    out = [{"id": f"builtin:{_slug(p['group'])}/{_slug(p['name'])}", "group": p["group"], "name": p["name"], "builtin": True, "settings": p["settings"]} for p in BUILTIN]
+    out = [{"id": f"builtin:{_slug(p['group'])}/{_slug(p['name'])}", "group": p["group"], "name": p["name"], "builtin": True, "settings": p["settings"],
+            "description": p.get("description") or NOTES.get(p["name"], ""), "tags": p.get("tags") or []} for p in BUILTIN]
     favs = set(catalog_mod.get().get_meta("favoritePresets", []) or [])
     for f in sorted(user_dir().rglob("*.flpreset")):
         try:
@@ -92,9 +103,28 @@ def settings_of(pid: str) -> dict:
     raise CommandError(f"No preset {pid}")
 
 
-@command("preset.list", "Presets", mutates=False)
-def list_presets() -> dict:
-    return {"presets": [{k: v for k, v in p.items() if k != "settings"} for p in all_presets()]}
+@command("preset.list", "Presets", {"query": {"type": "string", "description": "words matched against name, group, description and tags"},
+                                    "group": {"type": "string"}}, mutates=False,
+         description="Develop presets with their group, a description of what each does and what it suits, and tags; query and group narrow the list.")
+def list_presets(query: str | None = None, group: str | None = None) -> dict:
+    items = [{k: v for k, v in p.items() if k != "settings"} for p in all_presets()]
+    if group:
+        items = [p for p in items if p["group"].lower() == group.lower()]
+    if query:
+        words = [w for w in re.split(r"\W+", query.lower()) if w]
+        def hay(p: dict) -> str:
+            return " ".join([p["name"], p["group"], p.get("description", ""), " ".join(p.get("tags") or [])]).lower()
+        items = [p for p in items if all(w in hay(p) for w in words)] or [p for p in items if any(w in hay(p) for w in words)]
+    return {"presets": items, "count": len(items), "groups": sorted({p["group"] for p in items})}
+
+
+def blended(dev: dict, preset: str, amount: float = 100.0) -> dict:
+    src = settings_of(preset)
+    groups = sorted({g for g, keys in S.GROUPS.items() for k in src if k in keys}) or None
+    new = S.apply_groups(dev, src, groups, amount / 100.0)
+    if src.get("masks"):
+        new["masks"] = merge_masks(dev.get("masks") or [], src["masks"], amount / 100.0)
+    return new
 
 
 @command("preset.get", "Preset Settings", {"id": {"type": "string"}}, mutates=False)
@@ -105,16 +135,12 @@ def get_preset(id: str) -> dict:
 @command("preset.apply", "Apply Preset", {"ids": {"type": "array"}, "preset": {"type": "string"}, "amount": {"type": "number"}})
 def apply(preset: str, ids: Any = None, amount: float = 100.0) -> dict:
     pids = resolve_ids(ids)
-    src = settings_of(preset)
+    settings_of(preset)
     name = next((p["name"] for p in all_presets() if p["id"] == preset or p["name"].lower() == preset.lower()), preset)
-    groups = sorted({g for g, keys in S.GROUPS.items() for k in src if k in keys}) or None
     with catalog_mod.get().change(f"Preset: {name}") as ch:
         for pid in pids:
             dev, _ = current(pid)
-            new = S.apply_groups(dev, src, groups, amount / 100.0)
-            if src.get("masks"):
-                new["masks"] = merge_masks(dev.get("masks") or [], src["masks"], amount / 100.0)
-            store(ch, pid, new, f"Preset: {name}")
+            store(ch, pid, blended(dev, preset, amount), f"Preset: {name}")
     after(pids)
     return {"ids": pids, "preset": name}
 
