@@ -101,8 +101,8 @@ def _meta_from(info: dict, preset: dict | None) -> dict:
 
 def _destination(src: Path, info: dict, dest_root: Path, folder_tmpl: str, rename_tmpl: str, seq: int, custom: str) -> Path:
     rec = {"fileName": src.name, "captureTime": info.get("captureTime"), "camera": info.get("exif", {}).get("camera"), "folder": str(src.parent)}
-    sub = rename.expand(folder_tmpl, rec, seq, custom) if folder_tmpl else ""
-    name = (rename.expand(rename_tmpl, rec, seq, custom) + src.suffix.lower()) if rename_tmpl else src.name
+    sub = rename.expand(folder_tmpl, rec, seq, custom, custom) if folder_tmpl else ""
+    name = (rename.expand(rename_tmpl, rec, seq, custom, custom) + src.suffix.lower()) if rename_tmpl else src.name
     target = dest_root / sub / name if sub else dest_root / name
     target.parent.mkdir(parents=True, exist_ok=True)
     return rename.unique(target)
