@@ -19,6 +19,7 @@ if /i "%CMD%"=="desktop" (
   goto :eof
 )
 if /i "%CMD%"=="mcp" ( python setup\mcp_stdio.py & goto :eof )
+if /i "%CMD%"=="claude" ( python setup\claude_launch.py %2 %3 %4 %5 %6 %7 %8 %9 & goto :eof )
 if /i "%CMD%"=="agents" (
   if exist backend\venv\Scripts\python.exe ( backend\venv\Scripts\python.exe setup\agents.py %2 %3 %4 %5 ) else ( python setup\agents.py %2 %3 %4 %5 )
   goto :eof
@@ -34,5 +35,5 @@ exit /b 2
 :usage
 echo formlit.bat [command]
 echo   boot ^| install [--lite] ^| install-ml ^| install-desktop ^| backend ^| frontend
-echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build ^| mcp ^| agents install^|sync ^| cli ^| doctor ^| counts ^| clean [--all] ^| help
+echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build ^| mcp ^| claude [args] ^| agents install^|sync ^| cli ^| doctor ^| counts ^| clean [--all] ^| help
 exit /b 0
