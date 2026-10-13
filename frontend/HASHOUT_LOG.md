@@ -524,6 +524,8 @@ When the engine reports `develop` or `edited` changing on the reference photo (a
 - kind: explainer
 - logged: v0.13.0 · 2026-10-13
 
+Preferences, AI agents also holds Claude Code in formlit (v0.14.0): a status line from `claudecode.status` and three fields (Starts in folder, Claude Code program, Start with message) saved on change, each save refreshing the status line so a bad path is reported at once.
+
 Preferences, Metadata holds Creator, Email and Website: the `identity` preference the metadata templates, New Shoot from Template and agents use for {creator}, {email} and {url}. Saved on change as one object (an emptied field clears it); a field being typed in is not overwritten when the stored values arrive.
 
 ---

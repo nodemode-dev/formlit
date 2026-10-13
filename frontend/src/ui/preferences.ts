@@ -15,6 +15,12 @@ class Preferences extends Dialog {
   private readonly agents = el('<pre class="fl-code"></pre>');
   private readonly access = el<HTMLSelectElement>('<select class="cv-select"><option value="ask">Ask me</option><option value="allowed">Allowed</option><option value="blocked">Blocked</option></select>');
   private readonly seen = el('<div class="fl-meta-row"><span class="fl-meta-key">Seen</span><span class="fl-meta-val fl-agents-seen">none yet</span></div>');
+  private readonly claude: Record<'claudeFolder' | 'claudeBin' | 'claudeFirstMessage', HTMLInputElement> = {
+    claudeFolder: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="Agent folder in your formlit folder">'),
+    claudeBin: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="found automatically">'),
+    claudeFirstMessage: el<HTMLInputElement>('<input class="cv-input" type="text" placeholder="nothing; Claude Code waits for you">'),
+  };
+  private readonly claudeState = el('<p class="cv-note fl-claude-state">Checking for Claude Code...</p>');
   private readonly models = el('<div class="fl-models"></div>');
   private readonly autoXmp = el('<label class="fl-check"><input type="checkbox"> Automatically write changes into XMP</label>');
   private readonly intoFiles = el('<label class="fl-check"><input type="checkbox"> Write metadata into JPEG, TIFF and DNG files instead of sidecars</label>');
@@ -51,6 +57,14 @@ class Preferences extends Dialog {
     this.body.appendChild(el('<p class="cv-note">Claude and other AI agents can work in formlit through its plugin: add the formlit plugin from the Form marketplace in Claude (Customize, Plugins), keep formlit open, and ask in plain words. Agents use the same commands as this window and every change can be undone. Deleting files and switching catalogs always stay with you.</p>'));
     this.field('Agent access', this.access);
     this.body.appendChild(this.seen);
+    this.body.appendChild(el('<div class="fl-sub">Claude Code in formlit</div>'));
+    this.body.appendChild(this.claudeState);
+    this.field('Starts in folder', this.claude.claudeFolder);
+    this.field('Claude Code program', this.claude.claudeBin);
+    this.field('Start with message', this.claude.claudeFirstMessage);
+    for (const [key, input] of Object.entries(this.claude)) {
+      input.addEventListener('change', () => void this.ctx.api.cmd('prefs.set', { values: { [key]: input.value.trim() } }).then(() => this.claudeStatus(), (err) => this.ctx.fail(err)));
+    }
     this.body.appendChild(el('<p class="cv-note">For developers: point an MCP client at this endpoint, or run <code>./formlit agents install</code> in the formlit repository to register it with Claude Code, Codex and Cursor.</p>'));
     this.body.appendChild(this.agents);
     this.body.appendChild(el('<div class="fl-sub">Engine</div>'));
@@ -82,6 +96,16 @@ class Preferences extends Dialog {
     this.intensity.value = String(c.intensity ?? 1);
   }
 
+  private async claudeStatus(): Promise<void> {
+    try {
+      const s = await this.ctx.api.cmd<{ installed: boolean; path: string | null; version: string | null; folder: string; binNote: string }>('claudecode.status');
+      const found = s.installed ? `Claude Code ${s.version ?? ''} at ${s.path ?? ''}. It starts in ${s.folder}.` : 'Claude Code is not installed: install it from claude.com/claude-code and run claude once in a terminal to sign in.';
+      setText(this.claudeState, s.binNote ? `${found} ${s.binNote}.` : found);
+    } catch (err) {
+      setText(this.claudeState, err instanceof Error ? err.message : String(err));
+    }
+  }
+
   async show(): Promise<void> {
     this.sync();
     const origin = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8390';
@@ -93,7 +117,9 @@ class Preferences extends Dialog {
       setValue(this.access, typeof p.outsideAgents === 'string' ? p.outsideAgents : 'ask');
       const id = (p.identity ?? {}) as Record<string, unknown>;
       for (const [k, input] of Object.entries(this.identity)) if (document.activeElement !== input) setValue(input, String(id[k] ?? ''));
+      for (const [k, input] of Object.entries(this.claude)) if (document.activeElement !== input) setValue(input, String(p[k] ?? ''));
     }, () => undefined);
+    void this.claudeStatus();
     void this.ctx.api.cmd<{ clients: Array<{ name: string }> }>('agents.status').then((s) => {
       const names = s.clients.map((c) => c.name).join(', ') || 'none yet';
       const val = q(this.seen, '.fl-meta-val');
