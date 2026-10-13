@@ -92,6 +92,7 @@ export class TerminalDock {
     if (!this.chat) {
       const chat = new ChatPane(this.api);
       chat.onFail = (err) => this.onFail(err);
+      chat.onHandoff = (session) => void this.claude(undefined, session);
       this.chat = chat;
       this.stage.appendChild(chat.root);
     }
@@ -133,10 +134,10 @@ export class TerminalDock {
     } catch (err) { this.onFail(err); }
   }
 
-  async claude(prompt?: string): Promise<void> {
+  async claude(prompt?: string, resume?: string): Promise<void> {
     const size = this.size();
     try {
-      const info = await this.api.cmd<TermInfo>('claudecode.open', { prompt: prompt || undefined, cols: size.cols, rows: size.rows });
+      const info = await this.api.cmd<TermInfo>('claudecode.open', { prompt: prompt || undefined, cols: size.cols, rows: size.rows, resume: resume || undefined });
       if (this.tabs.has(info.id)) this.select(info.id);
       else this.mount(info, true);
     } catch (err) { this.onFail(err); }

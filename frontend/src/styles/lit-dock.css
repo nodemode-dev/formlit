@@ -44,6 +44,26 @@
 .fl-chat-tool.is-error .fl-chat-tool-mark { color: var(--danger, var(--accent-color)); }
 .fl-chat-error { color: var(--danger, var(--text-primary)); }
 .fl-chat-meta { color: var(--text-muted); font-size: var(--fs-11); }
+.fl-chat-usage { color: var(--text-muted); font-size: var(--fs-11); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.fl-chat-usage.is-high { color: var(--accent-color); }
+.fl-chat-images { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; }
+.fl-chat-images img { max-width: 260px; max-height: 180px; border-radius: 6px; border: 1px solid var(--line-1); background: var(--surface-2); }
+.fl-md { display: flex; flex-direction: column; gap: 6px; white-space: normal; }
+.fl-md p { margin: 0; }
+.fl-md-live { margin: 0; white-space: pre-wrap; }
+.fl-md ul, .fl-md ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.fl-md strong { color: var(--text-primary); font-weight: 600; }
+.fl-md code { padding: 0 4px; border-radius: 4px; background: var(--surface-2); font-family: var(--font-mono); font-size: var(--fs-11); }
+.fl-md pre { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--surface-2); overflow-x: auto; }
+.fl-md pre code { padding: 0; background: transparent; white-space: pre; }
+.fl-md-h { font-weight: 600; color: var(--text-primary); }
+.fl-md-h1 { font-size: var(--fs-14, 14px); }
+.fl-md-link { text-decoration: underline; text-decoration-color: var(--line-2); }
+.fl-md hr { width: 100%; border: 0; border-top: 1px solid var(--line-1); margin: 2px 0; }
+.fl-md-table { overflow-x: auto; }
+.fl-md table { border-collapse: collapse; font-size: var(--fs-11); }
+.fl-md th, .fl-md td { padding: 3px 8px; border: 1px solid var(--line-1); text-align: left; }
+.fl-md th { background: var(--surface-2); font-weight: 600; }
 .fl-dock-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
 .fl-dock-empty[hidden] { display: none; }
 .fl-dock-ask { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--surface-1); border-top: 1px solid var(--line-0); }

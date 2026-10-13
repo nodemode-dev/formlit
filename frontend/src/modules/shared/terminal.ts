@@ -11,8 +11,9 @@ export function registerTerminal(ctx: Ctx): void {
     dock.onFail = (err) => ctx.fail(err);
     dock.context = () => {
       const ids = library.targets();
-      if (!ids.length) return '';
-      return `formlit selection: photo ${ids.length === 1 ? 'id' : 'ids'} ${ids.slice(0, 200).join(', ')}${ids.length > 200 ? ` and ${ids.length - 200} more` : ''}`;
+      const where = `formlit window: ${ctx.module()} module${library.active !== null ? `, active photo id ${library.active}` : ''}`;
+      if (!ids.length) return where;
+      return `${where}; selection: photo ${ids.length === 1 ? 'id' : 'ids'} ${ids.slice(0, 200).join(', ')}${ids.length > 200 ? ` and ${ids.length - 200} more` : ''}`;
     };
     dock.note = () => {
       const n = library.targets().length;
