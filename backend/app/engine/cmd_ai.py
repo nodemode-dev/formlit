@@ -1004,7 +1004,22 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
     seed = int(seed or spot.get("seed") or 0)
     sample = None
     area = spot.get("sampleFrom")
-    if isinstance(area, (list, tuple)) and len(area) == 4:
+    if area == "sameDepth":
+        if not models.ready("depth"):
+            raise CommandError("Sample from the same depth needs the depth model (ai.download model depth)")
+        from app.services import decode
+        lin709 = np.maximum(sampled.reshape(-1, 3) @ decode.REC2020_TO_SRGB.T, 0.0).reshape(sampled.shape)
+        rgb8 = (decode.linear_to_srgb(lin709 / max(1e-6, float(np.percentile(lin709, 99.5)))) * 255 + 0.5).astype(np.uint8)
+        d = nets.depth(rgb8).astype(np.float32)
+        if d.shape[:2] != (h, w):
+            d = cv2.resize(d, (w, h), interpolation=cv2.INTER_LINEAR)
+        ring = (cv2.dilate(full, np.ones((3, 3), np.uint8), iterations=max(3, int(r * 0.6))) > 0) & (full == 0)
+        level = float(np.median(d[ring])) if ring.any() else float(np.median(d))
+        for tol in (0.06, 0.12, 0.2):
+            sample = ((np.abs(d - level) < tol) & (full == 0)).astype(np.uint8) * 255
+            if sample.sum() >= 255 * 64 * 16:
+                break
+    elif isinstance(area, (list, tuple)) and len(area) == 4:
         c = [to_out @ np.array([float(area[i]), float(area[j]), 1.0]) for i, j in ((0, 1), (2, 1), (2, 3), (0, 3))]
         sample = np.zeros((h, w), np.uint8)
         cv2.fillConvexPoly(sample, np.array([[int(p[0]), int(p[1])] for p in c], np.int32), 255)
