@@ -186,6 +186,35 @@ def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, po
     return {"shape": shape, "coverage": round(float(a.mean()), 4)}
 
 
+@command("develop.maskOutline", "Mask Edge Points", {"id": {"type": "integer"}, "bitmap": {"type": "string"}, "dots": {"type": "integer", "minimum": 8, "maximum": 400}}, mutates=False)
+def mask_outline(bitmap: str, id: int | None = None, dots: int = 64) -> dict:
+    from app.develop.masks import _read_bitmap
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    p = bitmap_path(pid, bitmap)
+    if not p.is_file():
+        raise CommandError("That mask has no bitmap on this photo yet")
+    st = p.stat()
+    bm = _read_bitmap(str(p), st.st_mtime_ns, st.st_size)
+    bh, bw = bm.shape
+    found, _ = cv2.findContours((bm > 0.5).astype(np.uint8), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    polys = []
+    for c in sorted(found, key=cv2.contourArea, reverse=True):
+        if cv2.contourArea(c) < 0.0015 * bw * bh or len(polys) >= 12:
+            continue
+        per = cv2.arcLength(c, True)
+        n = int(max(8, min(int(dots), per / max(bw, bh) * dots * 1.5)))
+        eps = 0.002 * max(bw, bh)
+        while True:
+            a = cv2.approxPolyDP(c, eps, True)
+            if len(a) <= n or eps > per:
+                break
+            eps *= 1.3
+        if len(a) < 8:
+            a = c[np.linspace(0, len(c) - 1, 8).astype(int)]
+        polys.append([[round((float(x) + 0.5) / bw, 5), round((float(y) + 0.5) / bh, 5)] for x, y in a.reshape(-1, 2)])
+    return {"polys": polys, "sig": st.st_size}
+
+
 def bitmap_refs(dev: dict) -> list[dict]:
     refs = []
     for m in dev.get("masks") or []:

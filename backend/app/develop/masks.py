@@ -107,7 +107,21 @@ def _plane(c, x0: int, y0: int, bw: int, bh: int) -> np.ndarray:
     return ys[:, None] + (xs + np.float32(c[2]))[None, :]
 
 
-def _bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int) -> np.ndarray | None:
+def outline_fill(polys, bw: int, bh: int) -> np.ndarray:
+    out = np.zeros((bh * 2, bw * 2), np.uint8)
+    pts = [np.round(np.asarray(p, np.float64)[:, :2] * [bw * 2, bh * 2] - 0.5).astype(np.int32) for p in polys or [] if len(p) >= 3]
+    if pts:
+        cv2.fillPoly(out, pts, 255, cv2.LINE_AA)
+    return cv2.resize(out, (bw, bh), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+
+
+def _outlined(bm: np.ndarray, outline: dict) -> np.ndarray:
+    bh, bw = bm.shape
+    edit, orig = outline_fill(outline.get("edit"), bw, bh), outline_fill(outline.get("orig"), bw, bh)
+    return np.maximum(bm * (1.0 - np.maximum(orig - edit, 0.0)), np.maximum(edit - orig, 0.0)).astype(np.float32)
+
+
+def _bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int, outline: dict | None = None) -> np.ndarray | None:
     if photo_id is None or not key or not isinstance(key, str):
         return None
     try:
@@ -118,6 +132,8 @@ def _bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int) -> np.ndarr
     bm = _read_bitmap(str(p), st.st_mtime_ns, st.st_size)
     if bm is None:
         return None
+    if isinstance(outline, dict) and outline.get("sig") == st.st_size:
+        bm = _outlined(bm, outline)
     bh, bw = bm.shape
     m = np.asarray(frame.out_to_norm(w, h), np.float64)
     to_bm = np.array([[bw, 0.0, -0.5], [0.0, bh, -0.5], [0.0, 0.0, 1.0]]) @ m @ np.array([[1.0, 0.0, 0.5], [0.0, 1.0, 0.5], [0.0, 0.0, 1.0]])
@@ -131,8 +147,8 @@ def _bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int) -> np.ndarr
     return np.clip(out, 0.0, 1.0).astype(np.float32)
 
 
-def load_bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int) -> np.ndarray:
-    got = _bitmap(photo_id, key, frame, w, h)
+def load_bitmap(photo_id: int | None, key, frame: Frame, w: int, h: int, outline: dict | None = None) -> np.ndarray:
+    got = _bitmap(photo_id, key, frame, w, h, outline)
     return got if got is not None else np.zeros((h, w), np.float32)
 
 
@@ -354,7 +370,7 @@ def _coverage(s: dict, ctx: _Ctx) -> np.ndarray:
     if kind == "depthRange":
         return _depth_range(s, ctx)
     if kind in BITMAP_KINDS:
-        return _edges(load_bitmap(ctx.photo_id, s.get("bitmap"), ctx.frame, ctx.w, ctx.h), s, ctx)
+        return _edges(load_bitmap(ctx.photo_id, s.get("bitmap"), ctx.frame, ctx.w, ctx.h, s.get("outline")), s, ctx)
     return ctx.zeros()
 
 
