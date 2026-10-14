@@ -14,7 +14,7 @@
 
 formlit is the form family's alternative to Adobe Lightroom Classic: a catalog of your photos, a non-destructive raw developer, and the Library, Develop, Map, Book, Slideshow, Print and Web modules, local-first, with the same agent harness as formvis so Claude Code, Codex and Cursor can cull, develop and export through tools. It runs in a browser against its local engine, or as a desktop app for macOS, Windows and Linux.
 
-**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 15,900 of TypeScript, 2,300 of CSS, 22,800 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
+**Stack.** Vanilla TypeScript 7 and Vite 8 · Python 3.12 and FastAPI · Tauri 2. Code size, in lines: about 15,900 of TypeScript, 2,300 of CSS, 22,900 of Python, 131 of Rust (product code, tests excluded; `./formlit counts` prints this, and `./formlit counts --check` verifies it).
 
 **Parity.** 57.5 of 58 Lightroom Classic 15 feature rows (57 Full, 1 Partial: reflection removal), traced in code and graded by independent audits: see [docs/PARITY.md](docs/PARITY.md).
 
