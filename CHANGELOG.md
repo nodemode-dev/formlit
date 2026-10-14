@@ -2,6 +2,21 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.24.0 · 2026-10-14
+
+### Added
+
+- **Adjustment layers (Develop, Layers panel under the Histogram):** the feature reviewers most often say Lightroom lacks. A layer is its own copy of the photo's colour and tone settings, blended in through a mask at an opacity.
+  - **Full toolset:** select a layer and every slider, the tone curve, the colour mixer, colour grading, detail and effects change that layer only. Masks reach 17 local sliders; layers reach everything.
+  - **Masks:** the whole photo, Subject, Sky, Background, People, or any mask built in the Masking tool, so brushes, gradients, ranges and the new edge controls all work. Invert flips it.
+  - **Layer controls:** opacity, show and hide, rename, duplicate and delete, all with undo, up to eight layers per photo.
+  - **What stays with the photo:** white balance, crop, geometry, lens corrections, noise reduction, the profile and treatment. A banner and an accent edge on the right column show when you are editing a layer.
+- **For agents:** `add_layer` and `set_layer`, for example "make the sky's saturation +40 in a layer at 70 percent".
+
+### Note
+
+- Layers are formlit's own. They are not copied by Sync or Paste unless chosen, and they are not written to the XMP that Lightroom reads.
+
 ## v0.23.0 · 2026-10-14
 
 ### Added
