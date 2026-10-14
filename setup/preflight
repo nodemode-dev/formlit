@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+command -v ruby >/dev/null 2>&1 || fl_die "Ruby is needed for the PDF/X-1a preflight (the preflight gem)"
+[ "$#" -gt 0 ] || fl_die "usage: ./formlit preflight FILE.pdf [FILE.pdf ...]"
+gems="$FORMLIT_ROOT/backend/build/preflight-gems"
+if [ ! -d "$gems/gems/preflight-0.3.0" ]; then
+  gem install --no-document --install-dir "$gems" preflight:0.3.0 matrix >/dev/null || fl_die "could not install the preflight gem"
+fi
+GEM_HOME="$gems" GEM_PATH="$gems" exec ruby -W0 -e '
+require "bigdecimal"
+class BigDecimal; def self.new(*a) BigDecimal(*a) end; end unless BigDecimal.respond_to?(:new)
+require "preflight"
+bad = 0
+ARGV.each do |f|
+  msgs = Preflight::Profiles::PDFX1A.new.check(f)
+  puts "#{f}: #{msgs.empty? ? "passes PDF/X-1a" : "#{msgs.size} problems"}"
+  msgs.uniq.each { |m| puts "  #{m}" }
+  bad += 1 unless msgs.empty?
+end
+exit(bad.zero? ? 0 : 1)
+' "$@"

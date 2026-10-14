@@ -23,6 +23,7 @@ usage: ./formlit [command] [options]
   cli <command> ...   run any engine command from the terminal (./formlit cli list)
   doctor              check the toolchain, installs and ports
   counts [--check]    the README's code sizes (--check: exit 1 if README.md has drifted)
+  preflight FILE...   check book PDFs against PDF/X-1a with the open-source preflight gem (needs Ruby)
   clean [--all]       remove build output (--all also venv and node_modules)
   help                this text
 EOF
@@ -58,6 +59,7 @@ case "$cmd" in
   cli) exec python3 setup/cli.py "$@" ;;
   doctor) exec setup/doctor "$@" ;;
   counts) exec setup/counts "$@" ;;
+  preflight) exec setup/preflight "$@" ;;
   clean) exec setup/clean "$@" ;;
   help|-h|--help) usage ;;
   *) printf '[formlit] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;

@@ -1,4 +1,5 @@
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -7,7 +8,8 @@ from app.core import config
 FACES = {"sans": ("LiberationSans-Regular", "LiberationSans-Bold", "LiberationSans-Italic", "LiberationSans-BoldItalic"),
          "serif": ("LiberationSerif-Regular", "LiberationSerif-Bold", "LiberationSerif-Italic", "LiberationSerif-BoldItalic"),
          "mono": ("LiberationMono-Regular", "LiberationMono-Bold", "LiberationMono-Italic", "LiberationMono-BoldItalic")}
-VERSION = "PDF/X-1a:2003"
+VERSION = "PDF/X-1a:2001"
+PDFX_KEY = "PDF/X-1:2001"
 
 
 @lru_cache(maxsize=1)
@@ -43,24 +45,32 @@ def finish(path: Path, profile: str, boxes: list[tuple[float, float, float, floa
             page.obj.BleedBox = pikepdf.Array(media)
         with pdf.open_metadata(set_pikepdf_as_editor=False) as meta:
             meta["dc:title"] = title
-            meta["pdfx:GTS_PDFXVersion"] = VERSION
+            meta["pdfx:GTS_PDFXVersion"] = PDFX_KEY
         info = pdf.docinfo
+        stamp = pikepdf.String(time.strftime("D:%Y%m%d%H%M%S"))
         info["/Title"] = title
-        info["/GTS_PDFXVersion"] = VERSION
+        info["/CreationDate"] = info.get("/CreationDate", stamp)
+        info["/ModDate"] = stamp
+        info["/GTS_PDFXVersion"] = PDFX_KEY
         info["/GTS_PDFXConformance"] = VERSION
         info["/Trapped"] = pikepdf.Name("/False")
-        pdf.save(str(path), min_version="1.4", force_version="1.4")
+        pdf.save(str(path), force_version="1.3", object_stream_mode=pikepdf.ObjectStreamMode.disable, static_id=False)
 
 
 def check(path: Path) -> list[str]:
     import pikepdf
     issues: list[str] = []
     with pikepdf.open(str(path)) as pdf:
-        if pdf.pdf_version > "1.4":
-            issues.append(f"PDF version {pdf.pdf_version} (X-1a:2003 needs 1.4 or lower)")
+        if pdf.pdf_version > "1.3":
+            issues.append(f"PDF version {pdf.pdf_version} (X-1a:2001 needs 1.3 or lower)")
         info = pdf.docinfo
-        if str(info.get("/GTS_PDFXVersion", "")) != VERSION:
-            issues.append("GTS_PDFXVersion missing")
+        if str(info.get("/GTS_PDFXVersion", "")) != PDFX_KEY or str(info.get("/GTS_PDFXConformance", "")) != VERSION:
+            issues.append("GTS_PDFXVersion or GTS_PDFXConformance missing")
+        for key in ("/CreationDate", "/ModDate"):
+            if key not in info:
+                issues.append(f"{key[1:]} missing")
+        if "/ID" not in pdf.trailer:
+            issues.append("document ID missing")
         if str(info.get("/Trapped", "")) not in ("/True", "/False"):
             issues.append("Trapped key missing")
         if not str(info.get("/Title", "")).strip():
