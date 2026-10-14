@@ -453,6 +453,46 @@ def web_export(ids: Any = None, collection: int | None = None, settings: dict | 
     return _wait(tasks.start("web", "Uploading web gallery" if upload else "Exporting web gallery", job), wait)
 
 
+@command("proof.export", "Export Proofing Gallery", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "folder": {"type": "string"}, "title": {"type": "string"},
+                                                    "note": {"type": "string"}, "size": {"type": "integer", "minimum": 800, "maximum": 4000}, "names": {"type": "boolean"}, "wait": {"type": "boolean"}},
+         description="Makes a self-contained proofing gallery folder: the client opens index.html in any browser (no account, no server), picks, rejects, rates and comments, and sends back a small selections file for proof.import.")
+def proof_export(ids: Any = None, collection: int | None = None, folder: str | None = None, title: str = "Proofs", note: str = "", size: int = 1600, names: bool = False,
+                 wait: bool = False) -> dict:
+    from app.output import proof
+    pids = _ids(ids, collection)
+    if not pids:
+        raise CommandError("Choose the photos to proof first")
+    dest = Path(folder).expanduser() if folder else rename.unique(_out_dir("Proofs") / rename.safe(title or "Proofs"))
+    if dest.exists() and any(dest.iterdir()):
+        raise CommandError(f"{dest} is not empty; choose a new folder")
+
+    def job(progress):
+        return proof.write(pids, dest, title or "Proofs", note, int(size), bool(names), progress)
+    return _wait(tasks.start("proof", "Exporting proofing gallery", job), wait)
+
+
+@command("proof.import", "Import Client Selections", {"path": {"type": "string", "description": "the selections .json file the client sent"}, "text": {"type": "string", "description": "or the copied text"},
+                                                       "flags": {"type": "boolean"}, "ratings": {"type": "boolean"}},
+         description="Applies a client's selections from a proofing gallery: picks and rejects as flags, stars as ratings, comments onto the photos, and a collection of the picks.")
+def proof_import(path: str = "", text: str = "", flags: bool = True, ratings: bool = True) -> dict:
+    from app.output import proof
+    if path:
+        try:
+            text = Path(path).expanduser().read_text(encoding="utf-8")
+        except OSError as exc:
+            raise CommandError(f"Could not read {path}") from exc
+    if not text.strip():
+        raise CommandError("Give the selections file or paste its text")
+    try:
+        data = proof.parse(text)
+    except ValueError as exc:
+        raise CommandError(str(exc)) from exc
+    res = proof.apply(data, bool(flags), bool(ratings))
+    if not res["matched"]:
+        raise CommandError("None of these photos are in this catalog")
+    return res
+
+
 @command("publish.services", "Publish Services", mutates=False)
 def publish_services() -> dict:
     return {"services": publish.services(), "kinds": publish_sdk.kinds()}
@@ -481,7 +521,8 @@ def publish_reload_plugins() -> dict:
 
 @command("publish.comments", "Published Photo Comments", {"id": {"type": "integer"}}, mutates=False)
 def publish_comments(id: int) -> dict:
-    return {"threads": publish.comments(int(id))}
+    from app.output import proof
+    return {"threads": proof.comment_threads(int(id)) + publish.comments(int(id))}
 
 
 @command("publish.addComment", "Add Comment", {"collection": {"type": "integer"}, "id": {"type": "integer"}, "text": {"type": "string"}}, mutates=False)
