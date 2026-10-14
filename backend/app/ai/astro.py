@@ -25,8 +25,14 @@ def stars(lin: np.ndarray, limit: int = 400, mask: np.ndarray | None = None) -> 
     ys, xs = np.nonzero(peak)
     if not len(ys):
         return np.zeros((0, 2), np.float32), np.zeros(0, np.float32)
-    order = np.argsort(-d[ys, xs])[:limit * 3]
+    order = np.argsort(-d[ys, xs])
     ys, xs = ys[order], xs[order]
+    cell = (ys * 5 // d.shape[0]) * 8 + xs * 8 // d.shape[1]
+    by = np.argsort(cell, kind="stable")
+    rank = np.empty(len(ys), np.int64)
+    rank[by] = np.arange(len(ys)) - np.searchsorted(cell[by], cell[by])
+    pick = np.lexsort((np.arange(len(ys)), rank))[:limit * 3]
+    ys, xs = ys[pick], xs[pick]
     pts, flux = [], []
     for yy, xx in zip(ys, xs):
         y0, y1, x0, x1 = max(0, yy - 3), min(d.shape[0], yy + 4), max(0, xx - 3), min(d.shape[1], xx + 4)
@@ -86,7 +92,7 @@ def match(ref: tuple[np.ndarray, np.ndarray], cur: tuple[np.ndarray, np.ndarray]
     dx, dy = (ex[ix] + ex[ix + 1]) / 2, (ey[iy] + ey[iy + 1]) / 2
     m = np.array([[1.0, 0.0, dx], [0.0, 1.0, dy]])
     inliers, rms = 0, 0.0
-    for radius in (max(h, w) * 0.01 + 6, 4.0, 2.0):
+    for radius in (max(h, w) * 0.01 + 6, 4.0):
         moved = cp @ m[:, :2].T + m[:, 2]
         dist = np.sqrt(((moved[:, None, :] - rp[None, :, :]) ** 2).sum(-1))
         j = dist.argmin(1)
@@ -100,7 +106,111 @@ def match(ref: tuple[np.ndarray, np.ndarray], cur: tuple[np.ndarray, np.ndarray]
         keep = keep.ravel().astype(bool)
         res = cp[ok][keep] @ m[:, :2].T + m[:, 2] - rp[j[ok]][keep]
         inliers, rms = int(keep.sum()), float(np.sqrt((res ** 2).sum(-1).mean())) if keep.any() else 0.0
-    return m, inliers, rms
+    hm = np.vstack([m, [0.0, 0.0, 1.0]])
+    for radius in (6.0, 3.0, 1.5):
+        moved = cv2.perspectiveTransform(cp[None].astype(np.float64), hm)[0]
+        dist = np.sqrt(((moved[:, None, :] - rp[None, :, :]) ** 2).sum(-1))
+        j = dist.argmin(1)
+        ok = dist[np.arange(len(cp)), j] < radius
+        if ok.sum() < 12:
+            break
+        est, keep = cv2.findHomography(cp[ok].astype(np.float64), rp[j[ok]].astype(np.float64), cv2.RANSAC, 1.0, maxIters=4000, confidence=0.999)
+        if est is None:
+            break
+        keep = keep.ravel().astype(bool)
+        res = cv2.perspectiveTransform(cp[ok][keep][None].astype(np.float64), est)[0] - rp[j[ok]][keep]
+        hm, inliers, rms = est, int(keep.sum()), float(np.sqrt((res ** 2).sum(-1).mean()))
+    return hm, inliers, rms
+
+
+def _terms(p: np.ndarray, h: int, w: int, full: bool = True) -> np.ndarray:
+    s = max(h, w) / 2.0
+    u, v = (p[:, 0] - w / 2.0) / s, (p[:, 1] - h / 2.0) / s
+    cols = [np.ones_like(u), u, v] + ([u * u, u * v, v * v, u ** 3, u * u * v, u * v * v, v ** 3] if full else [])
+    return np.stack(cols, 1)
+
+
+def _fit(pr: np.ndarray, pc: np.ndarray, h: int, w: int) -> tuple[np.ndarray | None, np.ndarray]:
+    keep = np.ones(len(pr), bool)
+    coef = None
+    for _ in range(5):
+        if keep.sum() < 6:
+            return None, keep
+        full = keep.sum() >= 30
+        a = _terms(pr[keep], h, w, full)
+        coef = np.linalg.lstsq(a, pc[keep], rcond=None)[0]
+        if not full:
+            coef = np.vstack([coef, np.zeros((7, 2))])
+        res = np.sqrt(((_terms(pr, h, w) @ coef - pc) ** 2).sum(1))
+        keep = res < max(1.0, 3.0 * float(np.sqrt((res[keep] ** 2).mean())))
+    return coef, keep
+
+
+def model(ref: tuple[np.ndarray, np.ndarray], cur: tuple[np.ndarray, np.ndarray], h: int, w: int, guide: np.ndarray | None = None) -> tuple[np.ndarray | None, np.ndarray, np.ndarray, float]:
+    rp, rf = ref
+    cp, cf = cur
+    none = (None, np.zeros((0, 2)), np.zeros((0, 2)), 0.0)
+    if len(rp) < 6 or len(cp) < 6:
+        return none
+    seen = cv2.perspectiveTransform(cp[None].astype(np.float64), np.linalg.inv(guide))[0] if guide is not None else cp.astype(np.float64)
+    margin = max(h, w) * (0.08 if guide is not None else 0.3)
+    pr, pc, used = [], [], set()
+    for ty in range(2):
+        for tx in range(3):
+            x0, x1, y0, y1 = w * tx / 3, w * (tx + 1) / 3, h * ty / 2, h * (ty + 1) / 2
+            rs = (rp[:, 0] >= x0) & (rp[:, 0] < x1) & (rp[:, 1] >= y0) & (rp[:, 1] < y1)
+            cs = (seen[:, 0] >= x0 - margin) & (seen[:, 0] < x1 + margin) & (seen[:, 1] >= y0 - margin) & (seen[:, 1] < y1 + margin)
+            if rs.sum() < 6 or cs.sum() < 6:
+                continue
+            hm, _, _ = match((rp[rs], rf[rs]), (cp[cs], cf[cs]), h, w)
+            if hm is None:
+                continue
+            ci = np.nonzero(cs)[0]
+            moved = cv2.perspectiveTransform(cp[ci][None].astype(np.float64), hm)[0]
+            dist = np.sqrt(((moved[:, None, :] - rp[rs][None, :, :]) ** 2).sum(-1))
+            j = dist.argmin(1)
+            for k in np.nonzero(dist[np.arange(len(ci)), j] < 1.5)[0]:
+                if ci[k] not in used:
+                    used.add(ci[k])
+                    pr.append(rp[rs][j[k]])
+                    pc.append(cp[ci[k]])
+    if len(pr) < 6:
+        return none
+    pr, pc = np.asarray(pr, np.float64), np.asarray(pc, np.float64)
+    coef, keep = _fit(pr, pc, h, w)
+    if coef is None:
+        return none
+    for radius in (3.0, 1.5):
+        guess = _terms(rp.astype(np.float64), h, w) @ coef
+        dist = np.sqrt(((guess[:, None, :] - cp[None, :, :]) ** 2).sum(-1))
+        j = dist.argmin(1)
+        ok = dist[np.arange(len(rp)), j] < radius
+        if ok.sum() < 6:
+            break
+        pr, pc = rp[ok].astype(np.float64), cp[j[ok]].astype(np.float64)
+        coef, keep = _fit(pr, pc, h, w)
+        if coef is None:
+            return none
+    res = _terms(pr[keep], h, w) @ coef - pc[keep]
+    return coef, pr[keep], pc[keep], float(np.sqrt((res ** 2).sum(1).mean()))
+
+
+def maps(coef: np.ndarray, pr: np.ndarray, pc: np.ndarray, h: int, w: int) -> tuple[np.ndarray, np.ndarray]:
+    gw, gh = max(2, -(-w // 16)), max(2, -(-h // 16))
+    gx = (np.arange(gw) + 0.5) * w / gw - 0.5
+    gy = (np.arange(gh) + 0.5) * h / gh - 0.5
+    grid = np.stack(np.meshgrid(gx, gy), -1).reshape(-1, 2)
+    disp = _terms(grid, h, w) @ coef - grid
+    if len(pr) >= 20:
+        r = pc - _terms(pr, h, w) @ coef
+        sigma = max(h, w) / 10.0
+        for k in range(0, len(grid), 4096):
+            g = grid[k:k + 4096]
+            wgt = np.exp(-((g[:, None, 0] - pr[None, :, 0]) ** 2 + (g[:, None, 1] - pr[None, :, 1]) ** 2) / (2 * sigma * sigma))
+            disp[k:k + 4096] += (wgt @ r) / (wgt.sum(1)[:, None] + 1.0)
+    full = cv2.resize(disp.reshape(gh, gw, 2).astype(np.float32), (w, h), interpolation=cv2.INTER_CUBIC)
+    py, px = np.mgrid[0:h, 0:w].astype(np.float32)
+    return px + full[..., 0], py + full[..., 1]
 
 
 def _combine(block: np.ndarray, reject: str) -> np.ndarray:
@@ -122,8 +232,15 @@ def stack(load, n: int, progress=None, align: bool = True, reject: str = "sigma"
     ref = cosmetic(load(ref_i))
     h, w = ref.shape[:2]
     sky_full = cv2.resize(sky.astype(np.float32), (w, h), interpolation=cv2.INTER_LINEAR) if sky is not None else None
+    if sky_full is not None:
+        solid = (sky_full > 0.5).astype(np.uint8)
+        _, lab = cv2.connectedComponents(solid, connectivity=4)
+        top = [int(v) for v in np.unique(lab[0][solid[0] > 0]) if v]
+        if top:
+            sky_full = (sky_full * np.isin(lab, top)).astype(np.float32)
     ref_stars = stars(ref, mask=None if sky_full is None else sky_full > 0.5)
-    ground_mask = None if sky_full is None else cv2.dilate((sky_full < 0.5).astype(np.float32), np.ones((5, 5), np.uint8), iterations=2)
+    grow = max(2, round(max(h, w) / 320 * 0.75))
+    ground_mask = None if sky_full is None else cv2.dilate((sky_full < 0.5).astype(np.float32), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * grow + 1, 2 * grow + 1)))
     tmp = tempfile.TemporaryDirectory(prefix="formlit-astro-")
     aligned = np.memmap(f"{tmp.name}/a.f16", np.float16, "w+", shape=(n, h, w, 3))
     fixed = np.memmap(f"{tmp.name}/f.f16", np.float16, "w+", shape=(n, h, w, 3)) if sky_full is not None else None
@@ -136,13 +253,18 @@ def stack(load, n: int, progress=None, align: bool = True, reject: str = "sigma"
         if fixed is not None:
             fixed[i] = img.astype(np.float16)
         if align and i != ref_i:
-            m, inl, rms = match(ref_stars, stars(img, mask=None if sky_full is None else sky_full > 0.5), h, w)
-            if m is None:
+            cur_stars = stars(img, mask=None if sky_full is None else sky_full > 0.5)
+            m, _, _ = match(ref_stars, cur_stars, h, w)
+            coef, pr, pc, rms = model(ref_stars, cur_stars, h, w, m)
+            if coef is None:
                 raise ValueError(f"Could not find the same stars in frame {i + 1}; try fewer frames, a longer focal length is fine but the sky must show stars")
-            warped = cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(np.nan, np.nan, np.nan))
+            inl = len(pr)
+            mx, my = maps(coef, pr, pc, h, w)
+            warped = cv2.remap(img, mx, my, cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(np.nan, np.nan, np.nan))
             covered &= ~np.isnan(warped[..., 0])
             if ground_mask is not None:
-                warped[cv2.warpAffine(ground_mask, m, (w, h), flags=cv2.INTER_LINEAR) > 0.2] = np.nan
+                warped[cv2.remap(ground_mask, mx, my, cv2.INTER_LINEAR) > 0.2] = np.nan
+            del mx, my
             aligned[i] = warped.astype(np.float16)
             report["aligned"] += 1
             report["rms"].append(round(rms, 3))
