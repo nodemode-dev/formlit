@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Remove: Shadows and Reflections, Refresh, a steady Variations row (v0.34.0)
+- refers-to: src/modules/develop/tools.ts :: Spot (shadows, seed), removeRow, variantsRow, syncVariants, fill; src/styles/lit-develop.css :: .fl-spot-vars .fl-seg-sm
+- kind: rationale, removed-bug
+- logged: v0.34.0 · 2026-10-14
+
+The Healing drawer's Remove options are one row, Detect Objects and Shadows and Reflections, and new Remove spots carry both flags. Refresh now sends the spot's seed plus one and stores the seed the engine answered with, so each press gives three new fills (before, it repeated the same three). The Variations row used to appear only when a fill finished, which pushed Visualize Spots, the row below and the Layers panel down by 34 px about 38 s after the click (0.0009, not counted as input); it now stays in place whenever the mode is Remove, with Refresh disabled until there is a fill, and its segment has a fixed 26 px height so the buttons arriving do not move it either. Checked under 4x CPU and slow network on the Messi photo: Remove with both options, three variations after 38 s, Refresh gave three new fills (seed 1) after 35 s, no layout shift without input, no page errors.
+
 ### Flash and Window Blend in the Photo menu (v0.33.0)
 - refers-to: src/modules/shared/ai.ts :: photo.flashBlend; src/app.ts :: Photo menu
 - kind: rationale
