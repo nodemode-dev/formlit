@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Objects mask by click, and two shifts found (v0.26.1)
+- refers-to: src/modules/develop/masks.ts :: objectFrom (points or box), up, object hint
+- kind: rationale, known-shift
+- logged: v0.26.1 · 2026-10-14
+
+The Objects mask only acted on a dragged box; a click did nothing. A press that moves 6 px or less is now a click and sends its point, so the object under it is selected (a wall click took 11 s under 4x CPU and selected the wall). Two layout shifts without input were measured and not yet fixed. (1) Every AI mask result arrives seconds after the click and inserts the new mask row above the creation buttons and its controls below, so the panels below move (0.079); a pending row at click time would keep it inside the input window. (2) Entering Develop lays the image out from an estimated size and corrects it about 400 ms later, a 7 px move (0.071); `native()` falls back to the previous aspect before the geometry arrives.
+
 ### Skin Tone in the Color Mixer, the picker, and slider thumbs off the layout path (v0.26.0)
 - refers-to: src/modules/develop/panels.ts :: Color Mixer skin block; src/modules/develop/skin-tool.ts :: SkinPickerTool; src/modules/develop/index.ts :: develop.tool.skin; src/modules/develop/tools.ts :: WbPickerTool.down; src/styles/lit-develop.css :: .fl-sl-track container-type, .fl-sl-thumb translate
 - kind: rationale, removed-bug
