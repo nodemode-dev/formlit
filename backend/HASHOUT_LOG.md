@@ -1345,6 +1345,16 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 
 ---
 
+## app/engine/cmd_style.py and v0.36.0 follow-ups {#cmd-style}
+
+- `develop.applyStyle` (Apply My Style, MCP `apply_my_style`): a kNN over the search model's SigLIP image vectors of the person's edited photos (edited=1, at least one of the eleven tone and presence controls non-zero). The k nearest (default 5) are weighted by exp(20 · (sim - best sim)) so the closest photo dominates when it is clearly closer; exposure is shifted by the weighted log2 difference in median luminance (Rec. 2020 luma on the preview source, every fourth pixel), so a darker photo gets more exposure than its neighbour had. amount blends with the current values; one change, one undo step. Fewer than three examples is refused rather than guessing.
+- Validation (scratchpad style_eval2.py, leave-one-out over 27 distinct photos, a synthetic consistent photographer: per-scene target brightness and slider offsets from SigLIP text-prompt scenes plus noise): style 0.25 EV exposure error and 5.4 points on the other sliders (median 4.4); the mean of all edits 1.46 EV and 8.6; no edit 1.41 EV and 12.7. The first draft (five real edits) did worse than no edit on exposure, which is why it waited for this check.
+- query.py: a collapsed stack now shows its first matching member when the top does not match the filter (lead stack_pos per stack among the matching rows), so a text or describe filter no longer hides matches inside collapsed stacks. Verified: a stack of photos 4, 5, 6 collapsed, filter "camera-2" returns 6; no filter returns only 4.
+- query.py: smart collection rule field `describe` (contains is "looks like", notContains the opposite) through the search model's matches, as a json_each id list like the describe filter.
+- skin.py `max_size` (retouch.skin `maxSize`, percent of the face width, 0.5 to 8, default 3): only the size cutoff moves; erosion and the background blur stay at 3 percent so the score scale is the same for every setting and the found set grows monotonically with the size (69 photos: 70 spots at 1, 84 at 3, 84 at 6). Letting the blur follow the size dropped detections at 6 (41) because the wider background raised the noise floor.
+
+---
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

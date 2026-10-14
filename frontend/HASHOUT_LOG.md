@@ -765,6 +765,15 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 
 ---
 
+## v0.36.0 window changes {#v0-36-0}
+
+- modules/shared/ai.ts: Apply My Style... in the Photo menu (amount, photos to learn from), busy line while it runs, toast with how many photos it learned from; Retouch Skin gains Largest spot (% of face).
+- modules/library/smart.ts: rule field Shows with looks like and doesn't look like (the engine's describe rule).
+- ui/toast.ts: new toasts go on top of the stack (prepend) and the oldest drops from the bottom, so a new toast no longer pushes the ones already showing up the screen.
+- i18n: keys3.json and locales3/*.json carry the strings added in v0.36.0 (25 languages, loaded beside the first two catalogs). Plural placeholders glued to a noun become empty at run time, so in Czech, Danish, Norwegian, Polish and Swedish a plural count reads with the singular noun; a native check is still open. Checked in German: the Photo menu shows Meinen Stil anwenden... and the dialog is translated.
+
+---
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
