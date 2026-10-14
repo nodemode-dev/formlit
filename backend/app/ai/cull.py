@@ -80,9 +80,14 @@ def scores(rgb8: np.ndarray, faces: list[dict] | None = None) -> dict:
             focus = max(focus * 0.4, max(fv))
             face_sharp = round(float(np.clip(100.0 * (np.log10(max(max(fv), 1e-7)) + 5.0) / 3.2, 0.0, 100.0)), 1)
     sharp = float(np.clip(100.0 * (np.log10(max(focus, 1e-7)) + 5.0) / 3.2, 0.0, 100.0))
-    clip_hi = float(np.mean(gray >= 250))
-    clip_lo = float(np.mean(gray <= 4))
-    mean = float(gray.mean() / 255.0)
+    judged = gray
+    if face_list:
+        x0, y0, x1, y1 = face_list[0]["box"]
+        part = gray[int(y0 * h):int(y1 * h), int(x0 * w):int(x1 * w)]
+        judged = part if part.size > 256 else gray
+    clip_hi = float(np.mean(judged >= 250))
+    clip_lo = float(np.mean(judged <= 4))
+    mean = float(judged.mean() / 255.0)
     exposure = float(np.clip(100.0 - 400.0 * max(clip_hi - 0.01, 0.0) - 300.0 * max(clip_lo - 0.02, 0.0) - 120.0 * abs(mean - 0.45), 0.0, 100.0))
     return {"sharpness": round(sharp, 1), "exposure": round(exposure, 1), "hash": dhash(gray), "faces": len(faces or []), "faceSharpness": face_sharp,
             "eyesOpen": min(eyes) if eyes else None, "faceList": face_list}

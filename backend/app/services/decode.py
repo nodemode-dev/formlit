@@ -221,6 +221,8 @@ def _raw_linear(path: Path, max_long: int | None, full: bool, algo: str = "AHD")
         if own:
             info.update({k: own[k] for k in ("cameraTone", "cameraLook", "asShotTemp", "asShotTint") if k in own})
             info["ownBaseline"] = bool(own.get("ownBaseline"))
+            if own.get("display"):
+                info.update({"raw": False, "relativeWb": True})
             return img, info
     thumb = embedded_preview(path, 384)
     if thumb is not None:

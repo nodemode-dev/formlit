@@ -56,7 +56,7 @@ def depth(rgb8: np.ndarray) -> np.ndarray:
     return np.clip(_resize(_norm01(d), w, h, cv2.INTER_CUBIC), 0.0, 1.0)
 
 
-def sam_box(rgb8: np.ndarray, box: list[float], points: list[list[float]] | None = None) -> np.ndarray:
+def sam_box(rgb8: np.ndarray, box: list[float] | None, points: list[list[float]] | None = None) -> np.ndarray:
     models.require("objects")
     enc = models.session("sam-enc", "sam2.1-hiera-tiny/vision_encoder.onnx")
     dec = models.session("sam-dec", "sam2.1-hiera-tiny/prompt_encoder_mask_decoder.onnx")
@@ -69,7 +69,7 @@ def sam_box(rgb8: np.ndarray, box: list[float], points: list[list[float]] | None
         sx, sy = 1024.0 / w, 1024.0 / h
         pts = [[p[0] * w * sx, p[1] * h * sy] for p in (points or [])] or [[0.0, 0.0]]
         labels = [1] * len(points or []) or [-1]
-        b = np.array([[[box[0] * w * sx, box[1] * h * sy, box[2] * w * sx, box[3] * h * sy]]], np.float32)
+        b = np.array([[[box[0] * w * sx, box[1] * h * sy, box[2] * w * sx, box[3] * h * sy]]], np.float32) if box else np.zeros((1, 0, 4), np.float32)
         iou, masks, _ = dec.run(None, {"input_points": np.array([[pts]], np.float32), "input_labels": np.array([[labels]], np.int64), "input_boxes": b, **emb})
     best = masks[0, 0, int(np.argmax(iou[0, 0]))].astype(np.float32)
     m = _resize(best, w, h, cv2.INTER_LINEAR)

@@ -78,7 +78,7 @@ def _people(rgb8: np.ndarray) -> tuple[np.ndarray, list[dict], list[dict]]:
     alpha = nets.u2net(rgb8, "people")
     ready = models.ready("faces")
     faces = nets.faces(rgb8) if ready else []
-    return alpha, faces, people_mod.persons(rgb8, alpha, faces, components=not ready)
+    return alpha, faces, people_mod.persons(rgb8, alpha, faces, components=True)
 
 
 def _part_maps(rgb8: np.ndarray, group: str, person: int | None = None) -> dict[str, np.ndarray]:
@@ -167,14 +167,15 @@ def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, po
     elif kind == "sky":
         a = nets.sky(rgb8)
     elif kind == "object":
-        a = nets.sam_box(rgb8, box or [0.25, 0.25, 0.75, 0.75], points)
+        a = nets.sam_box(rgb8, box or (None if points else [0.25, 0.25, 0.75, 0.75]), points)
     else:
         a = nets.depth(rgb8)
     key = f"{kind}-{int(time.time() * 1000)}"
     save_bitmap(pid, key, a)
     shape: dict = {"kind": "depthRange" if kind == "depth" else kind, "bitmap": key, "coverage": round(float(a.mean()), 4)}
     if kind == "object":
-        shape["box"] = [round(float(v), 4) for v in (box or [0.25, 0.25, 0.75, 0.75])]
+        if box or not points:
+            shape["box"] = [round(float(v), 4) for v in (box or [0.25, 0.25, 0.75, 0.75])]
         if points:
             shape["points"] = points
     return {"shape": shape, "coverage": round(float(a.mean()), 4)}
@@ -247,7 +248,7 @@ def compute_shape(pid: int, sh: dict, memo: dict) -> bool:
     elif kind == "sky":
         a = nets.sky(rgb8)
     elif kind == "object":
-        a = nets.sam_box(rgb8, sh.get("box") or [0.25, 0.25, 0.75, 0.75], sh.get("points"))
+        a = nets.sam_box(rgb8, sh.get("box") or (None if sh.get("points") else [0.25, 0.25, 0.75, 0.75]), sh.get("points"))
     elif kind == "depthRange":
         if "depth" not in memo:
             memo["depth"] = nets.depth(rgb8)
@@ -563,7 +564,7 @@ def ai_hdr_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: fl
         out = merge.pano(merged, projection, None, 80e6, boundaryWarp, fillEdges, autoCrop)
         ref = groups[0][len(groups[0]) // 2]
         target = _out_path(ref, "HDR-Pano")
-        dng.write_linear_dng(target, out, {**infos[0], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
+        dng.write_linear_dng(target, out, {**infos[0], "raw": True, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
         new = _derived(ref, target, "HDR Panorama Merge", _settings_for(ref, ("light", "crop", "masks", "spots", "redEye", "geometry", "optics", "lensBlur")), progress,
                        stack=pids if createStack else [])
         from app.engine.cmd_develop import auto
@@ -591,7 +592,7 @@ def ai_hdr(ids: Any = None, deghost: str = "off", autoTone: bool = True, align: 
         out = merge.hdr(imgs, factors, deghost, progress, align)
         ref = pids[int(np.argsort([float(np.median(i)) for i in imgs])[len(imgs) // 2])]
         target = _out_path(ref, "HDR")
-        dng.write_linear_dng(target, out, {**infos[pids.index(ref)], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
+        dng.write_linear_dng(target, out, {**infos[pids.index(ref)], "raw": True, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
         dev = _settings_for(ref, ("light", "crop", "masks", "spots", "redEye", "lensBlur"))
         new = _derived(ref, target, "HDR Merge", dev, progress, stack=pids if createStack else [])
         if autoTone:
