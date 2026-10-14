@@ -172,7 +172,10 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
     bg = _hex(s.get("background", "#ffffff"))
     for n, page in enumerate(layout["pages"]):
         pw, ph = page.get("w", PW), page.get("h", PH)
-        c.setPageSize((pw * 72, ph * 72))
+        trim = 0.0 if page.get("cover") else float(job.get("gutterTrim") or 0.0)
+        c.setPageSize(((pw - trim) * 72, ph * 72))
+        if trim and int(page.get("number", 0)) % 2 == 1:
+            c.translate(-trim * 72, 0)
         if bg != (255, 255, 255):
             c.setFillColorRGB(*(v / 255 for v in bg))
             c.rect(0, 0, pw * 72, ph * 72, stroke=0, fill=1)

@@ -277,7 +277,7 @@ def book_pages(settings: dict, photos: dict[int, float]) -> dict:
     s = deep_merge(BOOK_DEFAULTS, settings)
     _, pw, ph = BOOK_SIZES.get(s.get("size", ""), BOOK_SIZES["standard-landscape"])
     tpl = templates()
-    b = BLEED if (s.get("job") or {}).get("bleed") or (s.get("job") or {}).get("output") == "blurb" else 0.0
+    b = BLEED if (s.get("job") or {}).get("bleed") or (s.get("job") or {}).get("output") in ("blurb", "lulu", "kdp", "ingramspark") else 0.0
     src = [s["cover"]] + list(s["pages"])
     spine = spine_width(len(src) - 1)
     out = []

@@ -338,10 +338,32 @@ def book_layout(settings: dict | None = None) -> dict:
     return _with_overlays(layout.book_pages(s, _aspects(used)))
 
 
-@command("book.export", "Export Book", {"settings": {"type": "object"}, "format": {"type": "string", "enum": ["pdf", "jpeg", "blurb"]}, "path": {"type": "string"},
-                                        "name": {"type": "string"}, "wait": {"type": "boolean"}})
+PRINTERS = {
+    "blurb": {"name": "Blurb", "upload": "https://www.blurb.com/pdf-to-book"},
+    "lulu": {"name": "Lulu", "gutterBleed": True, "safe": 0.5, "upload": "https://www.lulu.com/create"},
+    "kdp": {"name": "Amazon KDP", "gutterBleed": False, "safe": 0.375, "minPages": 24, "upload": "https://kdp.amazon.com"},
+    "ingramspark": {"name": "IngramSpark", "gutterBleed": False, "safe": 0.5, "lastBlank": True, "upload": "https://www.ingramspark.com"},
+}
+
+
+def _printer_checks(lay: dict, spec: dict, interior: list[dict]) -> list[str]:
+    notes = []
+    if spec.get("minPages") and len(interior) < spec["minPages"]:
+        notes.append(f"{spec['name']} needs at least {spec['minPages']} interior pages; this book has {len(interior)}")
+    safe, b = float(spec.get("safe") or 0.0), float(lay.get("bleed") or 0.0)
+    close = sorted({p["number"] for p in interior for t in p.get("texts") or [] if str(t.get("text", "")).strip() and safe and
+                    (t["x"] - b < safe or t["y"] - b < safe or (p["w"] - b) - (t["x"] + t["w"]) < safe or (p["h"] - b) - (t["y"] + t["h"]) < safe)})
+    if close:
+        notes.append(f"Text within {safe:g} in of the trim on page{'s' if len(close) > 1 else ''} {', '.join(map(str, close[:12]))}: {spec['name']} asks for that much margin")
+    return notes
+
+
+@command("book.export", "Export Book", {"settings": {"type": "object"}, "format": {"type": "string", "enum": ["pdf", "jpeg", "blurb", "lulu", "kdp", "ingramspark"]}, "path": {"type": "string"},
+                                        "name": {"type": "string"}, "wait": {"type": "boolean"}},
+         description="Exports a book as a PDF, JPEG pages, or print-ready files for a book printer: blurb, lulu (0.125 in bleed on all sides), kdp and ingramspark (0.125 in bleed except on the binding side; interior and cover as separate PDFs, pages made even, text near the trim reported).")
 def book_export(settings: dict | None = None, format: str = "pdf", path: str | None = None, name: str = "Book", wait: bool = False) -> dict:
-    if format == "blurb":
+    spec = PRINTERS.get(format)
+    if spec:
         s = dict(settings or {})
         s["job"] = {**(s.get("job") or {}), "output": "blurb", "bleed": True}
         cover = dict(s.get("cover") or {})
@@ -352,17 +374,23 @@ def book_export(settings: dict | None = None, format: str = "pdf", path: str | N
     lay = book_layout(settings)
 
     def job(progress):
-        if format == "blurb":
-            folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(f"{name} for Blurb"))
+        if spec:
+            folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(f"{name} for {spec['name']}"))
             folder.mkdir(parents=True, exist_ok=True)
+            blank = lambda n: {"cells": [], "texts": [], "number": n, "template": "blank", "w": lay["page"]["w"], "h": lay["page"]["h"]}
             interior = {**lay, "pages": [p for p in lay["pages"] if not p.get("cover")]}
             if len(interior["pages"]) % 2:
-                interior["pages"].append({"cells": [], "texts": [], "number": len(interior["pages"]) + 1, "template": "blank", "w": lay["page"]["w"], "h": lay["page"]["h"]})
+                interior["pages"].append(blank(len(interior["pages"]) + 1))
+            last = interior["pages"][-1] if interior["pages"] else None
+            if spec.get("lastBlank") and last is not None and (last.get("cells") or any(str(t.get("text", "")).strip() for t in last.get("texts") or [])):
+                interior["pages"] += [blank(len(interior["pages"]) + 1), blank(len(interior["pages"]) + 2)]
+            if spec.get("gutterBleed") is False:
+                interior["settings"] = {**interior["settings"], "job": {**(interior["settings"].get("job") or {}), "gutterTrim": float(lay.get("bleed") or 0.0)}}
             cover = {**lay, "pages": [p for p in lay["pages"] if p.get("cover")]}
             pages.write_pdf(interior, folder / f"{rename.safe(name)} interior.pdf", progress)
             pages.write_pdf(cover, folder / f"{rename.safe(name)} cover.pdf")
-            return {"folder": str(folder), "paths": [str(folder / f"{rename.safe(name)} interior.pdf"), str(folder / f"{rename.safe(name)} cover.pdf")],
-                    "pages": len(interior["pages"]), "spine": lay.get("spine"), "bleed": lay.get("bleed"), "upload": "https://www.blurb.com/pdf-to-book"}
+            return {"folder": str(folder), "paths": [str(folder / f"{rename.safe(name)} interior.pdf"), str(folder / f"{rename.safe(name)} cover.pdf")], "printer": spec["name"],
+                    "pages": len(interior["pages"]), "spine": lay.get("spine"), "bleed": lay.get("bleed"), "upload": spec["upload"], "notes": _printer_checks(lay, spec, interior["pages"])}
         if format == "jpeg":
             folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(name))
             files = pages.write_jpegs(lay, folder, rename.safe(name), progress)

@@ -437,7 +437,9 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
      lambda a: _cmd("export.run", ids=a["ids"], preset=a.get("preset"), settings={**(a.get("settings") or {}), **({"destination": {**((a.get("settings") or {}).get("destination") or {}), "folder": a["folder"]}} if a.get("folder") else {})}, wait=True)),
     (_tool("print_pdf", "Lays photos out for print (settings as the Print module: paper, orientation, rows, cols, margins, style grid or package, fill, caption) and writes a PDF; path optional.",
            {"ids": IDS, "settings": {"type": "object"}, "path": {"type": "string"}}, ["ids"]), lambda a: _cmd("print.run", ids=a["ids"], settings=a.get("settings") or {}, output="pdf", path=a.get("path"), name="Print", wait=True)),
-    (_tool("make_book", "Auto-lays out the photos as a book (size, title) and writes a PDF.", {"ids": IDS, "title": {"type": "string"}, "size": {"type": "string", "default": "standard-landscape"}, "path": {"type": "string"}}, ["ids"]), lambda a: _book(a)),
+    (_tool("make_book", "Auto-lays out the photos as a book (size, title) and writes a PDF, or print-ready interior and cover PDFs for a printer: printer blurb, lulu, kdp (Amazon KDP) or ingramspark. Printer files come with notes on anything the printer will reject (too few pages, text too near the trim).",
+           {"ids": IDS, "title": {"type": "string"}, "size": {"type": "string", "default": "standard-landscape"}, "path": {"type": "string"},
+            "printer": {"type": "string", "enum": ["pdf", "blurb", "lulu", "kdp", "ingramspark"], "default": "pdf"}}, ["ids"]), lambda a: _book(a)),
     (_tool("export_slideshow", "Writes a slideshow of the photos as MP4 (needs ffmpeg) or PDF; settings as the Slideshow module (duration, fade, panZoom, fill, music.path).",
            {"ids": IDS, "format": {"type": "string", "enum": ["mp4", "pdf"], "default": "mp4"}, "settings": {"type": "object"}, "path": {"type": "string"}}, ["ids"]),
      lambda a: _cmd("slideshow.export", ids=a["ids"], format=a.get("format", "mp4"), settings=a.get("settings") or {}, path=a.get("path"), wait=True)),
@@ -458,7 +460,7 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
 def _book(a: dict) -> dict:
     lay = _cmd("book.autoLayout", ids=a["ids"])
     lay["cover"]["texts"] = [a.get("title") or "Untitled", ""]
-    return _cmd("book.export", settings={"size": a.get("size", "standard-landscape"), "cover": lay["cover"], "pages": lay["pages"]}, format="pdf", path=a.get("path"), name=a.get("title") or "Book", wait=True)
+    return _cmd("book.export", settings={"size": a.get("size", "standard-landscape"), "cover": lay["cover"], "pages": lay["pages"]}, format=a.get("printer") or "pdf", path=a.get("path"), name=a.get("title") or "Book", wait=True)
 
 
 SPECS = {t[0]["name"]: t for t in TOOLS}

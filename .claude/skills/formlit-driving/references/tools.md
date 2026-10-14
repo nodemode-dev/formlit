@@ -623,12 +623,13 @@ Lays photos out for print (settings as the Print module: paper, orientation, row
 
 ## make_book
 
-Auto-lays out the photos as a book (size, title) and writes a PDF.
+Auto-lays out the photos as a book (size, title) and writes a PDF, or print-ready interior and cover PDFs for a printer: printer blurb, lulu, kdp (Amazon KDP) or ingramspark. Printer files come with notes on anything the printer will reject (too few pages, text too near the trim).
 
 - `ids`: array; required; Photo ids from find_photos.
 - `title`: string
 - `size`: string; default "standard-landscape"
 - `path`: string
+- `printer`: string (pdf | blurb | lulu | kdp | ingramspark); default "pdf"
 
 ## export_slideshow
 
