@@ -2,6 +2,7 @@ import keys from './keys.json';
 import keys2 from './keys2.json';
 import keys3 from './keys3.json';
 import keys4 from './keys4.json';
+import keys5 from './keys5.json';
 
 export const LANGUAGES: Array<[string, string]> = [
   ['en', 'English'], ['es', 'Español (España)'], ['es-MX', 'Español (México)'], ['pt-BR', 'Português (Brasil)'], ['fr', 'Français (France)'],
@@ -16,6 +17,7 @@ const loaders = import.meta.glob('./locales/*.json');
 const loaders2 = import.meta.glob('./locales2/*.json');
 const loaders3 = import.meta.glob('./locales3/*.json');
 const loaders4 = import.meta.glob('./locales4/*.json');
+const loaders5 = import.meta.glob('./locales5/*.json');
 
 let code = 'en';
 const exact = new Map<string, string>();
@@ -128,9 +130,9 @@ export async function initLanguage(): Promise<void> {
   const want = stored();
   const load = loaders[`./locales/${want}.json`];
   if (want === 'en' || !load) return;
-  const more = loaders2[`./locales2/${want}.json`], more3 = loaders3[`./locales3/${want}.json`], more4 = loaders4[`./locales4/${want}.json`];
+  const more = loaders2[`./locales2/${want}.json`], more3 = loaders3[`./locales3/${want}.json`], more4 = loaders4[`./locales4/${want}.json`], more5 = loaders5[`./locales5/${want}.json`];
   const none = Promise.resolve({ default: {} });
-  const [mod, mod2, mod3, mod4] = (await Promise.all([load(), more ? more() : none, more3 ? more3() : none, more4 ? more4() : none])) as Array<{ default: Record<string, string> }>;
+  const [mod, mod2, mod3, mod4, mod5] = (await Promise.all([load(), more ? more() : none, more3 ? more3() : none, more4 ? more4() : none, more5 ? more5() : none])) as Array<{ default: Record<string, string> }>;
   code = want;
   document.documentElement.lang = locale();
   const add = (en: string, tr: string | undefined) => {
@@ -144,6 +146,7 @@ export async function initLanguage(): Promise<void> {
   (keys as string[]).forEach((en, i) => add(en, mod.default[String(i)]));
   (keys2 as string[]).forEach((en, i) => add(en, mod2.default[String(i)]));
   (keys3 as string[]).forEach((en, i) => add(en, mod3.default[String(i)]));
+  (keys5 as string[]).forEach((en, i) => add(en, mod5.default[String(i)]));
   patterns.sort((a, b) => b[0].source.length - a[0].source.length);
   document.title = t(document.title);
   walk(document.body);
