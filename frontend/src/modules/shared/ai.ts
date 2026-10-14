@@ -133,6 +133,16 @@ export function registerAiCommands(ctx: Ctx): void {
         toast(`Your style applied to ${r.ids.length} photo${r.ids.length === 1 ? '' : 's'}, learned from ${r.learnedFrom} edited photo${r.learnedFrom === 1 ? '' : 's'}`);
       } catch (err) { ctx.fail(err); }
     } },
+    { id: 'photo.checkStyle', label: 'Check My Style', run: async () => {
+      try {
+        const done = ctx.shell.busy('Checking your style against your own edits');
+        type E = { exposure: number; others: number };
+        let r: { photos: number; errors: { style: E; average: E; none: E } };
+        try { r = await ctx.api.cmd<{ photos: number; errors: { style: E; average: E; none: E } }>('develop.styleCheck', {}); } finally { done(); }
+        const e = r.errors;
+        toast(`Apply My Style on ${r.photos} edited photos: exposure off by ${e.style.exposure} stops (average edit ${e.average.exposure}, no edit ${e.none.exposure}), other sliders by ${e.style.others} points (${e.average.others}, ${e.none.others})`);
+      } catch (err) { ctx.fail(err); }
+    } },
     { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
       const ids = library.targets();
       const v = await askMerge(ctx, 'hdrpano', ids);

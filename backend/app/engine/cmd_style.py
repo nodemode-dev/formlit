@@ -55,6 +55,30 @@ def predict(pid: int, pool: list[dict], k: int = 5) -> tuple[list[float], list[t
     return [float(v) for v in vals], [(pool[i]["id"], round(float(sims[i]), 3)) for i in order]
 
 
+@command("develop.styleCheck", "Check My Style", {"k": {"type": "integer"}}, mutates=False,
+         description="Measures how well Apply My Style would work on this catalog: each edited photo is predicted from the others (leave one out) and compared with your own edit, beside two baselines, the average of your edits and no edit. Exposure in stops, the other controls in slider points. Changes nothing.")
+def style_check(k: int = 5) -> dict:
+    models.require(semantic.MODEL)
+    pool = examples()
+    if len(pool) < 6:
+        raise CommandError(f"Edit at least six photos first; {len(pool)} edited photos are indexed for search")
+    errs = {"style": [], "average": [], "none": []}
+    for i, e in enumerate(pool):
+        rest = pool[:i] + pool[i + 1:]
+        truth = np.array(e["values"])
+        pred = np.array(predict(e["id"], rest, int(k or 5))[0])
+        mean = np.mean([r["values"] for r in rest], axis=0)
+        for name, guess in (("style", pred), ("average", mean), ("none", np.zeros_like(truth))):
+            errs[name].append(np.abs(guess - truth))
+    out = {}
+    for name, rows in errs.items():
+        a = np.array(rows)
+        out[name] = {"exposure": round(float(np.mean(a[:, 0])), 2), "others": round(float(np.mean(a[:, 1:])), 1), "othersMedian": round(float(np.median(a[:, 1:])), 1)}
+    best = min(out, key=lambda n: out[n]["exposure"] + out[n]["others"] / 20.0)
+    return {"photos": len(pool), "k": int(k or 5), "errors": out, "better": best == "style",
+            "controls": list(CONTROLS)}
+
+
 @command("develop.applyStyle", "Apply My Style", {"ids": {"type": "array"}, "amount": {"type": "number", "description": "0 to 100"}, "k": {"type": "integer"}},
          description="Learns your style from the photos you have edited: for each photo, finds the edited photos most like it (by content, through the search model) and gives it their tone and presence settings, weighted by likeness, with exposure moved by the difference in brightness. Needs some edited photos and the search model.")
 def apply_style(ids: Any = None, amount: float = 100.0, k: int = 5) -> dict:

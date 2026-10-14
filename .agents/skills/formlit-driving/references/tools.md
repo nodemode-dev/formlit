@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `apply_my_style`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `check_my_style`, `apply_my_style`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -537,6 +537,12 @@ Photos that look most like a given one (same scene, subject or look, not only ex
 
 - `id`: integer; required
 - `limit`: integer; default 30
+
+## check_my_style
+
+Before apply_my_style: measures on this catalog how close it gets to the person's own edits (each edited photo predicted from the others), beside the average edit and no edit, as exposure in stops and other sliders in points. better says whether it beats both. Changes nothing.
+
+- `k`: integer; default 5
 
 ## apply_my_style
 
