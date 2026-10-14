@@ -71,8 +71,8 @@ class BookModule extends OutputModule {
     const sizes = () => Object.entries((this.options?.sizes as Record<string, { name: string }>) ?? {}).map(([k, v]) => [k, v.name] as [string, string]);
     this.formPanel(right, 'settings', 'Book Settings', [
       { path: 'size', label: 'Size', kind: 'select', options: sizes },
-      { path: 'job.output', label: 'Book', kind: 'seg', options: [['pdf', 'PDF'], ['jpeg', 'JPEG'], ['blurb', 'Blurb']] },
-      { path: '', label: 'Blurb writes an interior PDF and a wrap cover PDF with 0.125 in bleed and a spine sized to the page count, then opens Blurb PDF to Book for the upload.', kind: 'note', show: () => this.get('job.output') === 'blurb' },
+      { path: 'job.output', label: 'Book', kind: 'select', options: [['pdf', 'PDF'], ['jpeg', 'JPEG'], ['blurb', 'Blurb'], ['lulu', 'Lulu'], ['kdp', 'Amazon KDP'], ['ingramspark', 'IngramSpark']] },
+      { path: '', label: 'Print-ready files: an interior PDF and a wrap cover PDF with 0.125 in bleed (Lulu on every side; Amazon KDP and IngramSpark not on the binding side) and a spine sized to the page count; the export notes anything the printer will reject.', kind: 'note', show: () => ['blurb', 'lulu', 'kdp', 'ingramspark'].includes(String(this.get('job.output'))) },
       { path: 'cover.spine', label: 'Spine text', kind: 'text', placeholder: 'The title', show: () => !!this.tdefs()[String(this.get('cover.template'))]?.wrap },
       { path: 'job.ppi', label: 'Resolution', kind: 'number', min: 72, max: 600, step: 10, unit: 'ppi' },
       { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100 },
@@ -422,7 +422,7 @@ class BookModule extends OutputModule {
     if (!this.pages().length) { toast('Lay out the book first'); return; }
     const fmt = String(this.get('job.output') || 'pdf');
     const name = String((this.get('cover.texts') as string[] | undefined)?.[0] || 'Book');
-    const r = await runOutput(this.ctx, 'book.export', { settings: this.settings, format: fmt, name }, (x) => fmt === 'pdf' ? `Exported ${String(x.pages ?? '')} pages to PDF` : fmt === 'blurb' ? `Blurb files ready: ${String(x.pages)} pages, ${String(x.spine)} in spine` : `Exported ${(x.paths as string[]).length} page JPEGs`);
+    const r = await runOutput(this.ctx, 'book.export', { settings: this.settings, format: fmt, name }, (x) => fmt === 'pdf' ? `Exported ${String(x.pages ?? '')} pages to PDF` : fmt !== 'jpeg' ? `${String(x.printer ?? 'Blurb')} files ready: ${String(x.pages)} pages, ${String(x.spine)} in spine${(x.notes as string[] | undefined)?.length ? ` · ${(x.notes as string[]).join(' · ')}` : ''}` : `Exported ${(x.paths as string[]).length} page JPEGs`);
     if (r && fmt === 'blurb' && typeof r.upload === 'string') window.open(r.upload, '_blank', 'noopener');
   }
 }
