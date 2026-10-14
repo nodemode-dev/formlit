@@ -62,6 +62,8 @@ export class DetailCache {
     if (this.map.size > 200) this.map.delete(this.map.keys().next().value as number);
     return d;
   }
+
+  forget(ids: number[]): void { for (const id of ids) this.map.delete(id); }
 }
 
 export const details = new DetailCache();
@@ -166,7 +168,11 @@ export class InspectPanels {
   private async run(cmd: string, params: Record<string, unknown>): Promise<void> {
     const ids = library.targets();
     if (!ids.length) return;
-    try { await this.ctx.api.cmd(cmd, { ids, ...params }); } catch (err) { this.ctx.fail(err); }
+    try {
+      const r = await this.ctx.api.cmd<{ unknownCodes?: string[] }>(cmd, { ids, ...params });
+      if (r?.unknownCodes?.length) toast(`Not in the active code set, left as typed: ${r.unknownCodes.join(', ')}`, 'error');
+      if (cmd === 'photo.setMeta') { details.forget(ids); this.load(); }
+    } catch (err) { this.ctx.fail(err); }
   }
 
   private load(): void {

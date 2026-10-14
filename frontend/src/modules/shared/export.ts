@@ -5,6 +5,7 @@ import { el, escapeHtml, patchList, q, setClass, setDisabled, setText } from '..
 import { Form, getPath, setPath, type FieldSpec } from '../../ui/form';
 import { toast } from '../../ui/toast';
 import { actionToast, openOutput, whenDone } from './tasks';
+import { warnMissing } from './captions';
 
 type Settings = Record<string, Record<string, unknown>>;
 interface Preset { id: string; name: string; settings: Settings; builtin: boolean; group?: string; description?: string }
@@ -218,7 +219,8 @@ class ExportDialog extends Dialog {
   }
 }
 
-export function exportWith(ctx: Ctx, ids: number[], settings: Settings | null, preset?: string): Promise<void> {
+export async function exportWith(ctx: Ctx, ids: number[], settings: Settings | null, preset?: string): Promise<void> {
+  if (!(await warnMissing(ctx, ids))) return;
   return exportCall(ctx, 'export.run', { ids, settings: settings ?? undefined, preset });
 }
 
@@ -243,6 +245,6 @@ export function registerExport(ctx: Ctx): void {
   const targets = () => library.targets();
   ctx.commands.add(
     { id: 'library.export', label: 'Export...', keys: ['Shift+Mod+E'], run: () => { const ids = targets(); if (!ids.length) { toast('Select photos to export'); return; } dialog ??= new ExportDialog(ctx); void dialog.show(ids); }, enabled: () => library.ids.length > 0 },
-    { id: 'library.exportPrevious', label: 'Export with Previous', keys: ['Alt+Shift+Mod+E'], run: () => void exportCall(ctx, 'export.previous', { ids: targets() }), enabled: () => library.ids.length > 0 },
+    { id: 'library.exportPrevious', label: 'Export with Previous', keys: ['Alt+Shift+Mod+E'], run: () => { const ids = targets(); void warnMissing(ctx, ids).then((go) => { if (go) void exportCall(ctx, 'export.previous', { ids }); }); }, enabled: () => library.ids.length > 0 },
   );
 }

@@ -496,6 +496,15 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### src/modules/shared/captions.ts · code replacements and required fields in the window (v0.22.0)
+- refers-to: src/modules/shared/captions.ts :: registerCaptions, warnMissing, fieldLabel; src/modules/shared/export.ts :: exportWith, library.exportPrevious; src/modules/library/inspect.ts :: run, DetailCache.forget; src/app.ts :: Metadata menu
+- kind: rationale, removed-bug
+- logged: v0.22.0 · 2026-10-14
+
+Five Metadata menu commands over the engine's `codes.*`: Code Replacements (edit or create the active set, the delimiter, on or off), Choose Code Set (switch or delete), Import Code Replacements (a file path, since the window cannot read local files by itself), Required Fields (checkboxes for the 16 fields agencies ask for most, plus Refuse Export), and Check Required Fields. All use `askForm`, so no new dialog code. Export from the dialog or with Previous first asks the engine which photos miss required fields; with Refuse Export off it asks "Export them anyway?", with it on the engine refuses and its message is shown. The Metadata panel toasts `unknownCodes` after a save.
+
+Found while testing: after a metadata edit the panel kept showing the text as typed, because `DetailCache` is keyed by the library revision and the panel re-read before the revision moved. That was invisible while the stored text always equalled the typed text; with codes the stored text differs. `run` now forgets the edited photos' cached details and reloads, so the panel shows the expanded caption. Verified under 4x CPU and slow network: the dialog listed the saved set (4 lines) and saved it; typing `=23= scores on the =bos= at =crypto= on {date} =zzz=` in Caption showed the full roster text and date in the panel, with a toast naming `zzz`; Required Fields saved Caption, Headline and City; Export with Previous on all 7 photos asked "7 of 7 photos are missing Headline (7), City (7), Caption (6). Export them anyway?"; no page errors.
+
 ### src/modules/library/cull-view.ts · the Cull view (v0.21.0)
 - refers-to: src/modules/library/cull-view.ts :: CullView; src/modules/library/index.ts :: View 'cull', view.cull (K), setView, selectionChanged, onKey; src/styles/lit-library.css :: .fl-lib-cull, .fl-kw-chips; src/ui/icons-lit.ts :: viewCull
 - kind: rationale, removed-bug

@@ -13,6 +13,7 @@ import { registerWorkspace, workspaceMenu } from './modules/shared/workspace';
 import { showReference } from './modules/develop/index';
 import { registerAiCommands } from './modules/shared/ai';
 import { registerExport } from './modules/shared/export';
+import { registerCaptions } from './modules/shared/captions';
 import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
 import { registerTether } from './modules/shared/tether';
@@ -74,6 +75,7 @@ export class App implements Ctx {
     registerTemplateActions(this);
     registerAiCommands(this);
     registerExport(this);
+    registerCaptions(this);
     registerPhotoDialogs(this);
     registerCatalogCommands(this);
     registerTether(this);
@@ -223,7 +225,7 @@ export class App implements Ctx {
       { label: 'Edit', items: () => tidy(['edit.undo', 'edit.redo', '-', 'edit.selectAll', 'edit.selectNone', 'edit.invertSelection', 'edit.selectPicks', 'edit.deselectUnflagged', '-', 'view.find']) },
       { label: 'Library', items: () => tidy(['workflow.newShoot', '-', 'lib.colNew', 'lib.colNewSmart', 'template.smart', 'lib.colNewSet', '-','view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.cull', 'library.refine', 'library.findFaces', 'library.drawFace', '-', 'library.syncFolder', 'library.checkFiles', 'library.findMissing', 'library.locate', 'library.buildPreviews', 'library.buildSmartPreviews', 'library.discardSmartPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
       { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.enhance', 'photo.hdr', 'photo.pano', 'photo.hdrPano', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.quickClear', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },
-      { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'template.metadata', 'template.keywords', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename', '-', 'library.labelSet']) },
+      { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'template.metadata', 'template.keywords', '-', 'metadata.codes', 'metadata.codesChoose', 'metadata.codesImport', 'metadata.required', 'metadata.checkRequired', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename', '-', 'library.labelSet']) },
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.profileBrowser', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.copyAfterToBefore', 'develop.copyBeforeToAfter', 'develop.swapBeforeAfter', 'develop.resetBefore', '-', 'develop.referenceView', 'develop.setReference', 'develop.matchReference', '-', 'develop.matchExposure', 'develop.noiseByIso', 'develop.autoBw']) },
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', 'view.cull', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', 'view.faceRegions', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.filmstripCollapse', 'view.filmstripTop', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
       { label: 'Window', items: () => [workspaceMenu(this), '-', ...tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude', 'agent.chat'])] },
