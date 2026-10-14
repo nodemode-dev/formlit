@@ -2,6 +2,23 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.22.0 · 2026-10-14
+
+### Added
+
+- **Code replacements for captions,** for news and sports work (Metadata, Code Replacements):
+  - Keep a set of short codes and their text, such as a team roster with one line per player.
+  - Type a code between marks in any metadata field (`=23=`) and it becomes the full text when saved, from the Metadata panel, presets, templates or Claude.
+  - Codes not in the set stay as typed and a message names them.
+  - Sets can be imported from a tab or comma separated text file, switched and deleted. The marks can be `=`, `\`, `#`, `~` or `|`.
+- **Caption variables:** `{date}`, `{time}`, `{camera}`, `{lens}`, `{filename}`, `{city}`, `{event}` and more fill from each photo when metadata is saved, so one caption written for a whole set comes out right on every photo.
+- **Required fields (Metadata, Required Fields):** choose the fields every photo must have before delivery. Export warns about photos missing them and says which fields, or refuses them if you turn that on. Check Required Fields counts them at any time.
+- **For agents:** `set_code_replacements` and `check_required_metadata`. `set_metadata` expands codes and variables too.
+
+### Fixed
+
+- **The Metadata panel showed the text as typed after an edit** instead of what was saved. It now shows the saved text.
+
 ## v0.21.0 · 2026-10-14
 
 ### Added
