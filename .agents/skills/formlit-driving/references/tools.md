@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `apply_my_style`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -537,6 +537,14 @@ Photos that look most like a given one (same scene, subject or look, not only ex
 - `id`: integer; required
 - `limit`: integer; default 30
 
+## apply_my_style
+
+Develops photos the way the person edits: learns from their already edited photos (at least three, indexed for search) and gives each photo the tone and presence settings of the edited photos most like it, weighted by likeness, with exposure matched to its brightness. amount 0 to 100 blends with the current settings; one undo step. Returns which photos each was learned from. Check with get_preview.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `amount`: number; default 100
+- `k`: integer; default 5
+
 ## remove_object
 
 Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.
@@ -571,6 +579,7 @@ Batch skin retouching for a portrait session: on every photo with a face, a Skin
 - `blemishes`: boolean; default true
 - `sensitivity`: number; default 50
 - `keepFreckles`: boolean; default true
+- `maxSize`: number; default 3; largest spot healed, percent of the face width (0.5 to 8); raise for larger marks, lower to leave moles
 
 ## session
 

@@ -107,14 +107,29 @@ export function registerAiCommands(ctx: Ctx): void {
         { path: 'shine', label: 'Reduce shine', kind: 'range', min: 0, max: 100, step: 1 },
         { path: 'blemishes', label: 'Heal blemishes', kind: 'check' },
         { path: 'sensitivity', label: 'Blemish sensitivity', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'maxSize', label: 'Largest spot (% of face)', kind: 'range', min: 0.5, max: 8, step: 0.5 },
         { path: 'keepFreckles', label: 'Keep freckles and moles', kind: 'check' },
-      ], { smooth: 40, shine: 0, blemishes: true, sensitivity: 50, keepFreckles: true }, 'Retouch');
+      ], { smooth: 40, shine: 0, blemishes: true, sensitivity: 50, maxSize: 3, keepFreckles: true }, 'Retouch');
       if (!v) return;
       try {
-        const r = await ctx.api.cmd<{ task: number }>('retouch.skin', { ids, smooth: Number(v.smooth), shine: Number(v.shine), blemishes: !!v.blemishes, sensitivity: Number(v.sensitivity), keepFreckles: !!v.keepFreckles });
+        const r = await ctx.api.cmd<{ task: number }>('retouch.skin', { ids, smooth: Number(v.smooth), shine: Number(v.shine), blemishes: !!v.blemishes, sensitivity: Number(v.sensitivity), maxSize: Number(v.maxSize), keepFreckles: !!v.keepFreckles });
         const done = await whenDone(r.task) as { ids?: number[]; skipped?: number[]; photos?: Array<{ blemishes?: number }> };
         const healed = (done.photos ?? []).reduce((n, p) => n + (p.blemishes ?? 0), 0);
         toast(`Skin retouched on ${done.ids?.length ?? 0} photo${done.ids?.length === 1 ? '' : 's'}, ${healed} blemish${healed === 1 ? '' : 'es'} healed${done.skipped?.length ? ` · ${done.skipped.length} without a face left alone` : ''}`);
+      } catch (err) { ctx.fail(err); }
+    } },
+    { id: 'photo.applyStyle', label: 'Apply My Style...', enabled: has, run: async () => {
+      const ids = library.targets();
+      const v = await askForm('Apply My Style', `Learns your style from the photos you have already edited: each of the ${ids.length} photo${ids.length === 1 ? '' : 's'} gets the tone and presence settings of the edited photos most like it, with exposure matched to its brightness. One undo step.`, [
+        { path: 'amount', label: 'Amount', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'k', label: 'Photos to learn from', kind: 'range', min: 1, max: 12, step: 1 },
+      ], { amount: 100, k: 5 }, 'Apply');
+      if (!v) return;
+      try {
+        const done = ctx.shell.busy(`Applying your style to ${ids.length} photo${ids.length === 1 ? '' : 's'}`);
+        let r: { ids: number[]; learnedFrom: number };
+        try { r = await ctx.api.cmd<{ ids: number[]; learnedFrom: number }>('develop.applyStyle', { ids, amount: Number(v.amount), k: Number(v.k) }); } finally { done(); }
+        toast(`Your style applied to ${r.ids.length} photo${r.ids.length === 1 ? '' : 's'}, learned from ${r.learnedFrom} edited photo${r.learnedFrom === 1 ? '' : 's'}`);
       } catch (err) { ctx.fail(err); }
     } },
     { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
