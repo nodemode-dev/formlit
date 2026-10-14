@@ -1,6 +1,7 @@
 import keys from './keys.json';
 import keys2 from './keys2.json';
 import keys3 from './keys3.json';
+import keys4 from './keys4.json';
 
 export const LANGUAGES: Array<[string, string]> = [
   ['en', 'English'], ['es', 'Español (España)'], ['es-MX', 'Español (México)'], ['pt-BR', 'Português (Brasil)'], ['fr', 'Français (France)'],
@@ -14,6 +15,7 @@ const SKIP = 'script, style, textarea, code, pre, [translate="no"], [contentedit
 const loaders = import.meta.glob('./locales/*.json');
 const loaders2 = import.meta.glob('./locales2/*.json');
 const loaders3 = import.meta.glob('./locales3/*.json');
+const loaders4 = import.meta.glob('./locales4/*.json');
 
 let code = 'en';
 const exact = new Map<string, string>();
@@ -43,7 +45,7 @@ function lookup(en: string): string | null {
   if (out === null) {
     for (const [re, tr] of patterns) {
       const m = re.exec(en);
-      if (m) { out = tr.replace(/\{(p?)(\d+)\}/g, (_, p: string, n: string) => { if (p) return ''; const v = m[Number(n) + 1] ?? ''; return lookup(v) ?? v; }); break; }
+      if (m) { out = tr.replace(/\{(\d+):([^{}]+)\}/g, (_, n: string, forms: string) => plural(m[Number(n) + 1] ?? '', forms)).replace(/\{(p?)(\d+)\}/g, (_, p: string, n: string) => { if (p) return ''; const v = m[Number(n) + 1] ?? ''; return lookup(v) ?? v; }); break; }
     }
   }
   if (out === null && /[:.]$/.test(en) && !en.endsWith('...')) {
@@ -116,13 +118,19 @@ function walk(root: Node): void {
 
 function escape(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+function plural(count: string, forms: string): string {
+  const pick = new Map(forms.split(';').map((f) => f.split('=') as [string, string]));
+  const cat = new Intl.PluralRules(locale()).select(Number(count.replace(/[^\d.]/g, '')) || 0);
+  return pick.get(cat) ?? pick.get('other') ?? '';
+}
+
 export async function initLanguage(): Promise<void> {
   const want = stored();
   const load = loaders[`./locales/${want}.json`];
   if (want === 'en' || !load) return;
-  const more = loaders2[`./locales2/${want}.json`], more3 = loaders3[`./locales3/${want}.json`];
+  const more = loaders2[`./locales2/${want}.json`], more3 = loaders3[`./locales3/${want}.json`], more4 = loaders4[`./locales4/${want}.json`];
   const none = Promise.resolve({ default: {} });
-  const [mod, mod2, mod3] = (await Promise.all([load(), more ? more() : none, more3 ? more3() : none])) as Array<{ default: Record<string, string> }>;
+  const [mod, mod2, mod3, mod4] = (await Promise.all([load(), more ? more() : none, more3 ? more3() : none, more4 ? more4() : none])) as Array<{ default: Record<string, string> }>;
   code = want;
   document.documentElement.lang = locale();
   const add = (en: string, tr: string | undefined) => {
@@ -132,6 +140,7 @@ export async function initLanguage(): Promise<void> {
     const fixed = plural.size ? tr.replace(/\{(\d+)\}/g, (all, n: string) => (plural.has(n) ? `{p${n}}` : all)) : tr;
     patterns.push([new RegExp('^' + escape(en).replace(/\\\{\d+\\\}/g, '([\\s\\S]*?)') + '$'), fixed]);
   };
+  (keys4 as string[]).forEach((en, i) => add(en, mod4.default[String(i)]));
   (keys as string[]).forEach((en, i) => add(en, mod.default[String(i)]));
   (keys2 as string[]).forEach((en, i) => add(en, mod2.default[String(i)]));
   (keys3 as string[]).forEach((en, i) => add(en, mod3.default[String(i)]));

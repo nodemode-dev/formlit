@@ -1,0 +1,19 @@
+{
+ "0": "“{0}” dan {1} kata kunci di dalamnya",
+ "1": "Menerapkan gaya Anda ke {0} foto",
+ "2": "Mengurangi noise {0} foto",
+ "3": "Ditemukan {0} foto di {2}",
+ "4": "Mengimpor {0} foto",
+ "5": "Mempelajari gaya Anda dari foto yang sudah diedit: setiap dari {0} foto mendapat pengaturan tona dan kehadiran dari foto-foto yang diedit yang paling mirip, dengan eksposur disesuaikan dengan kecerahannya. Satu langkah urungkan.",
+ "6": "Membuat folder yang dibuka klien Anda di browser mana pun, tanpa akun dan tanpa server: mereka memilih, menolak, memberi peringkat, dan mengomentari {0} foto, lalu mengirimi Anda file seleksi kecil. Zip folder untuk mengirimnya lewat email, atau taruh di hosting web mana pun.",
+ "7": "Pindahkan {0} foto ke “{2}” di disk? Sidecar-nya ikut dipindahkan.",
+ "8": "{0} foto dipindahkan ke {2}",
+ "9": "{0} kata kunci tidak terpakai dibersihkan",
+ "10": "Detail Raw untuk {0} foto",
+ "11": "Kulit diretus pada {0} foto, {2} noda diperbaiki${done.skipped?.length ?",
+ "12": "Menghaluskan kulit dan memperbaiki noda pada {0} foto, masing-masing dengan masker kulit dan bintiknya sendiri, semuanya dapat diedit lagi di Develop. Foto tanpa wajah dibiarkan; menjalankannya lagi menggantikan suntingannya sendiri.",
+ "13": "Gaya Anda diterapkan ke {0} foto, dipelajari dari {2} foto yang diedit",
+ "14": "{0} trek musik",
+ "15": "{0} foto",
+ "16": "{0} foto · {2} GB"
+}

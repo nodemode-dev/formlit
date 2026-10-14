@@ -1,0 +1,19 @@
+{
+ "0": "“{0}” y {1} {1:one=palabra clave;other=palabras clave} que contiene",
+ "1": "Aplicando tu estilo a {0} {0:one=foto;other=fotos}",
+ "2": "Reduciendo el ruido de {0} {0:one=foto;other=fotos}",
+ "3": "Se {0:one=encontró;other=encontraron} {0} {0:one=foto;other=fotos} en {2}",
+ "4": "Importando {0} {0:one=foto;other=fotos}",
+ "5": "Aprende tu estilo de las fotos que ya editaste: cada una de las {0} {0:one=foto;other=fotos} recibe los ajustes de tono y presencia de las fotos editadas más parecidas, con la exposición ajustada a su brillo. Un solo paso para deshacer.",
+ "6": "Crea una carpeta que su cliente abre en cualquier navegador, sin cuenta ni servidor: elige, rechaza, valora y comenta {0} {0:one=foto;other=fotos} y le envía un pequeño archivo de selecciones. Comprima la carpeta en un zip para enviarla por correo o súbala a cualquier alojamiento web.",
+ "7": "¿Mover {0} {0:one=foto;other=fotos} a “{2}” en el disco? {0:one=Su archivo sidecar se mueve;other=Sus archivos sidecar se mueven} con {0:one=ella;other=ellas}.",
+ "8": "Se {0:one=movió;other=movieron} {0} {0:one=foto;other=fotos} a {2}",
+ "9": "Se {0:one=depuró;other=depuraron} {0} {0:one=palabra clave sin usar;other=palabras clave sin usar}",
+ "10": "Detalles Raw para {0} {0:one=foto;other=fotos}",
+ "11": "Piel retocada en {0} {0:one=foto;other=fotos}, {2} {2:one=imperfección corregida;other=imperfecciones corregidas}${done.skipped?.length ?",
+ "12": "Suaviza la piel y corrige imperfecciones en {0} {0:one=foto;other=fotos}, cada una con su propia máscara de piel y manchas, todo editable después en Revelar. Las fotos sin rostro se dejan como están; ejecutarlo de nuevo reemplaza sus propias ediciones.",
+ "13": "Tu estilo se aplicó a {0} {0:one=foto;other=fotos}, aprendido de {2} {2:one=foto editada;other=fotos editadas}",
+ "14": "{0} {0:one=pista;other=pistas} de música",
+ "15": "{0} {0:one=foto;other=fotos}",
+ "16": "{0} {0:one=foto;other=fotos} · {2} GB"
+}

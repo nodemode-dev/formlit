@@ -1,0 +1,19 @@
+{
+ "0": "“{0}” e {1} {1:one=parola chiave;other=parole chiave} al suo interno",
+ "1": "Applicazione del tuo stile a {0} foto",
+ "2": "Riduzione del rumore di {0} foto",
+ "3": "{0:one=Trovata;other=Trovate} {0} foto in {2}",
+ "4": "Importazione di {0} foto",
+ "5": "Impara il tuo stile dalle foto che hai già modificato: ciascuna delle {0} foto riceve le impostazioni di tono e presenza delle foto modificate più simili, con l'esposizione adattata alla sua luminosità. Un solo passaggio di annullamento.",
+ "6": "Crea una cartella che il tuo cliente apre in qualsiasi browser, senza account né server: seleziona, rifiuta, valuta e commenta {0} foto, poi ti invia un piccolo file di selezioni. Comprimi la cartella in zip per inviarla via e-mail oppure caricala su qualsiasi hosting web.",
+ "7": "Spostare {0} foto in “{2}” sul disco? {0:one=Il suo sidecar viene spostato;other=I loro sidecar vengono spostati} insieme.",
+ "8": "{0} foto {0:one=spostata;other=spostate} in {2}",
+ "9": "{0:one=Eliminata;other=Eliminate} {0} {0:one=parola chiave inutilizzata;other=parole chiave inutilizzate}",
+ "10": "Dettagli Raw per {0} foto",
+ "11": "Pelle ritoccata su {0} foto, {2} {2:one=imperfezione corretta;other=imperfezioni corrette}${done.skipped?.length ?",
+ "12": "Leviga la pelle e corregge le imperfezioni su {0} foto, ciascuna con la propria maschera pelle e macchie, il tutto modificabile poi in Sviluppo. Le foto senza volto vengono lasciate intatte; rieseguirlo sostituisce le proprie modifiche.",
+ "13": "Il tuo stile è stato applicato a {0} foto, appreso da {2} {2:one=foto modificata;other=foto modificate}",
+ "14": "{0} {0:one=brano musicale;other=brani musicali}",
+ "15": "{0} foto",
+ "16": "{0} foto · {2} GB"
+}

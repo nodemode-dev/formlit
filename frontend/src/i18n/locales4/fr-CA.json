@@ -1,0 +1,19 @@
+{
+ "0": "« {0} » et {1} {1:one=mot-clé;other=mots-clés} qu’il contient",
+ "1": "Application de votre style à {0} {0:one=photo;other=photos}",
+ "2": "Réduction du bruit de {0} {0:one=photo;other=photos}",
+ "3": "{0} {0:one=photo trouvée;other=photos trouvées} dans {2}",
+ "4": "Importation de {0} {0:one=photo;other=photos}",
+ "5": "Apprend votre style à partir des photos que vous avez déjà retouchées : chacune des {0} {0:one=photo;other=photos} reçoit les réglages de ton et de présence des photos retouchées qui lui ressemblent le plus, avec une exposition ajustée à sa luminosité. Une seule étape d'annulation.",
+ "6": "Crée un dossier que votre client ouvre dans n’importe quel navigateur, sans compte ni serveur : il retient, rejette, note et commente {0} {0:one=photo;other=photos}, puis vous envoie un petit fichier de sélections. Compressez le dossier en zip pour l’envoyer par courriel ou placez-le sur n’importe quel hébergement web.",
+ "7": "Déplacer {0} {0:one=photo;other=photos} dans « {2} » sur le disque ? {0:one=Son fichier annexe le suit;other=Leurs fichiers annexes les suivent}.",
+ "8": "{0} {0:one=photo déplacée;other=photos déplacées} vers {2}",
+ "9": "{0} {0:one=mot-clé inutilisé purgé;other=mots-clés inutilisés purgés}",
+ "10": "Détails Raw pour {0} {0:one=photo;other=photos}",
+ "11": "Peau retouchée sur {0} {0:one=photo;other=photos}, {2} {2:one=imperfection corrigée;other=imperfections corrigées}${done.skipped?.length ?",
+ "12": "Lisse la peau et corrige les imperfections sur {0} {0:one=photo;other=photos}, chacune avec son propre masque de peau et ses retouches, le tout modifiable ensuite dans Développement. Les photos sans visage sont laissées telles quelles ; relancer l’opération remplace ses propres modifications.",
+ "13": "Votre style a été appliqué à {0} {0:one=photo;other=photos}, appris à partir de {2} {2:one=photo retouchée;other=photos retouchées}",
+ "14": "{0} {0:one=piste;other=pistes} audio",
+ "15": "{0} {0:one=photo;other=photos}",
+ "16": "{0} {0:one=photo;other=photos} · {2} Go"
+}

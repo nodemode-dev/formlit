@@ -1,0 +1,19 @@
+{
+ "0": "„{0}” és a benne lévő {1} kulcsszó",
+ "1": "Stílusod alkalmazása {0} fotóra",
+ "2": "Zajtalanítás: {0} fotó",
+ "3": "{0} fotó található itt: {2}",
+ "4": "Importálás: {0} fotó",
+ "5": "Megtanulja a stílusodat a már szerkesztett fotókból: a(z) {0} fotó mindegyike megkapja a hozzá leginkább hasonló szerkesztett fotók tónus- és jelenlétbeállításait, az expozíció pedig a fényességéhez igazodik. Egyetlen visszavonási lépés.",
+ "6": "Olyan mappát készít, amelyet az ügyfele bármely böngészőben megnyit, fiók és szerver nélkül: kiválaszt, elutasít, értékel és megjegyzést fűz {0} fotóhoz, majd küld Önnek egy kis kiválasztásfájlt. Tömörítse a mappát zip-be e-mailezéshez, vagy tegye fel bármely webtárhelyre.",
+ "7": "Áthelyez {0} fotót a lemezen ide: „{2}”? A sidecar fájlok is velük mozognak.",
+ "8": "{0} fotó áthelyezve ide: {2}",
+ "9": "{0} nem használt kulcsszó törölve",
+ "10": "Raw részletek {0} fotóhoz",
+ "11": "Bőr retusálva {0} fotón, {2} hiba kijavítva${done.skipped?.length ?",
+ "12": "Lágyítja a bőrt és eltünteti a hibákat {0} fotón, mindegyik saját bőrmaszkkal és foltokkal, utólag mind szerkeszthető az Előhívásban. Az arc nélküli fotókat békén hagyja; az újrafuttatás lecseréli a saját szerkesztéseit.",
+ "13": "A stílusod alkalmazva {0} fotóra, {2} szerkesztett fotóból tanulva",
+ "14": "{0} zeneszám",
+ "15": "{0} fotó",
+ "16": "{0} fotó · {2} GB"
+}

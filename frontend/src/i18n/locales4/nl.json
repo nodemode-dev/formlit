@@ -1,0 +1,19 @@
+{
+ "0": "\"{0}\" en de {1} {1:one=trefwoord;other=trefwoorden} daarin",
+ "1": "Je stijl toepassen op {0} {0:one=foto;other=foto's}",
+ "2": "{0} {0:one=foto;other=foto's}: ruis verwijderen",
+ "3": "{0} {0:one=foto;other=foto's} gevonden in {2}",
+ "4": "{0} {0:one=foto;other=foto's} importeren",
+ "5": "Leert je stijl van de foto's die je al hebt bewerkt: elk van de {0} {0:one=foto;other=foto's} krijgt de toon- en aanwezigheidsinstellingen van de bewerkte foto's die er het meest op lijken, met de belichting afgestemd op de helderheid. Eén stap ongedaan maken.",
+ "6": "Maakt een map die uw klant in elke browser opent, zonder account en zonder server: ze kiezen, wijzen af, waarderen en becommentariëren {0} {0:one=foto;other=foto's} en sturen u dan een klein selectiebestand. Zip de map om hem te mailen, of zet hem op een willekeurige webhost.",
+ "7": "{0} {0:one=foto;other=foto's} op schijf naar \"{2}\" verplaatsen? {0:one=Zijn sidecar gaat;other=Hun sidecars gaan} mee.",
+ "8": "{0} {0:one=foto;other=foto's} verplaatst naar {2}",
+ "9": "{0} ongebruikte {0:one=trefwoord;other=trefwoorden} opgeschoond",
+ "10": "Raw-details voor {0} {0:one=foto;other=foto's}",
+ "11": "Huid geretoucheerd op {0} {0:one=foto;other=foto's}, {2} {2:one=onzuiverheid;other=onzuiverheden} verholpen${done.skipped?.length ?",
+ "12": "Maakt de huid zachter en verwijdert onzuiverheden op {0} {0:one=foto;other=foto's}, elk met een eigen huidmasker en eigen vlekken, achteraf allemaal bewerkbaar in Ontwikkelen. Foto's zonder gezicht blijven ongemoeid; opnieuw uitvoeren vervangt de eigen bewerkingen.",
+ "13": "Je stijl is toegepast op {0} {0:one=foto;other=foto's}, geleerd van {2} bewerkte {2:one=foto;other=foto's}",
+ "14": "{0} {0:one=muzieknummer;other=muzieknummers}",
+ "15": "{0} {0:one=foto;other=foto's}",
+ "16": "{0} {0:one=foto;other=foto's} · {2} GB"
+}

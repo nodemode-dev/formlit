@@ -1,0 +1,19 @@
+{
+ "0": "„{0}” i {1} {1:one=słowo kluczowe;few=słowa kluczowe;many=słów kluczowych;other=słowa kluczowego} w nim",
+ "1": "Stosowanie Twojego stylu do {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęcia}",
+ "2": "Usuwanie szumu z {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęcia}",
+ "3": "Znaleziono {0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia} w {2}",
+ "4": "Importowanie {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęcia}",
+ "5": "Uczy się Twojego stylu na podstawie zdjęć, które już edytowałeś: każde z {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęć} otrzymuje ustawienia tonów i obecności z najbardziej podobnych edytowanych zdjęć, a ekspozycja jest dopasowana do jego jasności. Jeden krok cofania.",
+ "6": "Tworzy folder, który klient otwiera w dowolnej przeglądarce, bez konta i bez serwera: wybiera, odrzuca, ocenia i komentuje {0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia}, a następnie wysyła Ci mały plik wyborów. Spakuj folder do ZIP, aby wysłać go e-mailem, lub umieść go na dowolnym hostingu.",
+ "7": "Przenieść {0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia} na dysku do „{2}”? Pliki sidecar zostaną przeniesione razem z nimi.",
+ "8": "Przeniesiono {0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia} do {2}",
+ "9": "Wyczyszczono {0} {0:one=nieużywane słowo kluczowe;few=nieużywane słowa kluczowe;many=nieużywanych słów kluczowych;other=nieużywanego słowa kluczowego}",
+ "10": "Szczegóły raw dla {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęcia}",
+ "11": "Skóra wyretuszowana na {0} {0:one=zdjęciu;few=zdjęciach;many=zdjęciach;other=zdjęciach}, naprawiono {2} {2:one=niedoskonałość;few=niedoskonałości;many=niedoskonałości;other=niedoskonałości}${done.skipped?.length ?",
+ "12": "Wygładza skórę i usuwa niedoskonałości na {0} {0:one=zdjęciu;few=zdjęciach;many=zdjęciach;other=zdjęciach}, każde z własną maską skóry i własnymi plamkami, wszystko edytowalne później w Wywoływaniu. Zdjęcia bez twarzy są pomijane; ponowne uruchomienie zastępuje własne edycje.",
+ "13": "Twój styl został zastosowany do {0} {0:one=zdjęcia;few=zdjęć;many=zdjęć;other=zdjęcia}, na podstawie {2} {2:one=edytowanego zdjęcia;few=edytowanych zdjęć;many=edytowanych zdjęć;other=edytowanego zdjęcia}",
+ "14": "{0} {0:one=ścieżka muzyczna;few=ścieżki muzyczne;many=ścieżek muzycznych;other=ścieżki muzycznej}",
+ "15": "{0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia}",
+ "16": "{0} {0:one=zdjęcie;few=zdjęcia;many=zdjęć;other=zdjęcia} · {2} GB"
+}

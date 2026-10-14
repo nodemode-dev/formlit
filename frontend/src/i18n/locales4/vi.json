@@ -1,0 +1,19 @@
+{
+ "0": "“{0}” và {1} từ khóa bên trong",
+ "1": "Đang áp dụng phong cách của bạn cho {0} ảnh",
+ "2": "Đang giảm nhiễu {0} ảnh",
+ "3": "Đã tìm thấy {0} ảnh trong {2}",
+ "4": "Đang nhập {0} ảnh",
+ "5": "Học phong cách của bạn từ những ảnh đã chỉnh sửa: mỗi ảnh trong {0} ảnh nhận các thiết lập tông màu và độ hiện diện từ những ảnh đã chỉnh sửa giống nó nhất, với độ phơi sáng khớp theo độ sáng của ảnh. Một bước hoàn tác.",
+ "6": "Tạo một thư mục mà khách hàng của bạn mở được trong bất kỳ trình duyệt nào, không cần tài khoản và máy chủ: họ chọn, từ chối, xếp hạng và bình luận {0} ảnh, rồi gửi lại cho bạn một tệp lựa chọn nhỏ. Nén thư mục thành zip để gửi email, hoặc đặt lên bất kỳ máy chủ web nào.",
+ "7": "Di chuyển {0} ảnh vào “{2}” trên ổ đĩa? Tệp sidecar của chúng đi theo.",
+ "8": "Đã chuyển {0} ảnh vào {2}",
+ "9": "Đã dọn dẹp {0} từ khóa không dùng",
+ "10": "Chi tiết Raw cho {0} ảnh",
+ "11": "Đã chỉnh sửa da trên {0} ảnh, đã sửa {2} khuyết điểm${done.skipped?.length ?",
+ "12": "Làm mịn da và sửa khuyết điểm trên {0} ảnh, mỗi ảnh có mặt nạ da và các vết riêng, tất cả đều chỉnh sửa lại được trong Develop. Ảnh không có khuôn mặt được bỏ qua; chạy lại sẽ thay thế các chỉnh sửa của chính nó.",
+ "13": "Đã áp dụng phong cách của bạn cho {0} ảnh, học từ {2} ảnh đã chỉnh sửa",
+ "14": "{0} bản nhạc",
+ "15": "{0} ảnh",
+ "16": "{0} ảnh · {2} GB"
+}

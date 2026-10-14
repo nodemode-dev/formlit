@@ -1,0 +1,19 @@
+{
+ "0": "\"{0}\" och de {1} nyckelord i den",
+ "1": "Använder din stil på {0} {0:one=foto;other=foton}",
+ "2": "Tar bort brus från {0} {0:one=foto;other=foton}",
+ "3": "Hittade {0} {0:one=foto;other=foton} i {2}",
+ "4": "Importerar {0} {0:one=foto;other=foton}",
+ "5": "Lär sig din stil från bilderna du redan har redigerat: var och en av de {0} {0:one=fotot;other=fotona} får ton- och närvaroinställningarna från de redigerade bilder som liknar det mest, med exponeringen anpassad till ljusstyrkan. Ett ångra-steg.",
+ "6": "Skapar en mapp som din kund öppnar i vilken webbläsare som helst, utan konto och utan server: de väljer, avvisar, betygsätter och kommenterar {0} {0:one=foto;other=foton} och skickar sedan en liten urvalsfil till dig. Zippa mappen för att mejla den, eller lägg den på valfri webbhost.",
+ "7": "Flytta {0} {0:one=foto;other=foton} på disken in i \"{2}\"? {0:one=Dess sidecar-fil flyttas;other=Deras sidecar-filer flyttas} med.",
+ "8": "Flyttade {0} {0:one=foto;other=foton} till {2}",
+ "9": "Rensade {0} oanvända nyckelord",
+ "10": "Raw-detaljer för {0} {0:one=foto;other=foton}",
+ "11": "Hud retuscherad på {0} {0:one=foto;other=foton}, {2} {2:one=hudfel åtgärdat;other=hudfel åtgärdade}${done.skipped?.length ?",
+ "12": "Mjukar upp huden och tar bort finnar och fläckar på {0} {0:one=foto;other=foton}, var och ett med egen hudmask och egna fläckar, allt kan redigeras efteråt i Framkalla. Foton utan ansikte lämnas orörda; om du kör det igen ersätts dess egna redigeringar.",
+ "13": "Din stil har använts på {0} {0:one=foto;other=foton}, inlärd från {2} {2:one=redigerat foto;other=redigerade foton}",
+ "14": "{0} musikspår",
+ "15": "{0} {0:one=foto;other=foton}",
+ "16": "{0} {0:one=foto;other=foton} · {2} GB"
+}

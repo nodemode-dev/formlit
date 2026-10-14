@@ -1,0 +1,19 @@
+{
+ "0": "„{0}“ und die {1} {1:one=Stichwort;other=Stichwörter} darin",
+ "1": "Ihr Stil wird auf {0} {0:one=Foto;other=Fotos} angewendet",
+ "2": "{0} {0:one=Foto;other=Fotos}: Rauschen wird entfernt",
+ "3": "{0} {0:one=Foto;other=Fotos} in {2} gefunden",
+ "4": "{0} {0:one=Foto wird;other=Fotos werden} importiert",
+ "5": "Lernt Ihren Stil aus den bereits bearbeiteten Fotos: Jedes der {0} {0:one=Foto;other=Fotos} erhält die Ton- und Präsenzeinstellungen der ihm ähnlichsten bearbeiteten Fotos, wobei die Belichtung an seine Helligkeit angepasst wird. Ein Rückgängig-Schritt.",
+ "6": "Erstellt einen Ordner, den Ihr Kunde in jedem Browser öffnet, ohne Konto und ohne Server: Er wählt aus, lehnt ab, bewertet und kommentiert {0} {0:one=Foto;other=Fotos} und sendet Ihnen dann eine kleine Auswahldatei. Packen Sie den Ordner als ZIP, um ihn per E-Mail zu senden, oder legen Sie ihn auf einen beliebigen Webhost.",
+ "7": "{0} {0:one=Foto;other=Fotos} auf der Festplatte nach „{2}“ verschieben? {0:one=Sein Sidecar wird;other=Ihre Sidecars werden} mitverschoben.",
+ "8": "{0} {0:one=Foto;other=Fotos} nach {2} verschoben",
+ "9": "{0} {0:one=unbenutztes Stichwort;other=unbenutzte Stichwörter} bereinigt",
+ "10": "Raw-Details für {0} {0:one=Foto;other=Fotos}",
+ "11": "Haut auf {0} {0:one=Foto;other=Fotos} retuschiert, {2} {2:one=Hautunreinheit;other=Hautunreinheiten} behoben${done.skipped?.length ?",
+ "12": "Zeichnet Haut weich und retuschiert Hautunreinheiten auf {0} {0:one=Foto;other=Fotos}, jeweils mit eigener Hautmaske und eigenen Flecken, alles danach in Entwickeln editierbar. Fotos ohne Gesicht bleiben unberührt; ein erneuter Durchlauf ersetzt die eigenen Bearbeitungen.",
+ "13": "Ihr Stil wurde auf {0} {0:one=Foto;other=Fotos} angewendet, gelernt aus {2} bearbeiteten {2:one=Foto;other=Fotos}",
+ "14": "{0} Musiktitel",
+ "15": "{0} {0:one=Foto;other=Fotos}",
+ "16": "{0} {0:one=Foto;other=Fotos} · {2} GB"
+}

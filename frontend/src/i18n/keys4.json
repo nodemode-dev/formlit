@@ -1,0 +1,19 @@
+[
+"\"{0}\" and the {1} keyword{2} inside it",
+"Applying your style to {0} photo{1}",
+"Denoising {0} photo{1}",
+"Found {0} photo{1} in {2}",
+"Importing {0} photo{1}",
+"Learns your style from the photos you have already edited: each of the {0} photo{1} gets the tone and presence settings of the edited photos most like it, with exposure matched to its brightness. One undo step.",
+"Makes a folder your client opens in any browser, with no account and no server: they pick, reject, rate and comment on {0} photo{1}, then send you a small selections file. Zip the folder to email it, or put it on any web host.",
+"Move {0} photo{1} into \"{2}\" on disk? Their sidecars move with them.",
+"Moved {0} photo{1} to {2}",
+"Purged {0} unused keyword{1}",
+"Raw Details for {0} photo{1}",
+"Skin retouched on {0} photo{1}, {2} blemish{3} healed${done.skipped?.length ?",
+"Softens skin and heals blemishes on {0} photo{1}, each with its own skin mask and spots, all editable afterwards in Develop. Photos without a face are left alone; running it again replaces its own edits.",
+"Your style applied to {0} photo{1}, learned from {2} edited photo{3}",
+"{0} music track{1}",
+"{0} photo{1}",
+"{0} photo{1} · {2} GB"
+]

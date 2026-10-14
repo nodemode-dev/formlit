@@ -1,0 +1,19 @@
+{
+ "0": "\"{0}\" ja sen sisällä olevat {1} {1:one=avainsana;other=avainsanaa}",
+ "1": "Käytetään tyyliäsi {0} kuvaan",
+ "2": "Poistetaan kohinaa {0} kuvasta",
+ "3": "Löytyi {0} {0:one=kuva;other=kuvaa} kohteessa {2}",
+ "4": "Tuodaan {0} {0:one=kuva;other=kuvaa}",
+ "5": "Oppii tyylisi jo muokkaamistasi kuvista: jokainen {0} kuvasta saa tonaali- ja läsnäoloasetukset itseään eniten muistuttavilta muokatuilta kuvilta, ja valotus sovitetaan sen kirkkauteen. Yksi kumoamisvaihe.",
+ "6": "Luo kansion, jonka asiakkaasi avaa millä tahansa selaimella ilman tiliä ja palvelinta: he valitsevat, hylkäävät, luokittelevat ja kommentoivat {0} {0:one=kuvaa;other=kuvaa} ja lähettävät sinulle pienen valintatiedoston. Pakkaa kansio zip-tiedostoksi sähköpostia varten tai laita se millä tahansa verkkopalvelimelle.",
+ "7": "Siirretäänkö {0} {0:one=kuva;other=kuvaa} levyllä kansioon \"{2}\"? {0:one=Sen sidecar-tiedosto siirtyy;other=Niiden sidecar-tiedostot siirtyvät} mukana.",
+ "8": "Siirrettiin {0} {0:one=kuva;other=kuvaa} kohteeseen {2}",
+ "9": "Poistettiin {0} {0:one=käyttämätön avainsana;other=käyttämätöntä avainsanaa}",
+ "10": "Raw-tiedot {0} kuvalle",
+ "11": "Iho retusoitu {0} kuvassa, {2} {2:one=virhe;other=virhettä} korjattu${done.skipped?.length ?",
+ "12": "Pehmentää ihoa ja korjaa epäpuhtaudet {0} kuvassa, kullakin oma ihomaski ja omat täplät, kaikki muokattavissa jälkikäteen Kehityksessä. Kuvat ilman kasvoja jätetään ennalleen; uusi ajo korvaa sen omat muokkaukset.",
+ "13": "Tyyli otettu käyttöön {0} kuvassa, opittu {2} muokatusta kuvasta",
+ "14": "{0} {0:one=musiikkikappale;other=musiikkikappaletta}",
+ "15": "{0} {0:one=kuva;other=kuvaa}",
+ "16": "{0} {0:one=kuva;other=kuvaa} · {2} GB"
+}

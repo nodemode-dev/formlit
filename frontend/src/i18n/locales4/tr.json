@@ -1,0 +1,19 @@
+{
+ "0": "\"{0}\" ve içindeki {1} anahtar sözcük",
+ "1": "Stiliniz {0} fotoğrafa uygulanıyor",
+ "2": "{0} fotoğrafın gürültüsü azaltılıyor",
+ "3": "{2} içinde {0} fotoğraf bulundu",
+ "4": "{0} fotoğraf içe aktarılıyor",
+ "5": "Stilinizi daha önce düzenlediğiniz fotoğraflardan öğrenir: {0} fotoğrafın her biri, kendisine en çok benzeyen düzenlenmiş fotoğrafların ton ve varlık ayarlarını alır, pozlama ise parlaklığına göre eşlenir. Tek geri alma adımı.",
+ "6": "Müşterinizin hesap ve sunucu olmadan herhangi bir tarayıcıda açabileceği bir klasör oluşturur: {0} fotoğraf için seçim yapar, reddeder, derecelendirir ve yorum yazar, ardından size küçük bir seçim dosyası gönderir. E-postayla göndermek için klasörü sıkıştırın veya herhangi bir web barındırmasına koyun.",
+ "7": "{0} fotoğraf diskte \"{2}\" içine taşınsın mı? Sidecar dosyaları da onlarla taşınır.",
+ "8": "{0} fotoğraf, {2} içine taşındı",
+ "9": "{0} kullanılmayan anahtar sözcük temizlendi",
+ "10": "{0} fotoğraf için Raw Ayrıntıları",
+ "11": "{0} fotoğrafta cilt rötuşlandı, {2} leke giderildi${done.skipped?.length ?",
+ "12": "{0} fotoğrafta cildi yumuşatır ve lekeleri giderir; her birinin kendi ten maskesi ve düzeltme noktaları vardır ve hepsi sonradan Geliştir'de düzenlenebilir. Yüzü olmayan fotoğraflara dokunulmaz; yeniden çalıştırmak kendi düzenlemelerinin yerini alır.",
+ "13": "Stiliniz {0} fotoğrafa uygulandı, {2} düzenlenmiş fotoğraftan öğrenildi",
+ "14": "{0} müzik parçası",
+ "15": "{0} fotoğraf",
+ "16": "{0} fotoğraf · {2} GB"
+}

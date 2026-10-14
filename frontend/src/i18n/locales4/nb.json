@@ -1,0 +1,19 @@
+{
+ "0": "«{0}» og de {1} nøkkelord inni",
+ "1": "Bruker stilen din på {0} {0:one=bilde;other=bilder}",
+ "2": "Fjerner støy fra {0} {0:one=bilde;other=bilder}",
+ "3": "Fant {0} {0:one=bilde;other=bilder} i {2}",
+ "4": "Importerer {0} {0:one=bilde;other=bilder}",
+ "5": "Lærer stilen din fra bildene du allerede har redigert: hvert av de {0} {0:one=bildet;other=bildene} får tone- og tilstedeværelsesinnstillingene fra de redigerte bildene som ligner mest, med eksponeringen tilpasset lysstyrken. Ett angresteg.",
+ "6": "Lager en mappe som kunden din åpner i hvilken som helst nettleser, uten konto og uten server: de velger, avviser, vurderer og kommenterer {0} {0:one=bilde;other=bilder} og sender deg deretter en liten utvalgsfil. Zip mappen for å sende den på e-post, eller legg den på en hvilken som helst webvert.",
+ "7": "Flytte {0} {0:one=bilde;other=bilder} på disken inn i «{2}»? {0:one=Sidecar-filen deres flyttes;other=Sidecar-filene deres flyttes} med.",
+ "8": "Flyttet {0} {0:one=bilde;other=bilder} til {2}",
+ "9": "Ryddet opp {0} ubrukte nøkkelord",
+ "10": "Raw-detaljer for {0} {0:one=bilde;other=bilder}",
+ "11": "Hud retusjert på {0} {0:one=bilde;other=bilder}, {2} {2:one=uregelmessighet;other=uregelmessigheter} fjernet${done.skipped?.length ?",
+ "12": "Mykgjør huden og fjerner urenheter på {0} {0:one=bilde;other=bilder}, hver med sin egen hudmaske og egne flekker, alt kan redigeres etterpå i Framkall. Bilder uten ansikt røres ikke; kjører du det på nytt, erstattes dets egne redigeringer.",
+ "13": "Stilen din er brukt på {0} {0:one=bilde;other=bilder}, lært fra {2} {2:one=redigert bilde;other=redigerte bilder}",
+ "14": "{0} musikkspor",
+ "15": "{0} {0:one=bilde;other=bilder}",
+ "16": "{0} {0:one=bilde;other=bilder} · {2} GB"
+}
