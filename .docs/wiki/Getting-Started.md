@@ -31,6 +31,8 @@ On Windows use `formlit.bat` with the same commands.
 | `cli <command> key=value ...` | Run any engine command from the terminal; `./formlit cli list` lists them |
 | `doctor` | Check the toolchain, the installs and the ports |
 | `counts [--check]` | Print the code sizes the README states, or check them |
+| `preflight FILE.pdf ...` | Check book PDFs against PDF/X-1a with the open-source `preflight` Ruby gem, installed on first use into `backend/build` (needs Ruby) |
+| `i18n export LANG FILE.csv`, `i18n import LANG FILE.csv` | Hand a language's strings to a native reviewer as CSV (english, current, corrected, note) and load their corrections; they go to `keys9.json` and `locales9`, which load last |
 | `clean [--all]` | Remove build output (`--all` also the venv and node_modules) |
 
 ## Ports
