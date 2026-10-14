@@ -4,7 +4,7 @@ import { Dialog } from '../../ui/dialogs';
 import { el, escapeHtml, q } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 
-type Kind = 'num' | 'text' | 'date' | 'bool' | 'flag' | 'label' | 'keyword' | 'kind';
+type Kind = 'num' | 'text' | 'date' | 'bool' | 'flag' | 'label' | 'keyword' | 'kind' | 'describe';
 
 export const RULE_FIELDS: Array<[string, string, Kind]> = [
   ['rating', 'Rating', 'num'], ['flag', 'Pick Flag', 'flag'], ['label', 'Label Color', 'label'], ['kind', 'File Type', 'kind'], ['edited', 'Has Adjustments', 'bool'],
@@ -13,7 +13,7 @@ export const RULE_FIELDS: Array<[string, string, Kind]> = [
   ['focal', 'Focal Length', 'num'], ['aperture', 'Aperture', 'num'], ['shutter', 'Shutter Speed (s)', 'num'], ['captureTime', 'Capture Date', 'date'],
   ['importTime', 'Import Date', 'date'], ['editTime', 'Edit Date', 'date'], ['city', 'City', 'text'], ['state', 'State / Province', 'text'], ['country', 'Country', 'text'],
   ['location', 'Sublocation', 'text'], ['hasGps', 'Has GPS Data', 'bool'], ['virtualCopy', 'Virtual Copy', 'bool'], ['missing', 'Missing File', 'bool'],
-  ['width', 'Width', 'num'], ['height', 'Height', 'num'], ['fileSize', 'File Size (bytes)', 'num'],
+  ['width', 'Width', 'num'], ['height', 'Height', 'num'], ['fileSize', 'File Size (bytes)', 'num'], ['describe', 'Shows', 'describe'],
 ];
 
 const OPS: Record<Kind, Array<[string, string]>> = {
@@ -25,6 +25,7 @@ const OPS: Record<Kind, Array<[string, string]>> = {
   label: [['=', 'is'], ['!=', 'is not'], ['isEmpty', 'is none']],
   keyword: [['contains', 'contains'], ['=', 'is'], ['notContains', "doesn't contain"]],
   kind: [['=', 'is'], ['!=', 'is not']],
+  describe: [['contains', 'looks like'], ['notContains', "doesn't look like"]],
 };
 
 const CHOICES: Partial<Record<Kind, Array<[string, string]>>> = {

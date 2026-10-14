@@ -20,7 +20,7 @@ RULE_FIELDS = {
     "country": ("json_extract(p.meta, '$.country')", "text"), "location": ("COALESCE(json_extract(p.meta, '$.sublocation'), json_extract(p.meta, '$.location'))", "text"),
     "copyright": ("json_extract(p.meta, '$.copyright')", "text"), "keyword": ("keyword", "keyword"), "collection": ("collection", "collection"),
     "person": ("person", "person"), "sharpness": ("json_extract(p.meta, '$.cull.sharpness')", "num"), "bestOfGroup": ("json_extract(p.meta, '$.cull.best')", "bool"),
-    "smartPreview": ("p.smart_preview", "bool"), "duration": ("p.duration", "num"),
+    "smartPreview": ("p.smart_preview", "bool"), "duration": ("p.duration", "num"), "describe": ("describe", "describe"),
 }
 
 SORTS = {
@@ -154,6 +154,9 @@ def compile_rule(rule: dict, args: list) -> str | None:
         args.append(int(value))
         sub = "EXISTS (SELECT 1 FROM faces fc WHERE fc.photo_id=p.id AND fc.person_id=?)"
         return f"NOT {sub}" if op in ("!=", "isNot") else sub
+    if typ == "describe":
+        args.append(json.dumps([pid for pid, _ in _described(str(value or ""))]))
+        return f"p.id {'NOT ' if op in ('notContains', '!=', 'isNot') else ''}IN (SELECT value FROM json_each(?))"
     if op == "isEmpty":
         return f"({col} IS NULL OR {col} = '')"
     if op == "notEmpty":
@@ -471,6 +474,11 @@ def query(cat: Catalog, source: dict | None = None, flt: dict | None = None, sor
     counts: dict[int, int] = {}
     for r in cat.rows("SELECT stack_id, COUNT(*) AS n FROM photos WHERE stack_id IS NOT NULL GROUP BY stack_id"):
         counts[int(r["stack_id"])] = int(r["n"])
+    lead: dict[int, int] = {}
+    for r in rows:
+        if r["stack_id"] and int(r["stack_id"]) in collapsed:
+            sid, pos = int(r["stack_id"]), int(r["stack_pos"] or 0)
+            lead[sid] = min(lead.get(sid, pos), pos)
     ids: list[int] = []
     photos: dict[int, dict] = {}
     for r in rows:
@@ -479,7 +487,7 @@ def query(cat: Catalog, source: dict | None = None, flt: dict | None = None, sor
         if sid:
             s["sn"] = counts.get(int(sid), 1)
             s["sc"] = 1 if int(sid) in collapsed else 0
-            if int(sid) in collapsed and r["stack_pos"] != 0:
+            if int(sid) in collapsed and int(r["stack_pos"] or 0) != lead[int(sid)]:
                 continue
         ids.append(int(r["id"]))
         photos[int(r["id"])] = s
