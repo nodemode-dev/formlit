@@ -557,6 +557,7 @@ Generative remove at a point (x, y from 0 to 1 across the photo): detect grows t
 - `detect`: boolean; default true
 - `shadows`: boolean; default false
 - `seed`: integer; default 0
+- `sample_from`: array; [x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)
 
 ## merge_flash_blend
 
@@ -569,6 +570,7 @@ Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames 
 - `windowPull`: boolean; default true
 - `windowEv`: number; default 1
 - `createStack`: boolean; default true
+- `perWindow`: boolean; default true; each window its own exposure, so a sunlit and a shaded window both read
 
 ## retouch_skin
 

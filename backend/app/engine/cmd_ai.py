@@ -884,10 +884,15 @@ def _plainness(fill: np.ndarray, hole: np.ndarray) -> float:
     return float(e[inside].mean() / max(1e-3, float(e[ring].mean()))) if inside.any() and ring.any() else 1.0
 
 
-def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool, seed: int = 0) -> list[str]:
+def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool, seed: int = 0,
+               sample: np.ndarray | None = None) -> list[str]:
     ys, xs = np.nonzero(full)
     if not len(xs):
         raise CommandError("Nothing to remove there")
+    if sample is not None:
+        alpha = True
+        sy, sx = np.nonzero(sample)
+        keep = cv2.dilate(full, np.ones((3, 3), np.uint8), iterations=max(2, int(r * 0.15))) > 0
     folder = config.masks_dir() / str(pid)
     folder.mkdir(parents=True, exist_ok=True)
     n = frame.out_to_norm(w, h)
@@ -902,15 +907,23 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
         x0, y0 = int(max(0, xs.min() - pad)), int(max(0, ys.min() - pad))
         x1, y1 = int(min(w, xs.max() + 1 + pad)), int(min(h, ys.max() + 1 + pad))
         crop = sampled[y0:y1, x0:x1]
+        if sample is not None and len(sx):
+            src = sampled[int(sy.min()):int(sy.max()) + 1, int(sx.min()):int(sx.max()) + 1]
+            reps = (-(-crop.shape[0] // src.shape[0]) + 1, -(-crop.shape[1] // src.shape[1]) + 1, 1)
+            tiled = np.tile(np.concatenate([np.concatenate([src, src[:, ::-1]], 1), np.concatenate([src[::-1], src[::-1, ::-1]], 1)], 0), reps)
+            oy, ox = int(rng.integers(0, src.shape[0])), int(rng.integers(0, src.shape[1]))
+            ctx = tiled[oy:oy + crop.shape[0], ox:ox + crop.shape[1]]
+            crop = np.where(keep[y0:y1, x0:x1, None], crop, ctx)
         peak = max(1e-6, float(np.percentile(crop, 99.5)))
         enc = np.sqrt(np.clip(crop / peak, 0.0, 1.0))
         hole = full[y0:y1, x0:x1]
         src8 = (enc * 255 + 0.5).astype(np.uint8)
         hm = (hole > 0).astype(np.float32)
+        hl = hm
         if flip:
-            filled = nets.lama(np.ascontiguousarray(src8[:, ::-1]), np.ascontiguousarray(hm[:, ::-1]))[:, ::-1].astype(np.float32) / 255.0
+            filled = nets.lama(np.ascontiguousarray(src8[:, ::-1]), np.ascontiguousarray(hl[:, ::-1]))[:, ::-1].astype(np.float32) / 255.0
         else:
-            filled = nets.lama(src8, hm).astype(np.float32) / 255.0
+            filled = nets.lama(src8, hl).astype(np.float32) / 255.0
         lin = (filled ** 2) * peak
         detail = enc - cv2.GaussianBlur(enc, (0, 0), 1.0)
         if alpha:
@@ -942,7 +955,8 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
 @command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "minimum": 1, "maximum": 3, "description": "1 to 3 fills to choose from"},
                                                      "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"},
                                                      "shadows": {"type": "boolean", "description": "also remove the shadow the object casts and its reflection below it"},
-                                                     "seed": {"type": "integer", "description": "0 for the standard fills; any other number for a new set (Refresh)"}})
+                                                     "seed": {"type": "integer", "description": "0 for the standard fills; any other number for a new set (Refresh)"}},
+         description="Fills a Remove spot with the LaMa model. spot.sampleFrom [x0, y0, x1, y1] (0 to 1 across the photo) limits what the fill may copy from to that area and a thin ring around the hole.")
 def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bool = False, shadows: bool = False, seed: int = 0) -> dict:
     pid = int(id) if id is not None else resolve_ids("active")[0]
     _need("remove")
@@ -988,8 +1002,17 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
         if found.any():
             full = np.maximum(full, cv2.dilate(found * 255, np.ones((5, 5), np.uint8), iterations=max(1, int(r * 0.1))))
     seed = int(seed or spot.get("seed") or 0)
-    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect or shadows, seed=seed)
-    return {"patch": out[0], "variants": out, "detected": detect, "shadows": extra, "seed": seed}
+    sample = None
+    area = spot.get("sampleFrom")
+    if isinstance(area, (list, tuple)) and len(area) == 4:
+        c = [to_out @ np.array([float(area[i]), float(area[j]), 1.0]) for i, j in ((0, 1), (2, 1), (2, 3), (0, 3))]
+        sample = np.zeros((h, w), np.uint8)
+        cv2.fillConvexPoly(sample, np.array([[int(p[0]), int(p[1])] for p in c], np.int32), 255)
+        sample[full > 0] = 0
+        if sample.sum() < 255 * 64:
+            raise CommandError("The sample area is too small or covers only the area being removed")
+    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect or shadows, seed=seed, sample=sample)
+    return {"patch": out[0], "variants": out, "detected": detect, "shadows": extra, "seed": seed, "sampled": sample is not None}
 
 
 @command("develop.removePeople", "Remove People", {"id": {"type": "integer"}, "people": {"type": "array", "description": "person indexes from develop.aiPeople; omit for everyone"},

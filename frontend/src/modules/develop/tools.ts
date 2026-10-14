@@ -429,7 +429,15 @@ export class CropTool implements Tool {
   }
 }
 
-interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[]; detect?: boolean; shadows?: boolean; seed?: number; label?: string }
+interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[]; detect?: boolean; shadows?: boolean; seed?: number; label?: string; sampleFrom?: number[] }
+
+function sampleArea(side: string, x: number, y: number, size: number): number[] {
+  const gap = size * 1.6, span = Math.max(0.12, size * 6), c = (v: number) => Math.min(1, Math.max(0, v));
+  if (side === 'above') return [c(x - span), c(y - gap - span), c(x + span), c(y - gap)];
+  if (side === 'below') return [c(x - span), c(y + gap), c(x + span), c(y + gap + span)];
+  if (side === 'left') return [c(x - gap - span), c(y - span), c(x - gap), c(y + span)];
+  return [c(x + gap), c(y - span), c(x + gap + span), c(y + span)];
+}
 
 export class SpotTool implements Tool {
   readonly id = 'spot';
@@ -463,6 +471,7 @@ export class SpotTool implements Tool {
     this.root.insertBefore(this.removeRow, this.variantsRow);
     q<HTMLInputElement>(this.removeRow, '[data-detect]').addEventListener('change', (e) => { this.detect = (e.target as HTMLInputElement).checked; });
     q<HTMLInputElement>(this.removeRow, '[data-shadows]').addEventListener('change', (e) => { this.shadows = (e.target as HTMLInputElement).checked; });
+    q<HTMLSelectElement>(this.removeRow, '[data-sample]').addEventListener('change', (e) => { this.sample = (e.target as HTMLSelectElement).value; });
     this.removeRow.addEventListener('click', (e) => {
       const d = (e.target as HTMLElement).closest<HTMLElement>('[data-distract]')?.dataset.distract;
       if (d) { e.stopPropagation(); void this.distraction(d); }
@@ -497,7 +506,8 @@ export class SpotTool implements Tool {
 
   private detect = false;
   private shadows = false;
-  private readonly removeRow = el('<div class="fl-spot-remove"><div class="fl-row" data-only="remove"><label class="fl-check fl-check-sm"><input type="checkbox" data-detect> Detect Objects</label><label class="fl-check fl-check-sm" title="Also remove the shadow the object casts and its reflection below it"><input type="checkbox" data-shadows> Shadows and Reflections</label></div><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
+  private sample = '';
+  private readonly removeRow = el('<div class="fl-spot-remove"><div class="fl-row" data-only="remove"><label class="fl-check fl-check-sm"><input type="checkbox" data-detect> Detect Objects</label><label class="fl-check fl-check-sm" title="Also remove the shadow the object casts and its reflection below it"><input type="checkbox" data-shadows> Shadows and Reflections</label></div><div class="fl-row" data-only="remove"><span class="fl-row-label">Sample from</span><select class="cv-select" data-sample title="Where the fill may copy from"><option value="">Anywhere</option><option value="above">Above</option><option value="below">Below</option><option value="left">Left</option><option value="right">Right</option></select></div><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
 
   private async distraction(kind: string): Promise<void> {
     const id = develop.id;
@@ -597,7 +607,7 @@ export class SpotTool implements Tool {
       this.drag = { kind: hit.kind, i: hit.i, start: p, orig: s };
       return true;
     }
-    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode, ...(this.mode === 'remove' && this.detect ? { detect: true } : {}), ...(this.mode === 'remove' && this.shadows ? { shadows: true } : {}) };
+    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode, ...(this.mode === 'remove' && this.detect ? { detect: true } : {}), ...(this.mode === 'remove' && this.shadows ? { shadows: true } : {}), ...(this.mode === 'remove' && this.sample ? { sampleFrom: sampleArea(this.sample, p.nx, p.ny, this.size) } : {}) };
     spots.push(spot);
     this.sel = spots.length - 1;
     this.drag = { kind: 'new', i: this.sel, start: p, orig: spot };

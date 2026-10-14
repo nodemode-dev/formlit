@@ -79,6 +79,8 @@ def _remove(args: dict) -> dict:
     pid = int(args["id"])
     spot = {"points": [[float(args["x"]), float(args["y"])]], "size": float(args.get("size", 0.03)), "source": None, "feather": 0, "opacity": 100, "mode": "remove",
             "detect": bool(args.get("detect", True)), "shadows": bool(args.get("shadows", False)), "seed": int(args.get("seed", 0))}
+    if args.get("sample_from"):
+        spot["sampleFrom"] = [float(v) for v in args["sample_from"]][:4]
     got = _cmd("develop.removeFill", id=pid, spot=spot, detect=spot["detect"], shadows=spot["shadows"], seed=spot["seed"])
     spot.update(patch=got["patch"], variants=got["variants"])
     spots = (_cmd("develop.get", id=pid)["settings"].get("spots") or []) + [spot]
@@ -415,7 +417,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
      lambda a: _cmd("develop.applyStyle", ids=a["ids"], amount=a.get("amount", 100), k=a.get("k", 5))),
     (_tool("remove_object", "Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.",
            {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}, "size": {"type": "number", "default": 0.03, "description": "brush radius as a fraction of the long side"},
-            "detect": {"type": "boolean", "default": True}, "shadows": {"type": "boolean", "default": False}, "seed": {"type": "integer", "default": 0}}, ["id", "x", "y"]),
+            "detect": {"type": "boolean", "default": True}, "shadows": {"type": "boolean", "default": False}, "seed": {"type": "integer", "default": 0},
+            "sample_from": {"type": "array", "items": {"type": "number"}, "description": "[x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)"}}, ["id", "x", "y"]),
      _remove),
     (_tool("merge_flash_blend", "Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames are merged as HDR; a flash frame gives the room clean colour (flambient: light from the ambient frames, colour from the flash); windows are pulled from the darker frames in darken mode so frames and mullions stay and flash reflections on glass go. flash names the flash frame (else the one tagged Flash fired); windowEv sets how many stops the view sits above the room. Check with get_preview.",
            {"ids": IDS, "flash": {"type": "integer"}, "flashAmount": {"type": "number", "default": 50}, "colorAmount": {"type": "number", "default": 100},
