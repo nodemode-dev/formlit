@@ -21,10 +21,11 @@ import { Painter } from './painter';
 import { PeoplePanel } from './people';
 import { PublishPanel } from './publish';
 import { CommentsPanel } from './comments';
+import { CullView } from './cull-view';
 import { SourcePanels } from './sources';
 import { VideoPlayer } from './video-player';
 
-type View = 'grid' | 'loupe' | 'compare' | 'survey';
+type View = 'grid' | 'loupe' | 'compare' | 'survey' | 'cull';
 
 const SIZE_KEY = 'formlit_grid_size';
 const SORTS: Array<[string, string]> = [['captureTime', 'Capture Time'], ['importTime', 'Added Order'], ['editTime', 'Edit Time'], ['fileName', 'File Name'], ['rating', 'Rating'], ['flag', 'Pick'], ['label', 'Color Label'], ['kind', 'File Type'], ['aspect', 'Aspect Ratio'], ['camera', 'Camera'], ['userOrder', 'Custom Order']];
@@ -43,6 +44,7 @@ class LibraryModule {
   private compareB!: Viewer;
   private filter!: FilterBar;
   private survey!: HTMLElement;
+  private cull!: CullView;
   private empty!: HTMLElement;
   private candidate: number | null = null;
   private linked = true;
@@ -76,7 +78,7 @@ class LibraryModule {
     library.listen('render', (id, size) => {
       if (size !== 'p') return;
       bump(id, 'p');
-      for (const v of [this.loupe, this.compareA, this.compareB]) if (v.photo?.id === id) v.refresh();
+      for (const v of [this.loupe, this.compareA, this.compareB, this.cull.viewer]) if (v.photo?.id === id) v.refresh();
       if (this.view === 'survey' && library.selection.has(id)) this.renderSurvey();
     });
     catalog.listen(() => { this.syncEmpty(); const name = catalog.tree.catalog.name; ctx.shell.setCatalogName(name === 'formlit' ? '' : name); });
@@ -143,7 +145,8 @@ class LibraryModule {
       library.setActive(id);
     });
     this.empty = el(`<div class="fl-empty" hidden><div class="fl-empty-card"><div class="fl-empty-title">${brandMark(28)}<span>Your library is empty</span></div><div class="fl-empty-sub">Import a folder of photos to start. formlit reads raw files from every major camera, plus JPEG, HEIC, TIFF, PNG and video, and never changes your originals.</div><div class="fl-empty-actions"><button class="cv-btn fl-btn-cta" type="button" data-cmd="library.import">${icon('importLit', 16)} Import Photos...</button></div><div class="fl-empty-sub fl-muted">or drop photos anywhere on this window</div></div></div>`);
-    s.append(gridWrap, loupeWrap, compareWrap, this.survey, this.empty);
+    this.cull = new CullView(this.ctx);
+    s.append(gridWrap, loupeWrap, compareWrap, this.survey, this.cull.root, this.empty);
     const drop = el('<div class="fl-dropzone" hidden><div>Drop photos to import</div></div>');
     s.appendChild(drop);
     s.addEventListener('dragover', (e) => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); setHidden(drop, false); } });
@@ -160,7 +163,7 @@ class LibraryModule {
     const t = this.hosts.toolbar;
     const viewBtn = (v: View, ic: string, label: string, key: string) => `<button class="cv-icon-btn" type="button" data-cmd="view.${v}" aria-label="${label}" title="${label} (${key})">${icon(ic, 16)}</button>`;
     const bar = el(`<div class="fl-tb">
-<div class="fl-tb-group">${viewBtn('grid', 'viewGridLit', 'Grid', 'G')}${viewBtn('loupe', 'viewLoupe', 'Loupe', 'E')}${viewBtn('compare', 'viewCompare', 'Compare', 'C')}${viewBtn('survey', 'viewSurvey', 'Survey', 'N')}</div>
+<div class="fl-tb-group">${viewBtn('grid', 'viewGridLit', 'Grid', 'G')}${viewBtn('loupe', 'viewLoupe', 'Loupe', 'E')}${viewBtn('compare', 'viewCompare', 'Compare', 'C')}${viewBtn('survey', 'viewSurvey', 'Survey', 'N')}${viewBtn('cull', 'viewCull', 'Cull', 'K')}</div>
 <span class="fl-tb-sep"></span>
 <span class="fl-tb-label">Sort</span><select class="cv-select fl-tb-sort">${SORTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
 <button class="cv-icon-btn fl-tb-dir" type="button" aria-label="Sort Direction">${icon('sortLit', 16)}</button>
@@ -213,6 +216,7 @@ class LibraryModule {
       { id: 'view.loupe', label: 'Loupe', keys: ['E'], run: toLib('loupe'), checked: () => ctx.module() === 'library' && this.view === 'loupe' },
       { id: 'view.compare', label: 'Compare', keys: ['C'], run: toLib('compare'), checked: () => ctx.module() === 'library' && this.view === 'compare' },
       { id: 'view.survey', label: 'Survey', keys: ['N'], run: toLib('survey'), checked: () => ctx.module() === 'library' && this.view === 'survey' },
+      { id: 'view.cull', label: 'Cull', keys: ['K'], run: toLib('cull'), checked: () => ctx.module() === 'library' && this.view === 'cull' },
       { id: 'view.filterBar', label: 'Show Filter Bar', keys: ['\\'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.toggle(); }, checked: () => this.filter.visible },
       { id: 'view.find', label: 'Find...', keys: ['Mod+F'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.focusText(); } },
       { id: 'view.zoomIn', label: 'Zoom In', keys: ['Mod+='], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.min(8, this.loupe.scale() * 1.5)); } },
@@ -258,8 +262,9 @@ class LibraryModule {
   setView(v: View): void {
     this.view = v;
     const s = this.hosts.stage;
-    for (const [cls, on] of [['.fl-lib-grid', v === 'grid'], ['.fl-lib-loupe', v === 'loupe'], ['.fl-lib-compare', v === 'compare'], ['.fl-lib-survey', v === 'survey']] as Array<[string, boolean]>) setHidden(q(s, cls), !on);
+    for (const [cls, on] of [['.fl-lib-grid', v === 'grid'], ['.fl-lib-loupe', v === 'loupe'], ['.fl-lib-compare', v === 'compare'], ['.fl-lib-survey', v === 'survey'], ['.fl-lib-cull', v === 'cull']] as Array<[string, boolean]>) setHidden(q(s, cls), !on);
     this.grid.show(v === 'grid');
+    this.cull.show(v === 'cull');
     setClass(q(this.hosts.toolbar, '.fl-tb'), 'is-grid', v === 'grid');
     if (v === 'compare' && this.candidate === null) {
       const i = library.index(library.active);
@@ -276,6 +281,7 @@ class LibraryModule {
     if (this.view === 'loupe') { void this.loupe.show(p); this.faces.show(p?.id ?? null); void this.video.show(p); } else void this.video.show(null);
     if (this.view === 'compare') this.renderCompare();
     if (this.view === 'survey') this.renderSurvey();
+    if (this.view === 'cull') this.cull.render();
     const n = library.selected().length;
     this.ctx.shell.setSelection(n > 1 ? `${n} selected` : p ? p.file : '');
     this.ctx.shell.setCount(`${library.ids.length} photo${library.ids.length === 1 ? '' : 's'}`);
@@ -353,6 +359,7 @@ class LibraryModule {
 
   onKey(_e: KeyboardEvent, combo: string): boolean {
     if (this.view === 'loupe' && this.video.key(combo)) return true;
+    if (this.view === 'cull' && this.cull.key(combo)) return true;
     if (this.view === 'grid' && (combo === 'Up' || combo === 'Down' || combo === 'Shift+Up' || combo === 'Shift+Down')) {
       const d = (combo.endsWith('Up') ? -1 : 1) * this.grid.columns;
       library.step(d, combo.startsWith('Shift'));

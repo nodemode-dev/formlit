@@ -496,6 +496,17 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### src/modules/library/cull-view.ts · the Cull view (v0.21.0)
+- refers-to: src/modules/library/cull-view.ts :: CullView; src/modules/library/index.ts :: View 'cull', view.cull (K), setView, selectionChanged, onKey; src/styles/lit-library.css :: .fl-lib-cull, .fl-kw-chips; src/ui/icons-lit.ts :: viewCull
+- kind: rationale, removed-bug
+- logged: v0.21.0 · 2026-10-14
+
+Phase 1 item 2 of the research plan: culling was the most-cited chore (S14, S16, S17, S19, S43) and pros named speed between frames and per-face eye and focus checks as why they pay for outside cullers (S32). The view walks the photos in burst order from `cull.groups`, not grid order, so each burst is reviewed together; Up and Down land on a burst's best frame. P, X and the ratings flag only the frame on screen (`photo.flag` with that one id, never the selection) and always advance, unlike the global auto-advance setting, because a cull pass is one decision per frame. Shift+P keeps the frame on screen as a pick, rejects the rest of its burst and jumps to the next burst. Speed comes from preloading: the previews two behind and five ahead are decoded off-screen through `Image.decode()`, and the Viewer swaps only decoded images, so the old frame stays until the new one is ready. Face tiles are CSS background crops of the same preview at 1.6 times the face box, so they cost no request. Every region has a fixed size (34 px head, 148 px face column, 84 px strip, 26 px key row, the best badge reserved with `visibility`), so moving between photos with and without faces changes nothing outside the view.
+
+Verified under 4x CPU and a 150 ms, 200 KB/s network on the 7-photo test catalog. Bursts and best frames matched the engine. Frame to frame took 61 to 136 ms including the test's 10 ms polling. P picked and advanced; Shift+P picked one frame, rejected the other and moved on; the engine's flags matched the window. Escape returned to the grid. No page errors and no layout shift without input. The one slow step (about 1 s) came when keys were pressed every 80 ms faster than the emulated 200 KB/s link could deliver a 2560 px preview. Face tiles were checked with a synthetic face list written into one test photo, because the faces model download was refused in the test sandbox; the fixture was replaced by a real analysis afterwards.
+
+Found while measuring: the Keywording panel's suggestion chips wrapped from one row to three as the active photo changed, pushing the Keyword Set and the next panel down by 52 px (a layout shift without input, in Loupe too). `.fl-kw-chips` is now a fixed three-row box (74 px), as Lightroom's 3 by 3 suggestion grid is.
+
 ### src/ui/shell.ts · filmstrip collapse, top or bottom, and the hidden-row fix (v0.20.0)
 - refers-to: src/ui/shell.ts :: AREAS, ShellArea, ShellLayout.stripCollapsed, stripTop, stripResizer; src/styles/lit-shell.css :: --fl-strip-row, is-filmstrip-collapsed, is-filmstrip-top; src/ui/filmstrip.ts :: head buttons; src/app.ts :: view.filmstripCollapse, view.filmstripTop; src/modules/shared/workspace.ts :: filmstrip head menu
 - kind: rationale, removed-bug
