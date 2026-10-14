@@ -2,6 +2,15 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.25.0 · 2026-10-14
+
+### Added
+
+- **Focus Stack (Photo, Focus Stack, Alt+Ctrl or Cmd+M):** merges photos of one scene focused at different distances into one photo sharp from front to back, for macro, product and near-to-far landscapes.
+  - **How it works:** frames are aligned to the middle one, correcting the slight size change as focus moves. The sharpest frame is kept at each point with seamless blending, and the result is cropped to the area every frame covers.
+  - **Output:** a DNG beside the middle frame with its settings, stacked with the frames if you like. A preview shows the result before you merge.
+- **For agents:** `merge_focus_stack`.
+
 ## v0.24.0 · 2026-10-14
 
 ### Added
