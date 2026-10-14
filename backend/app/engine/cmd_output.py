@@ -95,6 +95,8 @@ def export_delete_preset(id: str) -> dict:
 @command("export.run", "Export", {"ids": {"type": "array"}, "settings": {"type": "object"}, "preset": {"type": "string"}, "wait": {"type": "boolean"}})
 def export_run(ids: Any = None, settings: dict | None = None, preset: str | None = None, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
+    from app.engine.cmd_captions import require_for_export
+    require_for_export(pids)
     s: dict = {}
     if preset:
         p = export.find_preset(preset)

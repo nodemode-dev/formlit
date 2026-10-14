@@ -12,7 +12,7 @@ from app.engine import catalog as catalog_mod
 from app.engine import query, records, tasks
 from app.engine.catalog import LABELS, now_iso
 from app.engine.commands import SESSION, CommandError, command, resolve_ids
-from app.services import importer, metadata, previews, rename
+from app.services import codes, importer, metadata, previews, rename
 
 FLAG_NAMES = {"pick": 1, "reject": -1, "none": 0, "unflag": 0, "unflagged": 0}
 COLLECTION_KINDS = {"collection": "Collection", "set": "Collection Set", "smart": "Smart Collection", "book": "Book", "print": "Print",
@@ -256,14 +256,19 @@ def set_meta(ids: Any = None, fields: dict | None = None) -> dict:
     fields = fields or {}
     c = cat()
     direct = {"gpsLat": "gps_lat", "gpsLon": "gps_lon", "gpsAlt": "gps_alt", "captureTime": "capture_time"}
+    cs = codes.settings()
+    unknown: set[str] = set()
     with c.change("Edit Metadata") as ch:
         for pid in pids:
-            r = c.db.execute("SELECT meta FROM photos WHERE id=?", (pid,)).fetchone()
+            r = c.db.execute("SELECT * FROM photos WHERE id=?", (pid,)).fetchone()
             if r is None:
                 continue
             meta = records.loads(r["meta"], {})
             cols = {}
-            for k, v in fields.items():
+            text = {k: v for k, v in fields.items() if k in metadata.META_FIELDS}
+            expanded, miss = codes.expand_fields(text, dict(r), meta, cs)
+            unknown.update(miss)
+            for k, v in {**fields, **expanded}.items():
                 if k in direct:
                     cols[direct[k]] = v
                 elif k in metadata.META_FIELDS:
@@ -272,7 +277,7 @@ def set_meta(ids: Any = None, fields: dict | None = None) -> dict:
                     else:
                         meta[k] = v
             ch.update("photos", pid, meta=meta, **cols)
-    return {"ids": pids}
+    return {"ids": pids, **({"unknownCodes": sorted(unknown)} if unknown else {})}
 
 
 @command("photo.addKeywords", "Add Keywords", {"ids": {"type": "array"}, "keywords": {"type": "array"}})

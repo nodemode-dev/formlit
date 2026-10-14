@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `get_cull_groups`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`
 
 ## get_catalog
 
@@ -202,10 +202,26 @@ Adds keywords; a | separates levels (Places|France|Paris).
 
 ## set_metadata
 
-Sets IPTC fields: title, caption, headline, creator, copyright, location, city, state, country and the rest of the Metadata panel.
+Sets IPTC fields: title, caption, headline, creator, copyright, location, city, state, country and the rest of the Metadata panel. Codes from the active code replacement set (=code= by default) expand to their text, and variables {date}, {time}, {camera}, {lens}, {filename}, {city}, {event} and the like fill from each photo; codes not in the set come back as unknownCodes.
 
 - `ids`: array; required; Photo ids from find_photos.
 - `fields`: object; required
+
+## set_code_replacements
+
+Saves a code replacement set for captions (one code per line: code, a tab or comma, the replacement, such as a team roster '23<TAB>LeBron James (23) of the Los Angeles Lakers') and makes it active. codes.state through run_command lists the sets.
+
+- `name`: string; required
+- `text`: string; required
+
+## check_required_metadata
+
+Which photos are missing required metadata fields (the person's list in Metadata, Required Fields, or the fields given): per photo and per field. Run it before export_photos for editorial delivery.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `required`: array
+
+Note: read-only.
 
 ## set_location
 
