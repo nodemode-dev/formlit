@@ -792,6 +792,10 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 - The Enhance-finish shift, measured at last on a 480 x 320 photo so Denoise finishes (4x CPU, 150 ms, 200 KB/s): the shift came from a grid cell being rebound to another photo when the list changed, not from the new photo itself. thumbs.ts dropped the old image on rebind, so the img collapsed to 12 x 12 and grew again (two shifts, 0.0016 together). It now keeps the old box (hidden, is-loaded off) until the new thumbnail decodes: one resize to the new photo's aspect, 0.00014. state/library.ts: refreshSoon bumps the request sequence, so a refresh already in flight is dropped when a newer one is scheduled (the import, the capture-time copy and the stack arrive as three changes). The remaining 0.00014 is a cell showing a different photo with a different aspect.
 - i18n keys8 and locales8 (Develop terminology, 22 languages) load with keys7 in `fixes()`.
 
+## v0.40.0 window changes {#v0-40-0}
+
+- shared/ai.ts: Check My Style in the Photo menu (busy line, then a toast with the three error pairs). i18n: keys9 and locales9 are the native reviewers' catalog (written by ./formlit i18n import, loaded last inside `fixes()`); keys10 and locales10 carry the v0.40.0 strings in 25 languages, loaded after keys6.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
