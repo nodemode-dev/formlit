@@ -226,13 +226,38 @@ def _combine(block: np.ndarray, reject: str) -> np.ndarray:
     return np.where(np.sum(keep, axis=0) > 0, out, med)
 
 
+def _small8(img: np.ndarray, top: float) -> np.ndarray:
+    h, w = img.shape[:2]
+    y = cv2.resize(np.ascontiguousarray(img @ LW, np.float32), (max(8, w // 2), max(8, h // 2)), interpolation=cv2.INTER_AREA)
+    return (np.sqrt(np.clip(y / top, 0, 1)) * 255).astype(np.uint8)
+
+
+def ground_flow(ref8: np.ndarray, img: np.ndarray, top: float, land: np.ndarray, h: int, w: int) -> tuple[np.ndarray | None, float]:
+    if not land.any():
+        return None, 0.0
+    f = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM).calc(ref8, _small8(img, top), None)
+    soft = cv2.GaussianBlur(ref8.astype(np.float32), (0, 0), 1.5)
+    grad = np.hypot(cv2.Sobel(soft, cv2.CV_32F, 1, 0), cv2.Sobel(soft, cv2.CV_32F, 0, 1))
+    edges = land & (grad > np.percentile(grad[land], 80))
+    moved = float(np.hypot(*np.median(f[edges], 0))) * w / ref8.shape[1] if edges.any() else 0.0
+    if moved < 0.5:
+        return None, moved
+    f = cv2.GaussianBlur(f, (0, 0), 3.0)
+    return cv2.resize(f, (w, h), interpolation=cv2.INTER_LINEAR) * np.float32(w / ref8.shape[1]), moved
+
+
 def stack(load, n: int, progress=None, align: bool = True, reject: str = "sigma", sky: np.ndarray | None = None, crop: bool = True) -> tuple[np.ndarray, dict]:
     say = progress or (lambda a, b, label: None)
     ref_i = n // 2
     ref = cosmetic(load(ref_i))
     h, w = ref.shape[:2]
     sky_full = cv2.resize(sky.astype(np.float32), (w, h), interpolation=cv2.INTER_LINEAR) if sky is not None else None
+    lum = cv2.medianBlur(np.ascontiguousarray(ref @ LW, np.float32), 3)
+    top_lum = max(1e-6, float(np.percentile(lum, 99)))
     if sky_full is not None:
+        from app.develop.planes import guided
+        guide = np.sqrt(np.clip(lum / top_lum, 0, 1)).astype(np.float32)
+        sky_full = np.clip(guided(guide, sky_full, max(4.0, max(h, w) / 240), 1e-4), 0, 1).astype(np.float32)
         solid = (sky_full > 0.5).astype(np.uint8)
         _, lab = cv2.connectedComponents(solid, connectivity=4)
         top = [int(v) for v in np.unique(lab[0][solid[0] > 0]) if v]
@@ -246,12 +271,25 @@ def stack(load, n: int, progress=None, align: bool = True, reject: str = "sigma"
     fixed = np.memmap(f"{tmp.name}/f.f16", np.float16, "w+", shape=(n, h, w, 3)) if sky_full is not None else None
     report = {"frames": n, "aligned": 0, "rms": [], "inliers": []}
     covered = np.ones((h, w), bool)
+    if fixed is not None:
+        ref8 = _small8(ref, top_lum)
+        land = cv2.erode(cv2.resize((sky_full < 0.5).astype(np.uint8), (ref8.shape[1], ref8.shape[0]), interpolation=cv2.INTER_NEAREST), np.ones((9, 9), np.uint8)) > 0
+        report["groundMoved"] = []
     for i in range(n):
         img = ref if i == ref_i else cosmetic(load(i))
         if img.shape[:2] != (h, w):
             raise ValueError("The photos are not all the same size")
+        frame_ground = ground_mask
         if fixed is not None:
-            fixed[i] = img.astype(np.float16)
+            flow, moved = (None, 0.0) if i == ref_i else ground_flow(ref8, img, top_lum, land, h, w)
+            report["groundMoved"].append(round(moved, 2))
+            if flow is None:
+                fixed[i] = img.astype(np.float16)
+            else:
+                py, px = np.mgrid[0:h, 0:w].astype(np.float32)
+                fixed[i] = cv2.remap(img, px + flow[..., 0], py + flow[..., 1], cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE).astype(np.float16)
+                frame_ground = cv2.remap(ground_mask, px - flow[..., 0], py - flow[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+                del py, px, flow
         if align and i != ref_i:
             cur_stars = stars(img, mask=None if sky_full is None else sky_full > 0.5)
             m, _, _ = match(ref_stars, cur_stars, h, w)
@@ -262,8 +300,8 @@ def stack(load, n: int, progress=None, align: bool = True, reject: str = "sigma"
             mx, my = maps(coef, pr, pc, h, w)
             warped = cv2.remap(img, mx, my, cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(np.nan, np.nan, np.nan))
             covered &= ~np.isnan(warped[..., 0])
-            if ground_mask is not None:
-                warped[cv2.remap(ground_mask, mx, my, cv2.INTER_LINEAR) > 0.2] = np.nan
+            if frame_ground is not None:
+                warped[cv2.remap(frame_ground, mx, my, cv2.INTER_LINEAR) > 0.2] = np.nan
             del mx, my
             aligned[i] = warped.astype(np.float16)
             report["aligned"] += 1
