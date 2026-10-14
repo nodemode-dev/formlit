@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Retouch Skin in the Photo menu (v0.32.0)
+- refers-to: src/modules/shared/ai.ts :: photo.retouchSkin; src/app.ts :: Photo menu
+- kind: rationale
+- logged: v0.32.0 · 2026-10-14
+
+Photo, Retouch Skin opens a form (Smooth skin 40, Reduce shine 0, Heal blemishes on, Blemish sensitivity 50, Keep freckles and moles on) and runs `retouch.skin` on the selection as one background job, then a toast counts the photos, the heals and the photos without a face. Every row stays visible whatever is ticked (a hidden row would resize the dialog). Checked under 4x CPU and slow network: Describe "portrait of a woman with freckles" (the sort was Relevance within 3 s, the six new photos indexed on first use), Select All, Retouch Skin, the toast after 78 s for 8 photos ("7 photos, 79 blemishes healed, 1 without a face"), no page errors; one shift without input, 0.001 on the Navigator picture swapping. A first run that selected all 54 photos before the filter had answered (the first description search after start also loads the text model, about 1 s, behind any running indexing) took 4.5 minutes, about 5 s a photo.
+
 ### Describe filter and Find Similar Photos (v0.31.0)
 - refers-to: src/modules/library/filterbar.ts :: Describe tab, wireDescribe, applyDescribe, searchStatus, searchAction, focusDescribe; src/modules/library/index.ts :: SORTS (Relevance), sort select follows library.sort, view.describe, photo.findSimilar; src/state/library.ts :: Filter.describe; src/styles/lit-library.css :: .fl-fb-desc; src/app.ts :: Edit menu
 - kind: rationale
