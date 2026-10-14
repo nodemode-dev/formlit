@@ -170,6 +170,10 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
         if res["ids"]:
             from app.engine.cmd_ai import adapt
             adapt(res["ids"])
+            from app.ai import models, semantic
+            if models.ready(semantic.MODEL):
+                from app.engine.cmd_search import _start
+                _start([int(i) for i in res["ids"]])
         return res
     tid = tasks.start("import", "Importing photos", job)
     if wait:

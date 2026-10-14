@@ -1151,6 +1151,13 @@ Token use comes from Claude Code's own stream: each `message_start` carries the 
 
 The window's Cull view (Phase 1 of the 2026-10-13 research plan, item 2) needs each face, not only the photo's worst eyes score. `scores` now returns `faceList`: up to six faces, largest first, each with its box (0 to 1 across the image that was scored, which is `view_rgb8` at 1024, the photo as shown with its crop), its own sharpness on the same log scale as the photo's, and its eyes-open score (None when the face is too small or has no landmarks). `cull.analyze` stores it with a `run` stamp in milliseconds. Group indexes restart at 0 on every run, so two runs on different sets would collide; `cull.groups` keys groups by (run, group) and returns the photos in the order given, each group placed where its first member appears, with the best frame, the counts of analyzed and total photos, and the scores. Photos never analyzed, and groups of one, stand alone. It is read-only and chunks the id lookup in 500s. `get_cull_groups` hands the same view to agents. Checked on the test catalog: 7 photos in 3 groups ([5, 1, 2, 4], [6, 3], [7]) with bests 5, 3 and 7; `scores` with two synthetic faces returned both boxes with per-face sharpness and eyes. The faces model could not be downloaded in the test sandbox (403 from the proxy), so real face detection on a shoot was not run this version.
 
+### New imports indexed for search (v0.35.1)
+- refers-to: app/engine/cmd_library.py :: library.import job (search index after adapt)
+- kind: rationale
+- logged: v0.35.1 · 2026-10-14
+
+Follow-up from v0.31.0: when the search model is installed, an import ends by starting the search index job for the photos it added (the job is skipped if one is already running; those photos are then picked up by the next search). Checked: a portrait imported into a catalog of 68 was indexed within 15 s and came first for "woman with freckles and blue eyes" (0.98).
+
 ### Book PDFs for printers beyond Blurb (v0.35.0)
 - refers-to: app/engine/cmd_output.py :: PRINTERS, _printer_checks, book.export (lulu, kdp, ingramspark); app/output/pages.py :: write_pdf (gutterTrim); app/output/layout.py :: book_pages (bleed for every printer); app/routers/mcp.py :: make_book (printer)
 - kind: rationale
