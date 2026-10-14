@@ -59,7 +59,8 @@ def merged(settings: dict | None) -> dict:
         else:
             out[k] = v
     if not out["destination"]["folder"]:
-        out["destination"]["folder"] = str(config.exports_dir())
+        from app.engine.cmd_sessions import output_folder
+        out["destination"]["folder"] = str(output_folder() or config.exports_dir())
     return out
 
 
@@ -394,7 +395,7 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
     stem = target_name(rec, s, seq)
     existing = s["destination"].get("existing", "unique")
     m = s["metadata"]
-    meta_rec = encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")) or in_private_location(rec), kw_filter if kw_filter is not None else _export_keywords())
+    meta_rec = {k: v for k, v in encode.filtered(rec, m.get("include", "all"), bool(m.get("removePerson")), bool(m.get("removeLocation")) or in_private_location(rec), kw_filter if kw_filter is not None else _export_keywords()).items() if k != "develop"}
     if rec.get("kind") == "video":
         if not s["video"].get("include", True):
             return None

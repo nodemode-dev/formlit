@@ -1543,6 +1543,10 @@ def tether_cameras() -> dict:
 def tether_start(port: str = "", model: str = "", session: str = "Tethered", destination: str = "", renameTemplate: str = "", keywords: list[str] | None = None,
                  preset: str = "", collection: int | None = None) -> dict:
     from app.services import tether
+    from app.engine.cmd_sessions import active_root, _names
+    root = active_root() if not destination else None
+    if root is not None:
+        destination, session = str(root), _names(root)["capture"]
     try:
         return tether.start(port, model, {"session": session, "destination": destination, "renameTemplate": renameTemplate, "keywords": keywords or [], "preset": preset,
                                           "collection": collection})
