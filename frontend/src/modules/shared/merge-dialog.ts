@@ -2,7 +2,7 @@ import type { Ctx } from '../../app';
 import { Dialog } from '../../ui/dialogs';
 import { el, q, setClass, setHidden, setText } from '../../ui/dom';
 
-type Kind = 'hdr' | 'pano' | 'hdrpano' | 'focus';
+type Kind = 'hdr' | 'pano' | 'hdrpano' | 'focus' | 'astro';
 
 const DEGHOST = `<div class="fl-row"><span class="fl-row-label">Deghost</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="deghost"><button type="button" data-v="off" class="is-on">None</button><button type="button" data-v="low">Low</button><button type="button" data-v="medium">Medium</button><button type="button" data-v="high">High</button></div></div>`;
 const STACK = '<label class="fl-check"><input type="checkbox" data-k="createStack"> Create Stack</label>';
@@ -29,6 +29,13 @@ const FOCUS_OPTS = `<label class="fl-check"><input type="checkbox" data-k="align
 <label class="fl-check"><input type="checkbox" data-k="autoCrop" checked> Auto Crop to the area every frame covers</label>
 <label class="fl-check"><input type="checkbox" data-k="createStack" checked> Create Stack</label>
 <p class="cv-note">Shoot on a tripod, same exposure, focus stepping from near to far. The merged DNG keeps the middle frame's settings.</p>`;
+
+const ASTRO_OPTS = `<label class="fl-check"><input type="checkbox" data-k="align" checked> Align on the Stars (follows the sky as it turns between frames)</label>
+<label class="fl-check"><input type="checkbox" data-k="fixedGround" checked> Keep the Landscape Sharp (stacks the ground without moving it; needs the sky model)</label>
+<div class="fl-row"><span class="fl-row-label">Combine</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="reject"><button type="button" data-v="sigma" class="is-on">Reject Outliers</button><button type="button" data-v="median">Median</button><button type="button" data-v="mean">Average</button></div></div>
+<label class="fl-check"><input type="checkbox" data-k="autoCrop" checked> Auto Crop to the sky every frame covers (when the landscape is not kept)</label>
+${STACK}
+<p class="cv-note">Shoot from a tripod, the same exposure for every frame, ten or more frames. Reject Outliers removes satellites, planes and hot pixels; noise falls by about the square root of the frame count.</p>`;
 
 class MergeDialog extends Dialog {
   private readonly prev = el('<div class="fl-merge-prev"><img alt="" draggable="false"><span class="fl-merge-status">Building preview...</span></div>');
@@ -63,8 +70,8 @@ class MergeDialog extends Dialog {
   ask(kind: Kind, ids: number[]): Promise<Record<string, unknown> | null> {
     this.kind = kind;
     this.ids = ids;
-    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : kind === 'hdrpano' ? `HDR Panorama Merge Preview (${ids.length} photos)` : kind === 'focus' ? `Focus Stack Preview (${ids.length} photos)` : `Panorama Merge Preview (${ids.length} photos)`);
-    const html = kind === 'hdr' ? HDR_OPTS : kind === 'hdrpano' ? HDRPANO_OPTS : kind === 'focus' ? FOCUS_OPTS : PANO_OPTS;
+    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : kind === 'hdrpano' ? `HDR Panorama Merge Preview (${ids.length} photos)` : kind === 'focus' ? `Focus Stack Preview (${ids.length} photos)` : kind === 'astro' ? `Astro Stack Preview (${ids.length} frames)` : `Panorama Merge Preview (${ids.length} photos)`);
+    const html = kind === 'hdr' ? HDR_OPTS : kind === 'hdrpano' ? HDRPANO_OPTS : kind === 'focus' ? FOCUS_OPTS : kind === 'astro' ? ASTRO_OPTS : PANO_OPTS;
     if (this.opts.dataset.kind !== kind) { this.opts.dataset.kind = kind; this.opts.innerHTML = html; }
     q<HTMLImageElement>(this.prev, 'img').removeAttribute('src');
     setText(q(this.prev, '.fl-merge-status'), 'Building preview...');

@@ -78,6 +78,11 @@ export function registerAiCommands(ctx: Ctx): void {
       const v = await askMerge(ctx, 'focus', ids);
       if (v) await run(ctx, 'ai.focusStack', { ids, align: v.align, autoCrop: v.autoCrop, createStack: v.createStack }, `Focus stacking ${ids.length} photos`);
     } },
+    { id: 'photo.astroStack', label: 'Astro Stack...', enabled: () => library.targets().length > 2, run: async () => {
+      const ids = library.targets();
+      const v = await askMerge(ctx, 'astro', ids);
+      if (v) await run(ctx, 'ai.astroStack', { ids, align: v.align, reject: v.reject || 'sigma', ground: v.fixedGround ? 'fixed' : 'aligned', autoCrop: v.autoCrop, createStack: v.createStack }, `Stacking ${ids.length} frames of the night sky`);
+    } },
     { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
       const ids = library.targets();
       const v = await askMerge(ctx, 'hdrpano', ids);
