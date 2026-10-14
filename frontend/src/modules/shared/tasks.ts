@@ -43,7 +43,7 @@ export function actionToast(text: string, actions: Array<[string, () => void]>, 
     b.addEventListener('click', () => { run(); node.remove(); });
     node.appendChild(b);
   }
-  root.appendChild(node);
+  root.prepend(node);
   window.setTimeout(() => node.remove(), ms);
 }
 

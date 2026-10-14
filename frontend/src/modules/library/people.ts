@@ -37,11 +37,10 @@ export class PeoplePanel {
     this.panel.body.addEventListener('keydown', (e) => this.onKey(e));
     this.panel.body.addEventListener('click', (e) => this.onClick(e));
     this.panel.body.addEventListener('contextmenu', (e) => this.onContext(e));
-    if (this.panel.isOpen) this.load();
+    this.load();
   }
 
   private soon(): void {
-    if (!this.panel.isOpen) { this.loaded = false; return; }
     window.clearTimeout(this.timer);
     this.timer = window.setTimeout(() => this.load(), 200);
   }
