@@ -85,6 +85,21 @@ export function registerAiCommands(ctx: Ctx): void {
       const v = await askMerge(ctx, 'astro', ids);
       if (v) await run(ctx, 'ai.astroStack', { ids, align: v.align, reject: v.reject || 'sigma', ground: v.fixedGround ? 'fixed' : 'aligned', autoCrop: v.autoCrop, createStack: v.createStack }, `Stacking ${ids.length} frames of the night sky`);
     } },
+    { id: 'photo.flashBlend', label: 'Flash and Window Blend...', enabled: two, run: async () => {
+      const ids = library.targets();
+      const frames: Array<[string, string]> = [['', 'Found from the Flash fired tag'], ...ids.map((id): [string, string] => [String(id), library.photo(id)?.file ?? `Photo ${id}`])];
+      const v = await askForm('Flash and Window Blend', `Blends ${ids.length} frames shot from a tripod into one DNG: the ambient frames merged, the room's colour from the flash frame, and the windows pulled from the darker frames in darken mode so frames and mullions stay.`, [
+        { path: 'flash', label: 'Flash frame', kind: 'select', options: frames },
+        { path: 'flashAmount', label: 'Light from flash', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'colorAmount', label: 'Colour from flash', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'windowPull', label: 'Pull the windows', kind: 'check' },
+        { path: 'windowEv', label: 'Window stops', kind: 'range', min: -1, max: 3, step: 0.5 },
+        { path: 'autoTone', label: 'Auto tone', kind: 'check' },
+        { path: 'createStack', label: 'Create stack', kind: 'check' },
+      ], { flash: '', flashAmount: 50, colorAmount: 100, windowPull: true, windowEv: 1, autoTone: true, createStack: false }, 'Blend');
+      if (!v) return;
+      await run(ctx, 'ai.flashBlend', { ids, ...(v.flash ? { flash: Number(v.flash) } : {}), flashAmount: Number(v.flashAmount), colorAmount: Number(v.colorAmount), windowPull: !!v.windowPull, windowEv: Number(v.windowEv), autoTone: !!v.autoTone, createStack: !!v.createStack }, `Blending ${ids.length} frames`);
+    } },
     { id: 'photo.retouchSkin', label: 'Retouch Skin...', enabled: has, run: async () => {
       const ids = library.targets();
       const v = await askForm('Retouch Skin', `Softens skin and heals blemishes on ${ids.length} photo${ids.length === 1 ? '' : 's'}, each with its own skin mask and spots, all editable afterwards in Develop. Photos without a face are left alone; running it again replaces its own edits.`, [
