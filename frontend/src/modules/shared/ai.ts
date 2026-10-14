@@ -4,7 +4,9 @@ import { Dialog } from '../../ui/dialogs';
 import { el, q, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { toast } from '../../ui/toast';
+import { askForm } from '../../ui/askform';
 import { askEnhance, askMerge } from './merge-dialog';
+import { whenDone } from './tasks';
 
 interface CullResult { photos: number; groups: number; best: number[]; blurry: number[]; duplicates: number[]; eyesClosed?: number[]; withFaces?: number; scores?: Record<string, { sharpness: number; exposure: number; eyesOpen: number | null }> }
 
@@ -82,6 +84,23 @@ export function registerAiCommands(ctx: Ctx): void {
       const ids = library.targets();
       const v = await askMerge(ctx, 'astro', ids);
       if (v) await run(ctx, 'ai.astroStack', { ids, align: v.align, reject: v.reject || 'sigma', ground: v.fixedGround ? 'fixed' : 'aligned', autoCrop: v.autoCrop, createStack: v.createStack }, `Stacking ${ids.length} frames of the night sky`);
+    } },
+    { id: 'photo.retouchSkin', label: 'Retouch Skin...', enabled: has, run: async () => {
+      const ids = library.targets();
+      const v = await askForm('Retouch Skin', `Softens skin and heals blemishes on ${ids.length} photo${ids.length === 1 ? '' : 's'}, each with its own skin mask and spots, all editable afterwards in Develop. Photos without a face are left alone; running it again replaces its own edits.`, [
+        { path: 'smooth', label: 'Smooth skin', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'shine', label: 'Reduce shine', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'blemishes', label: 'Heal blemishes', kind: 'check' },
+        { path: 'sensitivity', label: 'Blemish sensitivity', kind: 'range', min: 0, max: 100, step: 1 },
+        { path: 'keepFreckles', label: 'Keep freckles and moles', kind: 'check' },
+      ], { smooth: 40, shine: 0, blemishes: true, sensitivity: 50, keepFreckles: true }, 'Retouch');
+      if (!v) return;
+      try {
+        const r = await ctx.api.cmd<{ task: number }>('retouch.skin', { ids, smooth: Number(v.smooth), shine: Number(v.shine), blemishes: !!v.blemishes, sensitivity: Number(v.sensitivity), keepFreckles: !!v.keepFreckles });
+        const done = await whenDone(r.task) as { ids?: number[]; skipped?: number[]; photos?: Array<{ blemishes?: number }> };
+        const healed = (done.photos ?? []).reduce((n, p) => n + (p.blemishes ?? 0), 0);
+        toast(`Skin retouched on ${done.ids?.length ?? 0} photo${done.ids?.length === 1 ? '' : 's'}, ${healed} blemish${healed === 1 ? '' : 'es'} healed${done.skipped?.length ? ` · ${done.skipped.length} without a face left alone` : ''}`);
+      } catch (err) { ctx.fail(err); }
     } },
     { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
       const ids = library.targets();
