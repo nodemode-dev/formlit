@@ -292,6 +292,24 @@ def _luminance_range(s: dict, ctx: _Ctx) -> np.ndarray:
     return _band(ctx.lab()[..., 0], lo, hi, float(s.get("loFeather", 0.0)), float(s.get("hiFeather", 0.0)))
 
 
+def edge_strength(lum: np.ndarray, detail: float = 50.0) -> np.ndarray:
+    import cv2
+    scale = max(lum.shape) / 1000.0
+    sigma = max(0.5, (2.5 - 2.0 * min(max(detail, 0.0), 100.0) / 100.0) * scale)
+    y = cv2.GaussianBlur(lum.astype(np.float32), (0, 0), sigma)
+    mag = np.hypot(cv2.Sobel(y, cv2.CV_32F, 1, 0, ksize=3), cv2.Sobel(y, cv2.CV_32F, 0, 1, ksize=3))
+    ref = float(np.percentile(mag, 99.0))
+    e = np.clip(mag / max(ref, 1e-6), 0.0, 1.0)
+    return cv2.GaussianBlur(e, (0, 0), max(0.6, sigma)).astype(np.float32)
+
+
+def _edge_range(s: dict, ctx: _Ctx) -> np.ndarray:
+    lo, hi = sorted((float(s.get("lo", 0.35)), float(s.get("hi", 1.0))))
+    e = edge_strength(ctx.lab()[..., 0], float(s.get("detail", 0.5)) * 100.0)
+    out = _band(e, lo, hi, float(s.get("loFeather", 0.1)), float(s.get("hiFeather", 0.0)))
+    return 1.0 - out if s.get("invert") else out
+
+
 def _color_range(s: dict, ctx: _Ctx) -> np.ndarray:
     samples = np.asarray(s.get("samples") or [], np.float64)
     if samples.size == 0:
@@ -369,6 +387,8 @@ def _coverage(s: dict, ctx: _Ctx) -> np.ndarray:
         return _color_range(s, ctx)
     if kind == "depthRange":
         return _depth_range(s, ctx)
+    if kind == "edgeRange":
+        return _edge_range(s, ctx)
     if kind in BITMAP_KINDS:
         return _edges(load_bitmap(ctx.photo_id, s.get("bitmap"), ctx.frame, ctx.w, ctx.h, s.get("outline")), s, ctx)
     return ctx.zeros()

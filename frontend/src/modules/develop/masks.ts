@@ -32,7 +32,7 @@ const POINT_KEYS: Array<[keyof LocalPoint, string, number, number]> = [['hueShif
 
 const AI_KINDS: Array<[string, string, string]> = [['subject', 'Subject', 'maskSubject'], ['sky', 'Sky', 'maskSky'], ['background', 'Background', 'maskBackground'], ['people', 'People', 'maskPeople'], ['object', 'Objects', 'maskObject']];
 const MANUAL: Array<[string, string, string]> = [['brush', 'Brush', 'maskBrush'], ['linear', 'Linear Gradient', 'maskLinear'], ['radial', 'Radial Gradient', 'maskRadial']];
-const RANGES: Array<[string, string, string]> = [['colorRange', 'Color Range', 'maskColor'], ['luminanceRange', 'Luminance Range', 'maskLuminance'], ['depthRange', 'Depth Range', 'maskDepth']];
+const RANGES: Array<[string, string, string]> = [['colorRange', 'Color Range', 'maskColor'], ['luminanceRange', 'Luminance Range', 'maskLuminance'], ['depthRange', 'Depth Range', 'maskDepth'], ['edgeRange', 'Edge Range', 'maskLuminance']];
 const PART_GROUPS: Array<[string, string, string]> = [['people-parts', 'People Parts', 'maskPeople'], ['landscape', 'Landscape', 'maskSky']];
 const PARTS: Record<string, Array<[string, string]>> = {
   people: [['faceSkin', 'Face Skin'], ['bodySkin', 'Body Skin'], ['eyebrows', 'Eyebrows'], ['sclera', 'Eye Sclera'], ['iris', 'Iris and Pupil'], ['lips', 'Lips'], ['teeth', 'Teeth'], ['hair', 'Hair'], ['clothes', 'Clothes']],
@@ -402,6 +402,7 @@ export class MaskTool implements Tool {
       case 'luminanceRange': return { kind, lo: 0.5, hi: 1.0, loFeather: 0.1, hiFeather: 0.1 };
       case 'colorRange': return { kind, samples: [], refine: 50 };
       case 'depthRange': return { kind, lo: 0.0, hi: 0.4, feather: 0.1, bitmap: 'depth' };
+      case 'edgeRange': return { kind, lo: 0.35, hi: 1.0, loFeather: 0.1, detail: 0.5 };
       default: return { kind };
     }
   }
@@ -492,6 +493,7 @@ export class MaskTool implements Tool {
   private shapeControls(s: Shape): string {
     const range = (key: string, label: string, v: number) => `<label class="fl-opt"><span>${label}</span><input class="cv-slider" type="range" min="0" max="100" step="1" value="${Math.round(v * 100)}" data-shape="${key}"></label>`;
     if (s.kind === 'luminanceRange') return range('lo', 'Low', Number(s.lo ?? 0.5)) + range('hi', 'High', Number(s.hi ?? 1)) + range('loFeather', 'Low Feather', Number(s.loFeather ?? 0.1)) + range('hiFeather', 'High Feather', Number(s.hiFeather ?? 0.1));
+    if (s.kind === 'edgeRange') return '<div class="fl-muted">Selects edges and fine detail, or flat areas with Invert, so sharpening, clarity or noise reduction land only where they help. A higher threshold keeps only strong edges.</div>' + range('lo', 'Edge Threshold', Number(s.lo ?? 0.35)) + range('loFeather', 'Feather', Number(s.loFeather ?? 0.1)) + range('detail', 'Fine Detail', Number(s.detail ?? 0.5)) + '<label class="fl-check fl-check-sm"><input type="checkbox" data-shape-invert> Invert (flat areas)</label>';
     if (s.kind === 'depthRange') return range('lo', 'Near', Number(s.lo ?? 0)) + range('hi', 'Far', Number(s.hi ?? 0.4)) + range('feather', 'Feather', Number(s.feather ?? 0.1));
     if (s.kind === 'colorRange') return `<div class="fl-muted">Click the photo to pick a color, Shift-click to add more.</div>${range('refine', 'Refine', Number(s.refine ?? 50) / 100)}`;
     if (s.kind === 'radial') return range('feather', 'Feather', Number(s.feather ?? 50) / 100) + '<label class="fl-check fl-check-sm"><input type="checkbox" data-shape-invert> Invert Radial</label>';
@@ -522,7 +524,7 @@ export class MaskTool implements Tool {
     const inv = this.compOpts.querySelector<HTMLInputElement>('[data-shape-invert]');
     if (inv) {
       inv.checked = !!this.current().c?.shape.invert;
-      inv.addEventListener('change', () => { const { masks, c } = this.current(); if (c) { c.shape.invert = inv.checked; this.write(masks, 'end', 'Invert Radial'); } });
+      inv.addEventListener('change', () => { const { masks, c } = this.current(); if (c) { c.shape.invert = inv.checked; this.write(masks, 'end', c.shape.kind === 'radial' ? 'Invert Radial' : 'Invert Edge Range'); } });
     }
   }
 
