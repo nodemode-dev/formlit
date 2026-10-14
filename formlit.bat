@@ -27,6 +27,7 @@ if /i "%CMD%"=="agents" (
 if /i "%CMD%"=="cli" ( python setup\cli.py %2 %3 %4 %5 %6 %7 %8 %9 & goto :eof )
 if /i "%CMD%"=="doctor" ( call setup\doctor.bat & goto :eof )
 if /i "%CMD%"=="counts" ( call setup\counts.bat %ARG% & goto :eof )
+if /i "%CMD%"=="i18n" ( call setup\i18n.bat %2 %3 %4 & goto :eof )
 if /i "%CMD%"=="clean" ( call setup\clean.bat %ARG% & goto :eof )
 if /i "%CMD%"=="help" ( call :usage & exit /b 0 )
 echo [formlit] unknown command: %CMD%
@@ -35,5 +36,5 @@ exit /b 2
 :usage
 echo formlit.bat [command]
 echo   boot ^| install [--lite] ^| install-ml ^| install-desktop ^| backend ^| frontend
-echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build ^| mcp ^| claude [args] ^| agents install^|sync ^| cli ^| doctor ^| counts ^| clean [--all] ^| help
+echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build ^| mcp ^| claude [args] ^| agents install^|sync ^| cli ^| doctor ^| counts ^| i18n export^|import LANG FILE.csv ^| clean [--all] ^| help
 exit /b 0
