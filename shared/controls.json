@@ -590,6 +590,11 @@
     "band": 7
    }
   },
+  {"id": "skin.hue", "label": "Skin Hue", "section": "skin", "min": 0, "max": 360, "default": 131, "step": 1, "decimals": 0, "track": {"kind": "plain"}},
+  {"id": "skin.range", "label": "Skin Range", "section": "skin", "min": 5, "max": 90, "default": 30, "step": 1, "decimals": 0, "track": {"kind": "plain"}},
+  {"id": "skin.hueUniformity", "label": "Hue Uniformity", "section": "skin", "min": 0, "max": 100, "default": 0, "step": 1, "decimals": 0, "track": {"kind": "plain"}},
+  {"id": "skin.satUniformity", "label": "Saturation Uniformity", "section": "skin", "min": 0, "max": 100, "default": 0, "step": 1, "decimals": 0, "track": {"kind": "plain"}},
+  {"id": "skin.lumUniformity", "label": "Lightness Uniformity", "section": "skin", "min": 0, "max": 100, "default": 0, "step": 1, "decimals": 0, "track": {"kind": "plain"}},
   {
    "id": "bw.red",
    "label": "B&W Red",
@@ -1860,7 +1865,8 @@
    "sections": [
     "mixer",
     "bw",
-    "pointColor"
+    "pointColor",
+    "skin"
    ],
    "toggle": "mixer"
   },

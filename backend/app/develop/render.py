@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from app.develop import colour, dcp, finish as finish_mod, fringe, kernel, layers as layers_mod, lensblur, masks as masks_mod, planes as planes_mod, profiles, retouch
+from app.develop import colour, dcp, finish as finish_mod, fringe, kernel, layers as layers_mod, lensblur, masks as masks_mod, planes as planes_mod, profiles, retouch, skin as skin_mod
 from app.develop.geometry import Frame
 from app.develop.output import to_u8, to_u16
 from app.develop.settings import doc as controls_doc, sanitize, section_enabled
@@ -197,6 +197,12 @@ def proof(out: np.ndarray, wide: Callable[[], np.ndarray], opts: dict) -> np.nda
     return out
 
 
+def _skin(out: np.ndarray, eff: dict, ppl: float, space: str) -> np.ndarray:
+    if not skin_mod.active(eff) or any(t in str(space).lower() for t in ("linear", "pq", "hlg", "hdr", "scene")):
+        return out
+    return skin_mod.apply(out, eff, ppl)
+
+
 def render(img: np.ndarray, info: dict, dev: dict, max_long: int | None = None, size: tuple[int, int] | None = None, space: str = "srgb",
            photo_id: int | None = None, apply_crop: bool = True, overlay: dict | None = None, src_long: int | None = None,
            slot: tuple | None = None) -> np.ndarray:
@@ -204,8 +210,8 @@ def render(img: np.ndarray, info: dict, dev: dict, max_long: int | None = None, 
     sh, sw = img.shape[:2]
     frame, w, h, ppl = plan(sw, sh, eff, max_long, size, apply_crop)
     lin, planes, evaluated = stage_render(img, info, eff, frame, w, h, ppl, photo_id, src_long, slot)
-    out = kernel.best_finish()(lin, planes, eff, frame, info, w, h, ppl, evaluated, space)
-    out = layers_mod.composite(out, lambda e, p: kernel.best_finish()(lin, p, e, frame, info, w, h, ppl, evaluated, space), lin, planes, eff, ppl, frame, w, h, photo_id)
+    fin = lambda e, p: _skin(kernel.best_finish()(lin, p, e, frame, info, w, h, ppl, evaluated, space), e, ppl, space)
+    out = layers_mod.composite(fin(eff, planes), fin, lin, planes, eff, ppl, frame, w, h, photo_id)
     if overlay:
         if overlay.get("proof"):
             out = proof(out, lambda: kernel.best_finish()(lin, planes, eff, frame, info, w, h, ppl, evaluated, "rec2020"), overlay["proof"])
@@ -247,8 +253,8 @@ def render_region(img: np.ndarray, info: dict, dev: dict, region: list[float], o
     w, h = px1 - px0, py1 - py0
     ppl = full.px_per_long(W)
     lin, planes, evaluated = stage_render(img, info, eff2, frame, w, h, ppl, photo_id, src_long, slot, region=(px0, py0), out_long=max(W, H))
-    out = kernel.best_finish()(lin, planes, eff2, full, info, W, H, ppl, evaluated, space, region=(px0, py0))
-    out = layers_mod.composite(out, lambda e, p: kernel.best_finish()(lin, p, e, full, info, W, H, ppl, evaluated, space, region=(px0, py0)), lin, planes, eff2, ppl, frame, w, h, photo_id)
+    fin = lambda e, p: _skin(kernel.best_finish()(lin, p, e, full, info, W, H, ppl, evaluated, space, region=(px0, py0)), e, ppl, space)
+    out = layers_mod.composite(fin(eff2, planes), fin, lin, planes, eff2, ppl, frame, w, h, photo_id)
     if overlay:
         if overlay.get("proof"):
             out = proof(out, lambda: kernel.best_finish()(lin, planes, eff2, full, info, W, H, ppl, evaluated, "rec2020", region=(px0, py0)), overlay["proof"])

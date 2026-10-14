@@ -18,6 +18,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_templates",
     "app.engine.cmd_captions",
     "app.engine.cmd_layers",
+    "app.engine.cmd_color",
     "app.engine.cmd_chat",
     "app.engine.claude_code",
 ]
