@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -536,6 +536,17 @@ Photos that look most like a given one (same scene, subject or look, not only ex
 
 - `id`: integer; required
 - `limit`: integer; default 30
+
+## retouch_skin
+
+Batch skin retouching for a portrait session: on every photo with a face, a Skin Retouch mask over face and body skin (smooth softens texture, shine tames bright skin) and heal spots on blemishes it finds (red spots only while keepFreckles is on, so freckles and moles stay). Everything lands as normal editable settings; photos without a face are skipped; running again replaces its own mask and spots. Check a result with get_preview. Needs the faces and people models.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `smooth`: number; default 40
+- `shine`: number; default 0
+- `blemishes`: boolean; default true
+- `sensitivity`: number; default 50
+- `keepFreckles`: boolean; default true
 
 ## session
 
