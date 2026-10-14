@@ -34,24 +34,26 @@ def protect(shape: tuple[int, int], faces: list[dict]) -> np.ndarray:
     return keep > 0
 
 
-def blemishes(rgb8: np.ndarray, skin: np.ndarray, faces: list[dict], sensitivity: float = 50.0, keep_freckles: bool = True, limit: int = 80) -> list[tuple[float, float, float, float]]:
+def blemishes(rgb8: np.ndarray, skin: np.ndarray, faces: list[dict], sensitivity: float = 50.0, keep_freckles: bool = True, limit: int = 80, max_size: float = 3.0) -> list[tuple[float, float, float, float]]:
     h, w = rgb8.shape[:2]
     if not faces:
         return []
     fw = float(np.median([(f["box"][2] - f["box"][0]) * w for f in faces]))
     if fw < 60:
         return []
-    rmin, rmax = max(1.2, fw * 0.004), fw * 0.03
+    rmin = max(1.2, fw * 0.004)
+    rmax = max(rmin * 1.5, fw * min(max(float(max_size), 0.5), 8.0) / 100.0)
     lab = cv2.cvtColor(rgb8, cv2.COLOR_RGB2LAB).astype(np.float32)
     L, A = lab[..., 0] * (100.0 / 255.0), lab[..., 1] - 128.0
     m = (skin > 0.5).astype(np.uint8)
-    m = cv2.erode(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * round(rmax) + 1,) * 2))
+    base = fw * 0.03
+    m = cv2.erode(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * round(base) + 1,) * 2))
     m &= ~protect((h, w), faces)
     if m.sum() < 400:
         return []
     mf = m.astype(np.float32)
-    bg_l = _masked_blur(L, mf, rmax * 1.5)
-    bg_a = _masked_blur(A, mf, rmax * 1.5)
+    bg_l = _masked_blur(L, mf, base * 1.5)
+    bg_a = _masked_blur(A, mf, base * 1.5)
     fine_l = cv2.GaussianBlur(L, (0, 0), max(0.6, rmin * 0.5))
     fine_a = cv2.GaussianBlur(A, (0, 0), max(0.6, rmin * 0.5))
     dark, red = bg_l - fine_l, fine_a - bg_a

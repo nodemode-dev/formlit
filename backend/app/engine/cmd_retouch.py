@@ -26,7 +26,7 @@ def _clean(dev: dict) -> dict:
     return out
 
 
-def retouch_one(pid: int, smooth: float, shine: float, blemish: bool, sensitivity: float, keep_freckles: bool) -> tuple[dict, dict]:
+def retouch_one(pid: int, smooth: float, shine: float, blemish: bool, sensitivity: float, keep_freckles: bool, max_size: float = 3.0) -> tuple[dict, dict]:
     dev, _ = current(pid)
     base = _clean(dev)
     img, info = previews.source(pid)
@@ -55,7 +55,7 @@ def retouch_one(pid: int, smooth: float, shine: float, blemish: bool, sensitivit
             {"shape": {"kind": "people", "part": "bodySkin", "label": "Body Skin", "bitmap": "adaptive-bodySkin"}, "op": "add"}]}]
     if blemish:
         sk = cv2.resize(np.maximum(face_skin, body_skin), (w, h), interpolation=cv2.INTER_LINEAR)
-        found = skin.blemishes(rgb, sk, faces, sensitivity, keep_freckles)
+        found = skin.blemishes(rgb, sk, faces, sensitivity, keep_freckles, max_size=max_size)
         n = np.asarray(frame.out_to_norm(w, h), np.float64)
         work = rgb.astype(np.float32) / 255.0
         spots = []
@@ -72,9 +72,10 @@ def retouch_one(pid: int, smooth: float, shine: float, blemish: bool, sensitivit
 @command("retouch.skin", "Retouch Skin", {"ids": {"type": "array"}, "smooth": {"type": "number", "description": "0 to 100: softens skin texture (texture and clarity on a skin mask)"},
                                           "blemishes": {"type": "boolean", "description": "heal spots found on the skin"}, "sensitivity": {"type": "number", "description": "0 to 100, how faint a blemish may be"},
                                           "keepFreckles": {"type": "boolean", "description": "leave freckles and moles (brown spots); only red spots are healed"},
-                                          "shine": {"type": "number", "description": "0 to 100: tames bright shine on skin"}, "wait": {"type": "boolean"}},
+                                          "shine": {"type": "number", "description": "0 to 100: tames bright shine on skin"},
+                                          "maxSize": {"type": "number", "description": "largest spot healed, as a percent of the face width (0.5 to 8, default 3)"}, "wait": {"type": "boolean"}},
          description="Batch skin retouching: for every photo with a face, adds a Skin Retouch mask over face and body skin (softer texture, optional shine) and heal spots on blemishes it finds, all as normal editable settings. Photos without a face are left alone. Running it again replaces its own mask and spots, so amounts can be changed.")
-def retouch_skin(ids: Any = None, smooth: float = 40.0, blemishes: bool = True, sensitivity: float = 50.0, keepFreckles: bool = True, shine: float = 0.0, wait: bool = False) -> dict:
+def retouch_skin(ids: Any = None, smooth: float = 40.0, blemishes: bool = True, sensitivity: float = 50.0, keepFreckles: bool = True, shine: float = 0.0, maxSize: float = 3.0, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
     for m in ("faces", "people"):
         models.require(m)
@@ -89,7 +90,7 @@ def retouch_skin(ids: Any = None, smooth: float = 40.0, blemishes: bool = True, 
                 break
             progress(i, len(pids), f"Retouching skin {i + 1} of {len(pids)}")
             try:
-                new, rep = retouch_one(pid, smooth, shine, blemishes, sensitivity, keepFreckles)
+                new, rep = retouch_one(pid, smooth, shine, blemishes, sensitivity, keepFreckles, float(maxSize or 3.0))
             except Exception as exc:
                 reports.append({"id": pid, "error": str(exc)})
                 continue
