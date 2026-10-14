@@ -59,17 +59,23 @@ def scores(rgb8: np.ndarray, faces: list[dict] | None = None) -> dict:
     focus = float(np.percentile(tiles, 90)) if tiles else float(lap.var())
     face_sharp = None
     eyes: list[float] = []
+    face_list: list[dict] = []
     if faces:
         fv = []
         for f in faces:
             x0, y0, x1, y1 = f["box"]
             a, b = int(max(0, y0 * h)), int(min(h, y1 * h))
             c, d = int(max(0, x0 * w)), int(min(w, x1 * w))
+            fs = None
             if b - a > 8 and d - c > 8:
-                fv.append(float(lap[a:b, c:d].var()))
+                v = float(lap[a:b, c:d].var())
+                fv.append(v)
+                fs = round(float(np.clip(100.0 * (np.log10(max(v, 1e-7)) + 5.0) / 3.2, 0.0, 100.0)), 1)
             e = eye_open(gray, f)
             if e is not None:
                 eyes.append(e)
+            face_list.append({"box": [round(float(max(0.0, x0)), 4), round(float(max(0.0, y0)), 4), round(float(min(1.0, x1)), 4), round(float(min(1.0, y1)), 4)], "sharpness": fs, "eyesOpen": e})
+        face_list = sorted(face_list, key=lambda r: (r["box"][2] - r["box"][0]) * (r["box"][3] - r["box"][1]), reverse=True)[:6]
         if fv:
             focus = max(focus * 0.4, max(fv))
             face_sharp = round(float(np.clip(100.0 * (np.log10(max(max(fv), 1e-7)) + 5.0) / 3.2, 0.0, 100.0)), 1)
@@ -79,7 +85,7 @@ def scores(rgb8: np.ndarray, faces: list[dict] | None = None) -> dict:
     mean = float(gray.mean() / 255.0)
     exposure = float(np.clip(100.0 - 400.0 * max(clip_hi - 0.01, 0.0) - 300.0 * max(clip_lo - 0.02, 0.0) - 120.0 * abs(mean - 0.45), 0.0, 100.0))
     return {"sharpness": round(sharp, 1), "exposure": round(exposure, 1), "hash": dhash(gray), "faces": len(faces or []), "faceSharpness": face_sharp,
-            "eyesOpen": min(eyes) if eyes else None}
+            "eyesOpen": min(eyes) if eyes else None, "faceList": face_list}
 
 
 def quality(c: dict) -> float:

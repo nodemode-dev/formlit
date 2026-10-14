@@ -1101,6 +1101,7 @@ def cull_analyze(ids: Any = None, wait: bool = False) -> dict:
         best = set()
         for g in groups:
             best.add(max(g, key=lambda i: cull_mod.quality(by_id[i])))
+        run = int(time.time() * 1000)
         with cat().change("Assisted Culling", undoable=False) as ch:
             for gi, g in enumerate(groups):
                 for pid in g:
@@ -1108,7 +1109,8 @@ def cull_analyze(ids: Any = None, wait: bool = False) -> dict:
                     meta = loads(row["meta"], {}) if row else {}
                     it = by_id[pid]
                     meta["cull"] = {"sharpness": it["sharpness"], "exposure": it["exposure"], "group": gi, "groupSize": len(g), "best": pid in best, "faces": it["faces"],
-                                    "faceSharpness": it.get("faceSharpness"), "eyesOpen": it.get("eyesOpen"), "quality": round(cull_mod.quality(it), 1)}
+                                    "faceSharpness": it.get("faceSharpness"), "eyesOpen": it.get("eyesOpen"), "quality": round(cull_mod.quality(it), 1),
+                                    "faceList": it.get("faceList") or [], "run": run}
                     ch.update("photos", pid, meta=meta)
         blurry = [i for i in by_id if by_id[i]["sharpness"] < 35]
         dupes = [i for g in groups if len(g) > 1 for i in g if i not in best]
@@ -1117,6 +1119,35 @@ def cull_analyze(ids: Any = None, wait: bool = False) -> dict:
                 "eyesClosed": sorted(closed), "withFaces": len([i for i in by_id if by_id[i]["faces"]]),
                 "scores": {str(i): {"sharpness": by_id[i]["sharpness"], "exposure": by_id[i]["exposure"], "eyesOpen": by_id[i].get("eyesOpen")} for i in by_id}}
     return _maybe_wait(tasks.start("cull", "Assisted Culling", job), wait)
+
+
+@command("cull.groups", "Culling Groups", {"ids": {"type": "array"}}, mutates=False,
+         description="The photos in the given order, gathered into near-duplicate groups from the last Assisted Culling run, with each photo's scores and faces. Photos not yet analyzed stand alone.")
+def cull_groups(ids: Any = None) -> dict:
+    pids = resolve_ids(ids)
+    metas: dict[int, dict] = {}
+    for i in range(0, len(pids), 500):
+        chunk = pids[i:i + 500]
+        for r in cat().rows(f"SELECT id, meta FROM photos WHERE id IN ({','.join('?' * len(chunk))})", tuple(chunk)):
+            cl = (loads(r["meta"], {}) or {}).get("cull")
+            if cl:
+                metas[int(r["id"])] = cl
+    out: list[dict] = []
+    where: dict[tuple, int] = {}
+    for pid in pids:
+        cl = metas.get(pid)
+        key = (cl.get("run", 0), cl.get("group")) if cl and cl.get("groupSize", 1) > 1 else None
+        if key is not None and key in where:
+            g = out[where[key]]
+            g["ids"].append(pid)
+        else:
+            if key is not None:
+                where[key] = len(out)
+            out.append({"ids": [pid], "best": None})
+        if cl and cl.get("best"):
+            out[where[key] if key is not None else len(out) - 1]["best"] = pid
+    scores = {str(pid): {k: cl.get(k) for k in ("sharpness", "exposure", "eyesOpen", "faceSharpness", "faces", "quality", "best", "faceList")} for pid, cl in metas.items()}
+    return {"groups": out, "total": len(pids), "analyzed": len(metas), "scores": scores}
 
 
 @command("cull.apply", "Apply Culling", {"ids": {"type": "array"}, "pickBest": {"type": "boolean"}, "rejectBlurry": {"type": "boolean"}, "rejectDuplicates": {"type": "boolean"},

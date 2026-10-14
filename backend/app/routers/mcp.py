@@ -308,6 +308,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
            {"ids": IDS, "pickBest": {"type": "boolean", "default": True}, "rejectBlurry": {"type": "boolean", "default": False}, "rejectDuplicates": {"type": "boolean", "default": False},
             "threshold": {"type": "number", "minimum": 0, "maximum": 100, "default": 35, "description": "Sharpness score under which rejectBlurry rejects."}}, ["ids"]),
      lambda a: _cmd("cull.apply", ids=a["ids"], pickBest=a.get("pickBest", True), rejectBlurry=a.get("rejectBlurry", False), rejectDuplicates=a.get("rejectDuplicates", False), threshold=a.get("threshold", 35))),
+    (_tool("get_cull_groups", "After analyze_culling: the photos in the order given, gathered into near-duplicate groups with the best frame of each, and each photo's sharpness, exposure, eyes-open and per-face scores (face boxes 0 to 1 across the photo as shown). The same view the window's Cull mode shows.",
+           {"ids": IDS}, ["ids"], read=True, idempotent=True), lambda a: _cmd("cull.groups", ids=a["ids"])),
     (_tool("find_faces", "Finds faces in the photos (all when ids is left out) and groups them by person.", {"ids": IDS, "wait": WAIT}), lambda a: _cmd("ai.findFaces", ids=a.get("ids"), all=not a.get("ids"), wait=a.get("wait", True))),
     (_tool("list_people", "Named people with counts, and unnamed face groups with their face and photo ids.", {}, read=True, idempotent=True), lambda a: _cmd("people.list")),
     (_tool("name_person", "Names a group of faces (face ids from list_people); adds a People keyword to their photos.", {"faces": {"type": "array", "items": {"type": "integer"}}, "name": {"type": "string"}}, ["faces", "name"]), lambda a: _cmd("people.name", faces=a["faces"], name=a["name"])),

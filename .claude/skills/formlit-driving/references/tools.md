@@ -12,6 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
+- Other: `get_cull_groups`
 
 ## get_catalog
 
@@ -250,6 +251,14 @@ After analyze_culling: pickBest flags the best of each group as a pick; rejectBl
 - `rejectBlurry`: boolean; default false
 - `rejectDuplicates`: boolean; default false
 - `threshold`: number; default 35; Sharpness score under which rejectBlurry rejects.
+
+## get_cull_groups
+
+After analyze_culling: the photos in the order given, gathered into near-duplicate groups with the best frame of each, and each photo's sharpness, exposure, eyes-open and per-face scores (face boxes 0 to 1 across the photo as shown). The same view the window's Cull mode shows.
+
+- `ids`: array; required; Photo ids from find_photos.
+
+Note: read-only.
 
 ## find_faces
 

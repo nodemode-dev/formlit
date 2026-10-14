@@ -10,6 +10,10 @@
 | `group` | index of the near-duplicate group: consecutive frames within 3 seconds whose difference hashes differ by 12 bits or fewer, or by 6 or fewer at any time apart | panning bursts with a changing background split into several groups |
 | `groupSize` | frames in the group | |
 | `best` | the frame in the group with the highest 0.75 x sharpness + 0.25 x exposure | it cannot see closed eyes or expressions |
+| `faceList` | up to six faces, largest first: `box` [x0, y0, x1, y1] 0 to 1 across the photo as shown, the face's own `sharpness`, and `eyesOpen` (None for small faces) | empty without the faces model; small or profile faces are missed |
+| `run` | when the analysis ran, in milliseconds; group indexes are only comparable within one run | |
+
+`get_cull_groups` (command `cull.groups`) returns the photos in the order given, gathered into groups by (run, group), each with its best frame and every photo's scores including `faceList`. It is the same view as the window's Cull mode (K), so a person and an agent can talk about "burst 3" and mean the same frames.
 
 `apply_culling` rules: `rejectBlurry` rejects sharpness under `threshold`; `rejectDuplicates` rejects every non-best frame in groups larger than one; `pickBest` picks the best of each group larger than one. A frame in a group of one is left unflagged unless it is blurry.
 
