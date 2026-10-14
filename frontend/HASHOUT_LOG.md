@@ -796,6 +796,11 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 
 - shared/ai.ts: Check My Style in the Photo menu (busy line, then a toast with the three error pairs). i18n: keys9 and locales9 are the native reviewers' catalog (written by ./formlit i18n import, loaded last inside `fixes()`); keys10 and locales10 carry the v0.40.0 strings in 25 languages, loaded after keys6.
 
+## v0.41.1 thumbnail boxes sized before load {#v0-41-1}
+
+- A health pass found one shift left on a cold load (4x CPU, 150 ms, 200 KB/s): 6.3e-5, the filmstrip thumbnail of a portrait growing from 12 x 12 to 54 x 69 when its image arrived, every load. `aspect-ratio` with only max-width and max-height does not size an img that has no image yet. lit-library.css: `.fl-cell-frame` is a size container and `.fl-cell-img` takes `width: min(100cqw, 100cqh * var(--fl-aspect))`, so the box is the final size before the image loads. Measured after: no shift on two cold loads; grid and filmstrip thumbnails unchanged (landscape 150 x 100 and portrait 61 x 136 in a 150 x 136 frame).
+- The same pass: tsc, Python compile, the engine selfcheck (every command module), counts, agents sync, no em dashes in tracked markdown, all 25 languages load translated; the People panel opens with no shift.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
