@@ -5,6 +5,7 @@ import keys4 from './keys4.json';
 import keys5 from './keys5.json';
 import keys6 from './keys6.json';
 import keys7 from './keys7.json';
+import keys8 from './keys8.json';
 
 export const LANGUAGES: Array<[string, string]> = [
   ['en', 'English'], ['es', 'Español (España)'], ['es-MX', 'Español (México)'], ['pt-BR', 'Português (Brasil)'], ['fr', 'Français (France)'],
@@ -22,6 +23,7 @@ const loaders4 = import.meta.glob('./locales4/*.json');
 const loaders5 = import.meta.glob('./locales5/*.json');
 const loaders6 = import.meta.glob('./locales6/*.json');
 const loaders7 = import.meta.glob('./locales7/*.json');
+const loaders8 = import.meta.glob('./locales8/*.json');
 
 let code = 'en';
 const exact = new Map<string, string>();
@@ -137,7 +139,12 @@ export async function initLanguage(): Promise<void> {
   const more = loaders2[`./locales2/${want}.json`], more3 = loaders3[`./locales3/${want}.json`], more4 = loaders4[`./locales4/${want}.json`], more5 = loaders5[`./locales5/${want}.json`], more6 = loaders6[`./locales6/${want}.json`], more7 = loaders7[`./locales7/${want}.json`];
   const none = Promise.resolve({ default: {} });
   const [mod, mod2, mod3, mod4, mod5, mod6, mod7] = (await Promise.all([load(), more ? more() : none, more3 ? more3() : none, more4 ? more4() : none, more5 ? more5() : none, more6 ? more6() : none, more7 ? more7() : none])) as Array<{ default: Record<string, string> }>;
-  const fixes = () => (keys7 as string[]).forEach((en, i) => add(en, mod7.default[String(i)]));
+  const more8 = loaders8[`./locales8/${want}.json`];
+  const mod8 = (more8 ? await more8() : { default: {} }) as { default: Record<string, string> };
+  const fixes = () => {
+    (keys7 as string[]).forEach((en, i) => add(en, mod7.default[String(i)]));
+    (keys8 as string[]).forEach((en, i) => add(en, mod8.default[String(i)]));
+  };
   code = want;
   document.documentElement.lang = locale();
   const add = (en: string, tr: string | undefined) => {
