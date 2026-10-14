@@ -809,9 +809,10 @@ export class WbPickerTool implements Tool {
   down(p: Pt): boolean {
     const id = develop.id;
     if (id === null || p.u < 0 || p.u > 1 || p.v < 0 || p.v > 1) return true;
+    const keep = p.e.shiftKey;
+    if (!keep) this.host.done();
     void develop.flush().then(() => this.host.ctx.api.cmd<{ temp: number; tint: number }>('develop.whiteBalancePick', { id, x: p.nx, y: p.ny })).then((r) => {
       setText(this.readout, `Temp ${r.temp} K · Tint ${r.tint > 0 ? '+' : ''}${r.tint}`);
-      if (!p.e.shiftKey) this.host.done();
     }, (err) => this.host.ctx.fail(err));
     return true;
   }

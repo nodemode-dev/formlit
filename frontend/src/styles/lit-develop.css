@@ -34,13 +34,13 @@
 .fl-sl-num { justify-self: end; width: 54px; height: 16px; padding: 0 2px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-11); font-variant-numeric: tabular-nums; text-align: right; }
 .fl-sl-num:hover { border-color: var(--line-2); }
 .fl-sl-num:focus { outline: none; border-color: var(--accent-color); background: var(--surface-field); color: var(--text-primary); }
-.fl-sl-track { grid-column: 1 / -1; position: relative; height: 16px; cursor: pointer; touch-action: none; outline: none; }
+.fl-sl-track { grid-column: 1 / -1; position: relative; height: 16px; cursor: pointer; touch-action: none; outline: none; container-type: inline-size; }
 .fl-sl-rail { position: absolute; left: 0; right: 0; top: 7px; height: 2px; border-radius: 1px; background: var(--line-2); }
 .fl-sl.is-tinted .fl-sl-rail { top: 6px; height: 4px; border-radius: 2px; background: var(--fl-sl-bg); opacity: 0.85; }
 .fl-sl-fill { position: absolute; top: 7px; height: 2px; left: calc(min(var(--z, 0), var(--f, 0)) * 100%); width: calc(max(var(--f, 0) - var(--z, 0), var(--z, 0) - var(--f, 0)) * 100%); background: var(--text-muted); border-radius: 1px; }
 .fl-sl.is-tinted .fl-sl-fill { display: none; }
 .fl-sl.is-changed .fl-sl-fill { background: var(--accent-color); }
-.fl-sl-thumb { position: absolute; top: 3px; left: calc(var(--f, 0) * 100%); width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--text-secondary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); transition: transform var(--transition-fast); }
+.fl-sl-thumb { position: absolute; top: 3px; left: 0; translate: calc(var(--f, 0) * 100cqw) 0; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--text-secondary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); transition: transform var(--transition-fast); }
 .fl-sl-track:hover .fl-sl-thumb, .fl-sl.is-dragging .fl-sl-thumb { background: var(--text-primary); transform: scale(1.2); }
 .fl-sl-track:focus-visible .fl-sl-thumb { outline: 2px solid var(--accent-color); outline-offset: 1px; }
 

@@ -14,6 +14,7 @@ import { MaskTool } from './masks';
 import { DEFAULT_OFF, GROUPS } from './groups';
 import { DevelopPanels } from './panels';
 import { LayersPanel } from './layers';
+import { SkinPickerTool } from './skin-tool';
 import { openProfileBrowser } from './profile-browser';
 import { LensBlurTool } from './lensblur-tool';
 import { CropTool, FringePickerTool, GuidedTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
@@ -99,6 +100,7 @@ class DevelopModule {
       this.tools.set('redeye', new RedEyeTool(host));
       this.tools.set('masks', new MaskTool(host));
       this.tools.set('wb', new WbPickerTool(host));
+      this.tools.set('skin', new SkinPickerTool(host));
       this.tools.set('fringe', new FringePickerTool(host));
       this.tools.set('guided', new GuidedTool(host));
       this.tools.set('lensblur', new LensBlurTool(host));
@@ -337,6 +339,7 @@ class DevelopModule {
       { id: 'develop.tool.redeye', label: 'Red Eye Correction', keys: ['Shift+E'], run: tool('redeye'), checked: () => this.toolId === 'redeye' },
       { id: 'develop.tool.masks', label: 'Masking', keys: ['Shift+W'], run: tool('masks'), checked: () => this.toolId === 'masks' },
       { id: 'develop.wbPicker', label: 'White Balance Selector', keys: ['W'], run: tool('wb'), checked: () => this.toolId === 'wb' },
+      { id: 'develop.tool.skin', label: 'Skin Tone Selector', run: tool('skin'), checked: () => this.toolId === 'skin' },
       { id: 'develop.pointColor', label: 'Point Color', run: tool('point'), checked: () => this.toolId === 'point' },
       { id: 'develop.proofCopy', label: 'Create Proof Copy', run: async () => {
         const id = develop.id;

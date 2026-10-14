@@ -496,6 +496,15 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Skin Tone in the Color Mixer, the picker, and slider thumbs off the layout path (v0.26.0)
+- refers-to: src/modules/develop/panels.ts :: Color Mixer skin block; src/modules/develop/skin-tool.ts :: SkinPickerTool; src/modules/develop/index.ts :: develop.tool.skin; src/modules/develop/tools.ts :: WbPickerTool.down; src/styles/lit-develop.css :: .fl-sl-track container-type, .fl-sl-thumb translate
+- kind: rationale, removed-bug
+- logged: v0.26.0 · 2026-10-14
+
+Skin Tone sits under Point Color: Pick, Skin Hue, Skin Range, and Hue, Saturation and Lightness Uniformity. Pick sets the hue from a click on the photo, and if all three uniformities are at 0 it starts Hue Uniformity at 50 so the pick visibly does something. The result goes in a toast, or stays in the drawer with Shift-click to keep picking.
+
+Two layout shifts found while measuring, both fixed. (1) The White Balance selector, and the new skin selector built on it, closed the tool drawer when the engine replied, well after the click, so every panel below jumped up 113 px. The tool now closes within the click itself. (2) Slider thumbs were placed with `left`, so every value set from outside (a pick, Auto, a preset, undo) counted as a layout shift. The thumb now moves with the `translate` property in container units (`100cqw` of the track, which is now an inline-size container), so it never touches layout; hover scaling still composes. Checked: thumbs sit exactly at their fraction (Exposure -0.40 at 46.0 percent, Contrast -5 at 47.5, Highlights -50 at 25.0). After both fixes, a pick, a Lightness Uniformity change and the panel updates showed no layout shift and no page errors under 4x CPU and slow network.
+
 ### src/modules/shared/merge-dialog.ts and ai.ts · Focus Stack (v0.25.0)
 - refers-to: src/modules/shared/merge-dialog.ts :: Kind focus, FOCUS_OPTS, ask; src/modules/shared/ai.ts :: photo.focusStack (Alt+Mod+M); src/app.ts :: Photo menu
 - kind: rationale

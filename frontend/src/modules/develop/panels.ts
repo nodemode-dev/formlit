@@ -146,7 +146,9 @@ export class DevelopPanels {
     tatMixer.addEventListener('click', () => this.ctx.run(develop.settings.treatment === 'bw' ? 'develop.tat.bw' : `develop.tat.${this.mixerMode === 'all' ? 'hue' : this.mixerMode}`));
     const mixerFoot = el('<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.pointColor">Point Color...</button></div>');
     mixerFoot.prepend(tatMixer);
-    pMixer.body.append(this.mixerTabs, this.mixerBody, this.bwBody, mixerFoot);
+    const skin = el(`<div class="fl-skin"><div class="fl-row fl-row-end"><span class="fl-sub-inline fl-grow">Skin Tone</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.tool.skin" title="Click skin in the photo to set the skin hue">${icon('eyeDropper', 13)} Pick</button></div></div>`);
+    skin.append(s('skin.hue'), s('skin.range'), s('skin.hueUniformity'), s('skin.satUniformity'), s('skin.lumUniformity'));
+    pMixer.body.append(this.mixerTabs, this.mixerBody, this.bwBody, mixerFoot, skin);
 
     const pGrade = this.panel('dev.grading', 'Color Grading', 'grading');
     const wheelRow = el('<div class="fl-wheels"></div>');
