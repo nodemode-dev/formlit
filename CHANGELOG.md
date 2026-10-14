@@ -2,6 +2,22 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.23.0 · 2026-10-14
+
+### Added
+
+- **Edge controls on AI masks:** Subject, Sky, Background, People, Objects and Landscape masks each get three sliders:
+  - **Refine Edge** snaps the mask to the edges in the photo, for hair and soft outlines.
+  - **Shift Edge** grows or shrinks the mask, up to 2 percent of the photo's long side, to clear a halo or take in a missed rim.
+  - **Feather** softens the edge, up to 3 percent of the long side.
+  - All three look the same in the preview, at 1:1 and in a full-size export.
+- **Refine Edge Brush:** paint over hair, fur or a fuzzy edge and the mask follows the photo's edges only where you paint. It is in the mask's Add row, and any brush component can be switched to Refine.
+- **For agents:** `add_ai_mask` takes `refine`, `shift` and `feather`.
+
+### Note
+
+- The edge settings and the Refine Edge Brush are formlit's own. Lightroom has no equivalent fields, so they are left out of the XMP written for it.
+
 ## v0.22.0 · 2026-10-14
 
 ### Added
