@@ -774,6 +774,13 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 
 ---
 
+## v0.37.0 window changes {#v0-37-0}
+
+- library/people.ts: the People list loads at startup and on every people change, open or closed, so opening the panel shows its faces at once. The logged 0.0035 shift came from rows arriving after the panel opened; measured now under 4x CPU and 150 ms / 200 KB/s: none in 4 s after opening.
+- shared/tasks.ts actionToast prepends like toast(), so a finishing task's toast no longer pushes the others up. The Enhance-finish shift (0.0055) was logged together with a toast arriving as the new photo became active; a virtual copy added and undone under throttling shows no shift now. The full Enhance run was not repeated.
+- shared/export.ts: Send by FTP in Post-Processing (server, user, password, remote folder, TLS). shared/proofing.ts: Most picks.
+- i18n plural forms: a translation may write {N:one=...;few=...;other=...}; the form is chosen with Intl.PluralRules for the language and the value of placeholder N, other as the fallback. keys4.json and locales4 hold the 17 counted strings (photo{1} and the like) in all 25 languages with these forms; they are added before the older catalogs so they win. Checked: sv 1 foto, 3 foton; pl 1 zdjęcia, 5 zdjęć; cs 3 fotografie, 22 fotografií; de 3 Fotos; fr, ru, ja as expected. keys5 and locales5 carry the v0.37.0 strings.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

@@ -1355,6 +1355,14 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 
 ---
 
+## v0.37.0 follow-ups {#v0-37-0}
+
+- cmd_output.py PRINTERS kdp `gutter`: KDP's minimum inside margin by page count (24 to 150 pages 0.375 in, 151 to 300 0.5, 301 to 500 0.625, 501 to 700 0.75, 701 to 828 0.875; KDP Help "Set trim size, bleed, and margins", corroborated by ScribeCount's print formatting requirements). `_printer_checks` notes text closer than that to the binding: the left edge on odd (right-hand) pages, the right edge on even pages, measured from the trim (bleed taken off). Checked: 200 pages with text 0.45 in from the binding is reported, 0.55 in is not; 400 pages reports 0.55 in.
+- proof.py `limit` (proof.export `limit`, MCP proofing_gallery `limit`): the gallery shows "N of LIMIT picked" and refuses another pick at the limit with a line in the header, so the client unpicks first. 0 means no limit. Checked in Chromium: limit 2, third pick refused.
+- Export post action `ftp` (After export, Send by FTP): the exported files are sent with `web.send_files` (FTPS by default, plain FTP when tls is false) into the remote folder, made if missing. The exported copies carry the export's metadata; originals are untouched. `export.scrub` blanks the FTP password before the settings are kept as lastExport or saved in a preset, so it is typed per session. A failed send raises after the export, naming how many files were exported. Checked against a local FTP server: 2 files in /incoming/today; lastExport holds no password. SFTP is not built: it needs paramiko, a new dependency.
+
+---
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
