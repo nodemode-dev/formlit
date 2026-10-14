@@ -1,0 +1,6 @@
+{
+ "0": "Vérifier mon style",
+ "1": "Comparaison de votre style avec vos propres retouches",
+ "2": "Appliquer mon style sur {0} {0:one=photo retouchée;other=photos retouchées} : exposition décalée de {1} IL (retouche moyenne {2}, sans retouche {3}), autres curseurs de {4} points ({5}, {6})",
+ "3": "PDF/X-1a (polices incorporées, intention de sortie, cadres de coupe)"
+}

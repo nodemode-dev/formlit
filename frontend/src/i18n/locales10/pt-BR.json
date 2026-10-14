@@ -1,0 +1,6 @@
+{
+ "0": "Verificar meu estilo",
+ "1": "Comparando seu estilo com suas próprias edições",
+ "2": "Aplicar meu estilo em {0} {0:one=foto editada;other=fotos editadas}: exposição diferente em {1} EV (edição média {2}, sem edição {3}), outros controles em {4} pontos ({5}, {6})",
+ "3": "PDF/X-1a (fontes incorporadas, intenção de saída, caixas de corte)"
+}

@@ -1,0 +1,6 @@
+{
+ "0": "Meinen Stil prüfen",
+ "1": "Ihr Stil wird mit Ihren eigenen Bearbeitungen verglichen",
+ "2": "Meinen Stil anwenden bei {0} {0:one=bearbeitetem Foto;other=bearbeiteten Fotos}: Belichtung weicht um {1} EV ab (durchschnittliche Bearbeitung {2}, ohne Bearbeitung {3}), übrige Regler um {4} Punkte ({5}, {6})",
+ "3": "PDF/X-1a (eingebettete Schriften, Ausgabebedingung, Beschnittrahmen)"
+}

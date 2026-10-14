@@ -1,0 +1,6 @@
+{
+ "0": "Sjekk min stil",
+ "1": "Sjekker stilen din mot dine egne redigeringer",
+ "2": "Bruk min stil på {0} {0:one=redigert bilde;other=redigerte bilder}: eksponeringen avviker med {1} EV (gjennomsnittlig redigering {2}, ingen redigering {3}), andre glidere med {4} poeng ({5}, {6})",
+ "3": "PDF/X-1a (innebygde skrifttyper, utdataintensjon, beskjæringsbokser)"
+}

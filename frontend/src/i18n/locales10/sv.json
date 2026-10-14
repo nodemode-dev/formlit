@@ -1,0 +1,6 @@
+{
+ "0": "Kontrollera min stil",
+ "1": "Jämför din stil med dina egna redigeringar",
+ "2": "Använd min stil på {0} {0:one=redigerat foto;other=redigerade foton}: exponeringen avviker med {1} EV (genomsnittlig redigering {2}, ingen redigering {3}), övriga reglage med {4} poäng ({5}, {6})",
+ "3": "PDF/X-1a (inbäddade typsnitt, utdataavsikt, beskärningsrutor)"
+}

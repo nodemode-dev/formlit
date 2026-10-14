@@ -1,0 +1,6 @@
+{
+ "0": "Kontroller min stil",
+ "1": "Kontrollerer din stil mod dine egne redigeringer",
+ "2": "Anvend min stil på {0} {0:one=redigeret foto;other=redigerede fotos}: eksponering afviger med {1} EV (gennemsnitlig redigering {2}, ingen redigering {3}), øvrige skydere med {4} point ({5}, {6})",
+ "3": "PDF/X-1a (indlejrede skrifttyper, outputintention, beskæringsbokse)"
+}

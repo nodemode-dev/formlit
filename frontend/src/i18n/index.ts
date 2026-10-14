@@ -7,6 +7,7 @@ import keys6 from './keys6.json';
 import keys7 from './keys7.json';
 import keys8 from './keys8.json';
 import keys9 from './keys9.json';
+import keys10 from './keys10.json';
 
 export const LANGUAGES: Array<[string, string]> = [
   ['en', 'English'], ['es', 'Español (España)'], ['es-MX', 'Español (México)'], ['pt-BR', 'Português (Brasil)'], ['fr', 'Français (France)'],
@@ -26,6 +27,7 @@ const loaders6 = import.meta.glob('./locales6/*.json');
 const loaders7 = import.meta.glob('./locales7/*.json');
 const loaders8 = import.meta.glob('./locales8/*.json');
 const loaders9 = import.meta.glob('./locales9/*.json');
+const loaders10 = import.meta.glob('./locales10/*.json');
 
 let code = 'en';
 const exact = new Map<string, string>();
@@ -144,6 +146,8 @@ export async function initLanguage(): Promise<void> {
   const more8 = loaders8[`./locales8/${want}.json`], more9 = loaders9[`./locales9/${want}.json`];
   const mod8 = (more8 ? await more8() : { default: {} }) as { default: Record<string, string> };
   const mod9 = (more9 ? await more9() : { default: {} }) as { default: Record<string, string> };
+  const more10 = loaders10[`./locales10/${want}.json`];
+  const mod10 = (more10 ? await more10() : { default: {} }) as { default: Record<string, string> };
   const fixes = () => {
     (keys7 as string[]).forEach((en, i) => add(en, mod7.default[String(i)]));
     (keys8 as string[]).forEach((en, i) => add(en, mod8.default[String(i)]));
@@ -165,6 +169,7 @@ export async function initLanguage(): Promise<void> {
   (keys3 as string[]).forEach((en, i) => add(en, mod3.default[String(i)]));
   (keys5 as string[]).forEach((en, i) => add(en, mod5.default[String(i)]));
   (keys6 as string[]).forEach((en, i) => add(en, mod6.default[String(i)]));
+  (keys10 as string[]).forEach((en, i) => add(en, mod10.default[String(i)]));
   fixes();
   patterns.sort((a, b) => b[0].source.length - a[0].source.length);
   document.title = t(document.title);
