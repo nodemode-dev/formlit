@@ -103,10 +103,31 @@ def cell_image(pid: int, cell: dict, ppi: float, space: str, sharpen: dict, job:
     return out[py0:py1, px0:px1], (x0, y0, x1 - x0, y1 - y0)
 
 
-def _jpeg(arr: np.ndarray, quality: int) -> bytes:
+def _jpeg(arr: np.ndarray, quality: int, cmyk=None) -> bytes:
     buf = io.BytesIO()
-    Image.fromarray(to_u8(arr), "RGB").save(buf, "JPEG", quality=quality, subsampling=0)
+    im = Image.fromarray(to_u8(arr), "RGB")
+    if cmyk is not None:
+        from PIL import ImageCms
+        im = ImageCms.applyTransform(im, cmyk)
+    im.save(buf, "JPEG", quality=quality, **({} if cmyk is not None else {"subsampling": 0}))
     return buf.getvalue()
+
+
+def _cmyk_transform(profile: str):
+    from PIL import ImageCms
+    prof = ImageCms.getOpenProfile(profile)
+    if prof.profile.xcolor_space.strip() != "CMYK":
+        raise ValueError(f"{Path(profile).name} is not a CMYK profile")
+    return ImageCms.buildTransform(ImageCms.createProfile("sRGB"), prof, "RGB", "CMYK", ImageCms.Intent.PERCEPTUAL)
+
+
+def _ink(c, rgb: tuple, cmyk, stroke: bool = False) -> None:
+    if cmyk is None:
+        (c.setStrokeColorRGB if stroke else c.setFillColorRGB)(*(v / 255 for v in rgb))
+        return
+    from PIL import ImageCms
+    k = (0, 0, 0, 255) if tuple(rgb) == (0, 0, 0) else ImageCms.applyTransform(Image.new("RGB", (1, 1), tuple(int(v) for v in rgb)), cmyk).getpixel((0, 0))
+    (c.setStrokeColorCMYK if stroke else c.setFillColorCMYK)(*(v / 255 for v in k))
 
 
 def _overlays(page: dict, layout: dict, s: dict, total: int) -> list[dict]:
@@ -164,6 +185,9 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
     job = s.get("job") or {}
     ppi, space, quality = float(job.get("ppi", 300)), job.get("space", "srgb"), int(job.get("quality", 92))
     sharpen = job.get("sharpen") or {}
+    cmyk = _cmyk_transform(str(job["cmykProfile"])) if job.get("cmykProfile") else None
+    if cmyk is not None:
+        space = "srgb"
     PW, PH = layout["page"]["w"], layout["page"]["h"]
     c = rl_canvas.Canvas(str(path), pagesize=(PW * 72, PH * 72))
     c.setTitle(path.stem)
@@ -177,7 +201,7 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
         if trim and int(page.get("number", 0)) % 2 == 1:
             c.translate(-trim * 72, 0)
         if bg != (255, 255, 255):
-            c.setFillColorRGB(*(v / 255 for v in bg))
+            _ink(c, bg, cmyk)
             c.rect(0, 0, pw * 72, ph * 72, stroke=0, fill=1)
         for cell in page["cells"]:
             if cell.get("photo") is None:
@@ -186,14 +210,14 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
             if got is None:
                 continue
             arr, (x, y, w, h) = got
-            c.drawImage(ImageReader(io.BytesIO(_jpeg(arr, quality))), x * 72, (ph - y - h) * 72, w * 72, h * 72)
+            c.drawImage(ImageReader(io.BytesIO(_jpeg(arr, quality, cmyk))), x * 72, (ph - y - h) * 72, w * 72, h * 72)
             stroke = float(s.get("stroke") or 0)
             if stroke > 0:
-                c.setStrokeColorRGB(*(v / 255 for v in _hex(s.get("strokeColor", "#000000"))))
+                _ink(c, _hex(s.get("strokeColor", "#000000")), cmyk, stroke=True)
                 c.setLineWidth(stroke)
                 c.rect(x * 72 + stroke / 2, (ph - y - h) * 72 + stroke / 2, w * 72 - stroke, h * 72 - stroke, stroke=1, fill=0)
             if s.get("cropMarks"):
-                c.setStrokeColorRGB(0, 0, 0)
+                _ink(c, (0, 0, 0), cmyk, stroke=True)
                 c.setLineWidth(0.4)
                 L, G = 14, 4
                 for cx, cy in ((x, y), (x + w, y), (x, y + h), (x + w, y + h)):
@@ -203,7 +227,7 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
                     c.line(X + sx * G, Y, X + sx * (G + L), Y)
                     c.line(X, Y + sy * G, X, Y + sy * (G + L))
         for t in _overlays(page, layout, s, total):
-            c.setFillColorRGB(*(v / 255 for v in _hex(t["color"])))
+            _ink(c, _hex(t["color"]), cmyk)
             font = pdf_font(t.get("font", "sans"), bool(t.get("bold", t["size"] >= 20)), bool(t.get("italic")))
             c.setFont(font, t["size"])
             if t.get("rotate"):

@@ -74,6 +74,7 @@ class BookModule extends OutputModule {
       { path: 'job.output', label: 'Book', kind: 'select', options: [['pdf', 'PDF'], ['jpeg', 'JPEG'], ['blurb', 'Blurb'], ['lulu', 'Lulu'], ['kdp', 'Amazon KDP'], ['ingramspark', 'IngramSpark']] },
       { path: '', label: 'Print-ready files: an interior PDF and a wrap cover PDF with 0.125 in bleed (Lulu on every side; Amazon KDP and IngramSpark not on the binding side) and a spine sized to the page count; the export notes anything the printer will reject.', kind: 'note', show: () => ['blurb', 'lulu', 'kdp', 'ingramspark'].includes(String(this.get('job.output'))) },
       { path: 'cover.spine', label: 'Spine text', kind: 'text', placeholder: 'The title', show: () => !!this.tdefs()[String(this.get('cover.template'))]?.wrap },
+      { path: 'job.cmykProfile', label: 'Colour', kind: 'select', options: () => [['', 'RGB (sRGB)'] as [string, string], ...((this.options?.cmykProfiles as Array<{ name: string; path: string }> | undefined) ?? []).map((p): [string, string] => [p.path, `CMYK: ${p.name}`])], show: () => String(this.get('job.output')) !== 'jpeg' },
       { path: 'job.ppi', label: 'Resolution', kind: 'number', min: 72, max: 600, step: 10, unit: 'ppi' },
       { path: 'job.quality', label: 'JPEG quality', kind: 'range', min: 50, max: 100 },
       { path: 'job.sharpen.on', label: 'Sharpening', kind: 'check' },

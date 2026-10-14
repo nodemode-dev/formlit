@@ -294,10 +294,12 @@ def print_run(settings: dict | None = None, ids: Any = None, collection: int | N
 
 @command("book.options", "Book Options", mutates=False)
 def book_options() -> dict:
+    from app.output import icc
     return {"sizes": {k: {"name": v[0], "w": v[1], "h": v[2]} for k, v in layout.BOOK_SIZES.items()},
             "templates": {k: {"name": v["name"], "cells": v["cells"], "texts": v["texts"], **{f: True for f in ("spread", "wrap", "hidden", "custom") if v.get(f)}}
                           for k, v in layout.templates().items()}, "defaults": layout.BOOK_DEFAULTS,
-            "presets": layout.BOOK_PRESETS, "textStyles": layout.TEXT_STYLES, "bleed": layout.BLEED}
+            "presets": layout.BOOK_PRESETS, "textStyles": layout.TEXT_STYLES, "bleed": layout.BLEED,
+            "cmykProfiles": [{"name": p["name"], "path": p["path"]} for p in icc.profiles() if p["space"] == "CMYK"]}
 
 
 @command("book.saveTemplate", "Save as Custom Page", {"name": {"type": "string"}, "settings": {"type": "object"}, "page": {"type": "integer", "description": "1-based page number; 0 is the cover"}})
@@ -376,6 +378,12 @@ def _printer_checks(lay: dict, spec: dict, interior: list[dict]) -> list[str]:
          description="Exports a book as a PDF, JPEG pages, or print-ready files for a book printer: blurb, lulu (0.125 in bleed on all sides), kdp and ingramspark (0.125 in bleed except on the binding side; interior and cover as separate PDFs, pages made even, text near the trim reported).")
 def book_export(settings: dict | None = None, format: str = "pdf", path: str | None = None, name: str = "Book", wait: bool = False) -> dict:
     spec = PRINTERS.get(format)
+    profile = ((settings or {}).get("job") or {}).get("cmykProfile")
+    if profile:
+        try:
+            pages._cmyk_transform(str(profile))
+        except Exception as exc:
+            raise CommandError(f"Cannot use {profile} for CMYK: {exc}") from exc
     if spec:
         s = dict(settings or {})
         s["job"] = {**(s.get("job") or {}), "output": "blurb", "bleed": True}

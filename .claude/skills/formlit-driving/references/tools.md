@@ -642,6 +642,7 @@ Auto-lays out the photos as a book (size, title) and writes a PDF, or print-read
 - `size`: string; default "standard-landscape"
 - `path`: string
 - `printer`: string (pdf | blurb | lulu | kdp | ingramspark); default "pdf"
+- `cmyk_profile`: string; path of a CMYK ICC profile (the printer's, for example GRACoL or FOGRA39) to write CMYK PDFs; leave out for RGB
 
 ## export_slideshow
 
