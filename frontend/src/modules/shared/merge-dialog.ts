@@ -137,7 +137,7 @@ class EnhanceDialog extends Dialog {
 <label class="fl-opt"><span>Amount</span><input class="cv-slider" type="range" min="0" max="100" value="50" data-k="amount"><em data-out="amount">50</em></label>
 <label class="fl-check"><input type="checkbox" data-k="rawDetails"> Raw Details (sharper demosaic, raw photos)</label>
 <label class="fl-check"><input type="checkbox" data-k="sr"> Super Resolution (twice the width and height)</label>
-<p class="cv-note">Each enhancement makes a new DNG next to the original and stacks the two. Your edits carry over.</p></div>`);
+<p class="cv-note">Each enhancement makes a new DNG next to the original and stacks the two. Your edits carry over. Denoise uses the learned SCUNet denoiser once it is installed (Preferences, AI models), otherwise a classic one.</p></div>`);
   private readonly ok: HTMLButtonElement;
   private id = 0;
   private raw = false;
