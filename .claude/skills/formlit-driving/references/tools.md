@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `retouch_skin`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -536,6 +536,18 @@ Photos that look most like a given one (same scene, subject or look, not only ex
 
 - `id`: integer; required
 - `limit`: integer; default 30
+
+## merge_flash_blend
+
+Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames are merged as HDR; a flash frame gives the room clean colour (flambient: light from the ambient frames, colour from the flash); windows are pulled from the darker frames in darken mode so frames and mullions stay and flash reflections on glass go. flash names the flash frame (else the one tagged Flash fired); windowEv sets how many stops the view sits above the room. Check with get_preview.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `flash`: integer
+- `flashAmount`: number; default 50
+- `colorAmount`: number; default 100
+- `windowPull`: boolean; default true
+- `windowEv`: number; default 1
+- `createStack`: boolean; default true
 
 ## retouch_skin
 
