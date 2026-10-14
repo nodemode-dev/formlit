@@ -781,6 +781,11 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 - shared/export.ts: Send by FTP in Post-Processing (server, user, password, remote folder, TLS). shared/proofing.ts: Most picks.
 - i18n plural forms: a translation may write {N:one=...;few=...;other=...}; the form is chosen with Intl.PluralRules for the language and the value of placeholder N, other as the fallback. keys4.json and locales4 hold the 17 counted strings (photo{1} and the like) in all 25 languages with these forms; they are added before the older catalogs so they win. Checked: sv 1 foto, 3 foton; pl 1 zdjęcia, 5 zdjęć; cs 3 fotografie, 22 fotografií; de 3 Fotos; fr, ru, ja as expected. keys5 and locales5 carry the v0.37.0 strings.
 
+## v0.38.0 window changes {#v0-38-0}
+
+- shared/ai.ts: Each window its own exposure in Flash and Window Blend. shared/export.ts: Send by FTP or SFTP with Protocol, Port, Private key file and Trust this server the first time. develop/tools.ts: Sample from (Anywhere, Above, Below, Left, Right) in the Remove row; `sampleArea` turns the choice into a box beside the spot (gap 1.6 brush sizes, span about 6). output/book.ts: Colour (RGB or a CMYK profile from book.options).
+- i18n: keys6 and locales6 carry the new strings. keys7 and locales7 are terminology fixes from a review of the 178 most visible strings (menus, menu items, panel titles) against Lightroom's usual terms: 31 in 12 languages (for example it Redo Ripeti, de Presets Vorgaben, zh-Hant Filmstrip 底片列), plus Russian Develop strings moved from разработка (software development) to обработка, which the reviewer had proposed the other way. They are added both first (templates, where the first match wins) and last (exact strings, where the last write wins). This was a machine review, not a native speaker's.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
