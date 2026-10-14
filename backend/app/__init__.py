@@ -1,3 +1,3 @@
 """formlit engine: the catalog, the develop pipeline's reference renderer, import, export and the agent surface."""
 
-__version__ = "0.33.0"
+__version__ = "0.34.0"
