@@ -808,6 +808,12 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 - develop/tools.ts: Sample from Same Depth in the Remove row.
 - Not yet translated: the 678 new preset names, their descriptions and 49 group names, plus Edge Range, Fine Detail, Edge Threshold, Same Depth, Export Group and the export toast. They show in English in the other 25 languages until the next catalog pass.
 
+## v0.42.1 preset translations, first pass {#v0-42-1}
+
+- keys11.json (729: 42 new group names, 678 preset names, 9 v0.42.0 labels) and keys12.json (678 preset descriptions), loaded after keys10 through locales11 and locales12. Done: locales11 for de, es, es-MX, fr, fr-CA, it, nl, pt-BR, id, ja, ko, th, tr, vi, zh-Hans, zh-Hant; locales12 for de, ja, ko, zh-Hans, zh-Hant, tr, id. es-MX and fr-CA are the es and fr text with regional word swaps; zh-Hant was converted from zh-Hans with OpenCC (s2twp) and hand-fixed for Taiwan terms.
+- Held back: the cs, da, fi, hu, nb, pl, ru, sv and uk names were assembled from a word glossary in English word order ("Höst färg", "Осень цвет") and are not shipped; they wait in the scratchpad until a proper pass. Until then those nine languages show the new preset names in English, and the export toast in Russian mixes an older "Exported {0}" template with English.
+- Checked in the window: de, ja and fr show the new preset names, group names, Edge Range, Same Depth and the export toast translated.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
