@@ -2,6 +2,24 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.21.0 · 2026-10-14
+
+### Added
+
+- **Cull view (K, or the new button beside Survey):** a full-screen pass built for speed, the first item of the plan drawn from the 2026-10-13 research into what professionals want from Lightroom.
+  - Photos come in burst order: each group of near-duplicates is shown together, with the best frame starred.
+  - **P** picks, **X** rejects and **1** to **5** rate the frame on screen, then move to the next. **U** unflags.
+  - **Shift+P** keeps the frame on screen, rejects the rest of its burst and jumps to the next burst.
+  - **Left** and **Right** step frames; **Up** and **Down** jump bursts and land on each burst's best frame.
+  - The top bar shows where you are, the sharpness, exposure and eyes-open scores (low ones in red) and how many are picked, rejected and left. **Analyze** scores the photos not yet analyzed.
+  - The face column shows each face at full size with its own eyes-open and sharpness scores, when the faces model is installed.
+  - The next five and the previous two frames are loaded in the background, so moving between frames does not wait.
+- **For agents:** `get_cull_groups` returns the same bursts, best frames and per-face scores.
+
+### Fixed
+
+- **The Keywording panel jumped when you moved between photos:** its suggestions wrapped onto more rows and pushed the panels below it down. The suggestions now have a fixed space.
+
 ## v0.20.0 · 2026-10-13
 
 ### Added

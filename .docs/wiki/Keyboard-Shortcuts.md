@@ -15,6 +15,10 @@ Mod is Command on macOS and Ctrl elsewhere. Help > Keyboard Shortcuts (Mod+/) li
 | Tab, Shift+Tab, Shift+F6 | Side panels, left panels, hide all panels |
 | F6, T, \\ | Filmstrip, toolbar, filter bar |
 | Alt+F6 | Collapse or expand the filmstrip |
+| K | Cull view (Library) |
+| In the Cull view: P, X, U, 0 to 5 | Pick, reject, unflag or rate the frame on screen, then move on (U stays) |
+| In the Cull view: Shift+P | Keep this frame as a pick, reject the rest of its burst, go to the next burst |
+| In the Cull view: Left, Right, Up, Down | Previous or next frame; previous or next burst, on its best frame |
 | L, Shift+F | Lights Out, full screen |
 | F11 | Second window |
 
