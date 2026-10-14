@@ -497,11 +497,12 @@ def _maybe_wait(tid: int, wait: bool) -> dict:
     return {"task": tid, **(t.get("result") or {} if t else {})}
 
 
-@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano", "hdrpano", "focus"]}, "projection": {"type": "string"},
+@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano", "hdrpano", "focus", "astro"]}, "projection": {"type": "string"},
+                                             "reject": {"type": "string"}, "fixedGround": {"type": "boolean"},
                                              "boundaryWarp": {"type": "number"}, "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"},
                                              "deghost": {"type": "string"}, "align": {"type": "boolean"}, "showGhosts": {"type": "boolean"}, "createStack": {"type": "boolean"}}, mutates=False)
 def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True,
-                     deghost: str = "off", align: bool = True, showGhosts: bool = False, createStack: bool = False) -> dict:
+                     deghost: str = "off", align: bool = True, showGhosts: bool = False, createStack: bool = False, reject: str = "sigma", fixedGround: bool = True) -> dict:
     import base64
     from app.develop.output import to_u8
     pids = resolve_ids(ids)
@@ -532,11 +533,18 @@ def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "sph
                 raise CommandError("Focus stacking needs photos of the same size and orientation")
             order = sorted(range(len(pids)), key=lambda k: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pids[k],)) or ""), pids[k]))
             out = merge.focus_stack([imgs[k] for k in order], None, align, autoCrop)
+        elif kind == "astro":
+            from app.ai import astro
+            if len({im.shape for im in imgs}) > 1:
+                raise CommandError("Astro stacking needs frames of the same size and orientation")
+            order = sorted(range(len(pids)), key=lambda k: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pids[k],)) or ""), pids[k]))
+            sky = nets.sky(view_rgb8(pids[order[len(order) // 2]])) if fixedGround and models.ready("sky") else None
+            out, _ = astro.stack(lambda i: imgs[order[i]], len(order), None, align, reject if reject in ("sigma", "median", "mean") else "sigma", sky, autoCrop)
         else:
             out = merge.pano(imgs, projection, None, 4e6, boundaryWarp, fillEdges, autoCrop)
     except ValueError as exc:
         raise CommandError(str(exc)) from exc
-    gain = 0.5 / max(1e-6, float(np.percentile(out, 50))) if kind == "hdr" else 1.0 / max(1e-6, float(np.percentile(out, 99)))
+    gain = 0.5 / max(1e-6, float(np.percentile(out, 50))) if kind == "hdr" else 0.12 / max(1e-6, float(np.percentile(out, 50))) if kind == "astro" else 1.0 / max(1e-6, float(np.percentile(out, 99)))
     disp = np.clip(out * gain, 0.0, None)
     disp = disp / (1.0 + disp) * (1.6 if kind == "hdr" else 1.0) if kind == "hdr" else np.clip(disp, 0.0, 1.0)
     disp = np.where(disp <= 0.0031308, disp * 12.92, 1.055 * np.power(np.clip(disp, 0.0031308, None), 1 / 2.4) - 0.055)
@@ -686,6 +694,40 @@ def ai_focus_stack(ids: Any = None, align: bool = True, autoCrop: bool = True, c
         new = _derived(ref, target, "Focus Stack", _settings_for(ref, ("crop", "masks", "spots", "redEye", "lensBlur", "layers")), progress, stack=pids if createStack else [])
         return {"ids": [new], "frames": len(order)}
     return _maybe_wait(tasks.start("focus", "Focus Stack", job), wait)
+
+
+@command("ai.astroStack", "Astro Stack", {"ids": {"type": "array"}, "align": {"type": "boolean"}, "reject": {"type": "string", "enum": ["sigma", "median", "mean"]},
+                                          "ground": {"type": "string", "enum": ["fixed", "aligned"]}, "autoCrop": {"type": "boolean"}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}},
+         description="Stacks night-sky frames shot from a tripod: aligns each frame to the middle one on its stars (shift and rotation as the sky turns), removes hot pixels, and averages with outlier rejection so noise drops by about the square root of the frame count and satellites, planes and meteors vanish. ground fixed keeps the landscape sharp by stacking it unaligned (needs the sky model); aligned moves everything with the stars. Writes a linear DNG beside the middle frame.")
+def ai_astro_stack(ids: Any = None, align: bool = True, reject: str = "sigma", ground: str = "fixed", autoCrop: bool = True, createStack: bool = False, wait: bool = False) -> dict:
+    from app.ai import astro
+    pids = resolve_ids(ids)
+    if len(pids) < 3:
+        raise CommandError("Select three or more frames of the same night sky; ten or more works best")
+    if reject not in ("sigma", "median", "mean"):
+        raise CommandError("reject is sigma, median or mean")
+    order = sorted(pids, key=lambda p: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (p,)) or ""), p))
+    ref = order[len(order) // 2]
+    if ground == "fixed" and not models.ready("sky"):
+        raise CommandError("Keeping the landscape sharp needs the sky model (Preferences, AI models), or use ground aligned")
+
+    def job(progress):
+        infos: dict[int, dict] = {}
+
+        def load(i: int) -> np.ndarray:
+            img, info = previews.source(order[i], None, full=True)
+            infos[i] = info
+            return img
+        sky = nets.sky(view_rgb8(ref)) if ground == "fixed" else None
+        try:
+            out, report = astro.stack(load, len(order), progress, align, reject, sky, autoCrop)
+        except ValueError as exc:
+            raise CommandError(str(exc)) from exc
+        target = _out_path(ref, "Astro")
+        dng.write_linear_dng(target, out, {**infos.get(len(order) // 2, {}), "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
+        new = _derived(ref, target, "Astro Stack", _settings_for(ref, ("crop", "masks", "spots", "redEye", "lensBlur", "layers", "detail")), progress, stack=pids if createStack else [])
+        return {"ids": [new], **report}
+    return _maybe_wait(tasks.start("astro", "Astro Stack", job), wait)
 
 
 def _segments(pid: int) -> np.ndarray:
