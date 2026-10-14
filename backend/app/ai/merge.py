@@ -81,6 +81,87 @@ def hdr(images: list[np.ndarray], factors: list[float | None], deghost: str = "o
     return np.maximum(out, 0.0).astype(np.float32)
 
 
+FOCUS_POWER = 4.0
+FOCUS_SIGMA = 0.003
+
+
+def _pyramid(img: np.ndarray, levels: int) -> list[np.ndarray]:
+    out = [img]
+    for _ in range(levels - 1):
+        out.append(cv2.pyrDown(out[-1]))
+    return out
+
+
+def focus_stack(images: list[np.ndarray], progress=None, align: bool = True, crop: bool = True, depth: list | None = None) -> np.ndarray:
+    n = len(images)
+    if n < 2:
+        raise ValueError("Focus stacking needs two or more photos")
+    h, w = images[0].shape[:2]
+    for im in images:
+        if im.shape[:2] != (h, w):
+            raise ValueError("Focus stacking needs photos of the same size and orientation")
+    ref_i = n // 2
+    gain = 1.0 / max(1e-6, float(np.percentile(images[ref_i], 99)))
+    ref8 = cv2.cvtColor(_proxy8(images[ref_i], 1600, gain), cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+    s = w / ref8.shape[1]
+    crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 80, 1e-6)
+    covered = np.ones((h, w), bool)
+    warped: list[np.ndarray] = []
+    for i, im in enumerate(images):
+        if i == ref_i or not align:
+            warped.append(im)
+            continue
+        g = cv2.cvtColor(_proxy8(im, 1600, gain), cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+        m = np.eye(2, 3, dtype=np.float32)
+        try:
+            _, m = cv2.findTransformECC(ref8, g, m, cv2.MOTION_AFFINE, crit, None, 5)
+        except cv2.error:
+            m = np.eye(2, 3, dtype=np.float32)
+        full = m.copy()
+        full[:, 2] *= s
+        warped.append(np.maximum(cv2.warpAffine(im, full, (w, h), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_REFLECT), 0.0))
+        valid = cv2.warpAffine(np.ones((h, w), np.uint8), full, (w, h), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+        covered &= valid > 0
+        if progress is not None:
+            progress(i + 1, 2 * n + 1, "Aligning")
+    hw, hh = max(1, w // 2), max(1, h // 2)
+    sig = max(1.0, FOCUS_SIGMA * max(hw, hh))
+    energies: list[np.ndarray] = []
+    for i, im in enumerate(warped):
+        g = np.sqrt(np.clip(cv2.resize(im, (hw, hh), interpolation=cv2.INTER_AREA).mean(axis=2) * gain, 0.0, 1.0)).astype(np.float32)
+        lap = cv2.Laplacian(cv2.GaussianBlur(g, (0, 0), 0.8), cv2.CV_32F, ksize=3)
+        energies.append(cv2.GaussianBlur(lap * lap, (0, 0), sig))
+    top = max(float(e.max()) for e in energies) or 1.0
+    powered = [np.power(e / top, FOCUS_POWER, dtype=np.float32) + np.float32(1e-12) for e in energies]
+    total = np.sum(powered, axis=0)
+    if depth is not None:
+        depth.append(np.argmax(np.stack(energies), axis=0).astype(np.uint8))
+    levels = max(2, min(7, int(math.log2(max(2, min(h, w)))) - 4))
+    acc: list[np.ndarray] | None = None
+    for i, im in enumerate(warped):
+        wt = cv2.resize(powered[i] / total, (w, h), interpolation=cv2.INTER_LINEAR)
+        enc = np.sqrt(np.maximum(im, 0.0)).astype(np.float32)
+        gp = _pyramid(enc, levels)
+        lp = [gp[k] - cv2.pyrUp(gp[k + 1], dstsize=(gp[k].shape[1], gp[k].shape[0])) for k in range(levels - 1)] + [gp[-1]]
+        wp = _pyramid(wt, levels)
+        if acc is None:
+            acc = [np.zeros_like(x) for x in lp]
+        for k in range(levels):
+            acc[k] += lp[k] * wp[k][..., None]
+        if progress is not None:
+            progress(n + i + 1, 2 * n + 1, "Blending")
+    assert acc is not None
+    out = acc[-1]
+    for k in range(levels - 2, -1, -1):
+        out = cv2.pyrUp(out, dstsize=(acc[k].shape[1], acc[k].shape[0])) + acc[k]
+    out = np.square(np.maximum(out, 0.0)).astype(np.float32)
+    if crop and align and not covered.all():
+        x0, y0, x1, y1 = largest_rect(covered)
+        if x1 - x0 > 16 and y1 - y0 > 16:
+            out = out[y0:y1, x0:x1]
+    return out
+
+
 def pano(images: list[np.ndarray], projection: str = "spherical", progress=None, max_pixels: float = 80e6, boundary: float = 0.0, fill: bool = False,
          crop: bool = True) -> np.ndarray:
     if len(images) < 2:

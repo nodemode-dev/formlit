@@ -462,7 +462,7 @@ def _maybe_wait(tid: int, wait: bool) -> dict:
     return {"task": tid, **(t.get("result") or {} if t else {})}
 
 
-@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano", "hdrpano"]}, "projection": {"type": "string"},
+@command("ai.mergePreview", "Merge Preview", {"ids": {"type": "array"}, "kind": {"type": "string", "enum": ["hdr", "pano", "hdrpano", "focus"]}, "projection": {"type": "string"},
                                              "boundaryWarp": {"type": "number"}, "fillEdges": {"type": "boolean"}, "autoCrop": {"type": "boolean"},
                                              "deghost": {"type": "string"}, "align": {"type": "boolean"}, "showGhosts": {"type": "boolean"}, "createStack": {"type": "boolean"}}, mutates=False)
 def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "spherical", boundaryWarp: float = 0.0, fillEdges: bool = False, autoCrop: bool = True,
@@ -492,6 +492,11 @@ def ai_merge_preview(ids: Any = None, kind: str = "pano", projection: str = "sph
             if len({im.shape for im in imgs}) > 1:
                 raise CommandError("HDR merge needs photos of the same size and orientation")
             out = merge.hdr(imgs, factors, deghost, None, align, ghosts)
+        elif kind == "focus":
+            if len({im.shape for im in imgs}) > 1:
+                raise CommandError("Focus stacking needs photos of the same size and orientation")
+            order = sorted(range(len(pids)), key=lambda k: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pids[k],)) or ""), pids[k]))
+            out = merge.focus_stack([imgs[k] for k in order], None, align, autoCrop)
         else:
             out = merge.pano(imgs, projection, None, 4e6, boundaryWarp, fillEdges, autoCrop)
     except ValueError as exc:
@@ -619,6 +624,33 @@ def ai_pano(ids: Any = None, projection: str = "spherical", boundaryWarp: float 
                        stack=pids if createStack else [])
         return {"ids": [new]}
     return _maybe_wait(tasks.start("pano", "Panorama Merge", job), wait)
+
+
+@command("ai.focusStack", "Focus Stack", {"ids": {"type": "array"}, "align": {"type": "boolean"}, "autoCrop": {"type": "boolean"}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}},
+         description="Merges photos focused at different distances into one photo sharp throughout: aligns them to the middle frame (shift, scale and rotation, for focus breathing), keeps the sharpest frame at each point through a pyramid blend, and crops to the area every frame covers. Writes a linear DNG beside the middle frame with its settings.")
+def ai_focus_stack(ids: Any = None, align: bool = True, autoCrop: bool = True, createStack: bool = False, wait: bool = False) -> dict:
+    pids = resolve_ids(ids)
+    if len(pids) < 2:
+        raise CommandError("Select two or more photos of the same scene focused at different distances")
+    order = sorted(pids, key=lambda p: (str(cat().scalar("SELECT capture_time FROM photos WHERE id=?", (p,)) or ""), p))
+
+    def job(progress):
+        imgs, infos = [], []
+        for i, pid in enumerate(order):
+            img, info = previews.source(pid, None, full=True)
+            imgs.append(img.copy())
+            infos.append(info)
+            progress(i + 1, 3 * len(order) + 1, "Reading photos")
+        try:
+            out = merge.focus_stack(imgs, lambda a, b, label: progress(len(order) + a, len(order) + b, label), align, autoCrop)
+        except ValueError as exc:
+            raise CommandError(str(exc)) from exc
+        ref = order[len(order) // 2]
+        target = _out_path(ref, "Focus")
+        dng.write_linear_dng(target, out, {**infos[len(order) // 2], "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))
+        new = _derived(ref, target, "Focus Stack", _settings_for(ref, ("crop", "masks", "spots", "redEye", "lensBlur", "layers")), progress, stack=pids if createStack else [])
+        return {"ids": [new], "frames": len(order)}
+    return _maybe_wait(tasks.start("focus", "Focus Stack", job), wait)
 
 
 def _segments(pid: int) -> np.ndarray:
