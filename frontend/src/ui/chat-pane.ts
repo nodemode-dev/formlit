@@ -6,6 +6,7 @@ import { el, q, setClass, setHidden, setText } from './dom';
 import { icon } from './icons';
 import { MarkdownStream } from './markdown';
 import { thumbUrl } from './thumbs';
+import { locale } from '../i18n';
 
 interface Part { kind: 'text' | 'tool'; text?: string; id?: string; name?: string; input?: string; status?: string; photos?: number[]; images?: string[] }
 const STRIP = 8;
@@ -175,7 +176,7 @@ export class ChatPane {
     try {
       const r = await this.api.cmd<{ sessions: Array<{ id: string; title: string; modified: number; current: boolean }> }>('chat.sessions');
       if (!r.sessions.length) { this.onFail(new Error('No Claude Code conversation in formlit yet: open one with the robot button first')); return; }
-      const when = (t: number) => new Date(t * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const when = (t: number) => new Date(t * 1000).toLocaleString(locale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const opts = r.sessions.map((s): [string, string] => [s.id, `${when(s.modified)} · ${s.title || 'untitled'}${s.current ? ' (this chat)' : ''}`]);
       const v = await askForm('Continue from Claude Code', 'Brings a conversation from a Claude Code tab into this chat: its messages show here and your next message continues it.', [{ path: 'session', label: 'Conversation', kind: 'select', options: opts }], { session: opts[0][0] }, 'Continue Here');
       if (v) await this.api.cmd('chat.adopt', { session: String(v.session) });

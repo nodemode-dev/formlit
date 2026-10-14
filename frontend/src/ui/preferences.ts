@@ -3,6 +3,7 @@ import { Dialog } from './dialogs';
 import { el, escapeHtml, q, setHtml, setText, setTitle, setValue } from './dom';
 import { readChoice, setAccent, setIntensity, setTheme, themeSwatchesHtml, THEMES } from './themes';
 import { events } from '../io/events';
+import { LANGUAGES, language, setLanguage } from '../i18n';
 
 interface Caps { version: string; platform: string; desktop: boolean; raw: boolean; heic: boolean; onnx: boolean; pdf: boolean; ffmpeg: boolean; workers: number; dataDir: string; catalog: string }
 
@@ -38,6 +39,10 @@ class Preferences extends Dialog {
     this.field('Theme', themeRow);
     this.field('Accent', this.accent);
     this.field('Accent strength', this.intensity);
+    const lang = el<HTMLSelectElement>(`<select class="cv-select" translate="no">${LANGUAGES.map(([c, n]) => `<option value="${c}">${escapeHtml(n)}</option>`).join('')}</select>`);
+    lang.value = language();
+    lang.addEventListener('change', () => setLanguage(lang.value));
+    this.field('Language', lang);
     this.body.appendChild(el('<div class="fl-sub">Metadata</div>'));
     this.body.append(this.autoXmp, this.intoFiles);
     for (const [box, key] of [[this.autoXmp, 'autoWriteXmp'], [this.intoFiles, 'xmpIntoFiles']] as Array<[HTMLElement, string]>) {

@@ -1,5 +1,6 @@
 import type { Ctx } from '../../app';
 import { library } from '../../state/library';
+import { locale } from '../../i18n';
 import { el, escapeHtml, patchList, q, setHidden, setHtml, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
@@ -7,7 +8,7 @@ import { Panel } from '../../ui/panel';
 interface Comment { id?: string; author: string; text: string; time: string }
 interface Thread { collection: number; name: string; comments: Comment[]; error: string }
 
-const when = (t: string) => { const d = new Date(t); return Number.isNaN(d.getTime()) ? t : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); };
+const when = (t: string) => { const d = new Date(t); return Number.isNaN(d.getTime()) ? t : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 
 export class CommentsPanel {
   readonly panel: Panel;
