@@ -24,7 +24,7 @@ def skin(rgb8: np.ndarray) -> np.ndarray:
     return _smooth(m, max(rgb8.shape[:2]) / 600.0)
 
 
-def people_parts(rgb8: np.ndarray, person: np.ndarray, faces: list[dict]) -> dict[str, np.ndarray]:
+def people_parts(rgb8: np.ndarray, person: np.ndarray, faces: list[dict], classes: np.ndarray | None = None) -> dict[str, np.ndarray]:
     h, w = rgb8.shape[:2]
     hsv = cv2.cvtColor(rgb8, cv2.COLOR_RGB2HSV).astype(np.float32)
     sat, val = hsv[..., 1] / 255.0, hsv[..., 2] / 255.0
@@ -71,11 +71,18 @@ def people_parts(rgb8: np.ndarray, person: np.ndarray, faces: list[dict]) -> dic
         mean = (lab * face_skin[..., None]).sum(axis=(0, 1)) / wsum
         sd = np.sqrt(((lab - mean) ** 2 * face_skin[..., None]).sum(axis=(0, 1)) / wsum) + np.array([6.0, 3.0, 3.0], np.float32)
         sim = np.exp(-0.5 * (((lab - mean) / (sd * 2.2)) ** 2).sum(axis=-1)).astype(np.float32)
-    out["faceSkin"] = _smooth(face_skin, max(h, w) / 900.0)
-    out["bodySkin"] = _smooth(sk * sim * (1.0 - np.clip(face_zone * 1.3, 0, 1)) * (1.0 - head_zone), max(h, w) / 900.0)
-    hair = person * hair_zone * (1.0 - np.clip(face_zone * 1.2, 0.0, 1.0)) * np.clip((0.9 - val) / 0.3, 0.3, 1.0)
-    out["hair"] = _smooth(hair, max(h, w) / 700.0)
-    out["clothes"] = _smooth(np.clip(person - np.maximum.reduce([sk, out["hair"], face_zone, hair_zone]), 0.0, 1.0), max(h, w) / 700.0)
+    if classes is not None:
+        cls = lambda i: np.clip(classes[..., i] * 1.25, 0.0, 1.0) * person
+        out["faceSkin"] = _smooth(cls(3) * (1.0 - features), max(h, w) / 1500.0)
+        out["bodySkin"] = _smooth(cls(2), max(h, w) / 1500.0)
+        out["hair"] = _smooth(cls(1), max(h, w) / 1500.0)
+        out["clothes"] = _smooth(cls(4), max(h, w) / 1500.0)
+    else:
+        out["faceSkin"] = _smooth(face_skin, max(h, w) / 900.0)
+        out["bodySkin"] = _smooth(sk * sim * (1.0 - np.clip(face_zone * 1.3, 0, 1)) * (1.0 - head_zone), max(h, w) / 900.0)
+        hair = person * hair_zone * (1.0 - np.clip(face_zone * 1.2, 0.0, 1.0)) * np.clip((0.9 - val) / 0.3, 0.3, 1.0)
+        out["hair"] = _smooth(hair, max(h, w) / 700.0)
+        out["clothes"] = _smooth(np.clip(person - np.maximum.reduce([sk, out["hair"], face_zone, hair_zone]), 0.0, 1.0), max(h, w) / 700.0)
     for k in ("iris", "sclera", "eyebrows", "lips", "teeth"):
         out[k] = _smooth(out[k], max(h, w) / 1500.0)
     return out

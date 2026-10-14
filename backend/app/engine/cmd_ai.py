@@ -78,7 +78,12 @@ def _people(rgb8: np.ndarray) -> tuple[np.ndarray, list[dict], list[dict]]:
     alpha = nets.u2net(rgb8, "people")
     ready = models.ready("faces")
     faces = nets.faces(rgb8) if ready else []
-    return alpha, faces, people_mod.persons(rgb8, alpha, faces, components=True)
+    if models.ready("instances"):
+        return alpha, faces, people_mod.from_instances(alpha, nets.instances(rgb8))
+    found = people_mod.persons(rgb8, alpha, faces, components=True)
+    if len(found) > 1 and models.ready("objects"):
+        found = people_mod.refine(alpha, found, lambda prompts: nets.sam_prompts(rgb8, prompts))
+    return alpha, faces, found
 
 
 def _part_maps(rgb8: np.ndarray, group: str, person: int | None = None) -> dict[str, np.ndarray]:
@@ -91,7 +96,7 @@ def _part_maps(rgb8: np.ndarray, group: str, person: int | None = None) -> dict[
             box = found[person]["box"]
             faces = [f for f in faces if abs((f["box"][0] + f["box"][2]) / 2 - (box[0] + box[2]) / 2) < (box[2] - box[0]) / 2 + 1e-3] or faces
             alpha = found[person]["alpha"]
-        return parts_mod.people_parts(rgb8, alpha, faces)
+        return parts_mod.people_parts(rgb8, alpha, faces, nets.person_classes(rgb8) if models.ready("parts") else None)
     sky = nets.sky(rgb8) if models.ready("sky") else None
     dep = nets.depth(rgb8) if models.ready("depth") else None
     return parts_mod.landscape_parts(rgb8, sky, dep)
@@ -839,10 +844,10 @@ def remove_people(id: int | None = None, people: list[int] | None = None, varian
     pid = int(id) if id is not None else resolve_ids("active")[0]
     _need("remove")
     sampled, frame, w, h, ppl = _remove_view(pid)
-    rgb8 = view_rgb8(pid, long=max(w, h))
-    if rgb8.shape[:2] != (h, w):
-        rgb8 = cv2.resize(rgb8, (w, h), interpolation=cv2.INTER_AREA)
-    alpha, _faces, found = _people(rgb8)
+    alpha, _faces, found = _people(view_rgb8(pid))
+    up = lambda a: cv2.resize(a, (w, h), interpolation=cv2.INTER_LINEAR) if a.shape[:2] != (h, w) else a
+    alpha = up(alpha)
+    found = [{**p, "alpha": up(p["alpha"])} for p in found]
     targets = [found[i]["alpha"] for i in (people if people is not None else range(len(found))) if 0 <= int(i) < len(found)] if found else ([alpha] if people is None else [])
     n = frame.out_to_norm(w, h)
     spots = []

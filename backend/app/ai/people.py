@@ -23,6 +23,48 @@ def _heads(comp: np.ndarray, x0: int, y0: int, bw: int, bh: int) -> tuple[list[t
     return sorted(out), head
 
 
+def from_instances(people: np.ndarray, inst: list[dict], min_area: float = 0.004) -> list[dict]:
+    if not inst:
+        return []
+    m = np.stack([d["mask"] * d.get("score", 1.0) for d in inst])
+    own, ok = m.argmax(0), m.max(0) > 0.15
+    out = []
+    for j, d in enumerate(inst):
+        alpha = np.clip(people * cv2.GaussianBlur(((own == j) & ok).astype(np.float32), (0, 0), 1.5), 0.0, 1.0).astype(np.float32)
+        if alpha.mean() >= min_area * 0.25:
+            out.append({"alpha": alpha, "box": [min(1.0, max(0.0, v)) for v in d["box"]]})
+    return sorted(out, key=lambda p: p["box"][0] + p["box"][2])
+
+
+def refine(people: np.ndarray, found: list[dict], logits_for) -> list[dict]:
+    h, w = people.shape[:2]
+    if len(found) < 2:
+        return found
+    marks, boxes = [], []
+    for f in found:
+        ys, xs = np.nonzero(f["alpha"] > 0.5)
+        if len(ys) < 50:
+            return found
+        q = lambda a, b: (float(np.median(xs[(ys >= np.percentile(ys, a)) & (ys <= np.percentile(ys, b))])), float(np.percentile(ys, (a + b) / 2)))
+        marks.append([q(0, 10), q(25, 40), q(75, 95)])
+        px, py = (xs.max() - xs.min()) * 0.12, (ys.max() - ys.min()) * 0.04
+        boxes.append([max(0.0, xs.min() - px) / w, max(0.0, ys.min() - py) / h, min(w, xs.max() + px) / w, min(h, ys.max() + py) / h])
+    prompts = []
+    for i in range(len(found)):
+        others = [p for j, m in enumerate(marks) if j != i for p in m]
+        prompts.append(([[x / w, y / h] for x, y in marks[i] + others], [1] * 3 + [0] * len(others), boxes[i]))
+    L = np.stack(logits_for(prompts))
+    top, idx = L.max(0), L.argmax(0)
+    second = np.partition(L, -2, axis=0)[-2]
+    shed = np.stack([f["alpha"] for f in found])
+    label = np.where((top > 1.0) & (second < 0.0), idx, np.where(shed.max(0) > 0.05, shed.argmax(0), len(found)))
+    label = cv2.medianBlur((label + 1).astype(np.uint8), 5).astype(np.int32) - 1
+    for i, f in enumerate(found):
+        own = cv2.GaussianBlur(cv2.dilate((label == i).astype(np.float32), np.ones((3, 3), np.uint8)), (0, 0), 1.5)
+        f["alpha"] = np.clip(people * own, 0.0, 1.0).astype(np.float32)
+    return found
+
+
 def persons(rgb8: np.ndarray, people: np.ndarray, faces: list[dict], min_area: float = 0.004, components: bool = False) -> list[dict]:
     h, w = people.shape[:2]
     solid = (people > 0.5).astype(np.uint8)
