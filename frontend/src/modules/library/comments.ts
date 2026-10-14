@@ -67,8 +67,8 @@ export class CommentsPanel {
       setHtml(q(n, '.fl-cmt-list'), html, html);
     };
     patchList(this.threads, threads, {
-      key: (t) => String(t.collection),
-      create: (t) => { const n = el(`<div class="fl-cmt-thread"><div class="fl-sub fl-cmt-name"></div><div class="fl-cmt-list"></div><form class="fl-cmt-add" data-col="${t.collection}"><input class="cv-input" type="text" placeholder="Add a comment" spellcheck="true"><button class="cv-btn fl-btn-sm" type="submit">Post</button></form></div>`); update(n, t); return n; },
+      key: (t) => `${t.collection}:${t.name}`,
+      create: (t) => { const n = el(`<div class="fl-cmt-thread"><div class="fl-sub fl-cmt-name"></div><div class="fl-cmt-list"></div><form class="fl-cmt-add" data-col="${t.collection}"${t.collection ? '' : ' hidden'}><input class="cv-input" type="text" placeholder="Add a comment" spellcheck="true"><button class="cv-btn fl-btn-sm" type="submit">Post</button></form></div>`); update(n, t); return n; },
       update,
     });
   }
