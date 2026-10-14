@@ -1,6 +1,6 @@
 [package]
 name = "formlit"
-version = "0.42.1"
+version = "0.42.2"
 description = "formlit desktop shell"
 authors = ["nodemode-ai"]
 license = "Apache-2.0"
