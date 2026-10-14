@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `session`, `session_move`
 
 ## get_catalog
 
@@ -491,6 +491,22 @@ Merges photos of one scene focused at different distances (macro, product, lands
 - `autoCrop`: boolean; default true
 - `createStack`: boolean; default true
 - `wait`: boolean; default true; Wait for the job to finish (default) or return its task id.
+
+## session
+
+A studio session: a folder with Capture, Selects, Output and Trash; tethered shots land in Capture, exports default to Output, and each photo's settings are kept in the folder so it opens on any machine. action state shows the open session and its folders (ids for find_photos by folder), new makes one (parent folder and name), open opens a session folder or .flsession file and brings back saved settings, close closes it.
+
+- `action`: string (state | new | open | close); required
+- `parent`: string
+- `name`: string
+- `path`: string
+
+## session_move
+
+Moves photos of the open session on disk, settings with them: to selects (keepers), trash (the session's Trash folder, not deleted) or capture (back from Selects or Trash).
+
+- `ids`: array; required; Photo ids from find_photos.
+- `to`: string (selects | trash | capture); required
 
 ## merge_panorama
 
