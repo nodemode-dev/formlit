@@ -1,5 +1,6 @@
 import type { Ctx } from '../../app';
-import { library, type Filter } from '../../state/library';
+import { library, type Filter, type Sort } from '../../state/library';
+import { events } from '../../io/events';
 import { askForm } from '../../ui/askform';
 import { el, escapeHtml, patchList, q, setClass, setHidden, setStyleVar, setText, setValue } from '../../ui/dom';
 import { icon } from '../../ui/icons';
@@ -30,16 +31,24 @@ export class FilterBar {
   private presets: FilterPreset[] = [];
   private readonly presetSel: HTMLSelectElement;
   private readonly lock: HTMLElement;
+  private readonly descRow: HTMLElement;
+  private readonly desc: HTMLInputElement;
+  private searchTask = 0;
+  private sortBefore: Sort | null = null;
 
   constructor(private readonly ctx: Ctx) {
     this.root = el(`<div class="fl-filterbar" hidden>
 <div class="fl-fb-tabs"><span class="fl-fb-title">Library Filter:</span>
-<button type="button" data-tab="text">Text</button><button type="button" data-tab="attribute">Attribute</button><button type="button" data-tab="metadata">Metadata</button><button type="button" data-tab="">None</button>
+<button type="button" data-tab="text">Text</button><button type="button" data-tab="describe">Describe</button><button type="button" data-tab="attribute">Attribute</button><button type="button" data-tab="metadata">Metadata</button><button type="button" data-tab="">None</button>
 <span class="fl-tb-spacer"></span><select class="cv-select fl-fb-preset" aria-label="Filter preset"><option value="">Custom Filter</option></select><button class="cv-icon-btn fl-fb-lock" type="button" title="Lock the filter so it stays when you change source"><span data-on hidden>${icon('lock', 14)}</span><span data-off>${icon('unlock', 14)}</span></button><button class="cv-btn cv-btn-ghost fl-fb-off" type="button">Filters Off</button></div>
 <div class="fl-fb-text" hidden><span class="fl-tb-label">Any Searchable Field</span><input class="cv-input" type="search" placeholder="Search: words, or field:value like camera:canon rating>=3" spellcheck="false"></div>
+<div class="fl-fb-desc" hidden><span class="fl-tb-label">What is in the photo</span><input class="cv-input" type="search" placeholder="like: two people on a beach at sunset" spellcheck="true"><span class="fl-fb-desc-note"></span><button class="cv-btn cv-btn-ghost fl-fb-desc-go" type="button" disabled>Index Now</button></div>
 <div class="fl-fb-attr" hidden></div>
 <div class="fl-fb-meta" hidden></div>
 </div>`);
+    this.descRow = q(this.root, '.fl-fb-desc');
+    this.desc = q<HTMLInputElement>(this.descRow, 'input');
+    this.wireDescribe();
     this.text = q<HTMLInputElement>(this.root, '.fl-fb-text input');
     this.textRow = q(this.root, '.fl-fb-text');
     this.attr = q(this.root, '.fl-fb-attr');
@@ -106,13 +115,70 @@ export class FilterBar {
     this.text.select();
   }
 
+  focusDescribe(): void {
+    setHidden(this.root, false);
+    this.setTab('describe');
+    this.desc.focus();
+    this.desc.select();
+  }
+
   setTab(tab: string): void {
     this.tab = tab;
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>('[data-tab]'))) setClass(b, 'is-on', b.dataset.tab === tab);
     setHidden(this.textRow, tab !== 'text');
+    setHidden(this.descRow, tab !== 'describe');
+    if (tab === 'describe') void this.searchStatus(!!library.filter.describe);
     setHidden(this.attr, tab !== 'attribute');
     setHidden(this.meta, tab !== 'metadata');
     if (tab === 'metadata') void this.loadFacets();
+  }
+
+  private wireDescribe(): void {
+    const note = q(this.descRow, '.fl-fb-desc-note');
+    const go = q<HTMLButtonElement>(this.descRow, '.fl-fb-desc-go');
+    let t = 0;
+    this.desc.addEventListener('input', () => { window.clearTimeout(t); t = window.setTimeout(() => this.applyDescribe(this.desc.value.trim()), 350); });
+    go.addEventListener('click', () => void this.searchAction(go.dataset.act ?? ''));
+    events.on('task', (e) => {
+      if (!this.searchTask || Number(e.id) !== this.searchTask) return;
+      if (e.state === 'running') { if (e.label) setText(note, String(e.label)); return; }
+      this.searchTask = 0;
+      void this.searchStatus(!!library.filter.describe);
+      if (library.filter.describe) library.refreshSoon(60);
+    });
+  }
+
+  private applyDescribe(v: string): void {
+    if (v && library.sort.by !== 'relevance') { this.sortBefore = { ...library.sort }; library.setSort({ by: 'relevance', desc: false }); }
+    if (!v && library.sort.by === 'relevance') { library.setSort(this.sortBefore ?? { by: 'captureTime', desc: false }); this.sortBefore = null; }
+    library.setFilter({ describe: v || undefined });
+    if (v) void this.searchStatus(true);
+  }
+
+  private async searchStatus(start: boolean): Promise<void> {
+    let s: { ready: boolean; indexed: number; total: number; missing: number; indexing: number | null };
+    try { s = await this.ctx.api.cmd('search.status', { start }); } catch { return; }
+    const note = q(this.descRow, '.fl-fb-desc-note');
+    const go = q<HTMLButtonElement>(this.descRow, '.fl-fb-desc-go');
+    if (s.indexing) this.searchTask = s.indexing;
+    const [text, label, act] = !s.ready ? ['Needs the search model (213 MB, runs on this computer)', 'Install Model', 'install']
+      : s.indexing ? [`Indexing, ${s.indexed} of ${s.total} ready`, 'Indexing', '']
+        : s.missing ? [`${s.indexed} of ${s.total} photos indexed`, 'Index Now', 'index']
+          : [`All ${s.total} photos indexed`, 'Index Now', ''];
+    if (!this.searchTask || !s.indexing) setText(note, text);
+    setText(go, label);
+    go.dataset.act = act;
+    go.disabled = !act;
+  }
+
+  private async searchAction(act: string): Promise<void> {
+    if (!act) return;
+    const go = q<HTMLButtonElement>(this.descRow, '.fl-fb-desc-go');
+    go.disabled = true;
+    try {
+      const r = await this.ctx.api.cmd<{ task?: number }>(act === 'install' ? 'ai.download' : 'search.index', act === 'install' ? { model: 'search' } : {});
+      if (r.task) { this.searchTask = r.task; setText(q(this.descRow, '.fl-fb-desc-note'), act === 'install' ? 'Downloading the search model' : 'Indexing photos for search'); } else void this.searchStatus(false);
+    } catch (err) { this.ctx.fail(err); void this.searchStatus(false); }
   }
 
   private buildAttr(): void {
@@ -151,6 +217,7 @@ export class FilterBar {
   private sync(): void {
     const f = library.filter;
     setValue(this.text, f.text ?? '');
+    if (document.activeElement !== this.desc) setValue(this.desc, f.describe ?? '');
     for (const b of Array.from(this.attr.querySelectorAll<HTMLElement>('[data-flag]'))) setClass(b, 'is-active', (f.flags ?? []).includes(b.dataset.flag ?? ''));
     for (const b of Array.from(this.attr.querySelectorAll<HTMLElement>('[data-star]'))) setClass(b, 'is-on', !!f.rating && Number(b.dataset.star) <= f.rating);
     for (const b of Array.from(this.attr.querySelectorAll<HTMLElement>('[data-label]'))) setClass(b, 'is-on', (f.labels ?? []).includes(b.dataset.label ?? ''));

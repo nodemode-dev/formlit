@@ -31,6 +31,7 @@ export interface Photo {
 export interface Source { kind: string; id?: number; label?: string; recursive?: boolean; ids?: number[]; value?: string }
 export interface Filter {
   text?: string;
+  describe?: string;
   rating?: number | null;
   ratingOp?: string;
   flags?: string[];

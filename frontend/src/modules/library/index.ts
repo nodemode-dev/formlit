@@ -1,7 +1,7 @@
 import type { Ctx } from '../../app';
 import { catalog } from '../../state/catalog';
 import { library } from '../../state/library';
-import { el, escapeHtml, q, setClass, setHidden, setText } from '../../ui/dom';
+import { el, escapeHtml, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
 import { brandMark } from '../../ui/brand';
 import { Dialog } from '../../ui/dialogs';
 import { toast } from '../../ui/toast';
@@ -28,7 +28,7 @@ import { VideoPlayer } from './video-player';
 type View = 'grid' | 'loupe' | 'compare' | 'survey' | 'cull';
 
 const SIZE_KEY = 'formlit_grid_size';
-const SORTS: Array<[string, string]> = [['captureTime', 'Capture Time'], ['importTime', 'Added Order'], ['editTime', 'Edit Time'], ['fileName', 'File Name'], ['rating', 'Rating'], ['flag', 'Pick'], ['label', 'Color Label'], ['kind', 'File Type'], ['aspect', 'Aspect Ratio'], ['camera', 'Camera'], ['userOrder', 'Custom Order']];
+const SORTS: Array<[string, string]> = [['captureTime', 'Capture Time'], ['importTime', 'Added Order'], ['editTime', 'Edit Time'], ['fileName', 'File Name'], ['rating', 'Rating'], ['flag', 'Pick'], ['label', 'Color Label'], ['kind', 'File Type'], ['aspect', 'Aspect Ratio'], ['camera', 'Camera'], ['userOrder', 'Custom Order'], ['relevance', 'Relevance']];
 
 export let filmstrip: Filmstrip | null = null;
 
@@ -184,6 +184,7 @@ class LibraryModule {
     const sort = q<HTMLSelectElement>(bar, '.fl-tb-sort');
     sort.value = library.sort.by;
     sort.addEventListener('change', () => library.setSort({ by: sort.value }));
+    library.listen('list', () => setValue(sort, library.sort.by));
     const dir = q(bar, '.fl-tb-dir');
     setClass(dir, 'is-flipped', library.sort.desc);
     dir.addEventListener('click', () => { library.setSort({ desc: !library.sort.desc }); setClass(dir, 'is-flipped', library.sort.desc); });
@@ -219,6 +220,18 @@ class LibraryModule {
       { id: 'view.cull', label: 'Cull', keys: ['K'], run: toLib('cull'), checked: () => ctx.module() === 'library' && this.view === 'cull' },
       { id: 'view.filterBar', label: 'Show Filter Bar', keys: ['\\'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.toggle(); }, checked: () => this.filter.visible },
       { id: 'view.find', label: 'Find...', keys: ['Mod+F'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.focusText(); } },
+      { id: 'view.describe', label: 'Find by Description...', keys: ['Alt+Mod+F'], run: () => { if (ctx.module() !== 'library') ctx.toModule('library'); this.setView('grid'); this.filter.focusDescribe(); } },
+      { id: 'photo.findSimilar', label: 'Find Similar Photos', enabled: () => library.active !== null, run: async () => {
+        const id = library.active;
+        if (id === null) return;
+        try {
+          const r = await ctx.api.cmd<{ ids: number[] }>('search.similar', { id, limit: 60 });
+          if (ctx.module() !== 'library') ctx.toModule('library');
+          this.setView('grid');
+          library.setSource({ kind: 'ids', ids: [id, ...r.ids], label: `Similar to ${library.photo(id)?.file ?? 'photo'}` });
+          library.setSort({ by: 'userOrder', desc: false });
+        } catch (err) { ctx.fail(err); }
+      } },
       { id: 'view.zoomIn', label: 'Zoom In', keys: ['Mod+='], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.min(8, this.loupe.scale() * 1.5)); } },
       { id: 'view.zoomOut', label: 'Zoom Out', keys: ['Mod+-'], run: () => { this.setView('loupe'); this.loupe.setZoom(Math.max(0.05, this.loupe.scale() / 1.5)); } },
       { id: 'view.zoomToggle', label: 'Toggle Zoom View', keys: ['Z'], run: () => { if (this.view === 'compare') { ctx.run('library.compareZoom'); return; } if (this.view !== 'loupe') this.setView('loupe'); this.loupe.toggleZoom(); } },
