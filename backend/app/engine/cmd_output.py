@@ -384,6 +384,9 @@ def book_export(settings: dict | None = None, format: str = "pdf", path: str | N
             pages._cmyk_transform(str(profile))
         except Exception as exc:
             raise CommandError(f"Cannot use {profile} for CMYK: {exc}") from exc
+    strict = bool(((settings or {}).get("job") or {}).get("pdfx"))
+    if strict and not profile:
+        raise CommandError("PDF/X needs a CMYK profile: choose the printer's profile in Colour")
     if spec:
         s = dict(settings or {})
         s["job"] = {**(s.get("job") or {}), "output": "blurb", "bleed": True}
@@ -410,8 +413,15 @@ def book_export(settings: dict | None = None, format: str = "pdf", path: str | N
             cover = {**lay, "pages": [p for p in lay["pages"] if p.get("cover")]}
             pages.write_pdf(interior, folder / f"{rename.safe(name)} interior.pdf", progress)
             pages.write_pdf(cover, folder / f"{rename.safe(name)} cover.pdf")
-            return {"folder": str(folder), "paths": [str(folder / f"{rename.safe(name)} interior.pdf"), str(folder / f"{rename.safe(name)} cover.pdf")], "printer": spec["name"],
-                    "pages": len(interior["pages"]), "spine": lay.get("spine"), "bleed": lay.get("bleed"), "upload": spec["upload"], "notes": _printer_checks(lay, spec, interior["pages"])}
+            notes = _printer_checks(lay, spec, interior["pages"])
+            out = {"folder": str(folder), "paths": [str(folder / f"{rename.safe(name)} interior.pdf"), str(folder / f"{rename.safe(name)} cover.pdf")], "printer": spec["name"],
+                   "pages": len(interior["pages"]), "spine": lay.get("spine"), "bleed": lay.get("bleed"), "upload": spec["upload"], "notes": notes}
+            if strict:
+                from app.output import pdfx
+                found = {Path(p).name: pdfx.check(Path(p)) for p in out["paths"]}
+                out["pdfx"] = {"version": pdfx.VERSION, "issues": found}
+                notes.extend(f"{f}: {i}" for f, issues in found.items() for i in issues)
+            return out
         if format == "jpeg":
             folder = Path(path).expanduser() if path else rename.unique(_out_dir("Books") / rename.safe(name))
             files = pages.write_jpegs(lay, folder, rename.safe(name), progress)

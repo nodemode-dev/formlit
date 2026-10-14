@@ -13,5 +13,6 @@ tifffile
 imagecodecs
 reportlab
 paramiko
+pikepdf
 ptyprocess
 onnxruntime

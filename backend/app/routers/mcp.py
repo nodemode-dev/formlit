@@ -449,7 +449,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("make_book", "Auto-lays out the photos as a book (size, title) and writes a PDF, or print-ready interior and cover PDFs for a printer: printer blurb, lulu, kdp (Amazon KDP) or ingramspark. Printer files come with notes on anything the printer will reject (too few pages, text too near the trim).",
            {"ids": IDS, "title": {"type": "string"}, "size": {"type": "string", "default": "standard-landscape"}, "path": {"type": "string"},
             "printer": {"type": "string", "enum": ["pdf", "blurb", "lulu", "kdp", "ingramspark"], "default": "pdf"},
-            "cmyk_profile": {"type": "string", "description": "path of a CMYK ICC profile (the printer's, for example GRACoL or FOGRA39) to write CMYK PDFs; leave out for RGB"}}, ["ids"]), lambda a: _book(a)),
+            "cmyk_profile": {"type": "string", "description": "path of a CMYK ICC profile (the printer's, for example GRACoL or FOGRA39) to write CMYK PDFs; leave out for RGB"},
+            "pdfx": {"type": "boolean", "default": False, "description": "with cmyk_profile: PDF/X-1a:2003 files (fonts embedded, output intent, trim and bleed boxes), self-checked; the result lists any problem found"}}, ["ids"]), lambda a: _book(a)),
     (_tool("export_slideshow", "Writes a slideshow of the photos as MP4 (needs ffmpeg) or PDF; settings as the Slideshow module (duration, fade, panZoom, fill, music.path).",
            {"ids": IDS, "format": {"type": "string", "enum": ["mp4", "pdf"], "default": "mp4"}, "settings": {"type": "object"}, "path": {"type": "string"}}, ["ids"]),
      lambda a: _cmd("slideshow.export", ids=a["ids"], format=a.get("format", "mp4"), settings=a.get("settings") or {}, path=a.get("path"), wait=True)),
@@ -470,7 +471,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
 def _book(a: dict) -> dict:
     lay = _cmd("book.autoLayout", ids=a["ids"])
     lay["cover"]["texts"] = [a.get("title") or "Untitled", ""]
-    s = {"size": a.get("size", "standard-landscape"), "cover": lay["cover"], "pages": lay["pages"], **({"job": {"cmykProfile": a["cmyk_profile"]}} if a.get("cmyk_profile") else {})}
+    s = {"size": a.get("size", "standard-landscape"), "cover": lay["cover"], "pages": lay["pages"],
+         **({"job": {"cmykProfile": a["cmyk_profile"], "pdfx": bool(a.get("pdfx")), "title": a.get("title") or "Book"}} if a.get("cmyk_profile") else {})}
     return _cmd("book.export", settings=s, format=a.get("printer") or "pdf", path=a.get("path"), name=a.get("title") or "Book", wait=True)
 
 

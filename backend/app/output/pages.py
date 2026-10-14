@@ -188,8 +188,13 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
     cmyk = _cmyk_transform(str(job["cmykProfile"])) if job.get("cmykProfile") else None
     if cmyk is not None:
         space = "srgb"
+    from app.output import pdfx
+    strict = cmyk is not None and bool(job.get("pdfx"))
+    face = pdfx.font if strict else pdf_font
+    bl = float(layout.get("bleed") or 0.0) * 72
+    boxes: list[tuple[float, float, float, float]] = []
     PW, PH = layout["page"]["w"], layout["page"]["h"]
-    c = rl_canvas.Canvas(str(path), pagesize=(PW * 72, PH * 72))
+    c = rl_canvas.Canvas(str(path), pagesize=(PW * 72, PH * 72), **({"initialFontName": face("sans", False, False)} if strict else {}))
     c.setTitle(path.stem)
     c.setCreator("formlit")
     total = len(layout["pages"])
@@ -198,6 +203,8 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
         pw, ph = page.get("w", PW), page.get("h", PH)
         trim = 0.0 if page.get("cover") else float(job.get("gutterTrim") or 0.0)
         c.setPageSize(((pw - trim) * 72, ph * 72))
+        W, H = (pw - trim) * 72, ph * 72
+        boxes.append((0.0 if trim and int(page.get("number", 0)) % 2 == 1 else bl, bl, W if trim and int(page.get("number", 0)) % 2 == 0 else W - bl, H - bl))
         if trim and int(page.get("number", 0)) % 2 == 1:
             c.translate(-trim * 72, 0)
         if bg != (255, 255, 255):
@@ -228,7 +235,7 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
                     c.line(X, Y + sy * G, X, Y + sy * (G + L))
         for t in _overlays(page, layout, s, total):
             _ink(c, _hex(t["color"]), cmyk)
-            font = pdf_font(t.get("font", "sans"), bool(t.get("bold", t["size"] >= 20)), bool(t.get("italic")))
+            font = face(t.get("font", "sans"), bool(t.get("bold", t["size"] >= 20)), bool(t.get("italic")))
             c.setFont(font, t["size"])
             if t.get("rotate"):
                 c.saveState()
@@ -250,6 +257,8 @@ def write_pdf(layout: dict, path: Path, progress: Callable[..., Any] | None = No
         if progress is not None:
             progress(n + 1, total, f"Page {n + 1} of {total}")
     c.save()
+    if strict:
+        pdfx.finish(path, str(job["cmykProfile"]), boxes, str(job.get("title") or path.stem))
     return path
 
 

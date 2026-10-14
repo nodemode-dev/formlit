@@ -29,6 +29,8 @@ Camera-matching profile names (for example Faithful, Velvia/Vivid, CLASSIC CHROM
 | Package | License | Notes |
 | --- | --- | --- |
 | Inter, JetBrains Mono (via @fontsource) | SIL OFL 1.1 fonts, MIT packaging | bundled font files |
+| Liberation Sans, Serif and Mono 2.1 (Red Hat; Arimo, Tinos, Cousine digitized data by Google) | SIL OFL 1.1 | `shared/fonts/liberation`, embedded in PDF/X book files (metric-compatible with Helvetica, Times and Courier); licence in that folder |
+| paramiko, pikepdf | LGPL-2.1, MPL-2.0 | engine: SFTP sending, PDF/X finishing |
 | tauri, tauri-plugin-shell, tauri-plugin-dialog, tauri-plugin-updater, regex, serde | Apache-2.0 or MIT | desktop shell |
 | fastapi, uvicorn, python-multipart, httpx | MIT, BSD-3-Clause | engine |
 | Pillow | MIT-CMU | engine |

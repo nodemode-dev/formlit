@@ -9,7 +9,7 @@ def resource_dir() -> str:
 
 def selfcheck() -> int:
     info = {"python": sys.version.split()[0]}
-    for name in ("PIL", "fastapi", "uvicorn", "numpy", "cv2", "rawpy", "exifread", "reportlab", "paramiko"):
+    for name in ("PIL", "fastapi", "uvicorn", "numpy", "cv2", "rawpy", "exifread", "reportlab", "paramiko", "pikepdf"):
         try:
             module = __import__(name)
             info[name.lower()] = getattr(module, "__version__", "ok")

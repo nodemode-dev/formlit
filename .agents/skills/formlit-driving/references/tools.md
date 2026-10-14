@@ -643,6 +643,7 @@ Auto-lays out the photos as a book (size, title) and writes a PDF, or print-read
 - `path`: string
 - `printer`: string (pdf | blurb | lulu | kdp | ingramspark); default "pdf"
 - `cmyk_profile`: string; path of a CMYK ICC profile (the printer's, for example GRACoL or FOGRA39) to write CMYK PDFs; leave out for RGB
+- `pdfx`: boolean; default false; with cmyk_profile: PDF/X-1a:2003 files (fonts embedded, output intent, trim and bleed boxes), self-checked; the result lists any problem found
 
 ## export_slideshow
 
