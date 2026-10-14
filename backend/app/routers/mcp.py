@@ -75,11 +75,19 @@ def _cmd(cid: str, **params: Any) -> Any:
     return dispatch(cid, {k: v for k, v in params.items() if v is not None})
 
 
+def _control_maps(args: dict) -> dict:
+    r = _cmd("ai.controlMaps", id=int(args["id"]), kinds=args.get("kinds") or ["edges", "lines", "depth", "subject"], size=768)
+    kinds = [k for k in ("edges", "lines", "depth", "subject") if isinstance(r.get(k), str)]
+    return {"__images": [r[k].split(",", 1)[1] for k in kinds], "meta": {"images": kinds, "lineCount": r.get("lineCount"), "missing": r.get("missing")}}
+
+
 def _remove(args: dict) -> dict:
     pid = int(args["id"])
     spot = {"points": [[float(args["x"]), float(args["y"])]], "size": float(args.get("size", 0.03)), "source": None, "feather": 0, "opacity": 100, "mode": "remove",
             "detect": bool(args.get("detect", True)), "shadows": bool(args.get("shadows", False)), "seed": int(args.get("seed", 0))}
-    if args.get("sample_same_depth"):
+    if args.get("sample_same_surface"):
+        spot["sampleFrom"] = "sameSurface"
+    elif args.get("sample_same_depth"):
         spot["sampleFrom"] = "sameDepth"
     elif args.get("sample_from"):
         spot["sampleFrom"] = [float(v) for v in args["sample_from"]][:4]
@@ -420,11 +428,15 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("apply_my_style", "Develops photos the way the person edits: learns from their already edited photos (at least three, indexed for search) and gives each photo the tone and presence settings of the edited photos most like it, weighted by likeness, with exposure matched to its brightness. amount 0 to 100 blends with the current settings; one undo step. Returns which photos each was learned from. Check with get_preview.",
            {"ids": IDS, "amount": {"type": "number", "default": 100}, "k": {"type": "integer", "default": 5}}, ["ids"]),
      lambda a: _cmd("develop.applyStyle", ids=a["ids"], amount=a.get("amount", 100), k=a.get("k", 5))),
+    (_tool("get_control_maps", "Structure maps of a photo as images: edges (what Edge Range masks select), straight lines, depth (near is bright) and subject, to plan masks and Remove (Same Depth and Same Surface sampling). Read only.",
+           {"id": {"type": "integer"}, "kinds": {"type": "array", "items": {"type": "string", "enum": ["edges", "lines", "depth", "subject"]}}}, ["id"]),
+     _control_maps),
     (_tool("remove_object", "Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.",
            {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}, "size": {"type": "number", "default": 0.03, "description": "brush radius as a fraction of the long side"},
             "detect": {"type": "boolean", "default": True}, "shadows": {"type": "boolean", "default": False}, "seed": {"type": "integer", "default": 0},
             "sample_from": {"type": "array", "items": {"type": "number"}, "description": "[x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)"},
-            "sample_same_depth": {"type": "boolean", "default": False, "description": "copy only from parts of the photo at the same distance as the area around the object (needs the depth model)"}}, ["id", "x", "y"]),
+            "sample_same_depth": {"type": "boolean", "default": False, "description": "copy only from parts of the photo at the same distance as the area around the object (needs the depth model)"},
+            "sample_same_surface": {"type": "boolean", "default": False, "description": "copy only from the surface the object sits on or against (wall, floor, sky, water), segmented around it (needs the objects model)"}}, ["id", "x", "y"]),
      _remove),
     (_tool("merge_flash_blend", "Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames are merged as HDR; a flash frame gives the room clean colour (flambient: light from the ambient frames, colour from the flash); windows are pulled from the darker frames in darken mode so frames and mullions stay and flash reflections on glass go. flash names the flash frame (else the one tagged Flash fired); windowEv sets how many stops the view sits above the room. Check with get_preview.",
            {"ids": IDS, "flash": {"type": "integer"}, "flashAmount": {"type": "number", "default": 50}, "colorAmount": {"type": "number", "default": 100},
@@ -528,6 +540,9 @@ def _err(req_id, code: int, message: str) -> dict:
 def _result(value: Any) -> dict:
     if isinstance(value, dict) and "__image" in value:
         return {"content": [{"type": "image", "data": value["__image"], "mimeType": "image/jpeg"}, {"type": "text", "text": json.dumps(value.get("meta") or {})}], "structuredContent": value.get("meta") or {}}
+    if isinstance(value, dict) and "__images" in value:
+        return {"content": [{"type": "image", "data": d, "mimeType": "image/jpeg"} for d in value["__images"]] + [{"type": "text", "text": json.dumps(value.get("meta") or {})}],
+                "structuredContent": value.get("meta") or {}}
     data = value if isinstance(value, dict) else {"result": value}
     text = json.dumps(data, default=str)
     if len(text) > 200_000:

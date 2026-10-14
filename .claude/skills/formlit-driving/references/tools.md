@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `check_my_style`, `apply_my_style`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `check_my_style`, `apply_my_style`, `get_control_maps`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -552,6 +552,13 @@ Develops photos the way the person edits: learns from their already edited photo
 - `amount`: number; default 100
 - `k`: integer; default 5
 
+## get_control_maps
+
+Structure maps of a photo as images: edges (what Edge Range masks select), straight lines, depth (near is bright) and subject, to plan masks and Remove (Same Depth and Same Surface sampling). Read only.
+
+- `id`: integer; required
+- `kinds`: array
+
 ## remove_object
 
 Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.
@@ -565,6 +572,7 @@ Generative remove at a point (x, y from 0 to 1 across the photo): detect grows t
 - `seed`: integer; default 0
 - `sample_from`: array; [x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)
 - `sample_same_depth`: boolean; default false; copy only from parts of the photo at the same distance as the area around the object (needs the depth model)
+- `sample_same_surface`: boolean; default false; copy only from the surface the object sits on or against (wall, floor, sky, water), segmented around it (needs the objects model)
 
 ## merge_flash_blend
 

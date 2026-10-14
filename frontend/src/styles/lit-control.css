@@ -1,0 +1,4 @@
+.fl-cmaps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fl-cmap { margin: 0; }
+.fl-cmap img { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--surface-0); }
+.fl-cmap figcaption { margin-top: 4px; color: var(--text-secondary); font-size: var(--fs-11); }

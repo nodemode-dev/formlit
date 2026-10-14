@@ -133,6 +133,19 @@ export function registerAiCommands(ctx: Ctx): void {
         toast(`Your style applied to ${r.ids.length} photo${r.ids.length === 1 ? '' : 's'}, learned from ${r.learnedFrom} edited photo${r.learnedFrom === 1 ? '' : 's'}`);
       } catch (err) { ctx.fail(err); }
     } },
+    { id: 'photo.controlMaps', label: 'Show Control Maps...', enabled: () => library.active !== null, run: async () => {
+      const id = library.active;
+      if (id === null) return;
+      try {
+        const done = ctx.shell.busy('Reading edges, lines, depth and subject');
+        let r: Record<string, string | number | string[]>;
+        try { r = await ctx.api.cmd<Record<string, string | number | string[]>>('ai.controlMaps', { id, size: 768 }); } finally { done(); }
+        const a = library.photo(id)?.a || 1.5;
+        const tile = (k: string, label: string) => typeof r[k] === 'string' ? `<figure class="fl-cmap"><img src="${String(r[k])}" alt="" style="aspect-ratio:${a}"><figcaption>${label}</figcaption></figure>` : '';
+        const html = `<div class="fl-cmaps">${tile('edges', 'Edges')}${tile('lines', 'Lines')}${tile('depth', 'Depth')}${tile('subject', 'Subject')}</div>${(r.missing as string[] | undefined)?.length ? '<p class="cv-note">Depth and Subject need their models (Preferences, AI Models).</p>' : ''}`;
+        await ask('Control Maps', html, 'Close', () => ({}));
+      } catch (err) { ctx.fail(err); }
+    } },
     { id: 'photo.checkStyle', label: 'Check My Style', run: async () => {
       try {
         const done = ctx.shell.busy('Checking your style against your own edits');
