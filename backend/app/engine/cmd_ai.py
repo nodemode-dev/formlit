@@ -875,7 +875,15 @@ def _remove_view(pid: int) -> tuple:
     return frame.sample(img, w, h), frame, w, h, ppl
 
 
-def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool) -> list[str]:
+def _plainness(fill: np.ndarray, hole: np.ndarray) -> float:
+    g = cv2.cvtColor(np.clip(fill * 255, 0, 255).astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
+    e = cv2.GaussianBlur(np.hypot(cv2.Sobel(g, cv2.CV_32F, 1, 0), cv2.Sobel(g, cv2.CV_32F, 0, 1)), (0, 0), 1.0)
+    inside = hole > 0
+    ring = (cv2.dilate(inside.astype(np.uint8), np.ones((15, 15), np.uint8)) > 0) & ~inside
+    return float(e[inside].mean() / max(1e-3, float(e[ring].mean()))) if inside.any() and ring.any() else 1.0
+
+
+def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool, seed: int = 0) -> list[str]:
     ys, xs = np.nonzero(full)
     if not len(xs):
         raise CommandError("Nothing to remove there")
@@ -884,7 +892,11 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
     n = frame.out_to_norm(w, h)
     stamp = int(time.time() * 1000)
     out = []
-    for vi, (padk, flip, shift) in enumerate([(4.0, False, 2), (6.5, True, 3), (2.8, False, -2)][:max(1, min(3, int(variants)))]):
+    count = max(1, min(3, int(variants)))
+    rng = np.random.default_rng(int(seed))
+    table = [(4.0, False, 2), (6.5, True, 3), (2.8, False, -2)] if not seed else [(float(rng.uniform(2.5, 7.5)), bool(rng.integers(2)), int(rng.choice([-4, -3, -2, 2, 3, 4]))) for _ in range(count)]
+    scored = []
+    for vi, (padk, flip, shift) in enumerate(table[:count]):
         pad = max(r * padk, 0.35 * max(xs.max() - xs.min(), ys.max() - ys.min())) if alpha else r * padk
         x0, y0 = int(max(0, xs.min() - pad)), int(max(0, ys.min() - pad))
         x1, y1 = int(min(w, xs.max() + 1 + pad)), int(min(h, ys.max() + 1 + pad))
@@ -920,13 +932,17 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
         a = n @ np.array([x0, y0, 1.0])
         b = n @ np.array([x1, y1, 1.0])
         (folder / f"{key}.json").write_text(json.dumps({"rect": [float(a[0]), float(a[1]), float(b[0]), float(b[1])]}))
-        out.append(f"{pid}/{key}")
+        scored.append((_plainness(np.sqrt(np.clip(lin[..., :3] / peak, 0.0, 1.0)), hole), f"{pid}/{key}"))
+    scored.sort(key=lambda t: t[0])
+    out.extend(k for _, k in scored)
     return out
 
 
 @command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "minimum": 1, "maximum": 3, "description": "1 to 3 fills to choose from"},
-                                                     "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"}})
-def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bool = False) -> dict:
+                                                     "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"},
+                                                     "shadows": {"type": "boolean", "description": "also remove the shadow the object casts and its reflection below it"},
+                                                     "seed": {"type": "integer", "description": "0 for the standard fills; any other number for a new set (Refresh)"}})
+def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bool = False, shadows: bool = False, seed: int = 0) -> dict:
     pid = int(id) if id is not None else resolve_ids("active")[0]
     _need("remove")
     sampled, frame, w, h, ppl = _remove_view(pid)
@@ -951,13 +967,28 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
         within = np.zeros_like(full)
         cv2.rectangle(within, (int(box[0] * w), int(box[1] * h)), (int(box[2] * w), int(box[3] * h)), 255, -1)
         objm = ((obj > 0.5) & (within > 0)).astype(np.uint8) * 255
+        ncomp, comps = cv2.connectedComponents(objm, connectivity=8)
+        touched = {int(v) for v in np.unique(comps[full > 0]) if v}
+        if touched:
+            objm = np.isin(comps, list(touched)).astype(np.uint8) * 255
         grown = cv2.dilate(objm, np.ones((5, 5), np.uint8), iterations=max(1, int(r * 0.08)))
         if objm.sum() >= full.sum() * 0.3:
             full = grown
         elif objm.any():
             full = np.maximum(full, grown)
-    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect)
-    return {"patch": out[0], "variants": out, "detected": detect}
+    shadows = bool(shadows or spot.get("shadows"))
+    extra: dict = {}
+    if shadows:
+        from app.ai import shadows as shadows_mod
+        from app.services import decode
+        lin709 = np.maximum(sampled.reshape(-1, 3) @ decode.REC2020_TO_SRGB.T, 0.0).reshape(sampled.shape)
+        rgb8 = (decode.linear_to_srgb(lin709 / max(1e-6, float(np.percentile(lin709, 99.5)))) * 255 + 0.5).astype(np.uint8)
+        found, extra = shadows_mod.attached(rgb8, full)
+        if found.any():
+            full = np.maximum(full, cv2.dilate(found * 255, np.ones((5, 5), np.uint8), iterations=max(1, int(r * 0.1))))
+    seed = int(seed or spot.get("seed") or 0)
+    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect or shadows, seed=seed)
+    return {"patch": out[0], "variants": out, "detected": detect, "shadows": extra, "seed": seed}
 
 
 @command("develop.removePeople", "Remove People", {"id": {"type": "integer"}, "people": {"type": "array", "description": "person indexes from develop.aiPeople; omit for everyone"},

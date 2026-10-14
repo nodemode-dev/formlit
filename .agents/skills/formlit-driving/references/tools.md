@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
 
@@ -536,6 +536,18 @@ Photos that look most like a given one (same scene, subject or look, not only ex
 
 - `id`: integer; required
 - `limit`: integer; default 30
+
+## remove_object
+
+Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.
+
+- `id`: integer; required
+- `x`: number; required
+- `y`: number; required
+- `size`: number; default 0.03; brush radius as a fraction of the long side
+- `detect`: boolean; default true
+- `shadows`: boolean; default false
+- `seed`: integer; default 0
 
 ## merge_flash_blend
 

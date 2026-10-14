@@ -75,6 +75,17 @@ def _cmd(cid: str, **params: Any) -> Any:
     return dispatch(cid, {k: v for k, v in params.items() if v is not None})
 
 
+def _remove(args: dict) -> dict:
+    pid = int(args["id"])
+    spot = {"points": [[float(args["x"]), float(args["y"])]], "size": float(args.get("size", 0.03)), "source": None, "feather": 0, "opacity": 100, "mode": "remove",
+            "detect": bool(args.get("detect", True)), "shadows": bool(args.get("shadows", False)), "seed": int(args.get("seed", 0))}
+    got = _cmd("develop.removeFill", id=pid, spot=spot, detect=spot["detect"], shadows=spot["shadows"], seed=spot["seed"])
+    spot.update(patch=got["patch"], variants=got["variants"])
+    spots = (_cmd("develop.get", id=pid)["settings"].get("spots") or []) + [spot]
+    _cmd("develop.update", ids=[pid], patch={"spots": spots}, label="Remove")
+    return {"id": pid, "spot": len(spots) - 1, "variants": len(got["variants"]), "shadows": got.get("shadows"), "seed": spot["seed"]}
+
+
 def _describe(args: dict) -> dict:
     st = _cmd("search.status")
     if st["ready"] and st["missing"]:
@@ -398,6 +409,10 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("find_similar_photos", "Photos that look most like a given one (same scene, subject or look, not only exact duplicates), most similar first with a similarity from 0 to 1.",
            {"id": {"type": "integer"}, "limit": {"type": "integer", "default": 30}}, ["id"]),
      lambda a: _cmd("search.similar", id=a["id"], limit=a.get("limit", 30))),
+    (_tool("remove_object", "Generative remove at a point (x, y from 0 to 1 across the photo): detect grows the area to the whole object under the point, shadows also takes the shadow it casts and its reflection below it. Three fills are made, plainest first (least new detail inside, so nothing new is invented); seed 0 gives the standard set, another number a new set. Adds a Remove spot; check with get_preview, and call again with a new seed if the fill is wrong.",
+           {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}, "size": {"type": "number", "default": 0.03, "description": "brush radius as a fraction of the long side"},
+            "detect": {"type": "boolean", "default": True}, "shadows": {"type": "boolean", "default": False}, "seed": {"type": "integer", "default": 0}}, ["id", "x", "y"]),
+     _remove),
     (_tool("merge_flash_blend", "Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames are merged as HDR; a flash frame gives the room clean colour (flambient: light from the ambient frames, colour from the flash); windows are pulled from the darker frames in darken mode so frames and mullions stay and flash reflections on glass go. flash names the flash frame (else the one tagged Flash fired); windowEv sets how many stops the view sits above the room. Check with get_preview.",
            {"ids": IDS, "flash": {"type": "integer"}, "flashAmount": {"type": "number", "default": 50}, "colorAmount": {"type": "number", "default": 100},
             "windowPull": {"type": "boolean", "default": True}, "windowEv": {"type": "number", "default": 1}, "createStack": {"type": "boolean", "default": True}}, ["ids"]),
