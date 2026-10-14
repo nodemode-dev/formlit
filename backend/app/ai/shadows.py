@@ -18,8 +18,8 @@ def attached(rgb8: np.ndarray, obj: np.ndarray, reflections: bool = True) -> tup
         return np.zeros((h, w), np.uint8), report
     x0, y0, x1, y1 = box
     s = max(x1 - x0, y1 - y0)
-    sx0, sy0 = max(0, x0 - int(2.5 * s)), max(0, y0 + (y1 - y0) // 2)
-    sx1, sy1 = min(w, x1 + int(2.5 * s)), min(h, y1 + 2 * s)
+    sx0, sy0 = max(0, x0 - int(4 * s)), max(0, y0 - int(1.5 * s))
+    sx1, sy1 = min(w, x1 + int(4 * s)), min(h, y1 + 2 * s)
     crop = rgb8[sy0:sy1, sx0:sx1]
     cm = m[sy0:sy1, sx0:sx1]
     lin = (crop.astype(np.float32) / 255.0) ** 2.2 @ np.array([0.2126, 0.7152, 0.0722], np.float32)
@@ -53,7 +53,11 @@ def attached(rgb8: np.ndarray, obj: np.ndarray, reflections: bool = True) -> tup
     cand = ((ratio < 0.72) & (chroma < 0.06) & (cm == 0)).astype(np.uint8)
     k = max(3, (s // 30) | 1)
     cand = cv2.morphologyEx(cand, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
-    near = cv2.dilate(cm, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(0.12 * s) + 1,) * 2))
+    rows = np.nonzero(cm.any(axis=1))[0]
+    foot = cm.copy()
+    if len(rows):
+        foot[: rows[0] + int(0.7 * (rows[-1] - rows[0] + 1))] = 0
+    near = cv2.dilate(foot, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(0.12 * s) + 1,) * 2))
     n, lab_img = cv2.connectedComponents(cand, connectivity=8)
     shadow = np.zeros_like(cand)
     edge = np.zeros_like(cand, bool)
@@ -63,12 +67,14 @@ def attached(rgb8: np.ndarray, obj: np.ndarray, reflections: bool = True) -> tup
         edge[:, -1] = True
     if sy1 < h:
         edge[-1, :] = True
+    if sy0 > 0:
+        edge[0, :] = True
     for i in range(1, n):
         comp = lab_img == i
         if (comp & (near > 0)).any() and not (comp & edge).any():
             shadow |= comp.astype(np.uint8)
     shadow = cv2.morphologyEx(shadow, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
-    if shadow.sum() > 3 * m.sum():
+    if shadow.sum() > 6 * m.sum():
         shadow[:] = 0
     out = np.zeros((h, w), np.uint8)
     out[sy0:sy1, sx0:sx1] = shadow
