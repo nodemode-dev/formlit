@@ -952,6 +952,21 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
     return out
 
 
+@command("ai.controlMaps", "Control Maps", {"id": {"type": "integer"}, "kinds": {"type": "array", "items": {"type": "string", "enum": ["edges", "lines", "depth", "subject"]}},
+                                            "size": {"type": "integer", "minimum": 256, "maximum": 2048}}, mutates=False,
+         description="The structure maps formlit's masks and Remove use, as images of the photo as developed: edges (edge strength, as Edge Range sees it), lines (straight line segments), depth (near is bright) and subject. Read only.")
+def control_maps(id: int | None = None, kinds: list[str] | None = None, size: int = 1024) -> dict:
+    from app.ai import control
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    kinds = [k for k in (kinds or list(control.KINDS)) if k in control.KINDS]
+    rgb8 = view_rgb8(pid, long=int(size or 1024))
+    depth = nets.depth(rgb8) if "depth" in kinds and models.ready("depth") else None
+    subject = nets.u2net(rgb8, "subject") if "subject" in kinds and models.ready("subject") else None
+    out = control.render(rgb8, kinds, depth, subject)
+    out["missing"] = [k for k in kinds if k not in out]
+    return out
+
+
 @command("develop.removeFill", "Generative Remove", {"id": {"type": "integer"}, "spot": {"type": "object"}, "variants": {"type": "integer", "minimum": 1, "maximum": 3, "description": "1 to 3 fills to choose from"},
                                                      "detect": {"type": "boolean", "description": "Detect Objects: grow the brushed area to the whole object under it"},
                                                      "shadows": {"type": "boolean", "description": "also remove the shadow the object casts and its reflection below it"},
@@ -1019,6 +1034,26 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
             sample = ((np.abs(d - level) < tol) & (full == 0)).astype(np.uint8) * 255
             if sample.sum() >= 255 * 64 * 16:
                 break
+    elif area == "sameSurface":
+        if not models.ready("objects"):
+            raise CommandError("Sample from the same surface needs the objects model (ai.download model objects)")
+        from app.services import decode
+        lin709 = np.maximum(sampled.reshape(-1, 3) @ decode.REC2020_TO_SRGB.T, 0.0).reshape(sampled.shape)
+        rgb8 = (decode.linear_to_srgb(lin709 / max(1e-6, float(np.percentile(lin709, 99.5)))) * 255 + 0.5).astype(np.uint8)
+        ys, xs = np.nonzero(full)
+        span = max(xs.max() - xs.min(), ys.max() - ys.min()) + 2 * r
+        cx, cy = (xs.min() + xs.max()) / 2.0, (ys.min() + ys.max()) / 2.0
+        box = [max(0.0, (cx - 2.5 * span) / w), max(0.0, (cy - 2.5 * span) / h), min(1.0, (cx + 2.5 * span) / w), min(1.0, (cy + 2.5 * span) / h)]
+        ring = (cv2.dilate(full, np.ones((3, 3), np.uint8), iterations=max(3, int(r * 0.6))) > 0) & (full == 0)
+        ry, rx = np.nonzero(ring)
+        pick = np.linspace(0, len(rx) - 1, min(8, len(rx))).astype(int) if len(rx) else []
+        pts = [[float(rx[i]) / w, float(ry[i]) / h] for i in pick]
+        surf = nets.sam_box(rgb8, box, pts) if pts else np.zeros((h, w), np.float32)
+        if surf.shape[:2] != (h, w):
+            surf = cv2.resize(surf.astype(np.float32), (w, h), interpolation=cv2.INTER_LINEAR)
+        sample = ((surf > 0.5) & (full == 0)).astype(np.uint8) * 255
+        if sample.sum() < 255 * 64 * 16:
+            raise CommandError("No surface large enough around the spot to sample from; try Anywhere or a direction")
     elif isinstance(area, (list, tuple)) and len(area) == 4:
         c = [to_out @ np.array([float(area[i]), float(area[j]), 1.0]) for i, j in ((0, 1), (2, 1), (2, 3), (0, 3))]
         sample = np.zeros((h, w), np.uint8)
