@@ -9,6 +9,9 @@ from app.engine import catalog as catalog_mod
 from app.engine.cmd_develop import after, current, store
 from app.engine.commands import CommandError, command, resolve_ids
 from app.engine.preset_library import LIBRARY, MATTE, NOTES
+from app.engine.preset_library_1 import LIBRARY_1
+from app.engine.preset_library_2 import LIBRARY_2
+from app.engine.preset_library_3 import LIBRARY_3
 
 BUILTIN: list[dict] = [
     {"group": "Color", "name": "Clean Punch", "settings": {"light": {"contrast": 18, "highlights": -20, "shadows": 18, "whites": 8, "blacks": -6}, "effects": {"clarity": 8}, "color": {"vibrance": 18}}},
@@ -67,6 +70,7 @@ BUILTIN += [
     {"group": "Adaptive: Portrait", "name": "Whiten Teeth", "settings": _adaptive("Teeth", [{"kind": "people", "part": "teeth", "label": "Teeth", "bitmap": "adaptive-teeth"}], {"exposure": 0.2, "saturation": -40})},
 ]
 BUILTIN += LIBRARY
+BUILTIN += LIBRARY_1 + LIBRARY_2 + LIBRARY_3
 
 
 def _slug(s: str) -> str:
@@ -243,6 +247,47 @@ def export_preset(id: str, folder: str = "") -> dict:
     return {"path": str(path), "name": p["name"]}
 
 
+@command("preset.exportGroup", "Export Preset Group", {"group": {"type": "string"}, "folder": {"type": "string"}}, mutates=False,
+         description="Writes every preset of a group as Lightroom-compatible XMP files into one zip, to share or to import in formlit or Lightroom.")
+def export_group(group: str, folder: str = "") -> dict:
+    import tempfile
+    import zipfile
+    from app.services import rename
+    members = [p for p in all_presets() if p["group"] == group]
+    if not members:
+        raise CommandError(f"No presets in group {group}")
+    tmp = Path(tempfile.mkdtemp(prefix="formlit-group-"))
+    dest = Path(folder).expanduser() if folder else config.exports_dir() / "Presets"
+    dest.mkdir(parents=True, exist_ok=True)
+    path = rename.unique(dest / f"{_slug(group) or 'presets'}.zip")
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in members:
+            got = export_preset(p["id"], str(tmp))
+            z.write(got["path"], f"{group}/{Path(got['path']).name}")
+    return {"path": str(path), "group": group, "presets": len(members)}
+
+
+PACK_TYPES = (".xmp", ".lrtemplate", ".flpreset", ".cube", ".dcp")
+
+
+def _unzip(path: Path) -> list[Path]:
+    import tempfile
+    import zipfile
+    out_dir = Path(tempfile.mkdtemp(prefix="formlit-presets-"))
+    found = []
+    with zipfile.ZipFile(path) as z:
+        for i, info in enumerate(z.infolist()):
+            name = Path(info.filename)
+            if info.is_dir() or name.suffix.lower() not in PACK_TYPES or "__MACOSX" in name.parts or name.name.startswith("."):
+                continue
+            if info.file_size > 20_000_000:
+                continue
+            dst = out_dir / f"{i:04d}-{re.sub(r'[^A-Za-z0-9._ -]+', '_', name.name)}"
+            dst.write_bytes(z.read(info))
+            found.append(dst)
+    return found
+
+
 @command("preset.import", "Import Presets", {"paths": {"type": "array"}})
 def import_presets(paths: list[str]) -> dict:
     from app.develop import adobe_profile
@@ -251,6 +296,7 @@ def import_presets(paths: list[str]) -> dict:
     for raw in paths:
         p = Path(raw).expanduser()
         files = [p] if p.is_file() else sorted(p.rglob("*")) if p.is_dir() else []
+        files = [x for f in files for x in (_unzip(f) if f.suffix.lower() == ".zip" else [f])]
         for f in files:
             if f.suffix.lower() == ".flpreset":
                 dst = user_dir() / "Imported" / f.name
