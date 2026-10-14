@@ -1,0 +1,18 @@
+{
+ "0": "Setiap jendela dengan eksposurnya sendiri",
+ "1": "Kirim lewat FTP atau SFTP",
+ "2": "Protokol",
+ "3": "FTP atau FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (kosongkan untuk bawaan)",
+ "6": "File kunci pribadi (opsional)",
+ "7": "Percayai server ini pada kali pertama",
+ "8": "Ambil sampel dari",
+ "9": "Di mana saja",
+ "10": "Atas",
+ "11": "Bawah",
+ "12": "Dari mana isian boleh menyalin",
+ "13": "Warna",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

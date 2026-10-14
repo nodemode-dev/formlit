@@ -1,0 +1,18 @@
+{
+ "0": "Jedes Fenster mit eigener Belichtung",
+ "1": "Per FTP oder SFTP senden",
+ "2": "Protokoll",
+ "3": "FTP oder FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (leer für Standard)",
+ "6": "Datei mit privatem Schlüssel (optional)",
+ "7": "Diesem Server beim ersten Mal vertrauen",
+ "8": "Aufnehmen von",
+ "9": "Überall",
+ "10": "Oberhalb",
+ "11": "Unterhalb",
+ "12": "Woher die Füllung kopieren darf",
+ "13": "Farbe",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

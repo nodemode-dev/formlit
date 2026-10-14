@@ -1,0 +1,18 @@
+{
+ "0": "Minden ablak saját expozícióval",
+ "1": "Küldés FTP-vel vagy SFTP-vel",
+ "2": "Protokoll",
+ "3": "FTP vagy FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (üresen az alapértelmezett)",
+ "6": "Privát kulcs fájlja (nem kötelező)",
+ "7": "Bízzon ebben a szerverben első alkalommal",
+ "8": "Mintavétel innen",
+ "9": "Bárhonnan",
+ "10": "Felülről",
+ "11": "Alulról",
+ "12": "Honnan másolhat a kitöltés",
+ "13": "Szín",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

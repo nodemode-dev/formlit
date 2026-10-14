@@ -1,0 +1,18 @@
+{
+ "0": "Her pencere kendi pozlamasıyla",
+ "1": "FTP veya SFTP ile gönder",
+ "2": "Protokol",
+ "3": "FTP veya FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Bağlantı noktası (varsayılan için boş bırakın)",
+ "6": "Özel anahtar dosyası (isteğe bağlı)",
+ "7": "Bu sunucuya ilk seferde güven",
+ "8": "Örnekleme kaynağı",
+ "9": "Her yer",
+ "10": "Üst",
+ "11": "Alt",
+ "12": "Dolgunun nereden kopyalayabileceği",
+ "13": "Renk",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

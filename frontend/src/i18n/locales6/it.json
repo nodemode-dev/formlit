@@ -1,0 +1,18 @@
+{
+ "0": "Ogni finestra con la propria esposizione",
+ "1": "Invia tramite FTP o SFTP",
+ "2": "Protocollo",
+ "3": "FTP o FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Porta (vuoto per il valore predefinito)",
+ "6": "File della chiave privata (facoltativo)",
+ "7": "Considera attendibile questo server la prima volta",
+ "8": "Campiona da",
+ "9": "Ovunque",
+ "10": "Sopra",
+ "11": "Sotto",
+ "12": "Da dove il riempimento può copiare",
+ "13": "Colore",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

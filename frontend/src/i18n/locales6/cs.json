@@ -1,0 +1,18 @@
+{
+ "0": "Každé okno s vlastní expozicí",
+ "1": "Odeslat přes FTP nebo SFTP",
+ "2": "Protokol",
+ "3": "FTP nebo FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (prázdné = výchozí)",
+ "6": "Soubor soukromého klíče (volitelné)",
+ "7": "Důvěřovat tomuto serveru při prvním připojení",
+ "8": "Vzorkovat z",
+ "9": "Odkudkoli",
+ "10": "Shora",
+ "11": "Zdola",
+ "12": "Odkud může výplň kopírovat",
+ "13": "Barva",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

@@ -1,0 +1,18 @@
+{
+ "0": "Varje fönster med egen exponering",
+ "1": "Skicka via FTP eller SFTP",
+ "2": "Protokoll",
+ "3": "FTP eller FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (tom för standard)",
+ "6": "Fil med privat nyckel (valfritt)",
+ "7": "Lita på den här servern första gången",
+ "8": "Sampla från",
+ "9": "Varsomhelst",
+ "10": "Ovanför",
+ "11": "Nedanför",
+ "12": "Varifrån fyllningen får kopiera",
+ "13": "Färg",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

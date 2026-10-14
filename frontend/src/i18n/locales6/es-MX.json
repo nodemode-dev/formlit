@@ -1,0 +1,18 @@
+{
+ "0": "Cada ventana con su propia exposición",
+ "1": "Enviar por FTP o SFTP",
+ "2": "Protocolo",
+ "3": "FTP o FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Puerto (vacío para el predeterminado)",
+ "6": "Archivo de clave privada (opcional)",
+ "7": "Confiar en este servidor la primera vez",
+ "8": "Tomar muestra de",
+ "9": "Cualquier lugar",
+ "10": "Arriba",
+ "11": "Abajo",
+ "12": "De dónde puede copiar el relleno",
+ "13": "Color",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

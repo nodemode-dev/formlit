@@ -1,0 +1,18 @@
+[
+"Each window its own exposure",
+"Send by FTP or SFTP",
+"Protocol",
+"FTP or FTPS",
+"SFTP (SSH)",
+"Port (blank for the default)",
+"Private key file (optional)",
+"Trust this server the first time",
+"Sample from",
+"Anywhere",
+"Above",
+"Below",
+"Where the fill may copy from",
+"Colour",
+"RGB (sRGB)",
+"CMYK: {0}"
+]

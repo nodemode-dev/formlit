@@ -1,0 +1,18 @@
+{
+ "0": "Mỗi cửa sổ một độ phơi sáng riêng",
+ "1": "Gửi qua FTP hoặc SFTP",
+ "2": "Giao thức",
+ "3": "FTP hoặc FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Cổng (để trống để dùng mặc định)",
+ "6": "Tệp khóa riêng (tùy chọn)",
+ "7": "Tin cậy máy chủ này ở lần đầu tiên",
+ "8": "Lấy mẫu từ",
+ "9": "Bất kỳ đâu",
+ "10": "Phía trên",
+ "11": "Phía dưới",
+ "12": "Vị trí phần lấp đầy được phép sao chép",
+ "13": "Màu",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

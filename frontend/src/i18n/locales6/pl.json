@@ -1,0 +1,18 @@
+{
+ "0": "Każde okno z własną ekspozycją",
+ "1": "Wyślij przez FTP lub SFTP",
+ "2": "Protokół",
+ "3": "FTP lub FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (puste = domyślny)",
+ "6": "Plik klucza prywatnego (opcjonalnie)",
+ "7": "Zaufaj temu serwerowi przy pierwszym połączeniu",
+ "8": "Pobieraj próbki z",
+ "9": "Z dowolnego miejsca",
+ "10": "Z góry",
+ "11": "Z dołu",
+ "12": "Skąd wypełnienie może kopiować",
+ "13": "Kolor",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

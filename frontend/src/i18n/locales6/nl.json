@@ -1,0 +1,18 @@
+{
+ "0": "Elk raam met een eigen belichting",
+ "1": "Verzenden via FTP of SFTP",
+ "2": "Protocol",
+ "3": "FTP of FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Poort (leeg voor de standaardwaarde)",
+ "6": "Bestand met privésleutel (optioneel)",
+ "7": "Deze server de eerste keer vertrouwen",
+ "8": "Sample nemen van",
+ "9": "Overal",
+ "10": "Boven",
+ "11": "Onder",
+ "12": "Waarvandaan de vulling mag kopiëren",
+ "13": "Kleur",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

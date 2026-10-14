@@ -1,0 +1,18 @@
+{
+ "0": "Jokaiselle ikkunalle oma valotus",
+ "1": "Lähetä FTP:llä tai SFTP:llä",
+ "2": "Protokolla",
+ "3": "FTP tai FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Portti (tyhjä = oletus)",
+ "6": "Yksityisen avaimen tiedosto (valinnainen)",
+ "7": "Luota tähän palvelimeen ensimmäisellä kerralla",
+ "8": "Näytteenottokohta",
+ "9": "Mistä tahansa",
+ "10": "Yläpuolelta",
+ "11": "Alapuolelta",
+ "12": "Mistä täyttö saa kopioida",
+ "13": "Väri",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}

@@ -1,0 +1,18 @@
+{
+ "0": "Hvert vindue med sin egen eksponering",
+ "1": "Send via FTP eller SFTP",
+ "2": "Protokol",
+ "3": "FTP eller FTPS",
+ "4": "SFTP (SSH)",
+ "5": "Port (tom for standard)",
+ "6": "Fil med privat nøgle (valgfri)",
+ "7": "Stol på denne server første gang",
+ "8": "Sample fra",
+ "9": "Overalt",
+ "10": "Ovenfra",
+ "11": "Nedenfra",
+ "12": "Hvor udfyldningen må kopiere fra",
+ "13": "Farve",
+ "14": "RGB (sRGB)",
+ "15": "CMYK: {0}"
+}
