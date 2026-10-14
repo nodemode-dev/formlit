@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### src/modules/develop/masks.ts · edge sliders and the Refine Edge brush (v0.23.0)
+- refers-to: src/modules/develop/masks.ts :: Op, BITMAP_KINDS, sync (opList, add row), shapeControls (edge sliders), wireShapeControls (data-int); src/styles/lit-develop.css :: .fl-mask-comp .cv-seg; src/ui/icons-lit.ts :: maskRefine
+- kind: rationale
+- logged: v0.23.0 · 2026-10-14
+
+An AI component shows Refine Edge (0 to 100), Shift Edge (-100 to 100) and Feather (0 to 100). They are written as whole numbers (`data-int`) under the history label "Mask Edge". The add row gains a Refine Edge Brush button that adds a brush component with op `refine` to the selected mask. A brush component after the first offers a fourth mode, Refine, and its hint says what painting does. With four modes the segment overflowed the 311 px column ("Refine" was clipped), so the modes now sit on their own row under a Component sub-heading, and the buttons may shrink with an ellipsis as a last resort. Verified under 4x CPU and slow network on photo 5: a Subject mask showed the three sliders; dragging Shift through 20, 40 and 60 kept the same slider element, with no nodes removed from the options; the engine stored refine 50, shift 60 and feather 35; Refine Edge Brush added "Refine Edge: Brush" with Refine selected, and one painted stroke reached the engine as a refine component with one stroke; the segment fit with no truncated label; no layout shift, no page errors. The test's masks were removed afterwards.
+
 ### src/modules/shared/captions.ts · code replacements and required fields in the window (v0.22.0)
 - refers-to: src/modules/shared/captions.ts :: registerCaptions, warnMissing, fieldLabel; src/modules/shared/export.ts :: exportWith, library.exportPrevious; src/modules/library/inspect.ts :: run, DetailCache.forget; src/app.ts :: Metadata menu
 - kind: rationale, removed-bug

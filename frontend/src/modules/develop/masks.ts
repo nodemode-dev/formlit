@@ -9,7 +9,9 @@ import type { DevelopView, Pt, Tool } from './view';
 
 type Vec = [number, number];
 interface Shape { kind: string; [k: string]: unknown }
-interface Component { shape: Shape; op: 'add' | 'subtract' | 'intersect'; invert?: boolean }
+type Op = 'add' | 'subtract' | 'intersect' | 'refine';
+interface Component { shape: Shape; op: Op; invert?: boolean }
+const BITMAP_KINDS = new Set(['subject', 'sky', 'background', 'object', 'people', 'landscape']);
 interface LocalPoint { hue: number; chroma: number; lum: number; hueShift: number; satShift: number; lumShift: number; variance: number; range: number }
 interface Mask { id: number; name: string; visible?: boolean; components: Component[]; adjust: Record<string, unknown>; invert?: boolean; refine?: number }
 interface EffectPreset { name: string; adjust: Record<string, unknown>; builtin?: boolean }
@@ -261,7 +263,7 @@ export class MaskTool implements Tool {
       return;
     }
     const addTo = t.closest<HTMLElement>('[data-addop]');
-    if (addTo) { void this.create(addTo.dataset.kind as string, addTo.dataset.addop as 'add' | 'subtract' | 'intersect'); return; }
+    if (addTo) { void this.create(addTo.dataset.kind as string, addTo.dataset.addop as Op); return; }
     const row = t.closest<HTMLElement>('[data-mask]');
     if (row) {
       const i = Number(row.dataset.mask);
@@ -387,9 +389,9 @@ export class MaskTool implements Tool {
     }
   }
 
-  private pendingOp: 'new' | 'add' | 'subtract' | 'intersect' = 'new';
+  private pendingOp: 'new' | Op = 'new';
 
-  private place(shape: Shape, op: 'new' | 'add' | 'subtract' | 'intersect', masks: Mask[]): void {
+  private place(shape: Shape, op: 'new' | Op, masks: Mask[]): void {
     if (op === 'new' || !masks[this.sel]) {
       masks.push({ id: this.nextId(masks), name: `Mask ${masks.length + 1}`, visible: true, components: [{ shape, op: 'add' }], adjust: {} });
       this.sel = masks.length - 1;
@@ -400,7 +402,7 @@ export class MaskTool implements Tool {
     }
   }
 
-  private async create(kind: string, op: 'new' | 'add' | 'subtract' | 'intersect'): Promise<void> {
+  private async create(kind: string, op: 'new' | Op): Promise<void> {
     if (kind === 'linear' || kind === 'radial' || kind === 'object') {
       this.pendingKind = kind;
       this.pendingOp = op;
@@ -437,7 +439,7 @@ export class MaskTool implements Tool {
     const masks = this.masks();
     const items = masks.map((m, i) => ({ m, i }));
     const update = (node: HTMLElement, x: { m: (typeof masks)[number]; i: number }) => {
-      const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : 'Intersect: '}${escapeHtml(String(c.shape.label ?? NAMES[c.shape.kind] ?? c.shape.kind))}</span></button>`).join('');
+      const comps = x.m.components.map((c, k) => `<button class="fl-mask-comp-row${x.i === this.sel && k === this.comp ? ' is-on' : ''}" type="button" data-mask="${x.i}" data-comp="${k}">${icon(this.iconOf(c.shape.kind), 12)}<span>${c.op === 'add' ? '' : c.op === 'subtract' ? 'Subtract: ' : c.op === 'refine' ? 'Refine Edge: ' : 'Intersect: '}${escapeHtml(String(c.shape.label ?? NAMES[c.shape.kind] ?? c.shape.kind))}</span></button>`).join('');
       const html = `<div class="fl-mask-head${x.i === this.sel ? ' is-on' : ''}" data-mask="${x.i}"><button class="cv-icon-btn" type="button" data-eye aria-label="Show or hide">${icon(x.m.visible === false ? 'eyeOff' : 'eye', 13)}</button><span class="fl-grow">${escapeHtml(x.m.name)}${x.m.invert ? ' (inverted)' : ''}</span></div>${x.i === this.sel ? comps : ''}`;
       if (node.dataset.html !== html) { node.dataset.html = html; node.innerHTML = html; }
     };
@@ -455,7 +457,8 @@ export class MaskTool implements Tool {
     }
     this.paintPoints(m);
     setHidden(this.brushOpts, c?.shape.kind !== 'brush');
-    const ops = c ? `<div class="fl-row"><span class="fl-row-label">Component</span><div class="cv-seg fl-seg-sm fl-grow">${(['add', 'subtract', 'intersect'] as const).map((o) => `<button type="button" data-compop="${o}" class="${c.op === o ? 'is-on' : ''}">${o.charAt(0).toUpperCase() + o.slice(1)}</button>`).join('')}</div></div><div class="fl-row fl-mask-addrow"><span class="fl-row-label">Add</span>${[...MANUAL, ...RANGES, ...AI_KINDS].slice(0, 6).map(([k, l, ic]) => `<button class="cv-icon-btn" type="button" data-addop="add" data-kind="${k}" title="Add ${l}">${icon(ic, 14)}</button>`).join('')}</div>${this.shapeControls(c.shape)}` : '';
+    const opList: Op[] = c?.shape.kind === 'brush' && this.comp > 0 ? ['add', 'subtract', 'intersect', 'refine'] : ['add', 'subtract', 'intersect'];
+    const ops = c ? `<div class="fl-sub">Component</div><div class="fl-row"><div class="cv-seg fl-seg-sm fl-grow">${opList.map((o) => `<button type="button" data-compop="${o}" class="${c.op === o ? 'is-on' : ''}">${o === 'refine' ? 'Refine' : o.charAt(0).toUpperCase() + o.slice(1)}</button>`).join('')}</div></div><div class="fl-row fl-mask-addrow"><span class="fl-row-label">Add</span>${[...MANUAL, ...RANGES, ...AI_KINDS].slice(0, 6).map(([k, l, ic]) => `<button class="cv-icon-btn" type="button" data-addop="add" data-kind="${k}" title="Add ${l}">${icon(ic, 14)}</button>`).join('')}<button class="cv-icon-btn" type="button" data-addop="refine" data-kind="brush" title="Refine Edge Brush: paint over hair, fur or a soft edge and the mask follows the photo's edges there">${icon('maskRefine', 14)}</button></div>${this.shapeControls(c.shape)}` : '';
     if (this.compOpts.dataset.html !== ops) {
       this.compOpts.dataset.html = ops;
       this.compOpts.innerHTML = ops;
@@ -472,7 +475,11 @@ export class MaskTool implements Tool {
     if (s.kind === 'colorRange') return `<div class="fl-muted">Click the photo to pick a color, Shift-click to add more.</div>${range('refine', 'Refine', Number(s.refine ?? 50) / 100)}`;
     if (s.kind === 'radial') return range('feather', 'Feather', Number(s.feather ?? 50) / 100) + '<label class="fl-check fl-check-sm"><input type="checkbox" data-shape-invert> Invert Radial</label>';
     if (s.kind === 'linear') return '<div class="fl-muted">Drag on the photo to set the gradient.</div>';
-    if (s.kind === 'brush') return '<div class="fl-muted">Paint on the photo. Hold Alt to erase.</div>';
+    if (s.kind === 'brush') return this.current().c?.op === 'refine' ? '<div class="fl-muted">Paint over hair, fur or a soft edge: the mask follows the photo\'s edges where you paint. Hold Alt to erase.</div>' : '<div class="fl-muted">Paint on the photo. Hold Alt to erase.</div>';
+    if (BITMAP_KINDS.has(s.kind)) {
+      const edge = (key: string, label: string, min: number, title: string) => `<label class="fl-opt" title="${title}"><span>${label}</span><input class="cv-slider" type="range" min="${min}" max="100" step="1" value="${Math.round(Number(s[key] ?? 0))}" data-shape="${key}" data-int></label>`;
+      return edge('refine', 'Refine Edge', 0, 'Snaps the mask edge to the edges in the photo, for hair and soft outlines') + edge('shift', 'Shift Edge', -100, 'Grows the mask outward or shrinks it inward, up to 2 percent of the long side') + edge('feather', 'Feather', 0, 'Softens the mask edge, up to 3 percent of the long side');
+    }
     return '';
   }
 
@@ -483,9 +490,9 @@ export class MaskTool implements Tool {
         if (!c) return;
         const key = inp.dataset.shape as string;
         const v = Number(inp.value) / 100;
-        c.shape[key] = key === 'refine' || (key === 'feather' && c.shape.kind === 'radial') ? Math.round(v * 100) : v;
+        c.shape[key] = inp.dataset.int !== undefined ? Math.round(Number(inp.value)) : key === 'refine' || (key === 'feather' && c.shape.kind === 'radial') ? Math.round(v * 100) : v;
         this.host.view.setDragging(phase === 'drag');
-        develop.patch('masks', masks, phase, 'Mask Range');
+        develop.patch('masks', masks, phase, inp.dataset.int !== undefined ? 'Mask Edge' : 'Mask Range');
       };
       inp.addEventListener('input', () => write('drag'));
       inp.addEventListener('change', () => write('end'));

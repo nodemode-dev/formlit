@@ -153,6 +153,8 @@
 .fl-mask-new .icon { color: var(--accent-color); }
 .fl-mask-comp { display: flex; flex-direction: column; gap: 2px; }
 .fl-mask-addrow .cv-icon-btn { width: 24px; height: 24px; }
+.fl-mask-comp .cv-seg { min-width: 0; }
+.fl-mask-comp .fl-seg-sm button { min-width: 0; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
 .fl-mask-brush[hidden], .fl-mask-adjust[hidden], .fl-mask-points[hidden], .fl-mask-point-sliders[hidden] { display: none; }
 .fl-mask-points .fl-sub { display: flex; align-items: center; }
 .fl-lb-modes { display: flex; margin: 4px 0 8px; }
