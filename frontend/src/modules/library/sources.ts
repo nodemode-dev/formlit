@@ -10,6 +10,7 @@ import { Panel } from '../../ui/panel';
 import { toast } from '../../ui/toast';
 import { Tree, type TreeNode } from '../../ui/tree';
 import { synchronizeFolder } from './folder-sync';
+import { SessionPanel } from './session-panel';
 import { openSmartCollection } from './smart';
 
 function home(path: string): string {
@@ -112,7 +113,7 @@ export class SourcePanels {
     pFolders.body.appendChild(this.folders.root);
     const pCollections = new Panel('lib.collections', 'Collections', { tools: [add] });
     pCollections.body.appendChild(this.collections.root);
-    host.append(pCatalog.root, pFolders.root, pCollections.root);
+    host.append(new SessionPanel(ctx).panel.root, pCatalog.root, pFolders.root, pCollections.root);
 
     catalog.listen(() => this.render());
     library.listen('list', () => this.syncActive());

@@ -16,6 +16,7 @@ import { registerExport } from './modules/shared/export';
 import { registerCaptions } from './modules/shared/captions';
 import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
+import { registerSessionCommands } from './modules/library/session-panel';
 import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
 import { registerAgentConsent } from './modules/shared/agent-consent';
@@ -78,6 +79,7 @@ export class App implements Ctx {
     registerCaptions(this);
     registerPhotoDialogs(this);
     registerCatalogCommands(this);
+    registerSessionCommands(this);
     registerTether(this);
     registerPluginManager(this);
     registerAgentConsent(this);
@@ -221,9 +223,9 @@ export class App implements Ctx {
     const pick = (items: Array<string | '-'>) => items.filter((i) => i === '-' || has(i));
     const tidy = (items: Array<string | '-'>) => pick(items).filter((x, i, a) => !(x === '-' && (i === 0 || a[i - 1] === '-' || i === a.length - 1)));
     const defs = this.menus.length ? this.menus : [
-      { label: 'File', items: () => tidy(['library.newCatalog', 'library.openCatalog', '-', 'library.import', 'library.importCatalog', 'library.exportCatalog','library.autoImport', 'library.autoImportSettings', 'library.tether', 'library.tetherStop', '-', 'library.export', 'library.exportPrevious', '-', 'library.editIn', '-', 'preset.importFiles', 'app.pluginManager', '-', 'app.preferences', 'app.about']) },
+      { label: 'File', items: () => tidy(['library.newCatalog', 'library.openCatalog', '-', 'session.new', 'session.open', 'session.close', '-', 'library.import', 'library.importCatalog', 'library.exportCatalog','library.autoImport', 'library.autoImportSettings', 'library.tether', 'library.tetherStop', '-', 'library.export', 'library.exportPrevious', '-', 'library.editIn', '-', 'preset.importFiles', 'app.pluginManager', '-', 'app.preferences', 'app.about']) },
       { label: 'Edit', items: () => tidy(['edit.undo', 'edit.redo', '-', 'edit.selectAll', 'edit.selectNone', 'edit.invertSelection', 'edit.selectPicks', 'edit.deselectUnflagged', '-', 'view.find']) },
-      { label: 'Library', items: () => tidy(['workflow.newShoot', '-', 'lib.colNew', 'lib.colNewSmart', 'template.smart', 'lib.colNewSet', '-','view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.cull', 'library.refine', 'library.findFaces', 'library.drawFace', '-', 'library.syncFolder', 'library.checkFiles', 'library.findMissing', 'library.locate', 'library.buildPreviews', 'library.buildSmartPreviews', 'library.discardSmartPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
+      { label: 'Library', items: () => tidy(['workflow.newShoot', '-', 'lib.colNew', 'lib.colNewSmart', 'template.smart', 'lib.colNewSet', '-','view.filterBar', 'library.filterPicks', 'library.filterOff', '-', 'library.cull', 'library.refine', 'library.findFaces', 'library.drawFace', '-', 'session.select', 'session.trash', 'session.restore', '-', 'library.syncFolder', 'library.checkFiles', 'library.findMissing', 'library.locate', 'library.buildPreviews', 'library.buildSmartPreviews', 'library.discardSmartPreviews', 'library.syncMetadata', '-', 'photo.prev', 'photo.next']) },
       { label: 'Photo', items: () => tidy(['photo.autoAdvance', '-', 'photo.reveal', 'library.editIn', '-', 'photo.enhance', 'photo.hdr', 'photo.pano', 'photo.hdrPano', 'photo.focusStack', '-', 'photo.stack', 'photo.unstack', 'photo.toggleStack', 'photo.autoStack', '-', 'photo.virtualCopy', 'photo.setMaster', '-', 'photo.rotateLeft', 'photo.rotateRight', '-', 'photo.pick', 'photo.reject', 'photo.unflag', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', 'photo.label.red', 'photo.label.yellow', 'photo.label.green', 'photo.label.blue', 'photo.label.purple', 'photo.label.none', '-', 'photo.quick', 'photo.quickClear', 'photo.target', '-', 'photo.remove', 'photo.deleteRejected', 'photo.delete']) },
       { label: 'Metadata', items: () => tidy(['photo.saveMetadata', 'photo.readMetadata', '-', 'template.metadata', 'template.keywords', '-', 'metadata.codes', 'metadata.codesChoose', 'metadata.codesImport', 'metadata.required', 'metadata.checkRequired', '-', 'library.syncMetadata', 'library.captureTime', 'library.rename', '-', 'library.labelSet']) },
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.profileBrowser', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.copyAfterToBefore', 'develop.copyBeforeToAfter', 'develop.swapBeforeAfter', 'develop.resetBefore', '-', 'develop.referenceView', 'develop.setReference', 'develop.matchReference', '-', 'develop.matchExposure', 'develop.noiseByIso', 'develop.autoBw']) },
