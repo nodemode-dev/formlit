@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -e
+source "$(dirname "$0")/lib.sh"
+py="$(fl_python)" || fl_die "Python 3.12+ is required"
+exec "$py" "$FORMLIT_ROOT/setup/i18n_review.py" "$@"

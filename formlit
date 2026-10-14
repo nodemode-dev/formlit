@@ -24,6 +24,7 @@ usage: ./formlit [command] [options]
   doctor              check the toolchain, installs and ports
   counts [--check]    the README's code sizes (--check: exit 1 if README.md has drifted)
   preflight FILE...   check book PDFs against PDF/X-1a with the open-source preflight gem (needs Ruby)
+  i18n export|import LANG FILE.csv   a language's strings as CSV for a native reviewer, and their corrections back in
   clean [--all]       remove build output (--all also venv and node_modules)
   help                this text
 EOF
@@ -60,6 +61,7 @@ case "$cmd" in
   doctor) exec setup/doctor "$@" ;;
   counts) exec setup/counts "$@" ;;
   preflight) exec setup/preflight "$@" ;;
+  i18n) exec setup/i18n "$@" ;;
   clean) exec setup/clean "$@" ;;
   help|-h|--help) usage ;;
   *) printf '[formlit] unknown command: %s\n\n' "$cmd"; usage; exit 2 ;;
