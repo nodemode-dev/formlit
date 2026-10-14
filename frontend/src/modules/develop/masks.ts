@@ -406,7 +406,7 @@ export class MaskTool implements Tool {
     if (kind === 'linear' || kind === 'radial' || kind === 'object') {
       this.pendingKind = kind;
       this.pendingOp = op;
-      this.host.ctx.shell.setHint(kind === 'object' ? 'Drag a box around the object to select it' : `Drag on the photo to place the ${NAMES[kind].toLowerCase()}`);
+      this.host.ctx.shell.setHint(kind === 'object' ? 'Click the object, or drag a box around it, to select it' : `Drag on the photo to place the ${NAMES[kind].toLowerCase()}`);
       return;
     }
     let shape = this.defaultShape(kind);
@@ -513,11 +513,12 @@ export class MaskTool implements Tool {
   private async objectFrom(a: Pt, b: Pt): Promise<void> {
     const id = develop.id;
     if (id === null) return;
-    const box = [Math.min(a.nx, b.nx), Math.min(a.ny, b.ny), Math.max(a.nx, b.nx), Math.max(a.ny, b.ny)];
+    const click = Math.abs(a.sx - b.sx) <= 6 && Math.abs(a.sy - b.sy) <= 6;
+    const prompt = click ? { points: [[b.nx, b.ny]] } : { box: [Math.min(a.nx, b.nx), Math.min(a.ny, b.ny), Math.max(a.nx, b.nx), Math.max(a.ny, b.ny)] };
     const done = this.host.ctx.shell.busy('Selecting the object');
     try {
       await develop.flush();
-      const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', box });
+      const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', ...prompt });
       const masks = this.masks();
       this.place(r.shape, this.pendingOp, masks);
       this.write(masks, 'end', 'Mask: Objects');
@@ -634,7 +635,7 @@ export class MaskTool implements Tool {
       this.box = null;
       this.pendingKind = '';
       this.host.ctx.shell.setHint('');
-      if (Math.abs(a.sx - b.sx) > 6 && Math.abs(a.sy - b.sy) > 6) void this.objectFrom(a, b);
+      void this.objectFrom(a, b);
       return;
     }
     const d = this.drag;
