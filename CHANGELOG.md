@@ -2,6 +2,24 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.26.0 · 2026-10-14
+
+### Added
+
+- **Skin Tone in the Color Mixer:** evens out blotchy, uneven skin without flattening it, as Capture One's skin-tone tools do.
+  - **Pick** a patch of skin, or set Skin Hue and Skin Range by hand.
+  - **Hue, Saturation and Lightness Uniformity** pull redness, patchy colour and uneven brightness toward the surrounding skin. The face's light and shadow stay, and nothing outside the skin range changes.
+  - It works in layers and with Sync, presets and Claude (`develop_set` with `skin.*`).
+
+### Fixed
+
+- **The panels jumped after using the White Balance selector:** the tool closed when the result came back and the panels below moved up. It now closes as you click.
+- **Slider thumbs counted as layout movement** whenever a value changed from outside (Auto, presets, undo). They now move without touching the layout.
+
+### Note
+
+- The learned noise reducer planned for this version needs a model downloaded and verified, which was not possible from the build machine. It moves to a later version.
+
 ## v0.25.0 · 2026-10-14
 
 ### Added
