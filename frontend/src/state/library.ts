@@ -140,6 +140,7 @@ export class Library {
   }
 
   refreshSoon(ms = 80): void {
+    this.seq++;
     window.clearTimeout(this.refreshTimer);
     this.refreshTimer = window.setTimeout(() => { void this.refresh().catch(() => undefined); }, ms);
   }

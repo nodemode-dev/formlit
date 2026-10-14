@@ -60,7 +60,6 @@ export class ThumbCell {
     this.id = p.id;
     this.root.dataset.id = String(p.id);
     if (fresh) {
-      this.img.removeAttribute('src');
       delete this.img.dataset.src;
       setClass(this.img, 'is-loaded', false);
       setClass(this.img, 'is-failed', false);
