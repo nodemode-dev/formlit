@@ -1,0 +1,12 @@
+[
+"Apply My Style...",
+"Apply My Style",
+"Learns your style from the photos you have already edited: each of the {0} photo{1} gets the tone and presence settings of the edited photos most like it, with exposure matched to its brightness. One undo step.",
+"Photos to learn from",
+"Applying your style to {0} photo{1}",
+"Your style applied to {0} photo{1}, learned from {2} edited photo{3}",
+"Largest spot (% of face)",
+"Shows",
+"looks like",
+"doesn't look like"
+]
