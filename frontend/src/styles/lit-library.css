@@ -25,9 +25,9 @@
 .fl-cell { position: absolute; top: 0; left: 0; width: var(--fl-cell); height: var(--fl-cell); border-radius: 6px; background: var(--surface-1); border: 1px solid var(--line-1); cursor: default; contain: layout paint; }
 .fl-cell[hidden] { display: none; }
 .fl-grid-x .fl-cell { top: 6px; height: calc(var(--fl-cell) - 2px); width: var(--fl-cell); }
-.fl-cell-frame { position: absolute; inset: 8px 8px 22px; display: grid; place-items: center; }
+.fl-cell-frame { position: absolute; inset: 8px 8px 22px; display: grid; place-items: center; container-type: size; }
 .fl-grid-x .fl-cell-frame { inset: 4px 4px 16px; }
-.fl-cell-img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; aspect-ratio: var(--fl-aspect); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); opacity: 0; pointer-events: none; }
+.fl-cell-img { display: block; width: min(100cqw, 100cqh * var(--fl-aspect)); height: auto; max-width: 100%; max-height: 100%; object-fit: contain; aspect-ratio: var(--fl-aspect); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); opacity: 0; pointer-events: none; }
 .fl-cell-img.is-loaded { opacity: 1; }
 .fl-cell:hover { background: var(--surface-2); }
 .fl-cell.is-selected { background: var(--surface-raised); border-color: var(--line-3); }
