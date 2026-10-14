@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Flash and Window Blend in the Photo menu (v0.33.0)
+- refers-to: src/modules/shared/ai.ts :: photo.flashBlend; src/app.ts :: Photo menu
+- kind: rationale
+- logged: v0.33.0 · 2026-10-14
+
+Photo, Flash and Window Blend (two or more selected) asks for the flash frame (a list of the selected files, or the Flash fired tag), Light from flash 50, Colour from flash 100, Pull the windows, Window stops 1 (-1 to 3 in halves), Auto tone and Create stack, then starts `ai.flashBlend` as a job like the other merges. The window stops label was shortened after a first look showed it cut off. Checked under 4x CPU and slow network: four frames selected from the grid, the flash frame chosen in the list, the new DNG in the grid 4 s after Blend, no page errors; one layout shift entry of 0.
+
 ### Retouch Skin in the Photo menu (v0.32.0)
 - refers-to: src/modules/shared/ai.ts :: photo.retouchSkin; src/app.ts :: Photo menu
 - kind: rationale
