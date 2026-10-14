@@ -2,7 +2,7 @@
 <h1 align="center">formlit</h1>
 <p align="center"><b>A photo library and raw developer for the web and the desktop, in the form family's Studio Dark design.</b></p>
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.42.2-f97316" alt="version 0.42.2">
+<img src="https://img.shields.io/badge/version-0.43.0-f97316" alt="version 0.43.0">
 <img src="https://img.shields.io/badge/node-22-339933" alt="node 22">
 <img src="https://img.shields.io/badge/python-3.12-3776AB" alt="python 3.12">
 <img src="https://img.shields.io/badge/tauri-2-24C8DB" alt="tauri 2">
