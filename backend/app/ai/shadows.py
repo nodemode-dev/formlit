@@ -69,9 +69,26 @@ def attached(rgb8: np.ndarray, obj: np.ndarray, reflections: bool = True) -> tup
         edge[-1, :] = True
     if sy0 > 0:
         edge[0, :] = True
+    around = cv2.dilate(cm, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(0.06 * s) + 1,) * 2))
+    fy = int(rows[-1]) if len(rows) else 0
+    fx = np.nonzero(cm[max(0, fy - int(0.1 * s)):fy + 1].any(axis=0))[0]
     for i in range(1, n):
         comp = lab_img == i
-        if (comp & (near > 0)).any() and not (comp & edge).any():
+        if (comp & edge).any():
+            continue
+        if (comp & (near > 0)).any():
+            shadow |= comp.astype(np.uint8)
+            continue
+        if not len(fx) or not (comp & (around > 0)).any():
+            continue
+        ys, xs = np.nonzero(comp)
+        if len(xs) < 20 or ys.mean() >= fy:
+            continue
+        ev, vec = np.linalg.eigh(np.cov(np.vstack([xs, ys]).astype(np.float64)))
+        if ev[1] < 9.0 * max(ev[0], 1e-6) or abs(vec[1, 1]) < 1e-3:
+            continue
+        x_at_foot = xs.mean() + (fy - ys.mean()) * vec[0, 1] / vec[1, 1]
+        if fx.min() - 0.15 * s <= x_at_foot <= fx.max() + 0.15 * s:
             shadow |= comp.astype(np.uint8)
     shadow = cv2.morphologyEx(shadow, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
     if shadow.sum() > 6 * m.sum():
