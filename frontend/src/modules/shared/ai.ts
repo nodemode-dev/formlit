@@ -73,6 +73,11 @@ export function registerAiCommands(ctx: Ctx): void {
       const v = await askMerge(ctx, 'pano', ids);
       if (v) await run(ctx, 'ai.panoMerge', { ids, projection: v.projection, boundaryWarp: v.boundaryWarp, fillEdges: v.fillEdges, autoCrop: v.autoCrop, createStack: v.createStack }, 'Panorama merge started');
     } },
+    { id: 'photo.focusStack', label: 'Focus Stack...', keys: ['Alt+Mod+M'], enabled: two, run: async () => {
+      const ids = library.targets();
+      const v = await askMerge(ctx, 'focus', ids);
+      if (v) await run(ctx, 'ai.focusStack', { ids, align: v.align, autoCrop: v.autoCrop, createStack: v.createStack }, `Focus stacking ${ids.length} photos`);
+    } },
     { id: 'photo.hdrPano', label: 'HDR Panorama Merge...', keys: ['Shift+Mod+M'], enabled: () => library.targets().length > 3, run: async () => {
       const ids = library.targets();
       const v = await askMerge(ctx, 'hdrpano', ids);

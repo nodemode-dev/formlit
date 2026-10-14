@@ -2,7 +2,7 @@ import type { Ctx } from '../../app';
 import { Dialog } from '../../ui/dialogs';
 import { el, q, setClass, setHidden, setText } from '../../ui/dom';
 
-type Kind = 'hdr' | 'pano' | 'hdrpano';
+type Kind = 'hdr' | 'pano' | 'hdrpano' | 'focus';
 
 const DEGHOST = `<div class="fl-row"><span class="fl-row-label">Deghost</span><div class="cv-seg fl-seg-sm fl-grow" data-seg="deghost"><button type="button" data-v="off" class="is-on">None</button><button type="button" data-v="low">Low</button><button type="button" data-v="medium">Medium</button><button type="button" data-v="high">High</button></div></div>`;
 const STACK = '<label class="fl-check"><input type="checkbox" data-k="createStack"> Create Stack</label>';
@@ -24,6 +24,11 @@ ${STACK}`;
 const HDRPANO_OPTS = `${PANO_CORE}
 ${DEGHOST}
 ${STACK}`;
+
+const FOCUS_OPTS = `<label class="fl-check"><input type="checkbox" data-k="align" checked> Auto Align (corrects the size change between frames as focus moves)</label>
+<label class="fl-check"><input type="checkbox" data-k="autoCrop" checked> Auto Crop to the area every frame covers</label>
+<label class="fl-check"><input type="checkbox" data-k="createStack" checked> Create Stack</label>
+<p class="cv-note">Shoot on a tripod, same exposure, focus stepping from near to far. The merged DNG keeps the middle frame's settings.</p>`;
 
 class MergeDialog extends Dialog {
   private readonly prev = el('<div class="fl-merge-prev"><img alt="" draggable="false"><span class="fl-merge-status">Building preview...</span></div>');
@@ -58,8 +63,8 @@ class MergeDialog extends Dialog {
   ask(kind: Kind, ids: number[]): Promise<Record<string, unknown> | null> {
     this.kind = kind;
     this.ids = ids;
-    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : kind === 'hdrpano' ? `HDR Panorama Merge Preview (${ids.length} photos)` : `Panorama Merge Preview (${ids.length} photos)`);
-    const html = kind === 'hdr' ? HDR_OPTS : kind === 'hdrpano' ? HDRPANO_OPTS : PANO_OPTS;
+    this.setTitle(kind === 'hdr' ? `HDR Merge Preview (${ids.length} photos)` : kind === 'hdrpano' ? `HDR Panorama Merge Preview (${ids.length} photos)` : kind === 'focus' ? `Focus Stack Preview (${ids.length} photos)` : `Panorama Merge Preview (${ids.length} photos)`);
+    const html = kind === 'hdr' ? HDR_OPTS : kind === 'hdrpano' ? HDRPANO_OPTS : kind === 'focus' ? FOCUS_OPTS : PANO_OPTS;
     if (this.opts.dataset.kind !== kind) { this.opts.dataset.kind = kind; this.opts.innerHTML = html; }
     q<HTMLImageElement>(this.prev, 'img').removeAttribute('src');
     setText(q(this.prev, '.fl-merge-status'), 'Building preview...');

@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### src/modules/shared/merge-dialog.ts and ai.ts · Focus Stack (v0.25.0)
+- refers-to: src/modules/shared/merge-dialog.ts :: Kind focus, FOCUS_OPTS, ask; src/modules/shared/ai.ts :: photo.focusStack (Alt+Mod+M); src/app.ts :: Photo menu
+- kind: rationale
+- logged: v0.25.0 · 2026-10-14
+
+Photo, Focus Stack reuses the merge dialog: Auto Align, Auto Crop and Create Stack (on by default, since the frames are rarely wanted beside the result), a shooting note, and the engine's 900 px preview. Verified under 4x CPU and slow network with a three-frame 16-bit TIFF bracket: the dialog opened with the three options ticked, the preview arrived sharp across the frame, Merge produced the 1519 x 1016 DNG stacked with its frames, the grid showed it, no page errors. Seen on the way: while the frames are still grouped in a stack the grid shows only the top frame and Focus Stack stays disabled with one photo selected, as it should.
+
 ### src/state/develop.ts and src/modules/develop/layers.ts · editing layers (v0.24.0)
 - refers-to: src/state/develop.ts :: PHOTO_ONLY, Layer, layer, layers, layerable, target, read, selectLayer, editingName, value, set, patch; src/modules/develop/curve.ts :: get; src/modules/develop/layers.ts :: LayersPanel; src/modules/develop/index.ts :: panel placement; src/styles/lit-develop.css :: .fl-layer-*, .is-layer-editing
 - kind: rationale
