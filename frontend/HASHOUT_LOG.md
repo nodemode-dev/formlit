@@ -786,6 +786,12 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 - shared/ai.ts: Each window its own exposure in Flash and Window Blend. shared/export.ts: Send by FTP or SFTP with Protocol, Port, Private key file and Trust this server the first time. develop/tools.ts: Sample from (Anywhere, Above, Below, Left, Right) in the Remove row; `sampleArea` turns the choice into a box beside the spot (gap 1.6 brush sizes, span about 6). output/book.ts: Colour (RGB or a CMYK profile from book.options).
 - i18n: keys6 and locales6 carry the new strings. keys7 and locales7 are terminology fixes from a review of the 178 most visible strings (menus, menu items, panel titles) against Lightroom's usual terms: 31 in 12 languages (for example it Redo Ripeti, de Presets Vorgaben, zh-Hant Filmstrip 底片列), plus Russian Develop strings moved from разработка (software development) to обработка, which the reviewer had proposed the other way. They are added both first (templates, where the first match wins) and last (exact strings, where the last write wins). This was a machine review, not a native speaker's.
 
+## v0.39.0 window changes {#v0-39-0}
+
+- output/book.ts: PDF/X-1a check box, shown once a CMYK profile is chosen.
+- The Enhance-finish shift, measured at last on a 480 x 320 photo so Denoise finishes (4x CPU, 150 ms, 200 KB/s): the shift came from a grid cell being rebound to another photo when the list changed, not from the new photo itself. thumbs.ts dropped the old image on rebind, so the img collapsed to 12 x 12 and grew again (two shifts, 0.0016 together). It now keeps the old box (hidden, is-loaded off) until the new thumbnail decodes: one resize to the new photo's aspect, 0.00014. state/library.ts: refreshSoon bumps the request sequence, so a refresh already in flight is dropped when a newer one is scheduled (the import, the capture-time copy and the stack arrive as three changes). The remaining 0.00014 is a cell showing a different photo with a different aspect.
+- i18n keys8 and locales8 (Develop terminology, 22 languages) load with keys7 in `fixes()`.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
