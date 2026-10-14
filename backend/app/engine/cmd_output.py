@@ -489,10 +489,11 @@ def web_export(ids: Any = None, collection: int | None = None, settings: dict | 
 
 
 @command("proof.export", "Export Proofing Gallery", {"ids": {"type": "array"}, "collection": {"type": "integer"}, "folder": {"type": "string"}, "title": {"type": "string"},
-                                                    "note": {"type": "string"}, "size": {"type": "integer", "minimum": 800, "maximum": 4000}, "names": {"type": "boolean"}, "wait": {"type": "boolean"}},
+                                                    "note": {"type": "string"}, "size": {"type": "integer", "minimum": 800, "maximum": 4000}, "names": {"type": "boolean"},
+                                                    "limit": {"type": "integer", "minimum": 0, "description": "most photos the client may pick; 0 for no limit"}, "wait": {"type": "boolean"}},
          description="Makes a self-contained proofing gallery folder: the client opens index.html in any browser (no account, no server), picks, rejects, rates and comments, and sends back a small selections file for proof.import.")
 def proof_export(ids: Any = None, collection: int | None = None, folder: str | None = None, title: str = "Proofs", note: str = "", size: int = 1600, names: bool = False,
-                 wait: bool = False) -> dict:
+                 limit: int = 0, wait: bool = False) -> dict:
     from app.output import proof
     pids = _ids(ids, collection)
     if not pids:
@@ -502,7 +503,7 @@ def proof_export(ids: Any = None, collection: int | None = None, folder: str | N
         raise CommandError(f"{dest} is not empty; choose a new folder")
 
     def job(progress):
-        return proof.write(pids, dest, title or "Proofs", note, int(size), bool(names), progress)
+        return proof.write(pids, dest, title or "Proofs", note, int(size), bool(names), progress, int(limit or 0))
     return _wait(tasks.start("proof", "Exporting proofing gallery", job), wait)
 
 

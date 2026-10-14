@@ -14,12 +14,13 @@ export function registerProofing(ctx: Ctx): void {
           { path: 'title', label: 'Title', kind: 'text', placeholder: 'Smith Wedding Proofs' },
           { path: 'note', label: 'Note to the client', kind: 'textarea', placeholder: 'Pick up to 40 favourites by Friday.' },
           { path: 'size', label: 'Image size', kind: 'select', options: [['1200', '1200 px'], ['1600', '1600 px'], ['2048', '2048 px']] },
+          { path: 'limit', label: 'Most picks (0 for no limit)', kind: 'number', min: 0, max: 9999, step: 1 },
           { path: 'names', label: 'Show file names', kind: 'check' },
           { path: 'folder', label: 'Folder (optional)', kind: 'text', placeholder: 'Exports/Proofs/<title>' },
-        ], { title: '', note: '', size: '1600', names: false, folder: '' }, 'Export');
+        ], { title: '', note: '', size: '1600', limit: 0, names: false, folder: '' }, 'Export');
         if (!v) return;
         try {
-          const r = await ctx.api.cmd<{ task: number }>('proof.export', { ids, title: String(v.title || 'Proofs'), note: String(v.note || ''), size: Number(v.size || 1600), names: !!v.names, ...(v.folder ? { folder: String(v.folder) } : {}) });
+          const r = await ctx.api.cmd<{ task: number }>('proof.export', { ids, title: String(v.title || 'Proofs'), note: String(v.note || ''), size: Number(v.size || 1600), limit: Math.max(0, Math.round(Number(v.limit) || 0)), names: !!v.names, ...(v.folder ? { folder: String(v.folder) } : {}) });
           const done = await whenDone(r.task) as { folder?: string; photos?: number };
           toast(`Proofing gallery ready: ${done.folder ?? ''}`);
         } catch (err) { ctx.fail(err); }

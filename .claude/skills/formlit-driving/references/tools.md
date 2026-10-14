@@ -511,6 +511,7 @@ Makes a client proofing gallery folder with no account or server: the client ope
 - `note`: string; a line for the client, such as how many to pick and by when
 - `size`: integer; default 1600
 - `folder`: string
+- `limit`: integer; default 0; most photos the client may pick (the package size); 0 for no limit
 
 ## import_client_selections
 

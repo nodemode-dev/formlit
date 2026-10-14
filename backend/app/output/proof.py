@@ -76,7 +76,8 @@ function cellHtml(p) { const s = marks[p.key] || {}; const st = s.rating ? '★'
 function paintCell(i) { const p = DATA.photos[i]; const el = grid.querySelector(`[data-i="${i}"]`); if (!el) return; const s = marks[p.key] || {}; el.className = 'cell' + (s.pick ? ' pick' : s.reject ? ' reject' : ''); el.innerHTML = cellHtml(p); }
 function build() { const f = $('filter').value; shown = DATA.photos.map((_, i) => i).filter((i) => { const s = marks[DATA.photos[i].key] || {}; return f === 'all' || (f === 'pick' && s.pick) || (f === 'reject' && s.reject) || (f === 'unmarked' && !s.pick && !s.reject); });
   grid.innerHTML = shown.map((i) => `<div class="cell" data-i="${i}" tabindex="0"></div>`).join(''); shown.forEach(paintCell); count(); }
-function count() { const v = Object.values(marks); $('count').textContent = `${DATA.photos.length} photos · ${v.filter((s) => s.pick).length} picked · ${v.filter((s) => s.reject).length} rejected`; }
+const picks = () => Object.values(marks).filter((s) => s.pick).length;
+function count() { const v = Object.values(marks); $('count').textContent = `${DATA.photos.length} photos · ${picks()}${DATA.limit ? ` of ${DATA.limit}` : ''} picked · ${v.filter((s) => s.reject).length} rejected`; }
 function open(i) { cur = i; const p = DATA.photos[i]; $('big').src = p.large; $('big').alt = p.label; $('loupe').classList.add('on'); tools(); }
 function tools() { const p = DATA.photos[cur]; const s = marks[p.key] || {}; $('bpick').className = s.pick ? 'on-pick' : ''; $('breject').className = s.reject ? 'on-reject' : '';
   $('bstars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}" class="${(s.rating || 0) >= n ? 'on-star' : ''}" aria-label="${n} stars">★</button>`).join(''); if (document.activeElement !== $('comment')) $('comment').value = s.comment || ''; }
@@ -86,7 +87,9 @@ grid.addEventListener('click', (e) => { const c = e.target.closest('[data-i]'); 
 grid.addEventListener('keydown', (e) => { const c = e.target.closest('[data-i]'); if (c && e.key === 'Enter') open(+c.dataset.i); });
 $('filter').addEventListener('change', build);
 $('prev').onclick = () => move(-1); $('next').onclick = () => move(1); $('close').onclick = () => { $('loupe').classList.remove('on'); build(); };
-$('bpick').onclick = () => setMark((s) => { s.pick = !s.pick; if (s.pick) s.reject = false; });
+$('bpick').onclick = () => { const s = marks[DATA.photos[cur].key] || {};
+  if (!s.pick && DATA.limit && picks() >= DATA.limit) { $('count').textContent = `You have picked ${DATA.limit}, the most for this gallery. Unpick one to choose another.`; return; }
+  setMark((s) => { s.pick = !s.pick; if (s.pick) s.reject = false; }); };
 $('breject').onclick = () => setMark((s) => { s.reject = !s.reject; if (s.reject) s.pick = false; });
 $('bstars').onclick = (e) => { const b = e.target.closest('[data-star]'); if (b) setMark((s) => { const n = +b.dataset.star; s.rating = s.rating === n ? 0 : n; }); };
 $('comment').addEventListener('input', () => { const p = DATA.photos[cur]; m(p.key).comment = $('comment').value; save(); paintCell(cur); });
@@ -105,7 +108,7 @@ build();
 </script></body></html>"""
 
 
-def write(ids: list[int], folder: Path, title: str, note: str = "", size: int = 1600, names: bool = False, progress: Callable[..., Any] | None = None) -> dict:
+def write(ids: list[int], folder: Path, title: str, note: str = "", size: int = 1600, names: bool = False, progress: Callable[..., Any] | None = None, limit: int = 0) -> dict:
     cat = catalog_mod.get()
     proof_id = secrets.token_hex(6)
     (folder / "images" / "thumb").mkdir(parents=True, exist_ok=True)
@@ -125,7 +128,7 @@ def write(ids: list[int], folder: Path, title: str, note: str = "", size: int = 
             if getattr(progress, "cancelled", False):
                 break
             progress(i + 1, len(ids), f"Photo {i + 1} of {len(ids)}")
-    data = {"format": FORMAT, "version": 1, "id": proof_id, "title": title, "photos": photos}
+    data = {"format": FORMAT, "version": 1, "id": proof_id, "title": title, "photos": photos, "limit": max(int(limit or 0), 0)}
     page = PAGE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__TITLE__", html.escape(title)).replace(
         "__NOTE__", html.escape(note or "Click a photo to see it large. Mark the ones you like with Pick, add stars or a comment, then press Send my selections."))
     (folder / "index.html").write_text(page, encoding="utf-8")
