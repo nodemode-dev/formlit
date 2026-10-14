@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`
 
 ## get_catalog
 
@@ -417,6 +417,34 @@ Adds a linear gradient (start and end points, 0 to 1 of the frame) or a radial g
 - `feather`: number
 - `invert`: boolean
 - `adjust`: object
+
+## add_layer
+
+Adds an adjustment layer: the photo's colour and tone settings copied into a layer you change separately (any develop control id except white balance, crop, geometry, lens corrections, noise reduction and profile, so tone curves, colour mixer, grading and effects too), blended through a mask (subject, sky, background, people, object, photo for the whole frame, or the id or name of an existing mask) at an opacity. Masks only reach 17 local sliders; layers reach everything. values maps control ids to absolute values for the layer.
+
+- `id`: integer; required; A photo id from find_photos.
+- `values`: object
+- `mask`: string
+- `invert`: boolean
+- `opacity`: number; default 100
+- `name`: string
+- `refine`: number
+- `shift`: number
+- `feather`: number
+
+## set_layer
+
+Changes an adjustment layer by id, name or position: values (control ids to absolute values), opacity, visible, name, mask, invert; remove true deletes it. get_develop lists a photo's layers.
+
+- `id`: integer; required; A photo id from find_photos.
+- `layer`: string; required
+- `values`: object
+- `opacity`: number
+- `visible`: boolean
+- `name`: string
+- `mask`: string
+- `invert`: boolean
+- `remove`: boolean
 
 ## auto_straighten
 

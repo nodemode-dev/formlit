@@ -9,17 +9,17 @@ from app.core import config
 
 BANDS = ("red", "orange", "yellow", "green", "aqua", "blue", "purple", "magenta")
 SECTION_TOGGLES = {"curve", "mixer", "grading", "detail", "optics", "geometry", "effects", "lensBlur", "calibration"}
-LISTS = ("masks", "spots", "redEye", "pointColors", "disabled")
+LISTS = ("masks", "spots", "redEye", "pointColors", "disabled", "layers")
 CURVE_CHANNELS = ("master", "red", "green", "blue")
 GROUPS = {
     "whiteBalance": ("wb",), "basicTone": ("light",), "presence": ("effects", "color"), "toneCurve": ("curve",), "colorMixer": ("mixer",),
     "pointColor": ("pointColors",), "bwMix": ("bw",), "treatment": ("treatment",), "colorGrading": ("grading",), "detail": ("detail",),
     "lensCorrections": ("optics",), "transform": ("geometry",), "effects": ("vignette", "grain"), "calibration": ("calibration",),
     "profile": ("profile",), "crop": ("crop", "orientation"), "masks": ("masks",), "spots": ("spots",), "redEye": ("redEye",),
-    "lensBlur": ("lensBlur",), "hdr": ("hdr",),
+    "lensBlur": ("lensBlur",), "hdr": ("hdr",), "layers": ("layers",),
 }
-UNPICKED = ("crop", "orientation", "masks", "spots", "redEye")
-UNSYNCED_GROUPS = ("crop", "masks", "spots", "redEye")
+UNPICKED = ("crop", "orientation", "masks", "spots", "redEye", "layers")
+UNSYNCED_GROUPS = ("crop", "masks", "spots", "redEye", "layers")
 FULL_FRAME = (0.0, 0.0, 1.0, 1.0)
 DEFAULT_EPS = 1e-9
 DIAGONAL_EPS = 1e-6
@@ -265,6 +265,16 @@ def sanitize(dev: Any) -> dict:
     for key in ("redEye", "pointColors"):
         if key in out:
             out[key] = [x for x in out[key] if isinstance(x, dict)]
+    if "layers" in out:
+        layers = []
+        for layer in out["layers"]:
+            if not isinstance(layer, dict) or not isinstance(layer.get("settings", {}), dict):
+                continue
+            inner = {k: v for k, v in (layer.get("settings") or {}).items() if k not in ("layers", "masks")}
+            mask = layer.get("mask") if isinstance(layer.get("mask"), dict) else {}
+            comps = [c for c in mask.get("components", []) if isinstance(c, dict) and isinstance(c.get("shape"), dict)] if isinstance(mask.get("components", []), list) else []
+            layers.append({**layer, "settings": sanitize(inner), "mask": {**mask, "components": comps}})
+        out["layers"] = layers
     if "disabled" in out:
         out["disabled"] = [x for x in out["disabled"] if isinstance(x, str)]
     return out
