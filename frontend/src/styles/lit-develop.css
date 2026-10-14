@@ -15,6 +15,7 @@
 .fl-seg-sm { padding: 2px; border-radius: 7px; }
 .fl-seg-sm button { height: 22px; padding: 0 8px; font-size: var(--fs-11); white-space: nowrap; }
 .fl-seg-sm button.is-on { background: var(--accent-soft); color: var(--accent-color); }
+.fl-spot-vars .fl-seg-sm { min-height: 26px; box-sizing: border-box; }
 .fl-upright { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; }
 .fl-upright button { padding: 0 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fl-check-sm { margin: 0; font-size: var(--fs-11); }

@@ -1,6 +1,6 @@
 import type { Ctx } from '../../app';
 import { clone, develop } from '../../state/develop';
-import { el, q, setClass, setHidden, setText } from '../../ui/dom';
+import { el, q, setClass, setDisabled, setHidden, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
 import type { DevelopView, Pt, Tool } from './view';
@@ -429,7 +429,7 @@ export class CropTool implements Tool {
   }
 }
 
-interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[]; detect?: boolean; label?: string }
+interface Spot { points: Array<[number, number]>; size: number; source: [number, number] | null; feather: number; opacity: number; mode: string; hidden?: boolean; patch?: string; variants?: string[]; detect?: boolean; shadows?: boolean; seed?: number; label?: string }
 
 export class SpotTool implements Tool {
   readonly id = 'spot';
@@ -462,6 +462,7 @@ export class SpotTool implements Tool {
     this.root.insertBefore(this.variantsRow, this.root.lastElementChild);
     this.root.insertBefore(this.removeRow, this.variantsRow);
     q<HTMLInputElement>(this.removeRow, '[data-detect]').addEventListener('change', (e) => { this.detect = (e.target as HTMLInputElement).checked; });
+    q<HTMLInputElement>(this.removeRow, '[data-shadows]').addEventListener('change', (e) => { this.shadows = (e.target as HTMLInputElement).checked; });
     this.removeRow.addEventListener('click', (e) => {
       const d = (e.target as HTMLElement).closest<HTMLElement>('[data-distract]')?.dataset.distract;
       if (d) { e.stopPropagation(); void this.distraction(d); }
@@ -479,7 +480,7 @@ export class SpotTool implements Tool {
       const spots = this.spots();
       const s = spots[this.sel];
       if (!s) return;
-      if (b.dataset.var === 'more') { this.fill(this.sel, s, 'Remove: New Variations'); return; }
+      if (b.dataset.var === 'more') { this.fill(this.sel, { ...s, seed: (s.seed ?? 0) + 1 }, 'Remove: New Variations'); return; }
       const v = s.variants?.[Number(b.dataset.var)];
       if (v) { s.patch = v; this.write(spots, 'end', 'Remove: Choose Variation'); this.syncVariants(); }
     });
@@ -495,7 +496,8 @@ export class SpotTool implements Tool {
   activate(): void { this.host.drawer.replaceChildren(this.root); this.syncOpts(); }
 
   private detect = false;
-  private readonly removeRow = el('<div class="fl-spot-remove"><label class="fl-check fl-check-sm" data-only="remove"><input type="checkbox" data-detect> Detect Objects</label><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
+  private shadows = false;
+  private readonly removeRow = el('<div class="fl-spot-remove"><div class="fl-row" data-only="remove"><label class="fl-check fl-check-sm"><input type="checkbox" data-detect> Detect Objects</label><label class="fl-check fl-check-sm" title="Also remove the shadow the object casts and its reflection below it"><input type="checkbox" data-shadows> Shadows and Reflections</label></div><div class="fl-row"><span class="fl-row-label">Distractions</span><button class="cv-btn fl-btn-sm" type="button" data-distract="people" title="Remove every detected person">People</button><button class="cv-btn fl-btn-sm" type="button" data-distract="dust" title="Find dust spots and heal them">Dust</button></div></div>');
 
   private async distraction(kind: string): Promise<void> {
     const id = develop.id;
@@ -532,7 +534,8 @@ export class SpotTool implements Tool {
   private syncVariants(): void {
     const s = this.spots()[this.sel];
     const vars = s?.mode === 'remove' ? s.variants ?? [] : [];
-    setHidden(this.variantsRow, vars.length < 2);
+    setHidden(this.variantsRow, this.mode !== 'remove' && vars.length < 2);
+    setDisabled(q(this.variantsRow, '[data-var="more"]'), !vars.length);
     const html = vars.map((v, i) => `<button type="button" data-var="${i}" class="${v === s?.patch ? 'is-on' : ''}">${i + 1}</button>`).join('');
     const seg = q(this.variantsRow, '.cv-seg');
     if (seg.dataset.key !== html) { seg.dataset.key = html; seg.innerHTML = html; }
@@ -540,9 +543,9 @@ export class SpotTool implements Tool {
 
   private fill(i: number, s: Spot, label: string): void {
     const done = this.host.ctx.shell.busy('Removing');
-    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[] }>('develop.removeFill', { id: develop.id, spot: s, detect: !!s.detect })).then((r) => {
+    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[]; seed: number }>('develop.removeFill', { id: develop.id, spot: s, detect: !!s.detect, shadows: !!s.shadows, seed: s.seed ?? 0 })).then((r) => {
       const now = this.spots();
-      if (now[i]) { now[i].patch = r.patch; now[i].variants = r.variants; now[i].source = null; this.write(now, 'end', label); this.syncVariants(); }
+      if (now[i]) { now[i].patch = r.patch; now[i].variants = r.variants; now[i].source = null; if (r.seed) now[i].seed = r.seed; this.write(now, 'end', label); this.syncVariants(); }
     }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(this.spots(), 'end', label); }).finally(done);
   }
 
@@ -594,7 +597,7 @@ export class SpotTool implements Tool {
       this.drag = { kind: hit.kind, i: hit.i, start: p, orig: s };
       return true;
     }
-    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode, ...(this.mode === 'remove' && this.detect ? { detect: true } : {}) };
+    const spot: Spot = { points: [[p.nx, p.ny]], size: this.size, source: null, feather: this.feather, opacity: this.opacity, mode: this.mode, ...(this.mode === 'remove' && this.detect ? { detect: true } : {}), ...(this.mode === 'remove' && this.shadows ? { shadows: true } : {}) };
     spots.push(spot);
     this.sel = spots.length - 1;
     this.drag = { kind: 'new', i: this.sel, start: p, orig: spot };
