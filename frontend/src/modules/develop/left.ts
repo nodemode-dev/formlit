@@ -74,7 +74,7 @@ export class LeftPanels {
     this.presets = new Tree({
       id: 'presets', empty: 'No presets',
       onPick: (n) => { const p = n.data as Preset | undefined; if (p) void this.applyPreset(p); },
-      onContext: (n, e) => { const p = n.data as Preset | undefined; if (!p) return; this.ctxPreset = p; this.menu.setItems(['dev.presetFavorite', 'dev.presetUpdate', 'dev.presetRename', 'dev.presetExport', '-', 'develop.newPreset', 'preset.importFiles', '-', 'dev.presetDelete']); this.menu.openAt(e.clientX, e.clientY); },
+      onContext: (n, e) => { const p = n.data as Preset | undefined; if (!p) return; this.ctxPreset = p; this.menu.setItems(['dev.presetFavorite', 'dev.presetUpdate', 'dev.presetRename', 'dev.presetExport', 'dev.presetExportGroup', '-', 'develop.newPreset', 'preset.importFiles', '-', 'dev.presetDelete']); this.menu.openAt(e.clientX, e.clientY); },
     });
     pPresets.body.append(amountRow, this.presets.root);
     this.presets.root.addEventListener('pointerover', (e) => {
@@ -159,6 +159,7 @@ export class LeftPanels {
       } },
       { id: 'dev.presetRename', label: 'Rename...', run: async () => { const p = this.ctxPreset; if (!p) return; const name = await promptName('Rename Preset', p.name, 'Rename'); if (name && name !== p.name) { await ctx.api.cmd('preset.update', { id: p.id, name }).catch((e) => ctx.fail(e)); void this.loadPresets(); } }, enabled: () => !!this.ctxPreset && !this.ctxPreset.builtin },
       { id: 'dev.presetExport', label: 'Export...', run: () => { const p = this.ctxPreset; if (p) void ctx.api.cmd<{ path: string }>('preset.export', { id: p.id }).then((r) => { const a = document.createElement('a'); a.href = outputUrl(r.path); a.download = r.path.split(/[\\/]/).pop() ?? 'preset.xmp'; a.click(); toast(`Exported ${p.name} as XMP`); }, (e) => ctx.fail(e)); }, enabled: () => !!this.ctxPreset },
+      { id: 'dev.presetExportGroup', label: 'Export Group...', run: () => { const p = this.ctxPreset; if (p) void ctx.api.cmd<{ path: string; presets: number }>('preset.exportGroup', { group: p.group }).then((r) => { const a = document.createElement('a'); a.href = outputUrl(r.path); a.download = r.path.split(/[\\/]/).pop() ?? 'presets.zip'; a.click(); toast(`Exported ${r.presets} presets from ${p.group} as a zip of XMP files`); }, (e) => ctx.fail(e)); }, enabled: () => !!this.ctxPreset },
       { id: 'preset.importFiles', label: 'Import Develop Profiles and Presets...', run: () => this.pickPresetFiles() },
       { id: 'dev.snapUpdate', label: 'Update with Current Settings', run: () => { const s = this.ctxSnap; if (s) void develop.flush().then(() => ctx.api.cmd('snapshot.update', { snapshot: s, settings: true })).then(() => toast('Snapshot updated'), (e) => ctx.fail(e)); }, enabled: () => this.ctxSnap !== null },
       { id: 'dev.snapRename', label: 'Rename...', run: async () => { const s = this.ctxSnap; if (s === null) return; const row = this.snaps.querySelector<HTMLElement>(`[data-snap="${s}"] span`); const name = await promptName('Rename Snapshot', row?.textContent ?? '', 'Rename'); if (name) { await ctx.api.cmd('snapshot.update', { snapshot: s, name }).catch((e) => ctx.fail(e)); this.loadSnaps(); } }, enabled: () => this.ctxSnap !== null },
@@ -231,7 +232,7 @@ export class LeftPanels {
   }
 
   private pickPresetFiles(): void {
-    const input = el<HTMLInputElement>('<input type="file" multiple accept=".xmp,.lrtemplate,.flpreset,.cube,.dcp" hidden>');
+    const input = el<HTMLInputElement>('<input type="file" multiple accept=".xmp,.lrtemplate,.flpreset,.cube,.dcp,.zip" hidden>');
     input.addEventListener('change', () => {
       const files = Array.from(input.files ?? []);
       input.remove();

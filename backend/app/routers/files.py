@@ -109,7 +109,7 @@ async def upload_presets(files: list[UploadFile] = File(...)) -> dict:
     saved = []
     for f in files:
         name = safe(Path(f.filename or "preset.xmp").name)
-        if Path(name).suffix.lower() not in (".xmp", ".lrtemplate", ".flpreset", ".cube", ".dcp"):
+        if Path(name).suffix.lower() not in (".xmp", ".lrtemplate", ".flpreset", ".cube", ".dcp", ".zip"):
             continue
         target = unique(dest / name)
         with target.open("wb") as out:
