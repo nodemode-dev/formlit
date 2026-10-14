@@ -25,7 +25,25 @@ def noise_sigma(y: np.ndarray) -> float:
     return float(np.percentile(blocks, 10) * 1.4826 * 1.25)
 
 
+def _to_srgb(x: np.ndarray) -> np.ndarray:
+    x = np.clip(x, 0.0, 1.0)
+    return np.where(x <= 0.0031308, x * 12.92, 1.055 * np.power(x, 1 / 2.4) - 0.055).astype(np.float32)
+
+
+def _from_srgb(x: np.ndarray) -> np.ndarray:
+    x = np.clip(x, 0.0, 1.0)
+    return np.where(x <= 0.04045, x / 12.92, np.power((x + 0.055) / 1.055, 2.4)).astype(np.float32)
+
+
 def denoise(lin: np.ndarray, amount: float = 50.0, progress=None) -> np.ndarray:
+    from app.ai import models
+    if models.ready("denoise"):
+        peak = max(1e-6, float(np.percentile(lin, 99.98)))
+        x = _to_srgb(lin / peak)
+        clean = nets.scunet(x, progress)
+        keep = (1.0 - min(1.0, max(0.0, amount / 100.0))) ** 3
+        out = _from_srgb(clean + keep * (x - clean)) * peak
+        return np.where(lin > peak, lin, out).astype(np.float32)
     enc, peak = _encode(lin)
     y = enc @ LW
     chroma = enc - y[..., None]

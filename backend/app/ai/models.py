@@ -46,6 +46,13 @@ MODELS: dict[str, dict] = {
     "parts": {"name": "MediaPipe selfie multiclass (hair, skin, clothes)", "license": "Apache-2.0", "size": 16,
               "files": {"selfie-multiclass/model.onnx": ("https://huggingface.co/senty-au/selfie_multiclass_256x256-ONNX/resolve/6db8421a7150ac20558f2c24675078eb3a1a04d0/onnx/model.onnx",
                                                          "35ec1ecd9ee7f85073c99c00020b7f6751b69506eeacf683bc8665f6117f85b0")}},
+    "denoise": {"name": "SCUNet real-world denoiser (Kai Zhang et al.)", "license": "Apache-2.0 (SCUNet), MIT (KAIR weights)", "size": 77,
+                "files": {
+                    "scunet/scunet_color_real_psnr.onnx": ("https://huggingface.co/Heliosoph/scunet-onnx/resolve/6d11417ee2fbcc73783c502a238ac115097754fe/scunet_color_real_psnr.onnx",
+                                                           "231be201ab413dbc999d7951caa9844846b93a12a40a41e037d6b5888ed4e88c"),
+                    "scunet/scunet_color_real_psnr.onnx.data": ("https://huggingface.co/Heliosoph/scunet-onnx/resolve/6d11417ee2fbcc73783c502a238ac115097754fe/scunet_color_real_psnr.onnx.data",
+                                                                "98825ea1210b641c71e5f052f582c70c49fd44b35387ebe2c034268c17df3feb"),
+                }},
     "instances": {"name": "Mask R-CNN v2 (each person apart, torchvision)", "license": "BSD-3-Clause weights, Apache-2.0 export", "size": 186,
                   "files": {"maskrcnn-v2/model.onnx": ("https://huggingface.co/onnxmodelzoo/maskrcnn_resnet50_fpn_v2_Opset17/resolve/18d7fc231681c8af252bb38180fc98ba638f0b57/maskrcnn_resnet50_fpn_v2_Opset17.onnx",
                                                        "3fdaa47d81ac27d91b7c9353334c9276255722204f96939dfcbee4d4277fc6e0")}},

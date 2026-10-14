@@ -167,6 +167,31 @@ def lama(rgb8: np.ndarray, hole: np.ndarray, whole: bool = False) -> np.ndarray:
     return np.where(a, filled, rgb8)
 
 
+def scunet(rgb: np.ndarray, progress=None, tile: int = 256, margin: int = 32) -> np.ndarray:
+    models.require("denoise")
+    s = models.session("denoise", "scunet/scunet_color_real_psnr.onnx")
+    h, w = rgb.shape[:2]
+    out = np.zeros_like(rgb, dtype=np.float32)
+    tiles = ((h + tile - 1) // tile) * ((w + tile - 1) // tile)
+    done = 0
+    for top in range(0, h, tile):
+        for left in range(0, w, tile):
+            if progress is not None and getattr(progress, "cancelled", False):
+                raise InterruptedError("Cancelled")
+            bottom, right = min(h, top + tile), min(w, left + tile)
+            y0, x0, y1, x1 = max(0, top - margin), max(0, left - margin), min(h, bottom + margin), min(w, right + margin)
+            part = rgb[y0:y1, x0:x1]
+            ph, pw = (-part.shape[0]) % 64, (-part.shape[1]) % 64
+            part = np.pad(part, ((0, ph), (0, pw), (0, 0)), mode="reflect")
+            with _run_lock:
+                r = s.run(None, {s.get_inputs()[0].name: np.ascontiguousarray(part.transpose(2, 0, 1)[None], np.float32)})[0][0].transpose(1, 2, 0)
+            out[top:bottom, left:right] = r[top - y0:bottom - y0, left - x0:right - x0]
+            done += 1
+            if progress is not None:
+                progress(done, tiles, "Denoise")
+    return np.clip(out, 0.0, 1.0)
+
+
 def esrgan(rgb8: np.ndarray, progress=None, tile: int = 192, margin: int = 16) -> np.ndarray:
     models.require("upscale")
     s = models.session("esrgan", "realesrgan-x4plus.onnx")
