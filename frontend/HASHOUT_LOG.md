@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Astro Stack in the Photo menu (v0.29.0)
+- refers-to: src/modules/shared/merge-dialog.ts :: ASTRO_OPTS, Kind astro; src/modules/shared/ai.ts :: photo.astroStack; src/app.ts :: Photo menu
+- kind: rationale
+- logged: v0.29.0 · 2026-10-14
+
+Photo, Astro Stack uses the merge dialog with its own options: Align on the Stars, Keep the Landscape Sharp, Combine (Reject Outliers, Median, Average), Auto Crop and Create Stack, with a preview stacked from 900 px proxies and stretched from the median so the faint sky shows. Checked under 4x CPU and slow network: eight frames selected, the preview in 6 s, Merge made the new DNG in 33 s; no layout shift and no page errors.
+
 ### Session panel and commands (v0.28.0)
 - refers-to: src/modules/library/session-panel.ts :: registerSessionCommands, SessionPanel; src/modules/library/sources.ts :: SessionPanel first; src/app.ts :: File and Library menus
 - kind: rationale

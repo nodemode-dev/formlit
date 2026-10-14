@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `session`, `session_move`
 
 ## get_catalog
 
@@ -489,6 +489,16 @@ Merges photos of one scene focused at different distances (macro, product, lands
 - `ids`: array; required; Photo ids from find_photos.
 - `align`: boolean; default true
 - `autoCrop`: boolean; default true
+- `createStack`: boolean; default true
+- `wait`: boolean; default true; Wait for the job to finish (default) or return its task id.
+
+## merge_astro_stack
+
+Stacks night-sky frames shot from a tripod into one clean DNG: aligns on the stars as the sky turns, removes hot pixels, and averages with outlier rejection (satellites, planes and meteors vanish; noise falls by about the square root of the frame count). ground fixed keeps the landscape sharp (needs the sky model), aligned moves everything with the stars. Check the result with get_preview.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `reject`: string (sigma | median | mean); default "sigma"
+- `ground`: string (fixed | aligned); default "fixed"
 - `createStack`: boolean; default true
 - `wait`: boolean; default true; Wait for the job to finish (default) or return its task id.
 
