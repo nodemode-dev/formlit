@@ -85,9 +85,16 @@ def find_preset(pid: str) -> dict | None:
     return next((p for p in list_presets() if p["id"] == pid), None)
 
 
+def scrub(settings: dict) -> dict:
+    post = settings.get("post") or {}
+    if not (post.get("ftp") or {}).get("password"):
+        return settings
+    return {**settings, "post": {**post, "ftp": {**post["ftp"], "password": ""}}}
+
+
 def save_preset(name: str, settings: dict) -> dict:
     stem = rename.safe(name).replace(" ", "-").lower()
-    (presets_dir() / f"{stem}.json").write_text(json.dumps({"name": name, "settings": settings}, indent=1))
+    (presets_dir() / f"{stem}.json").write_text(json.dumps({"name": name, "settings": scrub(settings)}, indent=1))
     return {"id": f"user.{stem}", "name": name}
 
 

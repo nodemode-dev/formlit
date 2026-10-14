@@ -105,7 +105,7 @@ def export_run(ids: Any = None, settings: dict | None = None, preset: str | None
         s = layout.deep_merge(s, p["settings"])
     s = layout.deep_merge(s, settings or {})
     with cat().change("Export", undoable=False) as ch:
-        ch.set_meta("lastExport", s)
+        ch.set_meta("lastExport", export.scrub(s))
 
     def job(progress):
         res = export.run(pids, s, progress)
@@ -126,6 +126,12 @@ def export_run(ids: Any = None, settings: dict | None = None, preset: str | None
             export.reveal(paths[0])
         elif paths and post.get("action") == "open" and post.get("app"):
             export.open_with(post["app"], paths)
+        elif paths and post.get("action") == "ftp":
+            from app.output import web
+            try:
+                res["sent"] = web.send_files(paths, post.get("ftp") or {}, progress)
+            except Exception as exc:
+                raise CommandError(f"Exported {len(paths)} files but sending them failed: {exc}") from exc
         res.pop("settings", None)
         return res
     return _wait(tasks.start("export", f"Exporting {len(pids)} {'photo' if len(pids) == 1 else 'photos'}", job), wait)

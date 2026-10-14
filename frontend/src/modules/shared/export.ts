@@ -129,8 +129,13 @@ class ExportDialog extends Dialog {
         { path: 'video.quality', label: 'Quality', kind: 'select', options: [['max', 'Maximum'], ['high', 'High'], ['medium', 'Medium, 1080p'], ['low', 'Low, 1080p']], show: () => !!getPath(this.settings, 'video.include') && getPath(this.settings, 'video.format') === 'h264' },
       ]],
       ['Post-Processing', [
-        { path: 'post.action', label: 'After export', kind: 'select', options: [['none', 'Do nothing'], ['reveal', 'Show in folder'], ['open', 'Open in application']] },
+        { path: 'post.action', label: 'After export', kind: 'select', options: [['none', 'Do nothing'], ['reveal', 'Show in folder'], ['open', 'Open in application'], ['ftp', 'Send by FTP']] },
         { path: 'post.app', label: 'Application', kind: 'text', placeholder: '/Applications/formvis.app', show: () => getPath(this.settings, 'post.action') === 'open' },
+        { path: 'post.ftp.host', label: 'FTP server', kind: 'text', placeholder: 'ftp.agency.example', show: () => getPath(this.settings, 'post.action') === 'ftp' },
+        { path: 'post.ftp.user', label: 'User', kind: 'text', show: () => getPath(this.settings, 'post.action') === 'ftp' },
+        { path: 'post.ftp.password', label: 'Password', kind: 'password', show: () => getPath(this.settings, 'post.action') === 'ftp' },
+        { path: 'post.ftp.path', label: 'Remote folder', kind: 'text', placeholder: '/incoming', show: () => getPath(this.settings, 'post.action') === 'ftp' },
+        { path: 'post.ftp.tls', label: 'Use TLS (FTPS)', kind: 'check', show: () => getPath(this.settings, 'post.action') === 'ftp' },
       ]],
     ];
   }

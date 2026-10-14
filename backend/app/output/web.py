@@ -154,6 +154,26 @@ def _mkdirs(f: ftplib.FTP, path: str) -> None:
             continue
 
 
+def send_files(paths: list[Path], up: dict, progress: Callable[..., Any] | None = None) -> int:
+    if not up.get("host"):
+        raise RuntimeError("Set an FTP host first")
+    f = _ftp(up)
+    root = up.get("path") or "/"
+    try:
+        _mkdirs(f, root)
+        for i, p in enumerate(paths):
+            with p.open("rb") as fh:
+                f.storbinary(f"STOR {posixpath.join(root, p.name)}", fh)
+            if progress is not None:
+                progress(i + 1, len(paths), f"Sending {i + 1} of {len(paths)}")
+    finally:
+        try:
+            f.quit()
+        except ftplib.all_errors:
+            f.close()
+    return len(paths)
+
+
 def upload(folder: Path, up: dict, progress: Callable[..., Any] | None = None) -> int:
     if not up.get("host"):
         raise RuntimeError("Set an FTP host first")
