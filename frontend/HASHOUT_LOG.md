@@ -496,6 +496,13 @@ Claude writes Markdown; showing raw asterisks to people who never use a terminal
 
 The filmstrip's handle is absolutely positioned inside the filmstrip, so the filmstrip's grid keeps its two rows; heights are clamped to 72 to 320 px and go through `--fl-filmstrip-h`, the variable the app grid already used. Hidden modules only lose their picker button; their commands, shortcuts and Window menu items stay, and the last visible module cannot be hidden.
 
+### Proofing commands and client comments (v0.30.0)
+- refers-to: src/modules/shared/proofing.ts :: registerProofing; src/modules/library/comments.ts :: thread key and reply form; src/app.ts :: File menu
+- kind: rationale, known-shift
+- logged: v0.30.0 · 2026-10-14
+
+File, Export Proofing Gallery (title, a note to the client, image size, file names, an optional folder) and File, Import Client Selections (a file path or pasted text, with switches for flags and stars). Comment threads are keyed by collection and name, since every client thread has collection 0, and client threads have no reply box. A "building" toast was dropped: when the job finished, the taller "ready" toast pushed it up (0.0044 and 0.002); the task display already shows progress. Known, everywhere in formlit: a new toast pushes the ones still showing up the screen. Checked under 4x CPU and slow network: export from the File menu, import from it, no layout shift, no page errors.
+
 ### Astro Stack in the Photo menu (v0.29.0)
 - refers-to: src/modules/shared/merge-dialog.ts :: ASTRO_OPTS, Kind astro; src/modules/shared/ai.ts :: photo.astroStack; src/app.ts :: Photo menu
 - kind: rationale

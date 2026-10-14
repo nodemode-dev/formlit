@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `session`, `session_move`
 
 ## get_catalog
 
@@ -501,6 +501,25 @@ Stacks night-sky frames shot from a tripod into one clean DNG: aligns on the sta
 - `ground`: string (fixed | aligned); default "fixed"
 - `createStack`: boolean; default true
 - `wait`: boolean; default true; Wait for the job to finish (default) or return its task id.
+
+## proofing_gallery
+
+Makes a client proofing gallery folder with no account or server: the client opens index.html in any browser, picks, rejects, rates and comments, and sends back a selections file for import_client_selections. Returns the folder; zip it to send.
+
+- `ids`: array; required; Photo ids from find_photos.
+- `title`: string; required
+- `note`: string; a line for the client, such as how many to pick and by when
+- `size`: integer; default 1600
+- `folder`: string
+
+## import_client_selections
+
+Applies a client's selections from a proofing gallery: picks and rejects as flags, stars as ratings, comments onto the photos, and a collection of the picks.
+
+- `path`: string; the selections .json file
+- `text`: string; or its text
+- `flags`: boolean; default true
+- `ratings`: boolean; default true
 
 ## session
 
