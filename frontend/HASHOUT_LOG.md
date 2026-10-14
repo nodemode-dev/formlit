@@ -820,6 +820,11 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 - locales12 (descriptions) now covers 19: added es, es-MX, fr, fr-CA, it, nl, pt-BR, vi, sv, ru, pl, uk. Still missing: cs, da, nb, fi, hu, th (their preset descriptions show in English; names and groups are translated). In ru, pl and uk the exposure, tone and white balance descriptions (indices 0 to 59) come from one translated sentence pattern per kind with the variable parts written per entry. fr-CA descriptions equal fr; es-MX adapts es in 20 strings.
 - Checked in the window: ru, sv, pl, hu, fi and es show the new preset names, group names, Edge Range, Same Depth and the export toast translated; all 25 languages load.
 
+## v0.43.0 window changes {#v0-43-0}
+
+- shared/ai.ts `photo.controlMaps` (View menu, Show Control Maps...): the maps are fetched first with a busy line, then the dialog opens with all four images at the photo's aspect ratio set on each img, so nothing moves as they decode. lit-control.css holds the two-column grid. Remove's Sample from gains Same Surface.
+- i18n: locales12 now complete in all 25 languages (cs, da, fi, hu, nb and th added; Thai reused the 400 strings from the earlier pass and added 278). keys13 and locales13 carry the control map and Same Surface labels. Checked: preset names, descriptions and the new labels show translated in cs, th, da, hu, fi, nb and ja; all 25 languages load.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

@@ -1406,6 +1406,13 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 
 ---
 
+## v0.43.0 control maps, same-surface remove {#v0-43-0}
+
+- app/ai/control.py and `ai.controlMaps` (View, Show Control Maps...; MCP get_control_maps, which returns the images as image content through a new `__images` result): edges (masks.edge_strength, the same map Edge Range uses), lines (OpenCV's line segment detector, segments at least 4 percent of the long side, drawn over a dimmed photo), depth (Depth Anything V2, viridis, near bright) and subject (U2-Net, tinted). Depth and subject are left out, and listed in `missing`, when their models are not installed. 768 px in about 18 s on the 2-core test machine, most of it the two models. Checked on a portrait: all four maps line up with the photo.
+- Remove `sampleFrom: "sameSurface"` (Sample from Same Surface; MCP sample_same_surface): SAM 2.1 tiny with a box five spot sizes wide and up to eight positive points on a ring just outside the hole, so it segments the surface around the object (wall, floor, sky, water); the sample is that segment minus the hole, through the v0.38.0 sample machinery; refused with a clear message when the segment is too small. Ran without error; its fill quality is not yet judged on a real scene (the test image chosen by the script was not the intended stripes image).
+
+---
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
