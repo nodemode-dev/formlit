@@ -27,6 +27,9 @@ RANGE_CORE = 0.35
 REFINE_SIGMA = 0.05
 REFINE_EPS = (4e-3, 2e-4)
 REFINE_PASSES = 2
+EDGE_SHIFT_MAX = 0.02
+EDGE_FEATHER_MAX = 0.03
+EDGE_WORK_RADIUS = 16
 DAB_SPACING = 0.12
 DAB_MIN_SPACING = 0.3
 DAB_TURN = math.radians(10.0)
@@ -301,6 +304,41 @@ def _depth_range(s: dict, ctx: _Ctx) -> np.ndarray:
     return _band(depth, lo, hi, f, f)
 
 
+def _scaled(cov: np.ndarray, radius: float, op) -> np.ndarray:
+    h, w = cov.shape
+    f = max(1.0, radius / EDGE_WORK_RADIUS)
+    if f <= 1.0:
+        return op(np.ascontiguousarray(cov, np.float32), radius)
+    sw, sh = max(1, round(w / f)), max(1, round(h / f))
+    small = cv2.resize(cov, (sw, sh), interpolation=cv2.INTER_AREA)
+    return cv2.resize(op(small, radius / f), (w, h), interpolation=cv2.INTER_LINEAR)
+
+
+def _edges(cov: np.ndarray, s: dict, ctx: _Ctx) -> np.ndarray:
+    refine = min(max(float(s.get("refine", 0) or 0), 0.0), 100.0)
+    shift = min(max(float(s.get("shift", 0) or 0), -100.0), 100.0)
+    feather = min(max(float(s.get("feather", 0) or 0), 0.0), 100.0)
+    if refine <= 0 and abs(shift) < 0.5 and feather < 0.5:
+        return cov
+    if refine > 0:
+        cov = _refine(cov, refine, ctx)
+    px = float(ctx.frame.px_per_long(ctx.w))
+    r = abs(shift) / 100.0 * EDGE_SHIFT_MAX * px
+    if r >= 0.75:
+        def morph(a: np.ndarray, rad: float) -> np.ndarray:
+            k = max(1, int(round(rad)))
+            el = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1))
+            return (cv2.dilate if shift > 0 else cv2.erode)(a, el)
+        cov = _scaled(cov, r, morph)
+    sigma = feather / 100.0 * EDGE_FEATHER_MAX * px
+    if sigma >= 0.3:
+        def blur(a: np.ndarray, sg: float) -> np.ndarray:
+            k = 2 * math.ceil(GAUSS_TRUNCATE * sg) + 1
+            return cv2.GaussianBlur(a, (k, k), sg, borderType=cv2.BORDER_REFLECT)
+        cov = _scaled(cov, sigma, blur)
+    return np.clip(cov, 0.0, 1.0).astype(np.float32)
+
+
 def _coverage(s: dict, ctx: _Ctx) -> np.ndarray:
     kind = s.get("kind")
     if kind == "linear":
@@ -316,7 +354,7 @@ def _coverage(s: dict, ctx: _Ctx) -> np.ndarray:
     if kind == "depthRange":
         return _depth_range(s, ctx)
     if kind in BITMAP_KINDS:
-        return load_bitmap(ctx.photo_id, s.get("bitmap"), ctx.frame, ctx.w, ctx.h)
+        return _edges(load_bitmap(ctx.photo_id, s.get("bitmap"), ctx.frame, ctx.w, ctx.h), s, ctx)
     return ctx.zeros()
 
 
@@ -341,6 +379,10 @@ def _alpha(m: dict, comps: list, ctx: _Ctx) -> np.ndarray:
         if c.get("invert"):
             cov = 1.0 - cov
         op = c.get("op", "add")
+        if op == "refine":
+            if alpha is not None:
+                alpha = alpha + (_refine(alpha, 100.0, ctx) - alpha) * cov
+            continue
         if alpha is None:
             alpha = np.array(cov, np.float32)
         elif op == "subtract":

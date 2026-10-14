@@ -234,7 +234,7 @@ def _corrections_xml(masks: list, aspect: float) -> str:
         for k, (tag, div) in LOCAL.items():
             if adj.get(k):
                 attrs.append(f'crs:{tag}="{float(adj[k]) / div:.6f}"')
-        comps = "".join(_mask_xml(c.get("shape") or {}, c.get("op", "add"), aspect) for c in m.get("components") or [])
+        comps = "".join(_mask_xml(c.get("shape") or {}, c.get("op", "add"), aspect) for c in m.get("components") or [] if c.get("op") != "refine")
         if not comps:
             continue
         items.append(f'<rdf:li><rdf:Description {" ".join(attrs)}><crs:CorrectionMasks><rdf:Seq>{comps}</rdf:Seq></crs:CorrectionMasks></rdf:Description></rdf:li>')

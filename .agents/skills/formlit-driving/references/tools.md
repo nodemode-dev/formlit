@@ -399,6 +399,9 @@ Adds a local adjustment through an AI mask: sky, subject, background, people, ob
 - `box`: array
 - `adjust`: object
 - `name`: string
+- `refine`: number; Refine Edge: snaps the mask edge to edges in the photo (hair, fur, soft outlines)
+- `shift`: number; Shift Edge: grows (positive) or shrinks (negative) the mask, up to 2 percent of the long side
+- `feather`: number; Feather: softens the edge, up to 3 percent of the long side
 
 ## add_gradient_mask
 
