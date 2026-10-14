@@ -54,7 +54,7 @@ export interface CurveSource {
 }
 
 const GLOBAL: CurveSource = {
-  get: () => (develop.settings.curve as Record<string, unknown>) ?? {},
+  get: () => (develop.read('curve') as Record<string, unknown>) ?? {},
   set: (curve, phase, label) => develop.patch('curve', curve, phase, label),
 };
 

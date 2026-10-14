@@ -13,6 +13,7 @@ import { LeftPanels } from './left';
 import { MaskTool } from './masks';
 import { DEFAULT_OFF, GROUPS } from './groups';
 import { DevelopPanels } from './panels';
+import { LayersPanel } from './layers';
 import { openProfileBrowser } from './profile-browser';
 import { LensBlurTool } from './lensblur-tool';
 import { CropTool, FringePickerTool, GuidedTool, PointColorTool, RedEyeTool, SpotTool, TatTool, toolStrip, WbPickerTool, type TatMode, type ToolHost } from './tools';
@@ -89,6 +90,7 @@ class DevelopModule {
     const strip = toolStrip();
     void develop.init().then(() => {
       this.panels = new DevelopPanels(ctx, hosts.right, this.view, strip);
+      q(hosts.right, '.fl-panel').after(new LayersPanel(ctx).panel.root);
       q(hosts.right, '.fl-panel').appendChild(this.drawer);
       new LeftPanels(ctx, hosts.left, this.view);
       const host: ToolHost = { ctx, view: this.view, drawer: this.drawer, done: () => this.setTool('') };

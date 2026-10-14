@@ -153,6 +153,23 @@
 .fl-mask-new .icon { color: var(--accent-color); }
 .fl-mask-comp { display: flex; flex-direction: column; gap: 2px; }
 .fl-mask-addrow .cv-icon-btn { width: 24px; height: 24px; }
+.fl-layers-body { display: flex; flex-direction: column; gap: 8px; }
+.fl-layer-banner { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--accent-line); border-radius: 6px; background: var(--accent-wash); color: var(--text-primary); font-size: var(--fs-11); }
+.fl-layer-banner[hidden], .fl-layer-opts[hidden] { display: none; }
+.fl-layer-banner-text { flex: 1; min-width: 0; }
+.fl-layer-list { display: flex; flex-direction: column; gap: 2px; }
+.fl-layer-rows { display: contents; }
+.fl-layer-row { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-12); text-align: left; cursor: pointer; }
+.fl-layer-row:hover { color: var(--text-primary); }
+.fl-layer-row.is-on { border-color: var(--line-3); background: var(--surface-raised); color: var(--text-primary); }
+.fl-layer-row.is-hidden .fl-layer-name { opacity: 0.5; }
+.fl-layer-row .cv-icon-btn { width: 20px; height: 20px; }
+.fl-layer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fl-layer-opts { display: flex; flex-direction: column; gap: 6px; }
+.fl-layer-opts .fl-opt { display: grid; grid-template-columns: 64px minmax(0, 1fr) 40px; align-items: center; gap: 8px; }
+.fl-layer-opval { font-weight: 500; font-size: var(--fs-11); text-align: right; font-variant-numeric: tabular-nums; }
+.fl-layer-note { font-size: var(--fs-11); line-height: 1.45; }
+.fl-app.is-layer-editing .fl-right { box-shadow: inset 2px 0 0 var(--accent-line); }
 .fl-mask-comp .cv-seg { min-width: 0; }
 .fl-mask-comp .fl-seg-sm button { min-width: 0; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
 .fl-mask-brush[hidden], .fl-mask-adjust[hidden], .fl-mask-points[hidden], .fl-mask-point-sliders[hidden] { display: none; }

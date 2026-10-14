@@ -69,6 +69,9 @@ export function setPath(obj: Dev, path: string, value: unknown): void {
 
 export function clone<T>(v: T): T { return JSON.parse(JSON.stringify(v ?? {})) as T; }
 
+const PHOTO_ONLY = new Set(['crop', 'orientation', 'geometry', 'optics', 'spots', 'redEye', 'lensBlur', 'masks', 'layers', 'wb', 'profile', 'disabled', 'hdr', 'treatment']);
+export interface Layer { id: number; name: string; visible?: boolean; opacity?: number; settings?: Dev; mask?: { components?: unknown[]; invert?: boolean; source?: string } }
+
 export class DevelopSession {
   doc: ControlsDoc | null = null;
   specs = new Map<string, ControlSpec>();
@@ -81,6 +84,36 @@ export class DevelopSession {
   private loadSeq = 0;
   private readonly fns = new Set<Fn>();
   dirty = false;
+  layer: number | null = null;
+
+  layers(): Layer[] { return Array.isArray(this.settings.layers) ? this.settings.layers as Layer[] : []; }
+
+  layerable(path: string): boolean {
+    const [top, key = ''] = path.split('.');
+    return !PHOTO_ONLY.has(top) && !(top === 'detail' && key.startsWith('nr'));
+  }
+
+  private target(path: string): Dev {
+    const l = this.layer === null || !this.layerable(path) ? undefined : this.layers()[this.layer];
+    if (!l) return this.settings;
+    if (!l.settings || typeof l.settings !== 'object') l.settings = {};
+    return l.settings;
+  }
+
+  read(path: string): unknown {
+    const t = this.target(path);
+    const v = getPath(t, path);
+    return v === undefined && t !== this.settings ? getPath(this.settings, path) : v;
+  }
+
+  selectLayer(i: number | null): void {
+    const next = i !== null && this.layers()[i] ? i : null;
+    if (next === this.layer) return;
+    this.layer = next;
+    this.emit('layer');
+  }
+
+  editingName(): string { return this.layer === null ? '' : this.layers()[this.layer]?.name ?? ''; }
 
   constructor() {
     events.on('photos.changed', (e) => {
@@ -109,6 +142,7 @@ export class DevelopSession {
     await this.flush();
     this.id = id;
     this.info = null;
+    this.layer = null;
     if (id === null) { this.settings = {}; this.emit('photo'); return; }
     await this.reload('photo');
   }
@@ -123,6 +157,7 @@ export class DevelopSession {
     ]);
     if (seq !== this.loadSeq || id !== this.id) return;
     this.settings = got.settings ?? {};
+    if (this.layer !== null && !this.layers()[this.layer]) this.layer = null;
     this.committed = JSON.stringify(this.settings);
     if (info) this.info = info;
     this.dirty = false;
@@ -132,7 +167,7 @@ export class DevelopSession {
   value(cid: string): number {
     const spec = this.specs.get(cid);
     if ((cid === 'wb.temp' || cid === 'wb.tint') && this.wbMode() !== 'custom' && this.info) return cid === 'wb.temp' ? this.info.temp : this.info.tint;
-    const v = getPath(this.settings, cid);
+    const v = this.read(cid);
     return typeof v === 'number' ? v : spec?.default ?? 0;
   }
 
@@ -149,13 +184,16 @@ export class DevelopSession {
     const spec = this.specs.get(cid);
     const clamped = spec ? Math.max(spec.min, Math.min(spec.max, v)) : v;
     const rounded = spec ? Number(clamped.toFixed(spec.decimals)) : clamped;
-    setPath(this.settings, cid, rounded);
-    this.changed(phase, label ?? this.labelFor(cid, rounded));
+    const t = this.target(cid);
+    setPath(t, cid, rounded);
+    const text = label ?? this.labelFor(cid, rounded);
+    this.changed(phase, t === this.settings ? text : `${this.editingName()}: ${text}`);
   }
 
   patch(path: string, value: unknown, phase: 'drag' | 'end', label: string): void {
-    setPath(this.settings, path, value === null ? undefined : value);
-    this.changed(phase, label);
+    const t = this.target(path);
+    setPath(t, path, value === null ? undefined : value);
+    this.changed(phase, t === this.settings ? label : `${this.editingName()}: ${label}`);
   }
 
   replace(next: Dev, phase: 'drag' | 'end', label: string): void {
