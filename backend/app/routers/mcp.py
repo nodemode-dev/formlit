@@ -75,6 +75,19 @@ def _cmd(cid: str, **params: Any) -> Any:
     return dispatch(cid, {k: v for k, v in params.items() if v is not None})
 
 
+def _describe(args: dict) -> dict:
+    st = _cmd("search.status")
+    if st["ready"] and st["missing"]:
+        if st["missing"] <= 500:
+            _cmd("search.index", wait=True)
+        else:
+            _cmd("search.status", start=True)
+    out = _cmd("search.describe", text=args["text"], ids=args.get("ids"), limit=args.get("limit", 50), strict=args.get("strict", False))
+    if out["missing"]:
+        out["note"] = f"{out['missing']} photos are still being indexed in the background; search again later to include them"
+    return out
+
+
 def _straighten(args: dict) -> dict:
     from app.develop.geometry import crop_fit_angle
     from app.engine import catalog as catalog_mod
@@ -379,6 +392,12 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("import_client_selections", "Applies a client's selections from a proofing gallery: picks and rejects as flags, stars as ratings, comments onto the photos, and a collection of the picks.",
            {"path": {"type": "string", "description": "the selections .json file"}, "text": {"type": "string", "description": "or its text"}, "flags": {"type": "boolean", "default": True}, "ratings": {"type": "boolean", "default": True}}, []),
      lambda a: _cmd("proof.import", path=a.get("path", ""), text=a.get("text", ""), flags=a.get("flags", True), ratings=a.get("ratings", True))),
+    (_tool("search_photos_by_description", "Finds photos by what is in them from a plain description, such as 'bride and groom under an umbrella' or 'empty road through a desert', best match first with a score from 0 to 1. Works without keywords; runs on this computer (needs the search model, installed with ai.download model search). Indexes new photos first. ids limits the search to those photos; strict keeps only close matches.",
+           {"text": {"type": "string"}, "ids": IDS, "limit": {"type": "integer", "default": 50}, "strict": {"type": "boolean", "default": False}}, ["text"]),
+     _describe),
+    (_tool("find_similar_photos", "Photos that look most like a given one (same scene, subject or look, not only exact duplicates), most similar first with a similarity from 0 to 1.",
+           {"id": {"type": "integer"}, "limit": {"type": "integer", "default": 30}}, ["id"]),
+     lambda a: _cmd("search.similar", id=a["id"], limit=a.get("limit", 30))),
     (_tool("session", "A studio session: a folder with Capture, Selects, Output and Trash; tethered shots land in Capture, exports default to Output, and each photo's settings are kept in the folder so it opens on any machine. action state shows the open session and its folders (ids for find_photos by folder), new makes one (parent folder and name), open opens a session folder or .flsession file and brings back saved settings, close closes it.",
            {"action": {"type": "string", "enum": ["state", "new", "open", "close"]}, "parent": {"type": "string"}, "name": {"type": "string"}, "path": {"type": "string"}}, ["action"]),
      lambda a: _cmd({"state": "session.state", "new": "session.new", "open": "session.open", "close": "session.close"}[a["action"]],

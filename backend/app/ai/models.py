@@ -56,6 +56,15 @@ MODELS: dict[str, dict] = {
     "instances": {"name": "Mask R-CNN v2 (each person apart, torchvision)", "license": "BSD-3-Clause weights, Apache-2.0 export", "size": 186,
                   "files": {"maskrcnn-v2/model.onnx": ("https://huggingface.co/onnxmodelzoo/maskrcnn_resnet50_fpn_v2_Opset17/resolve/18d7fc231681c8af252bb38180fc98ba638f0b57/maskrcnn_resnet50_fpn_v2_Opset17.onnx",
                                                        "3fdaa47d81ac27d91b7c9353334c9276255722204f96939dfcbee4d4277fc6e0")}},
+    "search": {"name": "SigLIP base (search by description, Google)", "license": "Apache-2.0", "size": 213,
+               "files": {
+                   "siglip-base/vision_model_quantized.onnx": ("https://huggingface.co/Xenova/siglip-base-patch16-224/resolve/4649052661e53c7000355844105f8a1792088239/onnx/vision_model_quantized.onnx",
+                                                               "ef14a954f3d57e1806666432bd9785004c1dc27100aa260eee0cb0f10a5de058"),
+                   "siglip-base/text_model_quantized.onnx": ("https://huggingface.co/Xenova/siglip-base-patch16-224/resolve/4649052661e53c7000355844105f8a1792088239/onnx/text_model_quantized.onnx",
+                                                             "ad0329b1f35acc66d8953ff2559ce358da8eb0a7011794cf951523d63a4dbce2"),
+                   "siglip-base/tokenizer.json": ("https://huggingface.co/Xenova/siglip-base-patch16-224/resolve/4649052661e53c7000355844105f8a1792088239/tokenizer.json",
+                                                  "4a17c975210be5ab4c36b47d8dae4eefb866dbfb1e676e394aad85dc30a3ae08"),
+               }},
 }
 
 _lock = threading.RLock()

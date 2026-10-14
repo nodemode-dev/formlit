@@ -10,6 +10,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_develop",
     "app.engine.presets",
     "app.engine.cmd_ai",
+    "app.engine.cmd_search",
     "app.engine.cmd_sessions",
     "app.engine.cmd_output",
     "app.engine.agents",

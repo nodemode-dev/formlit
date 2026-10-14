@@ -12,7 +12,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
 - Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
-- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `session`, `session_move`
+- Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `session`, `session_move`
 
 ## get_catalog
 
@@ -520,6 +520,22 @@ Applies a client's selections from a proofing gallery: picks and rejects as flag
 - `text`: string; or its text
 - `flags`: boolean; default true
 - `ratings`: boolean; default true
+
+## search_photos_by_description
+
+Finds photos by what is in them from a plain description, such as 'bride and groom under an umbrella' or 'empty road through a desert', best match first with a score from 0 to 1. Works without keywords; runs on this computer (needs the search model, installed with ai.download model search). Indexes new photos first. ids limits the search to those photos; strict keeps only close matches.
+
+- `text`: string; required
+- `ids`: array; Photo ids from find_photos.
+- `limit`: integer; default 50
+- `strict`: boolean; default false
+
+## find_similar_photos
+
+Photos that look most like a given one (same scene, subject or look, not only exact duplicates), most similar first with a similarity from 0 to 1.
+
+- `id`: integer; required
+- `limit`: integer; default 30
 
 ## session
 

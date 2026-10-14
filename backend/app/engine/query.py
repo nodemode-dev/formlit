@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shlex
@@ -285,6 +286,14 @@ def _free_text(words: list[str], args: list) -> str:
     return " AND ".join(parts) if parts else "1"
 
 
+def _described(text: str) -> list[tuple[int, float]]:
+    from app.ai import semantic
+    try:
+        return semantic.matches(str(text))
+    except Exception:
+        return []
+
+
 def like_under(path: str, sep: str = os.sep) -> str:
     return re.sub(r"([\^%_])", r"^\1", str(path)) + sep + "%"
 
@@ -358,7 +367,7 @@ def source_clause(cat: Catalog, source: dict, args: list) -> tuple[str, str | No
         if not ids:
             return "0", None
         args.extend(ids)
-        return f"p.id IN ({','.join('?' * len(ids))})", None
+        return f"p.id IN ({','.join('?' * len(ids))})", f"instr(',{','.join(map(str, ids))},', ',' || p.id || ',')"
     if kind == "rules":
         return compile_rules(source.get("rules", {}), args), None
     return "1", None
@@ -378,6 +387,9 @@ def filter_clause(flt: dict, args: list) -> str:
             parts.append(compile_rules({"match": "all", "rules": parsed["rules"]}, args))
         if parsed["free"]:
             parts.append(_free_text(parsed["free"], args))
+    if (flt.get("describe") or "").strip():
+        args.append(json.dumps([pid for pid, _ in _described(flt["describe"])]))
+        parts.append("p.id IN (SELECT value FROM json_each(?))")
     if flt.get("rating") not in (None, ""):
         op = {"gte": ">=", "eq": "=", "lte": "<=", ">=": ">=", "=": "=", "<=": "<="}.get(flt.get("ratingOp", ">="), ">=")
         args.append(int(flt["rating"]))
@@ -473,6 +485,9 @@ def query(cat: Catalog, source: dict | None = None, flt: dict | None = None, sor
         photos[int(r["id"])] = s
         if limit and len(ids) >= int(limit):
             break
+    if (flt.get("describe") or "").strip() and key == "relevance":
+        score = dict(_described(flt["describe"]))
+        ids.sort(key=lambda i: -score.get(i, -1.0))
     return {"ids": ids, "photos": photos, "total": len(ids)}
 
 
