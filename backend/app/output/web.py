@@ -154,9 +154,41 @@ def _mkdirs(f: ftplib.FTP, path: str) -> None:
             continue
 
 
+def _sftp_send(paths: list[Path], up: dict, progress: Callable[..., Any] | None) -> int:
+    import paramiko
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    known = Path.home() / ".ssh" / "known_hosts"
+    if up.get("trustNew"):
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(up["host"], port=int(up.get("port") or 22), username=up.get("user") or None, password=up.get("password") or None,
+                   key_filename=up.get("keyFile") or None, timeout=30, look_for_keys=not up.get("password"))
+    if up.get("trustNew") and known.parent.is_dir():
+        client.save_host_keys(str(known))
+    try:
+        sftp = client.open_sftp()
+        root = up.get("path") or "."
+        cur = ""
+        for part in [p for p in root.split("/") if p]:
+            cur = f"{cur}/{part}" if (cur or root.startswith("/")) else part
+            try:
+                sftp.stat(cur)
+            except OSError:
+                sftp.mkdir(cur)
+        for i, p in enumerate(paths):
+            sftp.put(str(p), posixpath.join(root, p.name))
+            if progress is not None:
+                progress(i + 1, len(paths), f"Sending {i + 1} of {len(paths)}")
+    finally:
+        client.close()
+    return len(paths)
+
+
 def send_files(paths: list[Path], up: dict, progress: Callable[..., Any] | None = None) -> int:
     if not up.get("host"):
-        raise RuntimeError("Set an FTP host first")
+        raise RuntimeError("Set a server first")
+    if up.get("protocol") == "sftp":
+        return _sftp_send(paths, up, progress)
     f = _ftp(up)
     root = up.get("path") or "/"
     try:

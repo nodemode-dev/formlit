@@ -12,5 +12,6 @@ exifread
 tifffile
 imagecodecs
 reportlab
+paramiko
 ptyprocess
 onnxruntime
