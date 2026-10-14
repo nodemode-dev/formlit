@@ -734,10 +734,11 @@ def ai_astro_stack(ids: Any = None, align: bool = True, reject: str = "sigma", g
                                                     "flashAmount": {"type": "number", "description": "0 to 100: how much of the room's light comes from the flash frame"},
                                                     "colorAmount": {"type": "number", "description": "0 to 100: how much of the room's colour comes from the flash frame"},
                                                     "windowPull": {"type": "boolean"}, "windowEv": {"type": "number", "description": "stops the window view sits above the room's midtone, -1 to 3"},
+                                                    "perWindow": {"type": "boolean", "description": "each window gets its own exposure (default); off uses one exposure for all"},
                                                     "autoTone": {"type": "boolean"}, "createStack": {"type": "boolean"}, "wait": {"type": "boolean"}},
          description="Real estate and interiors: blends a bracket shot from a tripod into one linear DNG. The ambient frames are merged as HDR; a flash frame, if there is one, gives the room clean colour (luminosity from the ambient light, colour from the flash, the flambient method); windows are found as the areas far brighter than the room and pulled from the darker frames in darken mode, so window frames and mullions stay and flash reflections on the glass go.")
 def ai_flash_blend(ids: Any = None, flash: int | None = None, flashAmount: float = 50.0, colorAmount: float = 100.0, windowPull: bool = True, windowEv: float = 1.0,
-                   autoTone: bool = True, createStack: bool = False, wait: bool = False) -> dict:
+                   autoTone: bool = True, createStack: bool = False, perWindow: bool = True, wait: bool = False) -> dict:
     from app.ai import flash as flash_mod
     pids = resolve_ids(ids)
     fid = int(flash) if flash is not None else None
@@ -768,7 +769,7 @@ def ai_flash_blend(ids: Any = None, flash: int | None = None, flashAmount: float
         if fl is not None and fl.shape[:2] != imgs[0].shape[:2]:
             raise CommandError("The flash frame is not the same size as the ambient frames")
         out, report = flash_mod.blend(imgs, factors if all(factors) else [None] * len(imgs), fl, flashAmount, colorAmount, windowEv, windowPull,
-                                      lambda a, b, label: progress(len(pids) + a, len(pids) + 4, label))
+                                      lambda a, b, label: progress(len(pids) + a, len(pids) + 4, label), bool(perWindow))
         ref = amb_ids[int(np.argsort([float(np.median(i)) for i in imgs])[len(imgs) // 2])]
         target = _out_path(ref, "Blend")
         dng.write_linear_dng(target, out, {**infos[ref], "raw": True, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (ref,)))

@@ -38,7 +38,7 @@ def windows(radiance: np.ndarray, room: float, stops: float = 2.0) -> np.ndarray
 
 
 def blend(ambients: list[np.ndarray], factors: list[float | None], flash: np.ndarray | None, flash_amount: float = 50.0, color_amount: float = 100.0,
-          window_ev: float = 1.5, pull: bool = True, progress=None) -> tuple[np.ndarray, dict]:
+          window_ev: float = 1.5, pull: bool = True, progress=None, per_window: bool = True) -> tuple[np.ndarray, dict]:
     say = progress or (lambda a, b, label: None)
     amb = merge.hdr(ambients, factors, "off", None, True) if len(ambients) > 1 else ambients[0].astype(np.float32)
     say(1, 4, "Merging the ambient frames")
@@ -61,13 +61,23 @@ def blend(ambients: list[np.ndarray], factors: list[float | None], flash: np.nda
         out = chroma * y[..., None]
         report["flashScale"] = round(k, 4)
     if pull and report["windows"] > 0:
-        sel = win > 0.5
-        y_win, y_top = float(np.median(ya[sel])), float(np.percentile(ya[sel], 97))
-        g = min(room * 2.0 ** window_ev / max(y_win, 1e-6), room * 4.5 / max(y_top, 1e-6), 1.0)
-        p = amb * g
+        n, lab = cv2.connectedComponents((win > 0.05).astype(np.uint8), connectivity=8)
+        gain = np.ones(ya.shape, np.float32)
+        gains = []
+        for i in range(1, n if per_window else 2):
+            region = (lab == i) if per_window else (lab > 0)
+            sel = region & (win > 0.5)
+            if sel.sum() < 16:
+                continue
+            y_win, y_top = float(np.median(ya[sel])), float(np.percentile(ya[sel], 97))
+            g = min(room * 2.0 ** window_ev / max(y_win, 1e-6), room * 4.5 / max(y_top, 1e-6), 1.0)
+            gain[region] = g
+            gains.append(round(float(np.log2(max(g, 1e-9))), 2))
+        p = amb * gain[..., None]
         glow = np.clip(np.log2(ya / room) - 1.5, 0.0, 1.0)
         m = np.maximum(core, win * glow)[..., None]
         out = out * (1.0 - m) + np.minimum(out, p) * m
-        report["windowGain"] = round(float(np.log2(max(g, 1e-9))), 2)
+        report["windowGain"] = min(gains) if gains else 0.0
+        report["windowGains"] = gains
     say(4, 4, "Blending")
     return np.maximum(out, 0.0).astype(np.float32), report

@@ -94,11 +94,12 @@ export function registerAiCommands(ctx: Ctx): void {
         { path: 'colorAmount', label: 'Colour from flash', kind: 'range', min: 0, max: 100, step: 1 },
         { path: 'windowPull', label: 'Pull the windows', kind: 'check' },
         { path: 'windowEv', label: 'Window stops', kind: 'range', min: -1, max: 3, step: 0.5 },
+        { path: 'perWindow', label: 'Each window its own exposure', kind: 'check' },
         { path: 'autoTone', label: 'Auto tone', kind: 'check' },
         { path: 'createStack', label: 'Create stack', kind: 'check' },
-      ], { flash: '', flashAmount: 50, colorAmount: 100, windowPull: true, windowEv: 1, autoTone: true, createStack: false }, 'Blend');
+      ], { flash: '', flashAmount: 50, colorAmount: 100, windowPull: true, windowEv: 1, perWindow: true, autoTone: true, createStack: false }, 'Blend');
       if (!v) return;
-      await run(ctx, 'ai.flashBlend', { ids, ...(v.flash ? { flash: Number(v.flash) } : {}), flashAmount: Number(v.flashAmount), colorAmount: Number(v.colorAmount), windowPull: !!v.windowPull, windowEv: Number(v.windowEv), autoTone: !!v.autoTone, createStack: !!v.createStack }, `Blending ${ids.length} frames`);
+      await run(ctx, 'ai.flashBlend', { ids, ...(v.flash ? { flash: Number(v.flash) } : {}), flashAmount: Number(v.flashAmount), colorAmount: Number(v.colorAmount), windowPull: !!v.windowPull, windowEv: Number(v.windowEv), perWindow: !!v.perWindow, autoTone: !!v.autoTone, createStack: !!v.createStack }, `Blending ${ids.length} frames`);
     } },
     { id: 'photo.retouchSkin', label: 'Retouch Skin...', enabled: has, run: async () => {
       const ids = library.targets();
