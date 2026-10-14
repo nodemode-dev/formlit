@@ -45,6 +45,7 @@ export class MaskTool implements Tool {
   cursor = 'crosshair';
   private sel = -1;
   private comp = 0;
+  private ghost: Mask[] | null = null;
   private showOverlay = true;
   private drag: { kind: string; start: Pt; orig: Shape; handle: string; strokeIndex?: number } | null = null;
   private brush = { size: 0.03, feather: 60, flow: 80, density: 100, auto: false, erase: false };
@@ -214,9 +215,19 @@ export class MaskTool implements Tool {
     return this.showOverlay && m ? { mask: m.id, opacity: 0.45 } : null;
   }
 
-  private masks(): Mask[] { return clone((develop.settings.masks as Mask[] | undefined) ?? []); }
+  private masks(): Mask[] { return clone(this.ghost ?? (develop.settings.masks as Mask[] | undefined) ?? []); }
+
+  private ghostStart(shape: Shape, op: 'new' | Op): () => void {
+    const keep = [this.sel, this.comp];
+    const g = this.masks();
+    this.place({ ...shape, label: `${NAMES[shape.kind] ?? shape.kind} (finding)` }, op, g);
+    this.ghost = g;
+    this.sync();
+    return () => { this.ghost = null; [this.sel, this.comp] = keep; };
+  }
 
   private write(masks: Mask[], phase: 'drag' | 'end', label: string): void {
+    if (this.ghost) return;
     const tidy = (v: unknown): unknown => typeof v === 'number' ? Math.round(v * 1e5) / 1e5 : Array.isArray(v) ? v.map(tidy) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, tidy(x)])) : v;
     if (phase === 'end') masks = tidy(masks) as Mask[];
     develop.patch('masks', masks.length ? masks : null, phase, label);
@@ -287,6 +298,12 @@ export class MaskTool implements Tool {
     if (a === 'invert') { m.invert = !m.invert; this.write(masks, 'end', 'Invert Mask'); }
     if (a === 'delete') { masks.splice(this.sel, 1); this.sel = Math.min(this.sel, masks.length - 1); this.comp = 0; this.write(masks, 'end', 'Delete Mask'); }
     if (a === 'dup') { const copy = clone(m); copy.id = this.nextId(masks); copy.name = `${m.name} Copy`; masks.push(copy); this.sel = masks.length - 1; this.write(masks, 'end', 'Duplicate Mask'); }
+    if (a === 'edge') { void this.toggleEdge(); return; }
+    if (a === 'edge-reset') {
+      const c = m.components[this.comp];
+      if (c) { delete c.shape.outline; this.edgeEd = null; this.host.ctx.shell.setHint(''); this.write(masks, 'end', 'Reset Mask Edge'); }
+      return;
+    }
     const op = t.closest<HTMLElement>('[data-compop]');
     if (op) {
       const c = m.components[this.comp];
@@ -414,11 +431,13 @@ export class MaskTool implements Tool {
       const id = develop.id;
       if (id === null) return;
       const done = this.host.ctx.shell.busy(`Detecting ${NAMES[kind].toLowerCase()}`);
+      const unghost = this.ghostStart(shape, op);
       try {
         await develop.flush();
         const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: kind === 'depthRange' ? 'depth' : kind });
         shape = kind === 'depthRange' ? { ...shape, bitmap: (r.shape.bitmap as string) ?? 'depth' } : r.shape;
-      } catch (err) { this.host.ctx.fail(err, NAMES[kind]); return; } finally { done(); }
+      } catch (err) { unghost(); this.sync(); this.host.ctx.fail(err, NAMES[kind]); return; } finally { done(); }
+      unghost();
     }
     const masks = this.masks();
     this.place(shape, op, masks);
@@ -449,6 +468,8 @@ export class MaskTool implements Tool {
       update,
     });
     const { m, c } = this.current();
+    if (this.edgeEd && this.edgeEd.key !== this.edgeKey()) { this.edgeEd = null; this.host.ctx.shell.setHint(''); }
+    setClass(this.root, 'is-finding', !!this.ghost);
     setHidden(this.adjust, !m);
     setHidden(this.curveBox, !m);
     if (m) this.curve.sync();
@@ -478,7 +499,8 @@ export class MaskTool implements Tool {
     if (s.kind === 'brush') return this.current().c?.op === 'refine' ? '<div class="fl-muted">Paint over hair, fur or a soft edge: the mask follows the photo\'s edges where you paint. Hold Alt to erase.</div>' : '<div class="fl-muted">Paint on the photo. Hold Alt to erase.</div>';
     if (BITMAP_KINDS.has(s.kind)) {
       const edge = (key: string, label: string, min: number, title: string) => `<label class="fl-opt" title="${title}"><span>${label}</span><input class="cv-slider" type="range" min="${min}" max="100" step="1" value="${Math.round(Number(s[key] ?? 0))}" data-shape="${key}" data-int></label>`;
-      return edge('refine', 'Refine Edge', 0, 'Snaps the mask edge to the edges in the photo, for hair and soft outlines') + edge('shift', 'Shift Edge', -100, 'Grows the mask outward or shrinks it inward, up to 2 percent of the long side') + edge('feather', 'Feather', 0, 'Softens the mask edge, up to 3 percent of the long side');
+      return edge('refine', 'Refine Edge', 0, 'Snaps the mask edge to the edges in the photo, for hair and soft outlines') + edge('shift', 'Shift Edge', -100, 'Grows the mask outward or shrinks it inward, up to 2 percent of the long side') + edge('feather', 'Feather', 0, 'Softens the mask edge, up to 3 percent of the long side')
+        + `<div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm${this.edgeEd ? ' is-on' : ''}" type="button" data-a="edge" title="Show the mask outline as dots: drag a dot to move the edge, click the outline to add a dot, Alt-click a dot to remove it">Edit Edge Points</button><button class="cv-btn fl-btn-sm" type="button" data-a="edge-reset"${s.outline ? '' : ' disabled'}>Reset Edge</button></div>`;
     }
     return '';
   }
@@ -506,6 +528,96 @@ export class MaskTool implements Tool {
 
   private stage(v: Vec): [number, number] { return this.host.view.normToStage(v[0], v[1]); }
 
+  private edgeEd: { key: string; polys: Vec[][]; orig: Vec[][]; sig: number; drag: { p: number; i: number } | null } | null = null;
+
+  private edgeKey(): string {
+    const { c } = this.current();
+    return c && BITMAP_KINDS.has(c.shape.kind) ? `${this.sel}:${this.comp}:${String(c.shape.bitmap ?? '')}` : '';
+  }
+
+  private async toggleEdge(): Promise<void> {
+    if (this.edgeEd) { this.edgeEd = null; this.host.ctx.shell.setHint(''); this.sync(); this.host.view.draw(); return; }
+    const { c } = this.current();
+    const key = this.edgeKey();
+    if (!c || !key || develop.id === null) return;
+    const saved = c.shape.outline as { edit?: Vec[][]; orig?: Vec[][]; sig?: number } | undefined;
+    try {
+      const r = saved?.edit && saved.orig && saved.sig !== undefined ? { polys: saved.edit, orig: saved.orig, sig: saved.sig }
+        : await this.host.ctx.api.cmd<{ polys: Vec[][]; sig: number }>('develop.maskOutline', { id: develop.id, bitmap: String(c.shape.bitmap) }).then((x) => ({ ...x, orig: clone(x.polys) }));
+      if (this.edgeKey() !== key) return;
+      this.edgeEd = { key, polys: clone(r.polys), orig: r.orig, sig: r.sig, drag: null };
+      this.host.ctx.shell.setHint('Drag a dot to move the edge, click the outline to add a dot, Alt-click a dot to remove it');
+      this.sync();
+      this.host.view.draw();
+    } catch (err) { this.host.ctx.fail(err, 'Edge Points'); }
+  }
+
+  private edgeCommit(phase: 'drag' | 'end'): void {
+    const e = this.edgeEd;
+    const { masks, c } = this.current();
+    if (!e || !c) return;
+    c.shape.outline = { orig: e.orig, edit: e.polys, sig: e.sig };
+    this.host.view.setDragging(phase === 'drag');
+    if (phase === 'end') this.write(masks, 'end', 'Mask Edge Points'); else develop.patch('masks', masks, 'drag', 'Mask Edge Points');
+  }
+
+  private edgeDown(p: Pt): boolean {
+    const e = this.edgeEd;
+    if (!e) return false;
+    for (let pi = 0; pi < e.polys.length; pi++) {
+      const poly = e.polys[pi];
+      for (let i = 0; i < poly.length; i++) {
+        const s = this.stage(poly[i]);
+        if (Math.hypot(s[0] - p.sx, s[1] - p.sy) > 7) continue;
+        if (p.e.altKey) { if (poly.length > 3) { poly.splice(i, 1); this.edgeCommit('end'); } return true; }
+        e.drag = { p: pi, i };
+        return true;
+      }
+    }
+    for (let pi = 0; pi < e.polys.length; pi++) {
+      const poly = e.polys[pi];
+      for (let i = 0; i < poly.length; i++) {
+        const a = this.stage(poly[i]), b = this.stage(poly[(i + 1) % poly.length]);
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((p.sx - a[0]) * dx + (p.sy - a[1]) * dy) / Math.max(1e-6, dx * dx + dy * dy)));
+        if (Math.hypot(a[0] + t * dx - p.sx, a[1] + t * dy - p.sy) > 6) continue;
+        poly.splice(i + 1, 0, [p.nx, p.ny]);
+        e.drag = { p: pi, i: i + 1 };
+        this.host.view.draw();
+        return true;
+      }
+    }
+    return true;
+  }
+
+  private drawEdge(c: CanvasRenderingContext2D): void {
+    const e = this.edgeEd;
+    if (!e) return;
+    c.save();
+    c.lineWidth = 1.25;
+    c.strokeStyle = 'rgba(255,255,255,0.9)';
+    for (const poly of e.polys) {
+      c.beginPath();
+      poly.forEach((v, i) => { const s = this.stage(v); if (i) c.lineTo(s[0], s[1]); else c.moveTo(s[0], s[1]); });
+      c.closePath();
+      c.stroke();
+    }
+    c.shadowBlur = 0;
+    for (const poly of e.polys) {
+      for (const v of poly) {
+        const s = this.stage(v);
+        c.beginPath();
+        c.arc(s[0], s[1], 3.5, 0, Math.PI * 2);
+        c.fillStyle = '#fff';
+        c.fill();
+        c.lineWidth = 1;
+        c.strokeStyle = 'rgba(0,0,0,0.75)';
+        c.stroke();
+      }
+    }
+    c.restore();
+  }
+
   hover(p: Pt | null): void { this.hoverPt = p; if (this.current().c?.shape.kind === 'brush') this.host.view.draw(); }
 
   private box: { a: Pt; b: Pt } | null = null;
@@ -516,16 +628,19 @@ export class MaskTool implements Tool {
     const click = Math.abs(a.sx - b.sx) <= 6 && Math.abs(a.sy - b.sy) <= 6;
     const prompt = click ? { points: [[b.nx, b.ny]] } : { box: [Math.min(a.nx, b.nx), Math.min(a.ny, b.ny), Math.max(a.nx, b.nx), Math.max(a.ny, b.ny)] };
     const done = this.host.ctx.shell.busy('Selecting the object');
+    const unghost = this.ghostStart({ kind: 'object' }, this.pendingOp);
     try {
       await develop.flush();
       const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', ...prompt });
+      unghost();
       const masks = this.masks();
       this.place(r.shape, this.pendingOp, masks);
       this.write(masks, 'end', 'Mask: Objects');
-    } catch (err) { this.host.ctx.fail(err, 'Objects'); } finally { done(); }
+    } catch (err) { unghost(); this.sync(); this.host.ctx.fail(err, 'Objects'); } finally { done(); }
   }
 
   down(p: Pt): boolean {
+    if (this.edgeEd && this.edgeEd.key === this.edgeKey()) return this.edgeDown(p);
     if (this.pickPoint && this.current().m) {
       void this.addPoint(p).then(() => { if (!this.pickPoint) this.host.ctx.shell.setHint(''); });
       return true;
@@ -599,6 +714,13 @@ export class MaskTool implements Tool {
 
   move(p: Pt): void {
     if (this.box) { this.box.b = p; return; }
+    if (this.edgeEd?.drag) {
+      const d = this.edgeEd.drag;
+      this.edgeEd.polys[d.p][d.i] = [p.nx, p.ny];
+      this.edgeCommit('drag');
+      this.host.view.draw();
+      return;
+    }
     const d = this.drag;
     if (!d) return;
     const { masks, c } = this.current();
@@ -630,6 +752,7 @@ export class MaskTool implements Tool {
   }
 
   up(): void {
+    if (this.edgeEd?.drag) { this.edgeEd.drag = null; this.edgeCommit('end'); return; }
     if (this.box) {
       const { a, b } = this.box;
       this.box = null;
@@ -708,6 +831,7 @@ export class MaskTool implements Tool {
       c.setLineDash([]);
     }
     c.restore();
+    if (this.edgeEd && this.edgeEd.key === this.edgeKey()) this.drawEdge(c);
     setClass(this.root, 'has-mask', !!m);
   }
 }

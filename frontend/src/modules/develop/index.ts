@@ -158,6 +158,7 @@ class DevelopModule {
     const id = library.active;
     const p = library.photo(id) ?? null;
     if (develop.id !== id) {
+      this.view.setPhoto(p, false);
       try { await develop.open(id); } catch (err) { this.ctx.fail(err); }
     }
     this.view.setPhoto(p);

@@ -152,6 +152,7 @@
 .fl-mask-new:hover { border-color: var(--accent-line); color: var(--text-primary); }
 .fl-mask-new .icon { color: var(--accent-color); }
 .fl-mask-comp { display: flex; flex-direction: column; gap: 2px; }
+.fl-masks.is-finding :is(.fl-mask-list, .fl-mask-grid, .fl-mask-comp, .fl-mask-adjust, .fl-mask-curve, .fl-mask-points, .fl-row-end) { pointer-events: none; opacity: 0.55; }
 .fl-mask-addrow .cv-icon-btn { width: 24px; height: 24px; }
 .fl-layers-body { display: flex; flex-direction: column; gap: 8px; }
 .fl-layer-banner { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--accent-line); border-radius: 6px; background: var(--accent-wash); color: var(--text-primary); font-size: var(--fs-11); }

@@ -2,6 +2,7 @@ import { api } from '../../io/api';
 import { develop } from '../../state/develop';
 import { library, type Photo } from '../../state/library';
 import { el, pendingClass, q, setClass, setHidden, setStyleVar, setText, type Disposer } from '../../ui/dom';
+import { thumbUrl } from '../../ui/thumbs';
 import { icon } from '../../ui/icons';
 
 export interface Geo { norm: number[]; w: number; h: number; ow: number; oh: number; rect: number[]; angle: number; flipH: boolean; flipV: boolean }
@@ -29,12 +30,13 @@ class Img {
   readonly el: HTMLImageElement;
   url = '';
   constructor(cls: string) { this.el = el<HTMLImageElement>(`<img class="${cls}" alt="" draggable="false">`); }
-  async swap(blob: Blob): Promise<boolean> {
+  async swap(blob: Blob, still?: () => boolean): Promise<boolean> {
     const url = URL.createObjectURL(blob);
     const probe = new Image();
     probe.decoding = 'async';
     probe.src = url;
     try { await probe.decode(); } catch { URL.revokeObjectURL(url); return false; }
+    if (still && !still()) { URL.revokeObjectURL(url); return false; }
     const old = this.url;
     this.url = url;
     this.el.src = url;
@@ -81,6 +83,7 @@ export class DevelopView {
   private pending: Disposer | null = null;
   private aspect = 1.5;
   private shown: number | null = null;
+  private thumbOf: number | null = null;
   onRendered: ((img: HTMLImageElement) => void) | null = null;
   onZoom: ((z: Zoom) => void) | null = null;
   onError: ((err: unknown) => void) | null = null;
@@ -100,7 +103,7 @@ export class DevelopView {
     this.pointer();
   }
 
-  setPhoto(p: Photo | null): void {
+  setPhoto(p: Photo | null, render = true): void {
     const changed = p?.id !== this.photo?.id;
     this.photo = p;
     if (changed) {
@@ -109,10 +112,11 @@ export class DevelopView {
       this.geo = null;
       this.beforeFor = '';
       this.region.el.hidden = true;
-      this.aspect = p?.a || 1.5;
+      this.aspect = p?.a || (p?.w && p?.h ? p.w / p.h : 1.5);
       this.place();
+      if (p) void this.placeholder(p);
     }
-    this.schedule();
+    if (render) this.schedule();
   }
 
   setTool(t: Tool | null): void {
@@ -208,7 +212,7 @@ export class DevelopView {
 
   private place(): void {
     const r = this.displayRect();
-    if (this.shown === (this.photo?.id ?? null) || !this.base.el.classList.contains('is-loaded')) {
+    if (this.shown === (this.photo?.id ?? null) || this.thumbOf === (this.photo?.id ?? null) || !this.base.el.classList.contains('is-loaded')) {
       for (const [k, v] of [['--x', r.x], ['--y', r.y], ['--w', r.w], ['--h', r.h]] as Array<[string, number]>) setStyleVar(this.box, k, `${Math.round(v)}px`);
     }
     const p = this.panes();
@@ -269,6 +273,19 @@ export class DevelopView {
     if (t) Object.assign(overlay, t);
     const hdr = this.hdr === 'display' && (this.dragging || 'region' in extra || t) ? '' : this.hdr;
     return { settings: develop.settings, view: 'develop', crop: !this.tool?.uncropped, quality: this.dragging ? 80 : 90, overlay: Object.keys(overlay).length ? overlay : undefined, ...(hdr ? { hdr } : {}), ...extra };
+  }
+
+  private async placeholder(p: Photo): Promise<void> {
+    const still = (): boolean => this.photo?.id === p.id && this.shown !== p.id;
+    try {
+      const r = await fetch(thumbUrl(p));
+      if (!r.ok || !still()) return;
+      if (await this.base.swap(await r.blob(), still)) {
+        this.thumbOf = p.id;
+        setClass(this.base.el, 'is-loaded', true);
+        this.place();
+      }
+    } catch { this.thumbOf = null; }
   }
 
   private async run(): Promise<void> {
