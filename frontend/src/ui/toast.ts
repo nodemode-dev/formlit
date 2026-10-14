@@ -16,7 +16,7 @@ export function toast(text: string, kind: 'info' | 'error' = 'info'): void {
   }
   const node = el(`<div class="${cls}" role="status"></div>`);
   node.textContent = text;
-  root.appendChild(node);
-  while (root.children.length > 4) root.firstElementChild?.remove();
+  root.prepend(node);
+  while (root.children.length > 4) root.lastElementChild?.remove();
   timers.set(node, window.setTimeout(() => node.remove(), ms));
 }
