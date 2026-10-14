@@ -341,7 +341,8 @@ def book_layout(settings: dict | None = None) -> dict:
 PRINTERS = {
     "blurb": {"name": "Blurb", "upload": "https://www.blurb.com/pdf-to-book"},
     "lulu": {"name": "Lulu", "gutterBleed": True, "safe": 0.5, "upload": "https://www.lulu.com/create"},
-    "kdp": {"name": "Amazon KDP", "gutterBleed": False, "safe": 0.375, "minPages": 24, "upload": "https://kdp.amazon.com"},
+    "kdp": {"name": "Amazon KDP", "gutterBleed": False, "safe": 0.375, "minPages": 24, "upload": "https://kdp.amazon.com",
+            "gutter": ((150, 0.375), (300, 0.5), (500, 0.625), (700, 0.75), (10 ** 6, 0.875))},
     "ingramspark": {"name": "IngramSpark", "gutterBleed": False, "safe": 0.5, "lastBlank": True, "upload": "https://www.ingramspark.com"},
 }
 
@@ -355,6 +356,12 @@ def _printer_checks(lay: dict, spec: dict, interior: list[dict]) -> list[str]:
                     (t["x"] - b < safe or t["y"] - b < safe or (p["w"] - b) - (t["x"] + t["w"]) < safe or (p["h"] - b) - (t["y"] + t["h"]) < safe)})
     if close:
         notes.append(f"Text within {safe:g} in of the trim on page{'s' if len(close) > 1 else ''} {', '.join(map(str, close[:12]))}: {spec['name']} asks for that much margin")
+    if spec.get("gutter"):
+        inside = next(m for top, m in spec["gutter"] if len(interior) <= top)
+        near = sorted({p["number"] for p in interior for t in p.get("texts") or [] if str(t.get("text", "")).strip() and inside > safe and
+                       ((t["x"] - b) if p["number"] % 2 else ((p["w"] - b) - (t["x"] + t["w"]))) < inside})
+        if near:
+            notes.append(f"Text within {inside:g} in of the binding on page{'s' if len(near) > 1 else ''} {', '.join(map(str, near[:12]))}: {spec['name']} asks for an inside margin of {inside:g} in for {len(interior)} pages")
     return notes
 
 
