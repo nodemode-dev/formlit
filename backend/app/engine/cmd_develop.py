@@ -153,6 +153,25 @@ def sample_color(x: float, y: float, id: int | None = None, settings: dict | Non
             "chroma": round(float(np.hypot(lab[1], lab[2])), 5)}
 
 
+@command("develop.sampleDepth", "Sample Depth", {"id": {"type": "integer"}, "x": {"type": "number"}, "y": {"type": "number"}, "bitmap": {"type": "string"}}, mutates=False)
+def sample_depth(x: float, y: float, bitmap: str = "depth", id: int | None = None, settings: dict | None = None) -> dict:
+    import numpy as np
+    from app.develop.masks import load_bitmap
+    from app.develop.render import effective, plan
+    pid = int(id) if id is not None else resolve_ids("active")[0]
+    dev = settings if settings is not None else current(pid)[0]
+    img, _ = previews.source(pid)
+    sh, sw = img.shape[:2]
+    frame, w, h, _ = plan(sw, sh, effective(dev), 1024)
+    p = frame.norm_to_out(w, h) @ np.array([float(x), float(y), 1.0])
+    px, py = int(min(max(p[0], 0), w - 1)), int(min(max(p[1], 0), h - 1))
+    depth = load_bitmap(pid, bitmap or "depth", frame, w, h)
+    if not depth.any():
+        raise CommandError("No depth map yet: add the Depth Range mask first (it needs the depth model)")
+    d = float(np.median(depth[max(0, py - 3):py + 4, max(0, px - 3):px + 4]))
+    return {"depth": round(d, 4)}
+
+
 @command("lens.database", "Lens Profile Database", {"download": {"type": "boolean"}, "wait": {"type": "boolean"}})
 def lens_database(download: bool = False, wait: bool = False) -> dict:
     from app.engine import tasks

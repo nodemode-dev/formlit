@@ -495,7 +495,7 @@ export class MaskTool implements Tool {
     const range = (key: string, label: string, v: number) => `<label class="fl-opt"><span>${label}</span><input class="cv-slider" type="range" min="0" max="100" step="1" value="${Math.round(v * 100)}" data-shape="${key}"></label>`;
     if (s.kind === 'luminanceRange') return range('lo', 'Low', Number(s.lo ?? 0.5)) + range('hi', 'High', Number(s.hi ?? 1)) + range('loFeather', 'Low Feather', Number(s.loFeather ?? 0.1)) + range('hiFeather', 'High Feather', Number(s.hiFeather ?? 0.1));
     if (s.kind === 'edgeRange') return '<div class="fl-muted">Selects edges and fine detail, or flat areas with Invert, so sharpening, clarity or noise reduction land only where they help. A higher threshold keeps only strong edges.</div>' + range('lo', 'Edge Threshold', Number(s.lo ?? 0.35)) + range('loFeather', 'Feather', Number(s.loFeather ?? 0.1)) + range('detail', 'Fine Detail', Number(s.detail ?? 0.5)) + '<label class="fl-check fl-check-sm"><input type="checkbox" data-shape-invert> Invert (flat areas)</label>';
-    if (s.kind === 'depthRange') return range('lo', 'Near', Number(s.lo ?? 0)) + range('hi', 'Far', Number(s.hi ?? 0.4)) + range('feather', 'Feather', Number(s.feather ?? 0.1));
+    if (s.kind === 'depthRange') return '<div class="fl-muted">Click the photo to select that distance, Shift-click to widen it.</div>' + range('lo', 'Near', Number(s.lo ?? 0)) + range('hi', 'Far', Number(s.hi ?? 0.4)) + range('feather', 'Feather', Number(s.feather ?? 0.1));
     if (s.kind === 'colorRange') return `<div class="fl-muted">Click the photo to pick a color, Shift-click to add more.</div>${range('refine', 'Refine', Number(s.refine ?? 50) / 100)}`;
     if (s.kind === 'radial') return range('feather', 'Feather', Number(s.feather ?? 50) / 100) + '<label class="fl-check fl-check-sm"><input type="checkbox" data-shape-invert> Invert Radial</label>';
     if (s.kind === 'linear') return '<div class="fl-muted">Drag on the photo to set the gradient.</div>';
@@ -696,6 +696,10 @@ export class MaskTool implements Tool {
       void this.sampleColor(p);
       return true;
     }
+    if (s.kind === 'depthRange') {
+      void this.sampleDepth(p);
+      return true;
+    }
     return false;
   }
 
@@ -713,6 +717,23 @@ export class MaskTool implements Tool {
       c.shape.samples = samples;
       this.write(masks, 'end', 'Color Range');
     } catch (err) { this.host.ctx.fail(err, 'Color Range'); }
+  }
+
+  private async sampleDepth(p: Pt): Promise<void> {
+    const id = develop.id;
+    const bitmap = this.current().c?.shape.bitmap;
+    if (id === null) return;
+    const seq = ++this.seq;
+    try {
+      const r = await this.host.ctx.api.cmd<{ depth: number }>('develop.sampleDepth', { id, x: p.nx, y: p.ny, bitmap: typeof bitmap === 'string' ? bitmap : 'depth', settings: develop.settings });
+      if (seq !== this.seq) return;
+      const { masks, c } = this.current();
+      if (!c) return;
+      const span = p.e.shiftKey ? [Math.min(Number(c.shape.lo ?? r.depth), r.depth), Math.max(Number(c.shape.hi ?? r.depth), r.depth)] : [r.depth, r.depth];
+      c.shape.lo = Math.max(0, Math.round((span[0] - 0.06) * 1000) / 1000);
+      c.shape.hi = Math.min(1, Math.round((span[1] + 0.06) * 1000) / 1000);
+      this.write(masks, 'end', 'Depth Range');
+    } catch (err) { this.host.ctx.fail(err, 'Depth Range'); }
   }
 
   move(p: Pt): void {
