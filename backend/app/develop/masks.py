@@ -528,7 +528,23 @@ def _stroke(st, frame: Frame) -> tuple | None:
     feather = min(max(float(st.get("feather", STROKE["feather"])), 0.0), 100.0) / 100.0
     flow = min(max(float(st.get("flow", STROKE["flow"])), 1.0), 100.0) / 100.0
     density = min(max(float(st.get("density", STROKE["density"])), 0.0), 100.0) / 100.0
-    return pts, r, r * (1.0 - feather), flow, density, bool(st.get("erase")), bool(st.get("auto") or st.get("autoMask"))
+    return pts, r, r * (1.0 - feather), flow, density, bool(st.get("erase")), bool(st.get("auto") or st.get("autoMask")), bool(st.get("snap"))
+
+
+def _snap(buf: np.ndarray, rgb: np.ndarray, band: int) -> np.ndarray:
+    seeds = np.zeros(buf.shape, np.int32)
+    seeds[buf <= 0.02] = 1
+    seeds[buf >= 0.9 * float(buf.max())] = 2
+    if not (seeds == 1).any() or not (seeds == 2).any():
+        return buf
+    cv2.watershed(np.ascontiguousarray((np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)[..., ::-1]), seeds)
+    hard = (seeds == 2).astype(np.float32)
+    hard = np.minimum(cv2.GaussianBlur(hard, (0, 0), 0.8) * float(buf.max()), (buf > 0.0).astype(np.float32))
+    k = 2 * max(1, band) + 1
+    y = cv2.GaussianBlur(np.ascontiguousarray(rgb.mean(axis=2), np.float32), (0, 0), 1.0)
+    mag = np.hypot(cv2.Sobel(y, cv2.CV_32F, 1, 0, ksize=3), cv2.Sobel(y, cv2.CV_32F, 0, 1, ksize=3)) / 8.0
+    near = np.clip((cv2.dilate(mag, np.ones((k, k), np.uint8)) - 0.01) / 0.03, 0.0, 1.0)
+    return (buf * (1.0 - near) + hard * near).astype(np.float32)
 
 
 def _dabs(pts: np.ndarray, r: float, flow: float, aa: float) -> tuple[np.ndarray, np.ndarray]:
@@ -574,7 +590,7 @@ def _brush(strokes, frame: Frame, w: int, h: int, img: np.ndarray | None, gain: 
             continue
         if parsed is None:
             continue
-        pts, r, core, flow, density, erase, auto = parsed
+        pts, r, core, flow, density, erase, auto, snap = parsed
         centres, a = _dabs(pts, r, flow, aa)
         px = (centres - iso[:, 2]) @ inv.T
         reach = ext * (r + aa) + 1.0
@@ -591,6 +607,8 @@ def _brush(strokes, frame: Frame, w: int, h: int, img: np.ndarray | None, gain: 
                float(reach[1]), r, core, aa, a, lab, auto, AUTO_TOL[0], AUTO_TOL[1], AUTO_L_WEIGHT)
         if auto:
             buf = np.minimum(_guided(lab[..., 0], buf, max(1.0, AUTO_SMOOTH * r / aa), AUTO_EPS, GUIDED_FAST_DETAIL), foot)
+        if snap and img is not None:
+            buf = _snap(buf, tonemap_for_select(img[y0:y1, x0:x1] * np.float32(gain)), int((r - core) / aa))
         view = out[y0:y1, x0:x1]
         if erase:
             view *= 1.0 - np.float32(density) * buf
@@ -600,7 +618,7 @@ def _brush(strokes, frame: Frame, w: int, h: int, img: np.ndarray | None, gain: 
 
 
 def _brush_key(strokes: list, ctx: _Ctx) -> tuple[str, np.ndarray | None]:
-    auto = any(isinstance(st, dict) and (st.get("auto") or st.get("autoMask")) for st in strokes)
+    auto = any(isinstance(st, dict) and (st.get("auto") or st.get("autoMask") or st.get("snap")) for st in strokes)
     return _memo_key("brush", strokes, ctx.sig, ctx.ev if auto else 0.0), ctx.lin if auto else None
 
 

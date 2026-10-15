@@ -48,7 +48,7 @@ export class MaskTool implements Tool {
   private ghost: Mask[] | null = null;
   private showOverlay = true;
   private drag: { kind: string; start: Pt; orig: Shape; handle: string; strokeIndex?: number } | null = null;
-  private brush = { size: 0.03, feather: 60, flow: 80, density: 100, auto: false, erase: false };
+  private brush = { size: 0.03, feather: 60, flow: 80, density: 100, auto: false, snap: false, erase: false };
   private hoverPt: Pt | null = null;
   private pendingKind = '';
   private readonly root: HTMLElement;
@@ -252,8 +252,9 @@ export class MaskTool implements Tool {
       mk('b.feather', 'Feather', 0, 100, 60, (v) => { this.brush.feather = v; }),
       mk('b.flow', 'Flow', 1, 100, 80, (v) => { this.brush.flow = v; }),
       mk('b.density', 'Density', 1, 100, 100, (v) => { this.brush.density = v; }),
-      el('<div class="fl-row"><label class="fl-check fl-check-sm"><input type="checkbox" data-auto> Auto Mask</label><label class="fl-check fl-check-sm"><input type="checkbox" data-erase> Erase (Alt)</label></div>'));
+      el('<div class="fl-row"><label class="fl-check fl-check-sm"><input type="checkbox" data-auto> Auto Mask</label><label class="fl-check fl-check-sm" title="Stop the soft edge of the brush at the nearest strong edge in the photo"><input type="checkbox" data-snap> Edge Snap</label><label class="fl-check fl-check-sm"><input type="checkbox" data-erase> Erase (Alt)</label></div>'));
     q<HTMLInputElement>(this.brushOpts, '[data-auto]').addEventListener('change', (e) => { this.brush.auto = (e.target as HTMLInputElement).checked; });
+    q<HTMLInputElement>(this.brushOpts, '[data-snap]').addEventListener('change', (e) => { this.brush.snap = (e.target as HTMLInputElement).checked; });
     q<HTMLInputElement>(this.brushOpts, '[data-erase]').addEventListener('change', (e) => { this.brush.erase = (e.target as HTMLInputElement).checked; });
   }
 
@@ -684,7 +685,7 @@ export class MaskTool implements Tool {
     }
     if (s.kind === 'brush') {
       const strokes = (s.strokes as Array<Record<string, unknown>>) ?? [];
-      strokes.push({ points: [[p.nx, p.ny]], size: this.brush.size, feather: this.brush.feather, flow: this.brush.flow, density: this.brush.density, erase: this.brush.erase || p.e.altKey, auto: this.brush.auto || undefined });
+      strokes.push({ points: [[p.nx, p.ny]], size: this.brush.size, feather: this.brush.feather, flow: this.brush.flow, density: this.brush.density, erase: this.brush.erase || p.e.altKey, auto: this.brush.auto || undefined, snap: this.brush.snap || undefined });
       s.strokes = strokes;
       this.drag = { kind: 'brush', start: p, orig: s, handle: 'paint', strokeIndex: strokes.length - 1 };
       this.host.view.setDragging(true);
