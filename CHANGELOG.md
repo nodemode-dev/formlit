@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.45.2 · 2026-10-15
+
+### Note
+
+- **The generative Detail pass for Remove was built, measured and left out.** It uses the Stable Diffusion 1.5 inpainting model, checked against the original weights, refining LaMa's fill. On foliage with the true background known, every setting gave a softer fill than LaMa: texture 7.9 to 8.8 against LaMa's 8.8 in one test and 11.9 in the other, with the real photo at 13.9. It took about 2 minutes per fill instead of 4 to 21 seconds and needed a 4.3 GB download. Remove stays as it was.
+
 ## v0.45.1 · 2026-10-15
 
 ### Note
