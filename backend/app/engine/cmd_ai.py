@@ -885,7 +885,7 @@ def _plainness(fill: np.ndarray, hole: np.ndarray) -> float:
 
 
 def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool, seed: int = 0,
-               sample: np.ndarray | None = None) -> list[str]:
+               sample: np.ndarray | None = None, keep_lines: bool = False) -> list[str]:
     ys, xs = np.nonzero(full)
     if not len(xs):
         raise CommandError("Nothing to remove there")
@@ -938,6 +938,9 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
         else:
             noise = np.where((hole > 0)[..., None], np.roll(detail, (int(r * shift), int(r * shift)), (0, 1)) * 0.6, 0.0)
         lin = np.maximum(((np.sqrt(lin / peak) + noise) ** 2) * peak, 0.0)
+        if keep_lines:
+            from app.ai import lines_fill
+            lin, _ = lines_fill.carry(sampled[y0:y1, x0:x1], lin, hole > 0, r)
         if alpha:
             soft = cv2.GaussianBlur(hm, (0, 0), max(1.0, r * 0.15))
             lin = np.concatenate([lin, np.clip(np.maximum(soft, hm * 0.98), 0.0, 1.0)[..., None]], axis=-1)
@@ -1061,7 +1064,7 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
         sample[full > 0] = 0
         if sample.sum() < 255 * 64:
             raise CommandError("The sample area is too small or covers only the area being removed")
-    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect or shadows, seed=seed, sample=sample)
+    out = _fill_hole(pid, sampled, frame, w, h, full, r, variants, alpha=detect or shadows, seed=seed, sample=sample, keep_lines=bool(spot.get("keepLines")))
     return {"patch": out[0], "variants": out, "detected": detect, "shadows": extra, "seed": seed, "sampled": sample is not None}
 
 

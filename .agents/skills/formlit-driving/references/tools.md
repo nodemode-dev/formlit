@@ -573,6 +573,7 @@ Generative remove at a point (x, y from 0 to 1 across the photo): detect grows t
 - `sample_from`: array; [x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)
 - `sample_same_depth`: boolean; default false; copy only from parts of the photo at the same distance as the area around the object (needs the depth model)
 - `sample_same_surface`: boolean; default false; copy only from the surface the object sits on or against (wall, floor, sky, water), segmented around it (needs the objects model)
+- `keep_lines`: boolean; default false; carry straight lines and edges that cross the object (tile joints, railings, horizons, window frames) through the fill
 
 ## merge_flash_blend
 

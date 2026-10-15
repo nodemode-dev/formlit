@@ -85,6 +85,8 @@ def _remove(args: dict) -> dict:
     pid = int(args["id"])
     spot = {"points": [[float(args["x"]), float(args["y"])]], "size": float(args.get("size", 0.03)), "source": None, "feather": 0, "opacity": 100, "mode": "remove",
             "detect": bool(args.get("detect", True)), "shadows": bool(args.get("shadows", False)), "seed": int(args.get("seed", 0))}
+    if args.get("keep_lines"):
+        spot["keepLines"] = True
     if args.get("sample_same_surface"):
         spot["sampleFrom"] = "sameSurface"
     elif args.get("sample_same_depth"):
@@ -436,7 +438,8 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
             "detect": {"type": "boolean", "default": True}, "shadows": {"type": "boolean", "default": False}, "seed": {"type": "integer", "default": 0},
             "sample_from": {"type": "array", "items": {"type": "number"}, "description": "[x0, y0, x1, y1] from 0 to 1: copy only from this area (for example clean sky or plain wall)"},
             "sample_same_depth": {"type": "boolean", "default": False, "description": "copy only from parts of the photo at the same distance as the area around the object (needs the depth model)"},
-            "sample_same_surface": {"type": "boolean", "default": False, "description": "copy only from the surface the object sits on or against (wall, floor, sky, water), segmented around it (needs the objects model)"}}, ["id", "x", "y"]),
+            "sample_same_surface": {"type": "boolean", "default": False, "description": "copy only from the surface the object sits on or against (wall, floor, sky, water), segmented around it (needs the objects model)"},
+            "keep_lines": {"type": "boolean", "default": False, "description": "carry straight lines and edges that cross the object (tile joints, railings, horizons, window frames) through the fill"}}, ["id", "x", "y"]),
      _remove),
     (_tool("merge_flash_blend", "Real estate and interiors: blends a tripod bracket into one DNG. Ambient frames are merged as HDR; a flash frame gives the room clean colour (flambient: light from the ambient frames, colour from the flash); windows are pulled from the darker frames in darken mode so frames and mullions stay and flash reflections on glass go. flash names the flash frame (else the one tagged Flash fired); windowEv sets how many stops the view sits above the room. Check with get_preview.",
            {"ids": IDS, "flash": {"type": "integer"}, "flashAmount": {"type": "number", "default": 50}, "colorAmount": {"type": "number", "default": 100},
