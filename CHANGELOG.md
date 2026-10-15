@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.45.3 · 2026-10-15
+
+### Note
+
+- **Remove keeps LaMa after trying better models.** Two more models were built and measured in Remove on real photos where the true background is known. LCM DreamShaper (a faster diffusion model) made smooth blobs. MI-GAN (a texture model) was mixed: alone it gave colour blotches, and combined with LaMa's tone it was better in one of four cases, worse in one and even in two. MAT was ruled out by its non-commercial licence. Structure stays covered by Keep Lines, Same Surface and Same Depth.
+
 ## v0.45.2 · 2026-10-15
 
 ### Note
