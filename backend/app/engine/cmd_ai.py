@@ -884,6 +884,34 @@ def _plainness(fill: np.ndarray, hole: np.ndarray) -> float:
     return float(e[inside].mean() / max(1e-3, float(e[ring].mean()))) if inside.any() and ring.any() else 1.0
 
 
+def _sample_window(img: np.ndarray, sample: np.ndarray, shape: tuple, centre: tuple) -> np.ndarray:
+    m = (sample > 0).astype(np.float32)
+    h, w = m.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    near = np.hypot(yy - centre[0], xx - centre[1]) / float(np.hypot(h, w))
+    best = None
+    for f in (1.0, 0.5, 0.25):
+        wh, ww = max(8, min(h, int(shape[0] * f))), max(8, min(w, int(shape[1] * f)))
+        cover = cv2.boxFilter(m, -1, (ww, wh), normalize=True, borderType=cv2.BORDER_CONSTANT)
+        score = cover - 0.25 * near
+        score[:wh // 2, :] = -9.0
+        score[h - (wh - wh // 2) + 1:, :] = -9.0
+        score[:, :ww // 2] = -9.0
+        score[:, w - (ww - ww // 2) + 1:] = -9.0
+        cy, cx = np.unravel_index(int(np.argmax(score)), score.shape)
+        y0, x0 = int(cy) - wh // 2, int(cx) - ww // 2
+        best = (y0, x0, wh, ww)
+        if cover[cy, cx] >= 0.85:
+            break
+    y0, x0, wh, ww = best
+    win, mw = img[y0:y0 + wh, x0:x0 + ww].astype(np.float32), m[y0:y0 + wh, x0:x0 + ww]
+    if mw.min() < 1.0:
+        s = max(2.0, max(wh, ww) / 8.0)
+        fill = cv2.GaussianBlur(win * mw[..., None], (0, 0), s) / np.maximum(cv2.GaussianBlur(mw, (0, 0), s), 1e-4)[..., None]
+        win = np.where(mw[..., None] > 0, win, fill)
+    return win.astype(img.dtype)
+
+
 def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.ndarray, r: float, variants: int, alpha: bool, seed: int = 0,
                sample: np.ndarray | None = None, keep_lines: bool = False) -> list[str]:
     ys, xs = np.nonzero(full)
@@ -908,11 +936,14 @@ def _fill_hole(pid: int, sampled: np.ndarray, frame, w: int, h: int, full: np.nd
         x1, y1 = int(min(w, xs.max() + 1 + pad)), int(min(h, ys.max() + 1 + pad))
         crop = sampled[y0:y1, x0:x1]
         if sample is not None and len(sx):
-            src = sampled[int(sy.min()):int(sy.max()) + 1, int(sx.min()):int(sx.max()) + 1]
+            src = _sample_window(sampled, sample, crop.shape[:2], (float(ys.mean()), float(xs.mean())))
             reps = (-(-crop.shape[0] // src.shape[0]) + 1, -(-crop.shape[1] // src.shape[1]) + 1, 1)
             tiled = np.tile(np.concatenate([np.concatenate([src, src[:, ::-1]], 1), np.concatenate([src[::-1], src[::-1, ::-1]], 1)], 0), reps)
             oy, ox = int(rng.integers(0, src.shape[0])), int(rng.integers(0, src.shape[1]))
             ctx = tiled[oy:oy + crop.shape[0], ox:ox + crop.shape[1]]
+            ring = keep[y0:y1, x0:x1] & (full[y0:y1, x0:x1] == 0) & (sample[y0:y1, x0:x1] > 0)
+            if ring.sum() > 16:
+                ctx = ctx * (crop[ring].mean(0) / np.maximum(ctx[ring].mean(0), 1e-6))
             crop = np.where(keep[y0:y1, x0:x1, None], crop, ctx)
         peak = max(1e-6, float(np.percentile(crop, 99.5)))
         enc = np.sqrt(np.clip(crop / peak, 0.0, 1.0))
