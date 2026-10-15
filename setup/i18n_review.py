@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "frontend" / "src" / "i18n"
-PLAIN = ["keys.json", "keys2.json", "keys3.json", "keys5.json", "keys6.json", "keys10.json", "keys11.json", "keys12.json", "keys13.json", "keys14.json"]
+PLAIN = ["keys.json", "keys2.json", "keys3.json", "keys5.json", "keys6.json", "keys10.json", "keys11.json", "keys12.json", "keys13.json", "keys14.json", "keys15.json"]
 FIXES = ["keys7.json", "keys8.json", "keys9.json"]
 
 
