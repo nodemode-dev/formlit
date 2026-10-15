@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.45.1 · 2026-10-15
+
+### Note
+
+- **No generative fill for Remove, by decision.** A Stable Diffusion inpainting model steered by edge or depth maps (ControlNet) was researched. Its licence would allow it, but on a 2-core computer a fill takes about a minute even in fast mode, about 15 times LaMa, and it needs a 2.5 to 4 GB download. For removal it could only refine LaMa's fill: maps taken from the original photo still contain the object and would draw it back. Keep Lines and the Same Surface and Same Depth sample areas already cover the structure cases it was meant for. An opt-in Detail pass is written up for later.
+- Models with non-commercial or revenue-capped licences (FLUX.1 Fill dev, Stable Diffusion 3.5) were ruled out.
+
 ## v0.45.0 · 2026-10-15
 
 ### Added
