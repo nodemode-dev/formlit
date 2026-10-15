@@ -2,6 +2,425 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.45.0 · 2026-10-15
+
+### Added
+
+- **Pick a distance for a Depth Range mask by clicking the photo:** Near and Far are set around the depth where you click; Shift-click widens the range to take in another distance. The sliders stay for fine tuning.
+- The new hint, the message shown when there is no depth map yet and the command name are in all 25 languages.
+
+### Fixed
+
+- **Same Surface and Same Depth fills could pull in colour from the wrong place:** they copied from a box around the whole sampled area, which on a wall beside a window took in the bright window (a lighter disc on the wall, window colour smeared onto the sill). They now copy only from the sampled surface nearest the spot, matched to the tone around it.
+  - On a real wall with an object pasted onto it, Same Surface and Same Depth left cleaner texture than the plain fill (detail error 1.37 and 1.14 against 1.46; the plain fill leaves a visible smudge). Their overall tone is very slightly further off (3.8 and 3.6 against 2.3 on a 0 to 255 scale), which cannot be seen.
+
+### Note
+
+- Object masks that stop at edges were dropped from the plan: the object model's masks already follow edges, and Refine Edge, Shift Edge and edge points handle the cases where they do not.
+- This changelog now covers every version from v0.26.1 on; it had stopped at v0.26.0.
+
+## v0.44.0 · 2026-10-15
+
+### Added
+
+- **Keep Lines for Remove:** when an object you remove crosses a straight line (a window frame, a sill, a horizon edge) that continues on the far side, the line is rebuilt through the fill instead of breaking.
+  - It is a check box in the Sample from row of the Remove tool.
+  - On a tiled test with a known background it came closer to the truth than the plain fill (error 9.5 against 10.5). On a real window sill the frame corner stays sharp and a diffuser's reed is not carried across.
+- **Edge Snap for the mask brush:** the soft edge of a brush stroke stops at the nearest strong edge in the photo. It sits beside Auto Mask. On a flat photo it paints exactly like the plain brush.
+- **For agents:** `remove_object` takes `keep_lines`.
+- Both new labels are in all 25 languages.
+
+### Fixed
+
+- **Sample from appeared in Heal and Clone**, where it does nothing. It now shows only in Remove.
+
+### Note
+
+- Same Surface was checked on a real wall in v0.45.0, and Select by Depth arrived there as a click on the Depth Range mask.
+
+## v0.43.0 · 2026-10-14
+
+### Added
+
+- **Show Control Maps (View menu):** shows four views of how formlit reads the photo: edges, straight lines, depth and subject. Useful for seeing why a mask or a Remove fill behaves as it does.
+- **Remove can sample from the same surface:** Sample from now offers Same Surface, which finds the wall, floor, sky or water around the spot and fills from that surface only.
+- **For agents:** `get_control_maps` returns the four maps as images, and `remove_object` takes `sample_same_surface`.
+- **Translations complete:** everything added since v0.42.0 (678 preset names and descriptions, 42 groups, all new labels) is now in all 25 languages. Checked in the window in Czech, Thai, Danish, Hungarian, Finnish, Norwegian and Japanese.
+
+### Note
+
+- Translations have not been reviewed by native speakers.
+- Keep Lines for Remove and an edge-snapping brush were next on the list for this stage (both arrive in v0.44.0).
+
+## v0.42.2 · 2026-10-14
+
+### Added
+
+- **Second translation pass for the new presets:** the new preset names, groups and labels are in all 25 languages. The nine languages whose names had been assembled word by word in the previous pass (Czech, Danish, Finnish, Hungarian, Norwegian, Polish, Russian, Swedish, Ukrainian) were translated again phrase by phrase.
+- **Preset descriptions** are now in 19 languages.
+
+### Note
+
+- Preset descriptions still show in English in Czech, Danish, Norwegian, Finnish, Hungarian and Thai (finished in v0.43.0).
+- Checked in the window in Russian, Swedish, Polish, Hungarian, Finnish and Spanish; all 25 languages load.
+
+## v0.42.1 · 2026-10-14
+
+### Added
+
+- **First translation pass for the new presets:** names, groups and new labels in 16 languages, and descriptions in 7 (German, Japanese, Korean, both Chinese scripts, Turkish and Indonesian). Checked in German, Japanese and French.
+
+### Note
+
+- The names for Czech, Danish, Finnish, Hungarian, Norwegian, Polish, Russian, Swedish and Ukrainian were not shipped: they had been built from a word list in English word order and would read worse than English. They show in English until v0.42.2.
+- The remaining descriptions were still to do.
+
+## v0.42.0 · 2026-10-14
+
+### Added
+
+- **678 new built-in presets** (now 978, in 49 new groups): exposure steps, white balance by light source, black and white filters, toning, sharpening by subject and output, noise by sensor and ISO, grain, vignettes, lens fixes and looks for product, food, real estate and more. They come from three research passes over 83 distinct sources.
+  - **Checked:** every preset's settings are valid, and each was run on five test photos (portrait, two daylight, high contrast, night) without errors.
+- **Preset packs:** Import now takes zip packs (how most presets are sold and shared), and Export Group (in the preset context menu) saves a whole group as Lightroom-compatible XMP files in one zip. A group of 26 presets exported and imported back intact.
+- **Edge Range mask (in the mask Range menu):** selects by how strong the edges are, with Edge Threshold, Feather, Fine Detail and Invert (for flat areas). Use it to sharpen or add clarity only on edges, or to smooth only flat areas. Edge-only adjustments changed edges 24 times more than flat areas.
+- **Remove from the same depth:** Sample from now offers Same Depth, so a fill behind a person draws from the wall at that distance, not the floor in front.
+
+### Note
+
+- The new preset names, descriptions and labels showed in English in other languages until v0.42.1 to v0.43.0.
+- Some presets clip above 2 percent by design or on the wrong kind of photo (brightening steps and white-background product presets on a bright frame, astro presets on daylight frames, a noir preset that crushes shadows). Detail-only presets (sharpening, grain, defringe) leave tone unchanged on purpose.
+
+## v0.41.1 · 2026-10-14
+
+### Fixed
+
+- **Thumbnails grew when their picture arrived:** a portrait thumbnail started at 12 pixels and grew every cold load, nudging the layout. Thumbnails now take their final size before loading; two cold loads under a slow computer and slow network show no movement.
+
+### Note
+
+- This was a health pass with nothing else left open: code checks, the engine self-check, the agent tool reference, and all 25 languages loading were run.
+
+## v0.41.0 · 2026-10-14
+
+### Added
+
+- **Apply My Style now tunes itself to you:** for each control it picks the method that suits how you edit (match the most similar photos, match them and adjust for brightness, or use your average edit). It switches on from 24 edited photos up, since with fewer the choice was noise.
+  - On three synthetic photographers (30 photos), exposure error was 0.20, 0.24 and 0.10 stops, against 0.20, 1.09 and 1.15 before.
+- **Check My Style** now reports the method chosen per control and both errors.
+
+### Note
+
+- Not yet run on a real photographer's catalog, and native-speaker review of the translations is still open. A printer's own preflight of book files is also still to do.
+
+## v0.40.0 · 2026-10-14
+
+### Added
+
+- **Book files pass an independent preflight:** book PDFs are now PDF/X-1a:2001 and pass an open-source checker for IngramSpark, Lulu and KDP, interior and cover. A plain CMYK file fails it, as expected. Run it yourself with `./formlit preflight FILE...`.
+- **Check My Style (Photo menu):** measures how well Apply My Style would have predicted your own edits, against the average edit and against no edit. For agents: `check_my_style`.
+- **Language review round trip:** `./formlit i18n export` writes a sheet of every string a language shows, and `./formlit i18n import` loads a native speaker's corrections, which win over the built-in text. The 25 review sheets are ready.
+
+### Note
+
+- A certified Acrobat or callas run is still the printer-grade proof.
+- A public set of expert edits was considered for testing the learned style and not used because its licence is research only.
+
+## v0.39.0 · 2026-10-14
+
+### Added
+
+- **PDF/X-1a book files:** the Book module has a PDF/X-1a check box once a CMYK profile is chosen. Fonts are embedded (bundled Liberation fonts), the file carries the CMYK output intent, trim and bleed boxes, and passes its own self-check. IngramSpark and Lulu exports pass it.
+- **Develop terminology fixes:** 104 corrections across 22 languages, for example Hue and Tint no longer swapped or merged, Lens Blur's focus range and distance no longer called focal length, and Ukrainian Develop now reads обробка.
+
+### Fixed
+
+- **Shadows that pass behind the subject** and show above its head are now found as part of the object's shadow when you remove it (test overlap 0.00 to 0.45). A pole above the head is not taken.
+- **A small layout nudge at the end of Enhance** came from a thumbnail resizing when the list changed. It resized twice; it now resizes once, by a fraction of the size.
+
+### Note
+
+- A certified preflight, native-speaker review and a real photographer's catalog for the learned style are still open.
+
+## v0.38.0 · 2026-10-14
+
+### Added
+
+- **Each window gets its own exposure** in Flash and Window Blend. With a sunlit and a shaded window, one shared gain left the dim one 1.5 stops too dark; now both land where you want them.
+- **Send by SFTP after export** (alongside FTP): choose the protocol, port, a private key file, and Trust this server the first time. An unknown server is refused unless you trust it; a wrong password is refused.
+- **Sample from (Remove tool):** choose Anywhere, Above, Below, Left or Right, so a fill borrows texture from the side you point to.
+- **Book PDFs through a CMYK profile:** pick a CMYK profile in the Book module's Colour setting; images are converted and text uses the profile's colours, with pure black as black only. All 24 images of a test book came out CMYK.
+- **Low-sun shadows:** shadows cast by an object are found much better when long or cast away from the camera (test overlap 0.00 to 0.77 and 0.19 to 0.71), and a dark object beside the subject is no longer taken.
+- **Terminology fixes** for the 178 most visible strings (menus, panel titles) in 12 languages.
+
+### Fixed
+
+- **The packaged engine would have failed its self-check:** its build list had fallen behind and left out seven command modules. The build scripts now collect the whole app.
+
+### Note
+
+- The packaged engine was not built here.
+- Still open: PDF/X, native-speaker review, the learned style on a real catalog, and the end of Enhance on a large photo (Denoise did not finish within 7 minutes on the 2-core test machine).
+
+## v0.37.0 · 2026-10-14
+
+### Added
+
+- **Amazon KDP inside margin by page count** in the book printer checks, so text too close to the binding is flagged for your page count.
+- **Pick limit for proofing galleries:** the client gallery shows "N of LIMIT picked" and refuses another pick at the limit, so the client unpicks first.
+- **Send by FTP after export** (Post-Processing): server, user, password, remote folder and TLS. The password is never stored. Checked against a local FTP server.
+- **Plural forms by count in 25 languages** (for example Swedish 1 foto, 3 foton; Polish and Russian forms checked).
+
+### Fixed
+
+- **The People list shifted** when its faces arrived after the panel opened. It now loads at startup, and no shift was measured.
+- **Action toasts pushed the others up:** a finishing task's toast now goes on top without moving the rest.
+
+### Note
+
+- SFTP, a fresh full Enhance run, per-window flash exposure, Remove sample-from area, low-sun shadows and CMYK or PDF/X were not done in this version (several arrive in v0.38.0 to v0.40.0).
+
+## v0.36.0 · 2026-10-14
+
+### Added
+
+- **Apply My Style (Photo menu):** gives each photo the tone and presence settings of your edited photos most like it, with a choice of amount and which photos to learn from. One undo step. On a synthetic consistent photographer it was off by 0.25 stops of exposure, against 1.41 for no edit and 1.46 for the average edit.
+- **Smart collections can use "looks like":** the new Shows rule matches photos that look like (or do not look like) a description.
+- **Retouch Skin: Largest spot**, a limit on the size of blemish it will heal (as a percent of the face).
+- **For agents:** `apply_my_style`.
+
+### Fixed
+
+- **Filters now find photos inside collapsed stacks.**
+- **New toasts no longer push the earlier ones up the screen;** they stack on top.
+
+### Note
+
+- In Czech, Danish, Norwegian, Polish and Swedish a count still reads with the singular noun; a native check is open.
+- The new strings are in 25 languages; German was checked in the window.
+
+## v0.35.1 · 2026-10-14
+
+### Fixed
+
+- **Imports now start search indexing** for the photos they add, when the search model is installed. A new portrait was indexed within 15 seconds and came first for its description.
+
+## v0.35.0 · 2026-10-14
+
+### Added
+
+- **formlit speaks 26 languages,** English by default. Pick one under Language in Preferences. Menus are translated from the first paint, dates follow the chosen language, and the result was checked in German, Japanese, Thai and Finnish with no overflowing label in the set checked.
+- **Book PDFs for Lulu, Amazon KDP and IngramSpark** (Book module printer list): each printer's bleed and binding side, even page counts, IngramSpark's blank last page, and notes for too few pages or text near the trim. A 10 x 8 inch book becomes 10.25 x 8.25 for Lulu and 10.125 x 8.25 for KDP and IngramSpark.
+- **For agents:** `make_book` takes a printer.
+
+### Note
+
+- Names you type stay as typed, and some words inside sentences (book, slideshow, print, web) stay in English.
+- Languages with several plural forms use the singular in this version (fixed in v0.37.0).
+- Not covered yet: KDP's inside margin by page count, CMYK and PDF/X-1a, and each printer's spine formula.
+
+## v0.34.1 · 2026-10-14
+
+### Added
+
+- **Translation catalogs for 25 languages:** 2,726 strings written (Spanish, Mexican Spanish, Brazilian Portuguese, French, Canadian French, German, Italian, Dutch, Danish, Finnish, Norwegian, Swedish, Russian, Polish, Czech, Hungarian, Ukrainian, Turkish, both Chinese scripts, Japanese, Korean, Indonesian, Thai and Vietnamese). Exposure reads Belichtung, Exposition, 露光量 and 曝光度.
+
+### Note
+
+- The window still showed English only: switching language arrived in v0.35.0.
+- One term needed fixing (Russian Develop).
+
+## v0.34.0 · 2026-10-14
+
+### Added
+
+- **Shadows and Reflections option for Remove:** takes out the shadow an object casts and its reflection along with it. On test scenes the leftover error in the shadow area fell from about 0.5 to about 0.05 to 0.09. On a real photo the ball goes cleanly and the boot and sock stay.
+- **Detect Objects** keeps only the parts of the object your mark touched.
+- **For agents:** `remove_object`.
+
+### Fixed
+
+- **Refresh gave the same three fills every time.** It now really gives new ones.
+- **The Variations row pushed the drawer down** when a fill arrived. It no longer moves anything.
+
+### Note
+
+- Under a slow computer and network there was no layout shift and no page errors.
+
+## v0.33.0 · 2026-10-14
+
+### Added
+
+- **Flash and Window Blend (Photo menu):** for interiors, so windows are not cut out and pasted in. Ambient frames are merged, the room's brightness comes from them and its colour from the flash frame, and the windows are pulled in so the view outside stays natural.
+  - On two test brackets the interior colour error fell from 0.38 to 0.06 and 0.35 to 0.07, window detail correlation rose from 0.74 to 0.95 and 0.76 to 0.97 with nothing clipped, and the wall beside the window showed no halo.
+- **For agents:** `merge_flash_blend`.
+
+### Note
+
+- Not yet run on a real flash bracket (the tests used synthetic brackets made from real interior photos).
+
+## v0.32.0 · 2026-10-14
+
+### Added
+
+- **Retouch Skin (Photo menu):** smooths and cleans skin across a session in one step, with smooth, shine, heal blemishes, sensitivity and keep freckles and moles.
+  - Blemishes are found by how dark and red they are against the surrounding skin; eyes, nose and mouth are kept out; freckles and moles are kept.
+  - It makes a skin mask plus a heal spot for each blemish, as one undo step, and a rerun replaces its own edits.
+  - On six portraits, red spots fell from 35 to 5 on an acne portrait and 26 to 9 on a clear-skinned one. Freckles stayed on all three freckled faces. Fine texture dropped only 5 to 10 percent at smooth 40. About 5 seconds a photo.
+- **For agents:** `retouch_skin`.
+
+### Note
+
+- Marks larger than 3 percent of the face width are left alone, and faces that cannot be found are skipped.
+
+## v0.31.0 · 2026-10-14
+
+### Added
+
+- **Find photos by description:** a Describe tab in the Library Filter (Edit, Find by Description, Alt+Ctrl or Cmd+F) with indexing status and Install Model or Index Now. Results sort by Relevance, which sits in the sort list.
+  - It uses the Google SigLIP model (Apache-2.0). OpenAI CLIP was dropped because its model card puts deployed use out of scope.
+  - 50 photos indexed in 10.5 seconds, and 50,000 are searched in about 85 milliseconds.
+- **Find Similar Photos (Edit menu).**
+- **For agents:** `search_photos_by_description` and `find_similar_photos`.
+
+### Note
+
+- The model is a 213 MB download you install once.
+- On twelve test queries the compressed model ranked the same as the full one on 11 of 12; the twelfth was a tie between two right photos.
+
+## v0.30.2 · 2026-10-14
+
+### Fixed
+
+- **A bumpy ridge in a stacked time-lapse:** two faults were found. The sky line stepped by up to 12 pixels, and a moving camera (up to 7 pixels, with parallax) doubled the landscape's edges. The sky edge is now refined at full size, and the landscape is aligned to the middle frame with optical flow when it moved at least half a pixel.
+  - On a real time-lapse, pixels differing from the middle frame fell from 0.83 to 0.17 percent over the landscape, 13.5 to 0.3 percent on a slatted building, and 4.9 to 1.7 percent along the sky line. The ridge is straight, and star widths are unchanged.
+
+### Note
+
+- The dish's reflections (averaged as landscape) and one spot on its upper rim still differ.
+
+## v0.30.1 · 2026-10-14
+
+### Fixed
+
+- **Astro Stack on wide lenses:** stars at the edges of a wide frame did not line up, so they smeared. Stars are now picked across the whole frame, matched in six tiles, and corrected with a smooth warp. The sky is cut to regions that touch the top edge (a dish's reflection had been aligned as sky), and the ground area grows with the frame size (a dome edge had left a ghost).
+  - On a real 4K time-lapse, stars were found in every third of the frame (236 to 316 per frame) and are sharper stacked than single in each (for example 6.02 to 5.89 bottom left). The ten frames stacked in 67 seconds with the dish and dome sharp.
+
+### Note
+
+- Noise fell 1.82 times, not the theoretical 3.16, because video compression noise is shared between frames.
+
+## v0.30.0 · 2026-10-14
+
+### Added
+
+- **Client proofing without accounts (File, Export Proofing Gallery):** makes a self-contained gallery folder your client opens in any browser, from a file or any web host. They pick, reject, rate and comment, and send you a selections file with their name.
+- **Import Client Selections (File menu):** sets the flags, ratings and comments, and makes a collection of the picks. A wrong file is refused. Client comments appear in the Comments panel as threads without a reply box.
+- **For agents:** `proofing_gallery` and `import_client_selections`.
+- Checked in Chromium on a slow computer: picks, rejects, ratings and comments survived a reload, and it fits in two columns at phone width.
+
+### Fixed
+
+- **A finished toast pushed earlier toasts up** during the export and import. It no longer does (the same problem elsewhere was fixed in v0.36.0).
+
+### Note
+
+- Astro Stack was also checked on a real night-sky photo: alignment within 0.023 pixels on about 380 stars, sky noise halved, ground about 3 times cleaner and a satellite trail removed. The sky model is used both to make and to stack the test frames, so the horizon result flatters it.
+
+## v0.29.0 · 2026-10-14
+
+### Added
+
+- **Astro Stack (Photo menu, through the merge dialog):** stacks night-sky frames into a linear DNG.
+  - Stars are aligned frame to frame while hot pixels and satellite trails are ignored, and the sky and landscape are stacked separately so stars stay sharp and the ground does not smear. Frames are kept on disk so memory stays flat.
+  - On eight test frames, alignment was within 0.016 pixels, and sky error fell from 0.00392 (one frame) to 0.00126 stacked; a plain average reached only 0.00450. The satellite trail was removed.
+- **For agents:** `merge_astro_stack`.
+
+### Note
+
+- Not verified on real night-sky raws: no public sequence was reachable. The test set models star motion, noise, hot pixels and a trail, but not lens distortion, which grows toward the corners of wide lenses (addressed in v0.30.1).
+- Time: 46 seconds for 8 frames of 3.8 megapixels.
+
+## v0.28.0 · 2026-10-14
+
+### Added
+
+- **Sessions with tethering (Session panel above Catalog, plus File and Library menu commands):** a session is a folder with Capture, Selects, Trash and Output. Tethered shots go into the open session's Capture, exports default to its Output, and edits and ratings are saved into the folder within seconds, so a second computer can open it and get them back. Move to Selects is Alt+Shift+J, and Move Back to Capture undoes it.
+- **For agents:** `session` and `session_move`.
+
+### Fixed
+
+- **Re-importing an export applied the edits twice:** rendered exports used to carry the edit recipe. They no longer do.
+
+### Note
+
+- Not verified: a real tethered camera into a session, sessions on Windows paths, and very large sessions (the folder is scanned every 5 seconds).
+
+## v0.27.0 · 2026-10-14
+
+### Added
+
+- **A learned noise reducer in Enhance:** uses the SCUNet real-world model (77 MB, an optional download). Amount keeps a share of the removed noise as grain, and the old noise reducer remains when the model is not installed. The Enhance note names the one in use.
+  - On real smartphone noise at ISO 3200 to 10000 it scored 29.99 dB against the old denoiser's 26.80 (default) and 27.81 (full). A denoised DNG of an ISO 10000 crop keeps its brightness and crisp text, and tiles join seamlessly.
+
+### Note
+
+- It is slow: about 17 minutes for 16 megapixels on the 2-core test machine, as a background task with progress and Cancel. Faster on real machines and with CoreML, DirectML or CUDA.
+- Not verified on high-ISO raws from interchangeable-lens cameras (the raws available were ISO 80 to 400).
+- Two tiny layout shifts remain: the People list filling in and the new photo becoming active when Enhance finishes (both fixed in v0.37.0).
+
+## v0.26.3 · 2026-10-14
+
+### Added
+
+- **Edge points on AI masks:** each segment of an AI mask now has dots along its edge so a wrong edge can be fixed by hand. Under a mask component's edge sliders, choose Edit Edge Points, then drag a dot, click the outline to add one, or Alt-click a dot to remove it. Reset Edge puts the original back.
+  - Where dots are moved out the mask grows, where they are moved in it is cut, and where the outline is untouched the model's fine edge is kept. Holes stay holes.
+  - On a portrait's Subject mask there were 56 dots; a drag saved, adding made 57, removing made 56, and Reset worked.
+
+### Fixed
+
+- **The mask panel jumped when a model finished:** a placeholder entry now holds the panel's layout while an AI mask is being made.
+- **Develop showed the previous photo** for a moment after you opened a new one. It now switches at once and shows the new photo's thumbnail until the render arrives.
+
+### Note
+
+- Edge points are not a tool for agents yet (agents can still write an `outline` through `develop_set` masks).
+- Opening the People list still adds rows after detection, a very small shift below the fold.
+- The learned noise reducer was not started in this version (it arrives in v0.27.0).
+
+## v0.26.2 · 2026-10-14
+
+### Added
+
+- **Better hair, skin and clothes masks:** a new optional model labels hair, face skin, body skin and clothes. Hair now covers long hair on both sides, hair under a hood (not the hood), and short crops.
+- **Better people detection:** a second optional model finds each person, with a second pass on a crop around each one. It found 4 of 4 in a sunset group (the backlit person included), 8 of 8 on a bench, and nobody extra on a single portrait.
+- **Remove People uses the same people** as Detect People, so a person removed from a group takes the arm and leg with them. Removing one man from a group took head, both legs, arm and towel.
+
+### Fixed
+
+- **Generative Remove squeezed the whole photo** to 512 pixels on large photos. It now fills a crop around the hole, so detail is kept on photos over 768 pixels.
+
+### Note
+
+- A soft smear can remain beside a neighbour where the fill invents what was behind them. Ball removal is still clean.
+- The two models are downloads of 16 MB and 186 MB. Detect People takes about 15 seconds for four people and 30 seconds for eight on the 2-core test machine.
+- The two layout shifts logged in v0.26.1 were not fixed in this version (see v0.26.3).
+
+## v0.26.1 · 2026-10-14
+
+### Fixed
+
+- **Objects mask clicks selected the wrong thing:** a click was paired with an invented centre box, so a click outside the centre picked the wrong object. A click now selects the object under it (it used to need a drag).
+- **Detect People missed people facing away** and merged linked groups. It now finds 7 of 8 and 3 of 4, and keeps legs with their person.
+- **Culling scored a low-key portrait's exposure as 0.** It is now judged on the face (93.4).
+- **Enhanced DNGs from non-raw sources came out far too bright** (average brightness 100 to 161). They now match the source (100.6 and 99.9 against 100.4). The Focus Stack of a TIFF bracket from v0.25.0 had the same fault.
+
+### Note
+
+- This is the first time the model features were run on their real models (all eight installed and loaded). Working: sky on clear skies, people, subject, face skin, hair, lips, teeth, depth range, face detection (4 of 4), face recognition, generative remove of a ball, super resolution (sharper than bicubic) and object selection by box.
+- Correction to v0.26.0: the learned noise reducer was deferred for a reason that turned out to be wrong, as downloads were never blocked.
+- Known limits: the sky model counts a fog-filled valley as sky on one photo, landscape water covers only breaking waves, removing one person from an interlocked group leaves a hand and a leg, a laughing face can read as eyes closed, and super resolution takes 56 seconds for 0.19 megapixels on the 2-core test machine.
+- Two small layout shifts were measured and not yet fixed: an AI mask result growing the panel seconds after the click, and Develop correcting the image size shortly after load.
+
 ## v0.26.0 · 2026-10-14
 
 ### Added
