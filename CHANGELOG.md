@@ -2,6 +2,16 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.0 · 2026-10-20
+
+### Added
+
+- **A new app icon: a lens with an iris and bokeh.** The flat aperture with a white dot is redrawn as a lens in the Form family style: a gunmetal barrel, a seven-blade iris in the family colours lit from the top left, a deep violet opening, a glass reflection, and soft out-of-focus light discs around it. The same design is used everywhere: the Dock and taskbar icons, the mark inside the window, the browser tab icon and the startup splash. `assets/icon_src/` regenerates every size.
+
+### Not verified yet
+
+- The new icon has not been seen in a built desktop app on macOS, Windows or Linux; the files were checked against the design source only.
+
 ## v0.45.3 · 2026-10-15
 
 ### Note
