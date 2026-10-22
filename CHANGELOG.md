@@ -2,6 +2,18 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.1 · 2026-10-22
+
+### Changed
+
+- Releases are built by formcompiler (`nodemode-ai/formcompiler`), the release pipeline for every form* app, and published on its release page as `formlit-vX.Y.Z`. formlit's own GitHub Actions now only run the checks, on main, on pull requests and on `compile_vX.Y.Z` branches. A release starts when a `compile_vX.Y.Z` branch is pushed; the steps are on the wiki's Releasing page.
+- The updater looks for new versions in formcompiler's `formlit-updates` feed.
+- No change to the app itself.
+
+### Not verified
+
+- No formcompiler build of formlit has run yet.
+
 ## v0.46.0 · 2026-10-20
 
 ### Added
