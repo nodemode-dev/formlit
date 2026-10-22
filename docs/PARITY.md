@@ -124,7 +124,7 @@ Each audit was made by a separate agent that had not seen the work being produce
 
 | Row | formlit |
 | --- | --- |
-| Desktop app | Tauri 2 shell with the frozen engine as a sidecar, built for macOS (arm64 and x64), Windows (x64) and Linux (x64) by `.github/workflows/desktop.yml` |
+| Desktop app | Tauri 2 shell with the frozen engine as a sidecar, built for macOS (arm64 and x64), Windows (x64) and Linux (x64) by formcompiler from a `compile_v*` branch |
 | Web app | The same interface in any modern browser against the local engine (`./formlit boot`) |
 | Tablet and phone | Not built |
 | Cloud sync | Not built; formlit is local-first by design |

@@ -6,10 +6,9 @@
 feat(develop): point colour with range and smoothness (0.2.0)
 
 What changed and why, in a few lines a reviewer can check against the diff.
-
-Co-Authored-By: [as the session states]
-Claude-Session: [as the session states]
 ```
+
+Every commit has one author and committer, `nodemode-ai <mackin@nodemode.ai>`, and no `Co-Authored-By:` or session lines (owner's rule, 2026-10-22).
 
 Types: feat, fix, perf, refactor, docs, build, ci, chore. Scopes: engine, library, develop, ai, output, map, book, slideshow, print, web, mcp, agents, desktop, ui, docs, release. The version bump is its own last commit: `chore(release): v0.2.0 (0.2.0)`.
 
@@ -37,7 +36,7 @@ Every one by hand. Filenames and tags read `v0.2.0`, never `v0_2_0`.
 | Engine sidecar | `./formlit freeze` (PyInstaller, collects llvmlite, numba, onnxruntime, rawpy, cv2) | `src-tauri/binaries/formlit-engine-[target triple]` |
 | Frontend | `./formlit build` | `frontend/dist` |
 | Bundle | `./formlit desktop build` | `.dmg` and `.app` (macOS), `.msi` and `.exe` (Windows), `.AppImage`, `.deb` (Linux) |
-| CI | tag `v0.2.0` and push | `.github/workflows/desktop.yml` builds all three on their own runners and attaches the bundles to a draft release |
+| Release | push a `compile_v0.2.0` branch from the bump commit | formcompiler (`nodemode-ai/formcompiler`) builds all three on their own runners and attaches the bundles to a draft release `formlit-v0.2.0` on its release page; this repository's CI only runs the checks |
 
 The desktop app starts the sidecar with `FORMLIT_DESKTOP=1` and `FORMLIT_PORT=8390` (`ENGINE_PORT` in `src-tauri/src/main.rs`); the engine serves `frontend/dist` and the window talks to `http://127.0.0.1:8390`, the address the Form plugin's bridge uses. When 8390 is already in use the sidecar takes a free port and the window still finds it from the startup line, but the plugin cannot.
 

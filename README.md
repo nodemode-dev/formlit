@@ -136,7 +136,7 @@ Branch model: `main` plus short-lived work branches, see `.docs/BRANCHING.md`. D
 
 Release history: `CHANGELOG.md`. What is not verified yet:
 
-- **Desktop app.** The Tauri shell follows formvis's sidecar template; the desktop workflow has not run, so treat desktop bundles as untested until the first `desktop.yml` run passes.
+- **Desktop app.** The Tauri shell follows formvis's sidecar template; no release has been built yet, so treat desktop bundles as untested until formcompiler's first formlit build (from a `compile_vX.Y.Z` branch) passes.
 - **Plugin.** The consent prompt, the `outsideAgents` setting and the pinned sidecar port were exercised against the engine and the Form bridge; the Rust change that asks the sidecar for 8390 in `src-tauri/src/main.rs` has not been compiled or run in a desktop build.
 - **Terminal dock and Claude Code.** Shell tabs, the dock and its shortcuts were exercised in Chromium at 4x CPU throttling on Linux, and Claude Code 2.1 was run against the engine's in-app MCP config and through `./formlit claude`. The interactive Claude Code tab was started but its first-run sign-in could not reach Anthropic from the test machine. Windows terminals (pywinpty) and the terminal inside a built desktop app are untested.
 - **Build script.** The first macOS run of `./build_app` installed, built the window and froze the engine, then stopped at `E0463 can't find crate for phf_macros`; v0.7.1 no longer strips proc macros and build scripts (`profile.release.build-override`). A full run after that fix has not been done yet.
