@@ -159,7 +159,7 @@ export function registerCatalogCommands(ctx: Ctx): void {
           { path: 'folder', label: 'Folder', kind: 'text', placeholder: '/Users/you/Desktop' },
           { path: 'name', label: 'Name', kind: 'text' },
           { path: 'negatives', label: 'Export negative files', kind: 'check' },
-          { path: 'smart', label: 'Build / include smart previews', kind: 'check' },
+          { path: 'smart', label: 'Build / include intelligent previews', kind: 'check' },
           { path: 'previews', label: 'Include available previews', kind: 'check' },
         ], { folder: '', name: 'Exported Catalog', negatives: false, smart: false, previews: true }, 'Export Catalog');
         if (!v?.folder) return;
@@ -199,19 +199,19 @@ export function registerCatalogCommands(ctx: Ctx): void {
       },
     },
     {
-      id: 'library.buildSmartPreviews', label: 'Build Smart Previews',
+      id: 'library.buildSmartPreviews', label: 'Build Intelligent Previews',
       run: async () => {
         const ids = library.selected().length ? library.selected() : library.ids.slice();
         try {
           const r = await ctx.api.cmd<{ task: number }>('library.buildSmartPreviews', { ids });
           const done = await whenDone(r.task);
-          toast(`Built ${String(done.built ?? 0)} smart previews: these photos stay editable when their originals are offline`);
+          toast(`Built ${String(done.built ?? 0)} intelligent previews: these photos stay editable when their originals are offline`);
         } catch (err) { ctx.fail(err); }
       },
     },
     {
-      id: 'library.discardSmartPreviews', label: 'Discard Smart Previews',
-      run: () => void ctx.api.cmd('library.discardSmartPreviews', { ids: library.targets() }).then(() => toast('Discarded smart previews'), (err) => ctx.fail(err)),
+      id: 'library.discardSmartPreviews', label: 'Discard Intelligent Previews',
+      run: () => void ctx.api.cmd('library.discardSmartPreviews', { ids: library.targets() }).then(() => toast('Discarded intelligent previews'), (err) => ctx.fail(err)),
       enabled: () => library.targets().length > 0,
     },
     {

@@ -18,9 +18,9 @@ FL = "Film Looks"
 CP = "Cross Process"
 C2 = "Cinematic 2"
 SM = "Seasonal Moods"
-AK = "Adaptive: Sky 2"
-AJ = "Adaptive: Subject 2"
-AL = "Adaptive: Landscape 2"
+AK = "Adaptable: Sky 2"
+AJ = "Adaptable: Subject 2"
+AL = "Adaptable: Landscape 2"
 
 LIBRARY_3 = [
     P(LC, "Midday Sun Tamer", "Pulls back bright highlights, opens shadows and trims contrast so a hard noon scene reads as one even tonal range. A starting point for midday landscapes before local sky and ground work.",

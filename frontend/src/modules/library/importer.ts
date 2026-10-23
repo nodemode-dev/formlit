@@ -55,7 +55,7 @@ class ImportDialog extends Dialog {
 <aside class="fl-imp-opts">
 <div class="fl-sub">File Handling</div>
 <label class="fl-opt"><span>Build Previews</span><select class="cv-select" data-pref="previews"><option value="embedded">Embedded and Sidecar</option><option value="standard">Standard</option><option value="1:1">1:1</option></select></label>
-<label class="fl-check"><input type="checkbox" data-pref="smart"> Build Smart Previews</label>
+<label class="fl-check"><input type="checkbox" data-pref="smart"> Build Intelligent Previews</label>
 <label class="fl-check fl-imp-eject" hidden><input type="checkbox" data-pref="eject"> Eject after import</label>
 <label class="fl-check"><input type="checkbox" data-pref="skipDup"> Don't Import Suspected Duplicates</label>
 <label class="fl-opt"><span>Add to Collection</span><select class="cv-select" data-collection><option value="">None</option></select></label>

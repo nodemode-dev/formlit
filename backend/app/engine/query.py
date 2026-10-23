@@ -51,7 +51,7 @@ FACETS: dict[str, tuple[str, str]] = {
     "preset": ("Develop Preset", "COALESCE((SELECT substr(h.name, 9) FROM history h WHERE h.photo_id = p.id AND h.name LIKE 'Preset: %' ORDER BY h.id DESC LIMIT 1), 'Default')"),
     "aspect": ("Aspect Ratio", "CASE WHEN p.width = 0 OR p.height = 0 THEN NULL WHEN p.width > p.height * 1.02 THEN 'Landscape' WHEN p.height > p.width * 1.02 THEN 'Portrait' ELSE 'Square' END"),
     "kind": ("Media Type", "CASE p.kind WHEN 'video' THEN 'Video' ELSE 'Photo' END"),
-    "smartPreview": ("Smart Preview Status", "CASE WHEN p.smart_preview THEN 'Has Smart Preview' ELSE 'No Smart Preview' END"),
+    "smartPreview": ("Intelligent Preview Status", "CASE WHEN p.smart_preview THEN 'Has Intelligent Preview' ELSE 'No Intelligent Preview' END"),
     "gps": ("GPS Data", "CASE WHEN p.gps_lat IS NULL THEN 'No Coordinates' ELSE 'Coordinates' END"),
     "creator": ("Creator", "json_extract(p.meta, '$.creator')"),
     "copyrightStatus": ("Copyright Status", "COALESCE(NULLIF(json_extract(p.meta, '$.copyrightStatus'), ''), 'Unknown')"),

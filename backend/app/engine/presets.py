@@ -57,17 +57,17 @@ SKY = {"kind": "sky", "bitmap": "adaptive-sky"}
 SUBJECT = {"kind": "subject", "bitmap": "adaptive-subject"}
 BACKGROUND = {"kind": "background", "bitmap": "adaptive-background"}
 BUILTIN += [
-    {"group": "Adaptive: Sky", "name": "Deep Blue Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.35, "highlights": -30, "saturation": 18, "temp": -10})},
-    {"group": "Adaptive: Sky", "name": "Dramatic Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.5, "contrast": 22, "dehaze": 25, "clarity": 15})},
-    {"group": "Adaptive: Sky", "name": "Golden Sky", "settings": _adaptive("Sky", [SKY], {"temp": 22, "tint": 8, "saturation": 12, "highlights": -20})},
-    {"group": "Adaptive: Subject", "name": "Pop Subject", "settings": _adaptive("Subject", [SUBJECT], {"exposure": 0.25, "clarity": 12, "texture": 10, "saturation": 8})},
-    {"group": "Adaptive: Subject", "name": "Darken Background", "settings": _adaptive("Background", [BACKGROUND], {"exposure": -0.6, "saturation": -15})},
-    {"group": "Adaptive: Subject", "name": "Soft Background", "settings": _adaptive("Background", [BACKGROUND], {"clarity": -40, "texture": -50, "sharpness": -60})},
-    {"group": "Adaptive: Portrait", "name": "Smooth Skin", "settings": _adaptive("Skin", [{"kind": "people", "part": "faceSkin", "label": "Face Skin", "bitmap": "adaptive-faceSkin"},
+    {"group": "Adaptable: Sky", "name": "Deep Blue Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.35, "highlights": -30, "saturation": 18, "temp": -10})},
+    {"group": "Adaptable: Sky", "name": "Dramatic Sky", "settings": _adaptive("Sky", [SKY], {"exposure": -0.5, "contrast": 22, "dehaze": 25, "clarity": 15})},
+    {"group": "Adaptable: Sky", "name": "Golden Sky", "settings": _adaptive("Sky", [SKY], {"temp": 22, "tint": 8, "saturation": 12, "highlights": -20})},
+    {"group": "Adaptable: Subject", "name": "Pop Subject", "settings": _adaptive("Subject", [SUBJECT], {"exposure": 0.25, "clarity": 12, "texture": 10, "saturation": 8})},
+    {"group": "Adaptable: Subject", "name": "Darken Background", "settings": _adaptive("Background", [BACKGROUND], {"exposure": -0.6, "saturation": -15})},
+    {"group": "Adaptable: Subject", "name": "Soft Background", "settings": _adaptive("Background", [BACKGROUND], {"clarity": -40, "texture": -50, "sharpness": -60})},
+    {"group": "Adaptable: Portrait", "name": "Smooth Skin", "settings": _adaptive("Skin", [{"kind": "people", "part": "faceSkin", "label": "Face Skin", "bitmap": "adaptive-faceSkin"},
                                                                                      {"kind": "people", "part": "bodySkin", "label": "Body Skin", "bitmap": "adaptive-bodySkin"}], {"texture": -35, "clarity": -12})},
-    {"group": "Adaptive: Portrait", "name": "Brighten Eyes", "settings": _adaptive("Eyes", [{"kind": "people", "part": "iris", "label": "Iris and Pupil", "bitmap": "adaptive-iris"},
+    {"group": "Adaptable: Portrait", "name": "Brighten Eyes", "settings": _adaptive("Eyes", [{"kind": "people", "part": "iris", "label": "Iris and Pupil", "bitmap": "adaptive-iris"},
                                                                                        {"kind": "people", "part": "sclera", "label": "Eye Sclera", "bitmap": "adaptive-sclera"}], {"exposure": 0.3, "clarity": 10, "saturation": 6})},
-    {"group": "Adaptive: Portrait", "name": "Whiten Teeth", "settings": _adaptive("Teeth", [{"kind": "people", "part": "teeth", "label": "Teeth", "bitmap": "adaptive-teeth"}], {"exposure": 0.2, "saturation": -40})},
+    {"group": "Adaptable: Portrait", "name": "Whiten Teeth", "settings": _adaptive("Teeth", [{"kind": "people", "part": "teeth", "label": "Teeth", "bitmap": "adaptive-teeth"}], {"exposure": 0.2, "saturation": -40})},
 ]
 BUILTIN += LIBRARY
 BUILTIN += LIBRARY_1 + LIBRARY_2 + LIBRARY_3
@@ -77,6 +77,20 @@ def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
+LEGACY_SLUGS = {"sharpen-balanced-start": "sharpen-adobe-sample-balanced"}
+
+
+def _id_part(s: str) -> str:
+    v = _slug(s)
+    if v.startswith("adaptable-"):
+        v = "adaptive-" + v[len("adaptable-"):]
+    return LEGACY_SLUGS.get(v, v)
+
+
+def builtin_id(p: dict) -> str:
+    return f"builtin:{_id_part(p['group'])}/{_id_part(p['name'])}"
+
+
 def user_dir() -> Path:
     d = config.presets_dir() / "Develop"
     d.mkdir(parents=True, exist_ok=True)
@@ -84,7 +98,7 @@ def user_dir() -> Path:
 
 
 def all_presets() -> list[dict]:
-    out = [{"id": f"builtin:{_slug(p['group'])}/{_slug(p['name'])}", "group": p["group"], "name": p["name"], "builtin": True, "settings": p["settings"],
+    out = [{"id": builtin_id(p), "group": p["group"], "name": p["name"], "builtin": True, "settings": p["settings"],
             "description": p.get("description") or NOTES.get(p["name"], ""), "tags": p.get("tags") or []} for p in BUILTIN]
     favs = set(catalog_mod.get().get_meta("favoritePresets", []) or [])
     for f in sorted(user_dir().rglob("*.flpreset")):

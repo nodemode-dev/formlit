@@ -128,7 +128,7 @@ def source(pid: int, long: int | None = PREVIEW, full: bool = False) -> tuple[np
             img = None
     if img is None:
         if not path.is_file():
-            raise FileNotFoundError(f"The original is missing and its smart preview is out of date: {path}")
+            raise FileNotFoundError(f"The original is missing and its intelligent preview is out of date: {path}")
         img, info = decode.load_linear(path, None if full else long, full=full)
         if not full and long == PREVIEW:
             import json

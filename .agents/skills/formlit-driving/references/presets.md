@@ -15,9 +15,9 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - Landscape (13)
 - Urban (2)
 - Style (4)
-- Adaptive: Sky (8)
-- Adaptive: Subject (9)
-- Adaptive: Portrait (8)
+- Adaptable: Sky (8)
+- Adaptable: Subject (9)
+- Adaptable: Portrait (8)
 - Film-Inspired (17)
 - Vintage (5)
 - Seasons (7)
@@ -35,7 +35,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - Detail (4)
 - Effects (5)
 - Color Fixes (5)
-- Adaptive: Landscape (6)
+- Adaptable: Landscape (6)
 - Weather (6)
 - Illustration (7)
 - Toning (26)
@@ -88,7 +88,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - News & Documentary (8)
 - Pets 2 (8)
 - Skin Tones (24)
-- Adaptive: People (35)
+- Adaptable: People (35)
 - Landscape Conditions (26)
 - Snow & Fog (13)
 - Autumn Colour (6)
@@ -107,9 +107,9 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 - Cross Process (6)
 - Cinematic 2 (17)
 - Seasonal Moods (8)
-- Adaptive: Sky 2 (10)
-- Adaptive: Subject 2 (8)
-- Adaptive: Landscape 2 (6)
+- Adaptable: Sky 2 (10)
+- Adaptable: Subject 2 (8)
+- Adaptable: Landscape 2 (6)
 
 ## Color
 
@@ -229,7 +229,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Earth Tones (`builtin:style/earth-tones`) | Earthy palette: muted blues and greens, warm highlights. | color, grading, mixer |
 | Vintage Vignette (`builtin:style/vintage-vignette`) | Faded vintage with a strong vignette and grain. | color, curve, grain, vignette |
 
-## Adaptive: Sky
+## Adaptable: Sky
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -242,7 +242,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Overcast Sky Recovery (`builtin:adaptive-sky/overcast-sky-recovery`) | Brings back detail and tone in a white overcast sky. | masks |
 | Burn Sky (`builtin:adaptive-sky/burn-sky`) | Darkens the sky with a small highlights reduction, a landscape burn. | masks |
 
-## Adaptive: Subject
+## Adaptable: Subject
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -256,14 +256,14 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Warm Subject Cool World (`builtin:adaptive-subject/warm-subject-cool-world`) | Warms the subject and cools the background in one preset, a quick separation grade. | masks |
 | Product Background White (`builtin:adaptive-subject/product-background-white`) | Pushes the background to white for product shots (starting values: exposure +1.0, whites +40). | masks |
 
-## Adaptive: Portrait
+## Adaptable: Portrait
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
 | Smooth Skin (`builtin:adaptive-portrait/smooth-skin`) | Adaptive face and body skin masks: lower texture and clarity. | masks |
 | Brighten Eyes (`builtin:adaptive-portrait/brighten-eyes`) | Adaptive iris and sclera masks: brighter, clearer eyes. | masks |
 | Whiten Teeth (`builtin:adaptive-portrait/whiten-teeth`) | Adaptive teeth mask: brighter, less yellow teeth. | masks |
-| Define Brows (`builtin:adaptive-portrait/define-brows`) | Darkens eyebrows a little, as in Adobe's portrait-mask tutorial. | masks |
+| Define Brows (`builtin:adaptive-portrait/define-brows`) | Darkens eyebrows a little for a defined, natural brow. | masks |
 | Lip Color (`builtin:adaptive-portrait/lip-color`) | Adds saturation and a touch of contrast to lips. | masks |
 | Hair Shine (`builtin:adaptive-portrait/hair-shine`) | Adds texture and slight brightness to hair. | masks |
 | Brighten Face (`builtin:adaptive-portrait/brighten-face`) | Lifts face skin slightly for backlit portraits. | masks |
@@ -479,7 +479,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Muted Palette (`builtin:color-fixes/muted-palette`) | Saturation down and vibrance up, Julieanne Kost's combination for toning down the palette while keeping non-skin colour. | color |
 | Blue Sky Boost (`builtin:color-fixes/blue-sky-boost`) | Deeper, darker blue sky through the blue and aqua mixer bands. | mixer |
 
-## Adaptive: Landscape
+## Adaptable: Landscape
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -885,7 +885,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Sharpen Food Soft Texture (`builtin:sharpening/sharpen-food-soft-texture`) | Food sharpening with radius 1.0 and moderate detail so crusts and garnishes show texture without a crunchy look. | detail |
 | Sharpen Street Gritty (`builtin:sharpening/sharpen-street-gritty`) | Street and reportage sharpening: radius 1.0, detail 35, low masking so grain and texture read as part of the look. | detail |
 | Sharpen Wildlife Fur And Feather (`builtin:sharpening/sharpen-wildlife-fur-and-feather`) | Sharpening for fur and feather: radius 0.9, detail 40, masking 40 to keep out-of-focus backgrounds smooth. | detail |
-| Sharpen Adobe Sample Balanced (`builtin:sharpening/sharpen-adobe-sample-balanced`) | The values Adobe uses in its sharpening tutorial: amount 85, radius 1.0, detail 25, as a general starting point for a slightly soft raw. | detail |
+| Sharpen Balanced Start (`builtin:sharpening/sharpen-adobe-sample-balanced`) | A general starting point for a slightly soft raw: amount 85, radius 1.0, detail 25. | detail |
 | Sharpen After Noise Reduction (`builtin:sharpening/sharpen-after-noise-reduction`) | Moderate sharpening with masking at 55 for files that were just denoised, since noise reduction softens detail and heavy sharpening brings the grain back. | detail |
 | Sharpen For Screen Web (`builtin:sharpening/sharpen-for-screen-web`) | Sharpening for on-screen use: smaller radius 0.8 and light amount, for images exported at 2048 px or less where fine edges would otherwise soften. | detail |
 | Sharpen For Screen High Detail (`builtin:sharpening/sharpen-for-screen-high-detail`) | Screen sharpening for detail-heavy images: radius 0.6 and detail 35, to survive downsizing without a crunchy edge. | detail |
@@ -1252,7 +1252,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Deep Skin Cool Shade (`builtin:skin-tones/deep-skin-cool-shade`) | For deep skin in open shade, overcast or cool window light: restores warmth through grading and a mild vibrance lift, leaving white balance alone. | color, grading, light, mixer, skin |
 | Deep Skin Matte Editorial (`builtin:skin-tones/deep-skin-matte-editorial`) | Editorial matte treatment for deep skin: soft blacks without grey or ashy cast, mild saturation reduction and restrained mixer values. | color, curve, grading, light, mixer, skin |
 
-## Adaptive: People
+## Adaptable: People
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -1565,7 +1565,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Holiday Lights Glow (`builtin:seasonal-moods/holiday-lights-glow`) | Soft glow around string lights with warm highlights and deep blue shadows. | color, effects, grading, light |
 | Rainy Day Mood (`builtin:seasonal-moods/rainy-day-mood`) | Moody wet-day mood with muted colours, cool tones and darker midtones. | color, grading, light |
 
-## Adaptive: Sky 2
+## Adaptable: Sky 2
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -1580,7 +1580,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Sky Cloud Texture (`builtin:adaptive-sky-2/sky-cloud-texture`) | Adds cloud structure with texture and clarity while holding highlights. | masks |
 | Sky Night Cleanup (`builtin:adaptive-sky-2/sky-night-cleanup`) | Darkens and cools a night sky while reducing noise and orange skyglow. | masks |
 
-## Adaptive: Subject 2
+## Adaptable: Subject 2
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
@@ -1593,7 +1593,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Background Calm Detail (`builtin:adaptive-subject-2/background-calm-detail`) | Reduces clarity and texture in a busy background. | masks |
 | Background Darken Vignette (`builtin:adaptive-subject-2/background-darken-vignette`) | Darkens the background about half a stop for a spotlight feel. | masks |
 
-## Adaptive: Landscape 2
+## Adaptable: Landscape 2
 
 | Preset | What it does | Touches |
 | --- | --- | --- |

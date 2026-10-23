@@ -101,7 +101,7 @@
 "Food sharpening with radius 1.0 and moderate detail so crusts and garnishes show texture without a crunchy look.",
 "Street and reportage sharpening: radius 1.0, detail 35, low masking so grain and texture read as part of the look.",
 "Sharpening for fur and feather: radius 0.9, detail 40, masking 40 to keep out-of-focus backgrounds smooth.",
-"The values Adobe uses in its sharpening tutorial: amount 85, radius 1.0, detail 25, as a general starting point for a slightly soft raw.",
+"A general starting point for a slightly soft raw: amount 85, radius 1.0, detail 25.",
 "Moderate sharpening with masking at 55 for files that were just denoised, since noise reduction softens detail and heavy sharpening brings the grain back.",
 "Sharpening for on-screen use: smaller radius 0.8 and light amount, for images exported at 2048 px or less where fine edges would otherwise soften.",
 "Screen sharpening for detail-heavy images: radius 0.6 and detail 35, to survive downsizing without a crunchy edge.",

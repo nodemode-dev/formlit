@@ -71,7 +71,7 @@ def presets_reference() -> str:
     sys.path.insert(0, str(ROOT / "backend"))
     os.environ.setdefault("FORMLIT_CATALOG", str(Path(os.environ.get("TMPDIR", "/tmp")) / "formlit-agents-sync" / "sync.fldb"))
     from app.engine import presets
-    items = [{"id": f"builtin:{presets._slug(p['group'])}/{presets._slug(p['name'])}", **p} for p in presets.BUILTIN]
+    items = [{"id": presets.builtin_id(p), **p} for p in presets.BUILTIN]
     groups: dict[str, list[dict]] = {}
     for p in items:
         groups.setdefault(p["group"], []).append(p)
