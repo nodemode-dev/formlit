@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.2 · 2026-10-23
+
+- Added: About formlit opens a dialog with the version and a closed "Licences and notices" section carrying Adobe's required DNG notice; the notice is also in NOTICE.md and the README.
+- Changed: Smart Previews are Intelligent Previews and the Adaptive preset groups are Adaptable groups; every built-in preset id is unchanged. Five presets (Teal and Orange, Moody Green, Portra Style, Tri-X Style, Matte Fade) were retuned with formlit's own values. A trademark notice is in the README and NOTICE.md, and the README no longer describes formlit as a copy of Lightroom.
+- Not verified yet: the About dialog and the retuned presets were not seen in the window; the translated values of the renamed strings still use the old words.
+
 ## v0.46.1 · 2026-10-22
 
 ### Changed
