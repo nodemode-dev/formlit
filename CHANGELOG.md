@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.4 · 2026-10-23
+
+- Changed: smart collections are Intelligent Collections (and Intelligent Published Collections) in every menu, dialog, message, agent tool and document, translated in all 25 languages. Saved catalogs, ids and agent calls are unchanged.
+- Not verified yet: the renamed menus and dialogs were not seen in the window.
+
 ## v0.46.3 · 2026-10-23
 
 - Changed: built-in print, filename and smart collection templates that shared their names with another photo library's built-in sets have formlit's own names (Gallery Mat, Full Page, Proof Sheet 20 per Page, Print Set, Name - Sequence, Red Label, Top Rated and the rest); every id is unchanged. The new names are translated in all 25 languages.
