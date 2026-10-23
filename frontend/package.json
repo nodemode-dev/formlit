@@ -1,7 +1,7 @@
 {
   "name": "formlit",
   "private": true,
-  "version": "0.46.4",
+  "version": "0.46.5",
   "description": "formlit · photo library and raw developer in the form family",
   "license": "Apache-2.0",
   "type": "module",

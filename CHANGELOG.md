@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.5 · 2026-10-23
+
+- NOTICE.md lists five more downloaded models, the Python packages frozen into the engine, the desktop shell's crates under other licences, and how the lens profile database is fetched; the installers carry LICENSE and NOTICE.md.
+- The macOS build stops if OpenCV's GPL codec libraries are installed; macOS releases build OpenCV without them.
+- Not verified: a macOS build.
+
 ## v0.46.4 · 2026-10-23
 
 - Changed: smart collections are Intelligent Collections (and Intelligent Published Collections) in every menu, dialog, message, agent tool and document, translated in all 25 languages. Saved catalogs, ids and agent calls are unchanged.
