@@ -4,6 +4,7 @@ import { Shell } from './ui/shell';
 import { applyTheme } from './ui/themes';
 import { revealApp, setClass, setDisabled, setTitle } from './ui/dom';
 import { anyDialogOpen } from './ui/dialogs';
+import { openAbout } from './ui/about-dialog';
 import { toast } from './ui/toast';
 import { api, errorText, type Api } from './io/api';
 import { events } from './io/events';
@@ -27,7 +28,6 @@ import { library, type Source } from './state/library';
 import { develop } from './state/develop';
 import { catalog } from './state/catalog';
 import { moduleById, modules, type LitModule } from './modules/registry';
-import { VERSION } from './version';
 
 export interface Ctx {
   api: Api;
@@ -211,7 +211,7 @@ export class App implements Ctx {
       { id: 'view.toggleAll', label: 'Hide All Panels', keys: ['Shift+F6'], run: () => s.toggleAll() },
       { id: 'app.screen', label: 'Full Screen', keys: ['Shift+F'], run: () => s.cycleScreen(), checked: () => s.app.classList.contains('is-screen-full') },
       { id: 'app.lights', label: 'Lights Out', keys: ['L'], run: () => s.cycleLights() },
-      { id: 'app.about', label: 'About formlit', run: () => toast(`formlit ${VERSION} · photo library and raw developer`) },
+      { id: 'app.about', label: 'About formlit', run: () => openAbout() },
       { id: 'app.preferences', label: 'Preferences...', keys: ['Mod+,'], run: () => openPreferences(this) },
     );
     for (const [i, m] of modules().entries()) {

@@ -123,3 +123,10 @@ html, body { height: 100%; }
 .fl-app.is-lights-off .fl-titlebar, .fl-app.is-lights-off .fl-col, .fl-app.is-lights-off .fl-rsz, .fl-app.is-lights-off .fl-toolbar, .fl-app.is-lights-off .fl-filmstrip, .fl-app.is-lights-off .fl-status { opacity: 0; }
 .fl-app.is-lights-dim, .fl-app.is-lights-off { background: var(--fl-matte); }
 .fl-app.is-lights-dim .fl-center, .fl-app.is-lights-off .fl-center, .fl-app.is-lights-dim .fl-main, .fl-app.is-lights-off .fl-main { background: var(--fl-matte); }
+.fl-about { display: grid; gap: var(--space-2); }
+.fl-about p { margin: 0; }
+.fl-about-name { color: var(--text-primary); font-weight: 600; }
+.fl-about-line { color: var(--text-secondary); }
+.fl-about-notices { border-top: 1px solid var(--border-color); padding-top: var(--space-2); }
+.fl-about-notices summary { cursor: pointer; color: var(--text-secondary); }
+.fl-about .fl-about-notice { margin-top: var(--space-2); color: var(--text-muted); font-size: 12px; line-height: 1.45; }
