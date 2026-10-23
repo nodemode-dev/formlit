@@ -19,7 +19,7 @@ Every module computes its pages in the engine, so the window's preview and the w
 | `caption` | `{"on", "field": "title | caption | titleCaption | fileName | date | exposure | custom", "custom", "size"}` |
 | `job` | `{"output": "pdf | jpeg | printer", "ppi": 300, "sharpen": {...}, "space", "printer", "copies", "quality"}` |
 
-Templates: Fine Art Mat, Maximize Size, 1 Large with Stroke, 2 x 2 Cells, 4 x 5 Contact Sheet, 5 x 8 Contact Sheet, Triptych, three picture packages, Custom Centered.
+Templates: Gallery Mat, Full Page, One Photo with Keyline, Four Up, Proof Sheet 20 per Page, Proof Sheet 40 per Page, Triptych, three print sets (One 5x7 Two Wallet, Two 5x7, Four 4x6) and One over Two. Pass the id (`fine-art`, `maximize`, `1-large`, `2x2`, `4x5-contact`, `5x8-contact`, `triptych`, `package-1-2`, `package-2-5x7`, `package-4-4x6`, `custom-overlap`); the ids did not change when the names did.
 
 ## Book (`make_book`, `book.layout`, `book.export`)
 

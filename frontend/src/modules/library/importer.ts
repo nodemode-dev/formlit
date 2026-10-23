@@ -11,7 +11,7 @@ interface Root { name: string; path: string; kind: string }
 interface ScanFile { path: string; name: string; size: number; mtime: number; kind: string; duplicate: boolean; inCatalog: boolean }
 
 const PREFS_KEY = 'formlit_import';
-const RENAMES: Array<[string, string]> = [['', 'Filename (unchanged)'], ['{date:%Y%m%d}-{name}', 'Date - Filename'], ['{custom}-{seq:3}', 'Custom Name - Sequence'], ['{date:%Y-%m-%d}-{seq:4}', 'Date - Sequence'], ['{shoot}-{name}', 'Shoot Name - Filename']];
+const RENAMES: Array<[string, string]> = [['', 'Filename (unchanged)'], ['{date:%Y%m%d}-{name}', 'Date - Camera Name'], ['{custom}-{seq:3}', 'Name - Sequence'], ['{date:%Y-%m-%d}-{seq:4}', 'Date - Sequence'], ['{shoot}-{name}', 'Shoot Name - Filename']];
 const ORGANIZE: Array<[string, string]> = [['{date:%Y}/{date:%Y-%m-%d}', 'By date: 2026/2026-10-07'], ['{date:%Y}/{date:%m}', 'By date: 2026/10'], ['{date:%Y-%m-%d}', 'By date: 2026-10-07'], ['', 'Into one folder']];
 
 interface Prefs { mode: string; recursive: boolean; skipDup: boolean; previews: string; smart: boolean; eject: boolean; rename: string; organize: string; destination: string; backup: string; preset: string; copyright: string; creator: string; last: string }

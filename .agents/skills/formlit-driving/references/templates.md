@@ -59,9 +59,9 @@ Metadata placeholders: {creator} {email} {url} (remembered after the first use),
 | Template | Pattern | Use |
 | --- | --- | --- |
 | Filename (unchanged) (`filename`) | `{name}` | Keeps the camera's file name. |
-| Custom Name - Sequence (`custom-seq`) | `{custom}-{seq:3}` | Shoot or client name plus a three-digit count; the usual delivery naming. |
-| Custom Name - Original File Number (`custom-num`) | `{custom}-{num}` | Custom name plus the camera's own frame number, so names still trace back to the card. |
-| Date - Filename (`date-filename`) | `{date:%Y%m%d}-{name}` | Capture date in front of the camera name; sorts by day in any file browser. |
+| Name - Sequence (`custom-seq`) | `{custom}-{seq:3}` | Shoot or client name plus a three-digit count; the usual delivery naming. |
+| Name - Camera Frame Number (`custom-num`) | `{custom}-{num}` | Custom name plus the camera's own frame number, so names still trace back to the card. |
+| Date - Camera Name (`date-filename`) | `{date:%Y%m%d}-{name}` | Capture date in front of the camera name; sorts by day in any file browser. |
 | Date - Sequence (`date-seq`) | `{date:%Y-%m-%d}-{seq:4}` | Capture date and a four-digit count. |
 | Date and Time - Original Number (`datetime-num`) | `{date:%Y%m%d_%H%M%S}_{num}` | Capture time to the second plus the frame number; unique even for bursts. |
 | Shoot Name - Filename (`shoot-filename`) | `{custom}-{name}` | Shoot name in front of the camera name. |
@@ -134,13 +134,13 @@ Metadata placeholders: {creator} {email} {url} (remembered after the first use),
 
 | Template | Rules | Use |
 | --- | --- | --- |
-| Colored Red (`colored-red`) | label = red | Photos with the red label. |
-| Five Stars (`five-stars`) | rating = 5 | Five-star photos. |
+| Red Label (`colored-red`) | label = red | Photos with the red label. |
+| Top Rated (`five-stars`) | rating = 5 | Five-star photos. |
 | Four Stars and Up (`four-plus`) | rating >= 4 | Four and five stars: portfolio candidates. |
-| Past Month (`past-month`) | captureTime inLast 30 | Taken in the last 30 days. |
-| Recently Modified (`recently-modified`) | editTime inLast 2 | Edited in the last two days. |
+| Taken in the Last 30 Days (`past-month`) | captureTime inLast 30 | Taken in the last 30 days. |
+| Edited in the Last Two Days (`recently-modified`) | editTime inLast 2 | Edited in the last two days. |
 | Imported This Week (`imported-week`) | importTime inLast 7 | Imported in the last 7 days. |
-| Without Keywords (`without-keywords`) | keyword notContains | Photos with no keywords yet. |
+| No Keywords Yet (`without-keywords`) | keyword notContains | Photos with no keywords yet. |
 | Without Copyright (`no-copyright`) | copyright isEmpty | Photos missing a copyright notice; apply a metadata template before delivery. |
 | Without GPS (`missing-gps`) | hasGps = False | Photos with no location. |
 | Picks to Edit (`picks-to-edit`) | flag = pick; edited = False | Picked but not developed yet. |
@@ -154,6 +154,6 @@ Metadata placeholders: {creator} {email} {url} (remembered after the first use),
 | Telephoto (200 mm+) (`telephoto`) | focal >= 200 | Focal length 200 mm and longer. |
 | Wide Angle (24 mm and wider) (`wide`) | focal <= 24 | Focal length 24 mm or wider. |
 | Raw, Not Edited (`raw-unedited`) | kind = raw; edited = False | Raw files with no develop settings yet. |
-| Video Files (`videos`) | kind = video | Every video clip. |
+| Videos (`videos`) | kind = video | Every video clip. |
 | Virtual Copies (`virtual-copies`) | virtualCopy = True | Versions made as virtual copies. |
 | Missing Files (`missing-files`) | missing = True | Photos whose original cannot be found. |

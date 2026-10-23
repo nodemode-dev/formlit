@@ -125,7 +125,7 @@ export function registerPhotoDialogs(ctx: Ctx): void {
         const ids = library.targets();
         const listed = (await patternOptions(ctx, 'filename')).map(([p, n]): [string, string] => [p, n]);
         const v = await askForm(`Rename ${ids.length} ${ids.length === 1 ? 'Photo' : 'Photos'}`, 'Renames the files on disk and in the catalog. Sidecars follow their photos.', [
-          { path: 'template', label: 'Template', kind: 'select', options: listed.length ? listed : [['{custom}-{seq:3}', 'Custom Name - Sequence'], ['{date:%Y%m%d}-{seq:4}', 'Date - Sequence'], ['{name}', 'Filename'], ['{custom}-{num}', 'Custom Name - Original Number'], ['{date:%Y-%m-%d}_{name}', 'Date_Filename']] },
+          { path: 'template', label: 'Template', kind: 'select', options: listed.length ? listed : [['{custom}-{seq:3}', 'Name - Sequence'], ['{date:%Y%m%d}-{seq:4}', 'Date - Sequence'], ['{name}', 'Filename'], ['{custom}-{num}', 'Name - Camera Frame Number'], ['{date:%Y-%m-%d}_{name}', 'Date_Filename']] },
           { path: 'free', label: 'Or type', kind: 'text', placeholder: '{custom}-{seq:3}' },
           { path: 'custom', label: 'Custom text', kind: 'text' },
           { path: 'start', label: 'Start number', kind: 'number', min: 0 },

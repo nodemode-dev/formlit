@@ -157,9 +157,9 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
         "description": "Find missing files, untagged and uncopyrighted photos, rejects to clear, and make archive masters.",
         "text": """Catalog maintenance in formlit.
 
-1. apply_template kind smartCollection for Missing Files, Without Copyright, Without Keywords, Without GPS and Rejects (one set: create a set with run_command collection.create kind set, then pass its id as parent).
+1. apply_template kind smartCollection for Missing Files, Without Copyright, No Keywords Yet, Without GPS and Rejects (one set: create a set with run_command collection.create kind set, then pass its id as parent).
 2. Missing files: run_command library.findMissing, then relink in the window.
-3. Without Copyright: apply_template kind metadata all-rights on those photos; Without Keywords: apply_template kind keywordSet or add_keywords.
+3. Without Copyright: apply_template kind metadata all-rights on those photos; No Keywords Yet: apply_template kind keywordSet or add_keywords.
 4. Rejects: review them in the window; deleting stays with the person.
 5. Finished work: export_photos with builtin.archive (16-bit TIFF, Adobe RGB, all metadata) to an archive drive, and run_command photo.saveMetadata so XMP sidecars carry ratings, keywords and settings.""",
     },

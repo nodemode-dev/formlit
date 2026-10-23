@@ -4,9 +4,9 @@ def T(id: str, name: str, value, description: str, tags: str = "", **extra) -> d
 
 FILENAME = [
     T("filename", "Filename (unchanged)", "{name}", "Keeps the camera's file name.", "keep original"),
-    T("custom-seq", "Custom Name - Sequence", "{custom}-{seq:3}", "Shoot or client name plus a three-digit count; the usual delivery naming.", "client delivery"),
-    T("custom-num", "Custom Name - Original File Number", "{custom}-{num}", "Custom name plus the camera's own frame number, so names still trace back to the card.", "client card"),
-    T("date-filename", "Date - Filename", "{date:%Y%m%d}-{name}", "Capture date in front of the camera name; sorts by day in any file browser.", "date"),
+    T("custom-seq", "Name - Sequence", "{custom}-{seq:3}", "Shoot or client name plus a three-digit count; the usual delivery naming.", "client delivery"),
+    T("custom-num", "Name - Camera Frame Number", "{custom}-{num}", "Custom name plus the camera's own frame number, so names still trace back to the card.", "client card"),
+    T("date-filename", "Date - Camera Name", "{date:%Y%m%d}-{name}", "Capture date in front of the camera name; sorts by day in any file browser.", "date"),
     T("date-seq", "Date - Sequence", "{date:%Y-%m-%d}-{seq:4}", "Capture date and a four-digit count.", "date"),
     T("datetime-num", "Date and Time - Original Number", "{date:%Y%m%d_%H%M%S}_{num}", "Capture time to the second plus the frame number; unique even for bursts.", "time burst"),
     T("shoot-filename", "Shoot Name - Filename", "{custom}-{name}", "Shoot name in front of the camera name.", "shoot"),
@@ -99,13 +99,13 @@ def R(field: str, op: str, value=None) -> dict:
 
 
 SMART = [
-    T("colored-red", "Colored Red", {"match": "all", "rules": [R("label", "=", "red")]}, "Photos with the red label.", "label"),
-    T("five-stars", "Five Stars", {"match": "all", "rules": [R("rating", "=", 5)]}, "Five-star photos.", "rating best"),
+    T("colored-red", "Red Label", {"match": "all", "rules": [R("label", "=", "red")]}, "Photos with the red label.", "label"),
+    T("five-stars", "Top Rated", {"match": "all", "rules": [R("rating", "=", 5)]}, "Five-star photos.", "rating best"),
     T("four-plus", "Four Stars and Up", {"match": "all", "rules": [R("rating", ">=", 4)]}, "Four and five stars: portfolio candidates.", "rating portfolio"),
-    T("past-month", "Past Month", {"match": "all", "rules": [R("captureTime", "inLast", 30)]}, "Taken in the last 30 days.", "date recent"),
-    T("recently-modified", "Recently Modified", {"match": "all", "rules": [R("editTime", "inLast", 2)]}, "Edited in the last two days.", "date edited"),
+    T("past-month", "Taken in the Last 30 Days", {"match": "all", "rules": [R("captureTime", "inLast", 30)]}, "Taken in the last 30 days.", "date recent"),
+    T("recently-modified", "Edited in the Last Two Days", {"match": "all", "rules": [R("editTime", "inLast", 2)]}, "Edited in the last two days.", "date edited"),
     T("imported-week", "Imported This Week", {"match": "all", "rules": [R("importTime", "inLast", 7)]}, "Imported in the last 7 days.", "import recent"),
-    T("without-keywords", "Without Keywords", {"match": "all", "rules": [R("keyword", "notContains", "")]}, "Photos with no keywords yet.", "keywords todo"),
+    T("without-keywords", "No Keywords Yet", {"match": "all", "rules": [R("keyword", "notContains", "")]}, "Photos with no keywords yet.", "keywords todo"),
     T("no-copyright", "Without Copyright", {"match": "all", "rules": [R("copyright", "isEmpty")]}, "Photos missing a copyright notice; apply a metadata template before delivery.", "copyright todo"),
     T("missing-gps", "Without GPS", {"match": "all", "rules": [R("hasGps", "=", False)]}, "Photos with no location.", "gps todo"),
     T("picks-to-edit", "Picks to Edit", {"match": "all", "rules": [R("flag", "=", "pick"), R("edited", "=", False)]}, "Picked but not developed yet.", "cull edit todo"),
@@ -119,7 +119,7 @@ SMART = [
     T("telephoto", "Telephoto (200 mm+)", {"match": "all", "rules": [R("focal", ">=", 200)]}, "Focal length 200 mm and longer.", "lens wildlife sports"),
     T("wide", "Wide Angle (24 mm and wider)", {"match": "all", "rules": [R("focal", "<=", 24)]}, "Focal length 24 mm or wider.", "lens landscape interior"),
     T("raw-unedited", "Raw, Not Edited", {"match": "all", "rules": [R("kind", "=", "raw"), R("edited", "=", False)]}, "Raw files with no develop settings yet.", "raw todo"),
-    T("videos", "Video Files", {"match": "all", "rules": [R("kind", "=", "video")]}, "Every video clip.", "video"),
+    T("videos", "Videos", {"match": "all", "rules": [R("kind", "=", "video")]}, "Every video clip.", "video"),
     T("virtual-copies", "Virtual Copies", {"match": "all", "rules": [R("virtualCopy", "=", True)]}, "Versions made as virtual copies.", "versions"),
     T("missing-files", "Missing Files", {"match": "all", "rules": [R("missing", "=", True)]}, "Photos whose original cannot be found.", "maintenance"),
 ]

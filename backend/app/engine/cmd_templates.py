@@ -56,7 +56,7 @@ def _brief(t: dict) -> dict:
 
 
 @command("template.list", "Templates", {"kind": {"type": "string", "enum": list(KINDS) + ["export"]}, "query": {"type": "string"}}, mutates=False,
-         description="Built-in templates, Lightroom's equivalents: filename (rename patterns), folder (import folder patterns), metadata (copyright and licence presets with {creator} {year} {email} {url} {client} {event} {job} placeholders), keywordSet, smartCollection (rules), shoot (whole-job recipes) and export presets. query matches name, description and tags.")
+         description="Built-in templates: filename (rename patterns), folder (import folder patterns), metadata (copyright and licence presets with {creator} {year} {email} {url} {client} {event} {job} placeholders), keywordSet, smartCollection (rules), shoot (whole-job recipes) and export presets. query matches name, description and tags.")
 def template_list(kind: str | None = None, query: str | None = None) -> dict:
     from app.output import export
     out: dict[str, list] = {k: [_brief(t) for t in v] for k, v in KINDS.items() if not kind or kind == k}

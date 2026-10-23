@@ -1449,6 +1449,17 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 - cmd_develop.py `develop.sampleDepth` (id, x, y, bitmap): the median of the mask's depth bitmap in a 7 px square at the point, at the 1024 px plan size, through the same frame transform as sampleColor; refused with a message when the bitmap is missing. The window clicks it on a Depth Range mask.
 - Not done, by decision: edge-bounded object masks. SAM's own masks already follow edges, and Refine Edge, Shift Edge and edge points cover the cases where they do not; a watershed pass on top would duplicate those.
 
+## v0.46.3 own template names {#v0-46-3}
+
+- The family IP review's originality check (C5) compared formlit's built-in templates with the other photo library's built-in sets. Exact matches are renamed; every id stays, so saved choices, `template.*` calls by id and `print.*` jobs keep working.
+- Print (`output/layout.py PRINT_TEMPLATES`): Gallery Mat, Full Page, One Photo with Keyline, Four Up, Proof Sheet 20 per Page, Proof Sheet 40 per Page, Print Set One 5x7 Two Wallet, Print Set Two 5x7, Print Set Four 4x6, One over Two. Triptych stays (a general art term).
+- Filename (`engine/template_library.py FILENAME`, and the fallbacks in the importer and the rename dialog): Name - Sequence, Name - Camera Frame Number, Date - Camera Name.
+- Smart collections (`SMART`): the six that matched the other library's default set are Red Label, Top Rated, Taken in the Last 30 Days, Edited in the Last Two Days, No Keywords Yet and Videos. `template.find` matches a name or an id, so a call that used an old name now needs the id (`colored-red`, `five-stars`, `past-month`, `recently-modified`, `without-keywords`, `videos`).
+- `template.list`'s description no longer calls the set another product's equivalents.
+- Translations: the English keys were renamed in place in keys.json and keys2.json, and each language's new wording went in through `./formlit i18n import` (keys9 and locales9, which win over the older tables).
+- Checked and kept: folder, metadata, keyword and shoot templates, the book layouts, and the web gallery settings.
+- Not renamed here: "Smart Collection" is also the other library's term for a rule-based collection. It was not on the approved rename list, so it is left for the owner's decision.
+
 ---
 
 ## Files with no entries {#no-entries}
