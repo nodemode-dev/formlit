@@ -97,7 +97,7 @@ def templates_reference() -> str:
     out = ["# formlit built-in templates", "", "Generated from formlit's template library; do not edit by hand. `list_templates` returns the same with a `query`; "
            "`apply_template` applies one by id or name; `setup_shoot` runs a whole shoot recipe.", "",
            "Metadata placeholders: {creator} {email} {url} (remembered after the first use), {client} {event} {job} (per call), {year} (this year). A field whose placeholder has no value is skipped.", "",
-           "## Contents", "", "- Shoot recipes", "- Export presets", "- Filename templates", "- Folder templates", "- Metadata templates", "- Keyword sets", "- Smart collection templates", "",
+           "## Contents", "", "- Shoot recipes", "- Export presets", "- Filename templates", "- Folder templates", "- Metadata templates", "- Keyword sets", "- Intelligent collection templates", "",
            "## Shoot recipes", "", "| Recipe | What it sets | Naming, metadata, keywords | Exports | Workflow prompt |", "| --- | --- | --- | --- | --- |"]
     for s in SHOOTS:
         v = s["value"]
@@ -112,7 +112,7 @@ def templates_reference() -> str:
     out += [f"| {t['name']} (`{t['id']}`) | {', '.join(t['value'])} | {cell(t['description'])} |" for t in METADATA]
     out += ["", "## Keyword sets", "", "| Set | Keywords |", "| --- | --- |"]
     out += [f"| {t['name']} (`{t['id']}`) | {', '.join(t['value'])} |" for t in KEYWORDS]
-    out += ["", "## Smart collection templates", "", "| Template | Rules | Use |", "| --- | --- | --- |"]
+    out += ["", "## Intelligent collection templates", "", "| Template | Rules | Use |", "| --- | --- | --- |"]
     out += [f"| {t['name']} (`{t['id']}`) | {'; '.join(cell(r['field'] + ' ' + r['op'] + ('' if r.get('value') in (None, '') else ' ' + str(r['value']))) for r in t['value']['rules'])} | {cell(t['description'])} |" for t in SMART]
     out.append("")
     return "\n".join(out)

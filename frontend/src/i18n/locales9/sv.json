@@ -11,5 +11,17 @@
  "9": "Utskriftsset: fyra 4x6",
  "10": "Namn - kamerans bildnummer",
  "11": "Namn - sekvens",
- "12": "Datum - kamerans namn"
+ "12": "Datum - kamerans namn",
+ "13": "Skapa publicerad intelligent samling...",
+ "14": "Skapa intelligent samling",
+ "15": "Skapa intelligent samling...",
+ "16": "Skapar en intelligent samling med mallens regler; redigera dem senare som vilken intelligent samling som helst.",
+ "17": "Redigera intelligent samling...",
+ "18": "Skapar en samlingsuppsättning för shooten med Alla foton och intelligenta samlingar för varje steg (Valda, Ska redigeras, Redigerade, Portfolio, Avvisade). Importera till Alla foton, eller ange den som målsamling.",
+ "19": "Ny intelligent samling från mall",
+ "20": "Ny intelligent samling från mall...",
+ "21": "Foton hamnar i en samling, inte i en uppsättning eller intelligent samling",
+ "22": "Intelligent samling",
+ "23": "Intelligent publicerad samling",
+ "24": "Intelligent samling {0} skapad"
 }

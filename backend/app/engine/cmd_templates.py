@@ -118,9 +118,9 @@ def _scoped(rules: dict, within: int | None) -> dict:
     return {"match": "all", "rules": [{"field": "collection", "op": "=", "value": int(within)}], "groups": [rules]}
 
 
-@command("template.smartCollection", "New Smart Collection from Template", {"template": {"type": "string"}, "name": {"type": "string"}, "parent": {"type": "integer"},
+@command("template.smartCollection", "New Intelligent Collection from Template", {"template": {"type": "string"}, "name": {"type": "string"}, "parent": {"type": "integer"},
                                                                              "within": {"type": "integer", "description": "limit it to photos in this collection id"}},
-         description="Creates a smart collection from a template's rules, optionally inside a collection set (parent) and limited to one collection's photos (within).")
+         description="Creates an intelligent collection from a template's rules, optionally inside a collection set (parent) and limited to one collection's photos (within).")
 def smart_from(template: str, name: str = "", parent: int | None = None, within: int | None = None) -> dict:
     t = find("smartCollection", template)
     c = catalog_mod.get()
@@ -129,7 +129,7 @@ def smart_from(template: str, name: str = "", parent: int | None = None, within:
             raise CommandError(f"No collection {ref}", 404)
     rules = _scoped(t["value"], within)
     query.validate_rules(rules)
-    with c.change("New Smart Collection") as ch:
+    with c.change("New Intelligent Collection") as ch:
         cid = _insert_collection(c, ch, name.strip() or t["name"], "smart", parent, rules)
     return {"id": cid, "name": name.strip() or t["name"], "rules": rules}
 
@@ -137,7 +137,7 @@ def smart_from(template: str, name: str = "", parent: int | None = None, within:
 @command("workflow.setupShoot", "New Shoot from Template", {"recipe": {"type": "string"}, "name": {"type": "string"}, "values": {"type": "object"},
                                                              "paths": {"type": "array", "description": "card or folder paths to import into the shoot now"},
                                                              "mode": {"type": "string", "enum": ["add", "copy", "move", "dng"]}, "destination": {"type": "string"}, "backup": {"type": "string"}},
-         description="Sets up a whole job the way working photographers do: a collection set named for the shoot holding All Photos and smart collections for each stage (Picks, To Edit, Edited, Portfolio, Rejects) limited to the shoot, all in one undo step. With paths it also imports with the recipe's folder and file naming, metadata template, keyword set and previews, puts the photos in All Photos and applies noise reduction by ISO when the recipe calls for it. Returns the ids, the import settings and the recipe's export presets and workflow prompt.")
+         description="Sets up a whole job the way working photographers do: a collection set named for the shoot holding All Photos and intelligent collections for each stage (Picks, To Edit, Edited, Portfolio, Rejects) limited to the shoot, all in one undo step. With paths it also imports with the recipe's folder and file naming, metadata template, keyword set and previews, puts the photos in All Photos and applies noise reduction by ISO when the recipe calls for it. Returns the ids, the import settings and the recipe's export presets and workflow prompt.")
 def setup_shoot(recipe: str, name: str, values: dict | None = None, paths: list[str] | None = None, mode: str = "copy", destination: str = "", backup: str = "",
                 skipDuplicates: bool = True) -> dict:
     r = find("shoot", recipe)

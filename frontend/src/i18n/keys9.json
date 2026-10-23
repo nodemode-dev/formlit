@@ -11,5 +11,17 @@
 "Print Set: Four 4x6",
 "Name - Camera Frame Number",
 "Name - Sequence",
-"Date - Camera Name"
+"Date - Camera Name",
+"Create Published Intelligent Collection...",
+"Create Intelligent Collection",
+"Create Intelligent Collection...",
+"Creates an intelligent collection with the template\\'s rules; edit them later like any intelligent collection.",
+"Edit Intelligent Collection...",
+"Makes a collection set for the shoot with All Photos and intelligent collections for each stage (Picks, To Edit, Edited, Portfolio, Rejects). Import into All Photos, or set it as the target collection.",
+"New Intelligent Collection from Template",
+"New Intelligent Collection from Template...",
+"Photos go into a collection, not a set or an intelligent collection",
+"Intelligent Collection",
+"Intelligent Published Collection",
+"Intelligent collection {0} created"
 ]

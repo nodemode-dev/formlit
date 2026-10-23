@@ -44,7 +44,7 @@ async function newShoot(ctx: Ctx): Promise<void> {
   const l = await listing(ctx, 'shoot');
   if (!l) return;
   const items = l.templates.shoot;
-  const v = await askForm('New Shoot from Template', 'Makes a collection set for the shoot with All Photos and smart collections for each stage (Picks, To Edit, Edited, Portfolio, Rejects). Import into All Photos, or set it as the target collection.',
+  const v = await askForm('New Shoot from Template', 'Makes a collection set for the shoot with All Photos and intelligent collections for each stage (Picks, To Edit, Edited, Portfolio, Rejects). Import into All Photos, or set it as the target collection.',
     [{ path: 'template', label: 'Recipe', kind: 'select', options: choices(items) }, { path: 'name', label: 'Shoot name', kind: 'text', placeholder: 'client, event or listing' }, ...IDENTITY],
     { template: items[0]?.id ?? '', name: '', ...l.identity }, 'Create', about(items));
   if (!v) return;
@@ -92,14 +92,14 @@ async function smartFromTemplate(ctx: Ctx): Promise<void> {
   const l = await listing(ctx, 'smartCollection');
   if (!l) return;
   const items = l.templates.smartCollection;
-  const v = await askForm('New Smart Collection from Template', 'Creates a smart collection with the template\'s rules; edit them later like any smart collection.',
+  const v = await askForm('New Intelligent Collection from Template', 'Creates an intelligent collection with the template\'s rules; edit them later like any intelligent collection.',
     [{ path: 'template', label: 'Template', kind: 'select', options: choices(items) }, { path: 'name', label: 'Name', kind: 'text', placeholder: 'the template name' }],
     { template: items[0]?.id ?? '', name: '' }, 'Create', about(items));
   if (!v) return;
   try {
     const r = await ctx.api.cmd<{ name: string }>('template.smartCollection', { template: v.template, name: String(v.name ?? '') });
-    toast(`Smart collection ${r.name} created`);
-  } catch (err) { ctx.fail(err, 'Smart Collection'); }
+    toast(`Intelligent collection ${r.name} created`);
+  } catch (err) { ctx.fail(err, 'Intelligent Collection'); }
 }
 
 async function noiseByIso(ctx: Ctx): Promise<void> {
@@ -116,7 +116,7 @@ export function registerTemplateActions(ctx: Ctx): void {
   const has = () => library.targets().length > 0;
   ctx.commands.add(
     { id: 'workflow.newShoot', label: 'New Shoot from Template...', keys: ['Alt+Shift+Mod+N'], run: () => void newShoot(ctx) },
-    { id: 'template.smart', label: 'New Smart Collection from Template...', run: () => void smartFromTemplate(ctx) },
+    { id: 'template.smart', label: 'New Intelligent Collection from Template...', run: () => void smartFromTemplate(ctx) },
     { id: 'template.metadata', label: 'Apply Metadata Template...', run: () => void applyMetadata(ctx), enabled: has },
     { id: 'template.keywords', label: 'Apply Keyword Set...', run: () => void applyKeywords(ctx), enabled: has },
     { id: 'develop.noiseByIso', label: 'Noise Reduction by ISO', run: () => void noiseByIso(ctx), enabled: has },

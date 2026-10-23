@@ -39,7 +39,7 @@ Each audit was made by a separate agent that had not seen the work being produce
 | # | Row | Grade | Trace | Missing |
 | --- | --- | --- | --- | --- |
 | 8 | Ratings, flags, labels | Full | B/engine/cmd_library.py `photo.rate`, `photo.flag`, `photo.label`, `library.labelNames`; F/modules/shared/actions.ts (auto advance) | |
-| 9 | Collections, sets, smart collections | Full | `collection.create` (collection, set, smart), `collection.reorder`, `collection.setTarget`, `quick.toggle`; B/engine/query.py `compile_rules` (all, any, none, nested); F/modules/library/smart.ts | |
+| 9 | Collections, sets, intelligent collections | Full | `collection.create` (collection, set, smart), `collection.reorder`, `collection.setTarget`, `quick.toggle`; B/engine/query.py `compile_rules` (all, any, none, nested); F/modules/library/smart.ts | |
 | 10 | Hierarchical keywords, suggestions, sets, painter | Full | `keyword.create` (hierarchy, synonyms, person), `keyword.merge`, `keyword.purge`, `keyword.suggest`; F/modules/library/keyword-list.ts, keyword-sets.ts, painter.ts; B/output/export.py keyword export with synonyms | |
 | 11 | Metadata panel and presets | Full | F/modules/library/inspect.ts `META_VIEWS`; F/modules/library/metadata-presets.ts; `photo.setMeta`, `library.syncMetadata` | |
 | 12 | Stacks and virtual copies | Full | `stack.group`, `stack.toggle`, `stack.setTop`, `stack.auto`, `photo.virtualCopy`, `photo.setMasterCopy`; F/modules/shared/actions.ts | |

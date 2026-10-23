@@ -99,7 +99,7 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
         "text": """Start any job from a shoot recipe in formlit.
 
 1. list_templates kind shoot shows the recipes (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro) with what each sets.
-2. setup_shoot with recipe, name (the client, event, listing or SKU), values {"creator": ..., "email": ..., "url": ...} the first time (they are remembered), and paths with mode copy and destination to ingest now. It makes a collection set named for the shoot holding All Photos and five stage smart collections: Picks, To Edit, Edited, Portfolio (4 stars and up), Rejects.
+2. setup_shoot with recipe, name (the client, event, listing or SKU), values {"creator": ..., "email": ..., "url": ...} the first time (they are remembered), and paths with mode copy and destination to ingest now. It makes a collection set named for the shoot holding All Photos and five stage intelligent collections: Picks, To Edit, Edited, Portfolio (4 stars and up), Rejects.
 3. Cull: analyze_culling and apply_culling on All Photos, then refine_photos; the stage collections fill by themselves as flags, stars and edits change (find_photos with source {"kind": "collection", "id": <stage id>}).
 4. Edit from To Edit: the recipe's workflow prompt (returned as workflow) has the genre steps. noise_by_iso already ran when the recipe calls for it.
 5. Deliver from Edited with the recipe's export presets (returned as exports), one export_photos per preset.
@@ -111,7 +111,7 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
         "text": """Concert and low-light workflow in formlit.
 
 1. setup_shoot with recipe concert (time-sorted names across bodies, the concert keyword set, noise by ISO at import).
-2. Cull hard: analyze_culling, apply_culling with pickBest and rejectDuplicates for bursts, then refine_photos; the Possibly Soft smart collection template finds motion blur.
+2. Cull hard: analyze_culling, apply_culling with pickBest and rejectDuplicates for bursts, then refine_photos; the Possibly Soft intelligent collection template finds motion blur.
 3. Stage light: analyze_photo shows clipping and cast; saturated LED light clips one channel first, so pull highlights and that colour's saturation and luminance in the mixer (develop_set color mixer ids) before global saturation. A black and white version (virtual_copy, then develop_patch treatment bw) rescues frames lit by one strong colour.
 4. Noise: noise_by_iso set Detail per ISO; denoise for the few frames that will be printed or cropped hard.
 5. Consistency per song or lighting look: edit one frame, sync_settings to its neighbours.
@@ -123,7 +123,7 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
         "text": """Stock submission workflow in formlit (file rules from Adobe Stock's and Shutterstock's contributor pages: JPEG, sRGB, at least 4 MP).
 
 1. setup_shoot with recipe stock, or import and apply_template kind metadata stock.
-2. Cull for technical quality: analyze_culling, reject soft frames (the Possibly Soft smart collection), check analyze_photo at 100 percent detail for noise, and do not crop below 4 MP.
+2. Cull for technical quality: analyze_culling, reject soft frames (the Possibly Soft intelligent collection), check analyze_photo at 100 percent detail for noise, and do not crop below 4 MP.
 3. Develop clean and neutral rather than stylised; noise_by_iso and lens corrections; remove dust (develop.findDust through run_command).
 4. Title and caption every photo with set_metadata (title, caption); keywords with add_keywords, most important first; remove logos and trademarks or leave those frames out.
 5. Export with builtin.stock (full size, sRGB JPEG, all metadata).""",
@@ -146,7 +146,7 @@ Ethics first. The AP allows only minor adjustments: cropping, dodging and burnin
         "text": """Wildlife workflow in formlit.
 
 1. Import with the Time-sorted Multi-camera or Date and Time names (list_templates kind filename) and apply_template kind keywordSet wildlife.
-2. Cull bursts: analyze_culling then apply_culling with pickBest and rejectDuplicates; the Best of Each Group and Telephoto (200 mm+) smart collection templates narrow it; refine_photos for a second pass.
+2. Cull bursts: analyze_culling then apply_culling with pickBest and rejectDuplicates; the Best of Each Group and Telephoto (200 mm+) intelligent collection templates narrow it; refine_photos for a second pass.
 3. Crop for the subject (develop_patch crop rect), keeping enough pixels for the output.
 4. Subject and background: add_ai_mask kind subject with texture and a little exposure, and kind background with clarity and saturation down to separate the animal.
 5. noise_by_iso for the whole set, denoise for keepers shot at high ISO, sync_settings within a burst.

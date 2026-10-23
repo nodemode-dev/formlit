@@ -12,7 +12,7 @@ Metadata placeholders: {creator} {email} {url} (remembered after the first use),
 - Folder templates
 - Metadata templates
 - Keyword sets
-- Smart collection templates
+- Intelligent collection templates
 
 ## Shoot recipes
 
@@ -130,7 +130,7 @@ Metadata placeholders: {creator} {email} {url} (remembered after the first use),
 | Architecture Photography (`architecture`) | Architecture, Exterior, Interior, Facade, Detail, Stairs, Lines, Night, Skyline |
 | Night Sky Photography (`astro`) | Night Sky, Milky Way, Stars, Star Trails, Aurora, Moon, Long Exposure, Dark Sky, Nightscape |
 
-## Smart collection templates
+## Intelligent collection templates
 
 | Template | Rules | Use |
 | --- | --- | --- |

@@ -11,5 +11,17 @@
  "9": "Jeu d'impressions : quatre 4x6",
  "10": "Nom - numéro de vue de l'appareil",
  "11": "Nom - séquence",
- "12": "Date - nom de l'appareil"
+ "12": "Date - nom de l'appareil",
+ "13": "Créer une collection intelligente publiée...",
+ "14": "Créer une collection intelligente",
+ "15": "Créer une collection intelligente...",
+ "16": "Crée une collection intelligente avec les règles du modèle ; modifiez-les ensuite comme pour n’importe quelle collection intelligente.",
+ "17": "Modifier la collection intelligente...",
+ "18": "Crée un ensemble de collections pour la séance avec Toutes les photos et des collections intelligentes pour chaque étape (Retenues, À retoucher, Retouchées, Portfolio, Rejetées). Importez dans Toutes les photos ou définissez-le comme collection cible.",
+ "19": "Nouvelle collection intelligente à partir d’un modèle",
+ "20": "Nouvelle collection intelligente à partir d’un modèle...",
+ "21": "Les photos vont dans une collection, pas dans un ensemble ni dans une collection intelligente",
+ "22": "Collection intelligente",
+ "23": "Collection intelligente publiée",
+ "24": "Collection intelligente {0} créée"
 }

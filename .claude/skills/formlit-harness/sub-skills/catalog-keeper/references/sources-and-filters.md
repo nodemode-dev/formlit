@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `all` | | every photo, stacks expanded |
 | `folder` | `id`, `recursive` | a folder from `get_catalog`, with its subfolders when recursive |
-| `collection` | `id` | a collection, smart collection or saved creation |
+| `collection` | `id` | a collection, intelligent collection or saved creation |
 | `keyword` | `id` | photos with the keyword or any keyword below it |
 | `person` | `id` | photos with a confirmed face of a named person (ids from `list_people`) |
 | `previousImport` | | the last import |

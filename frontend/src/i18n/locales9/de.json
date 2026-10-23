@@ -11,5 +11,17 @@
  "9": "Druckset: vier 4x6",
  "10": "Name - Bildnummer der Kamera",
  "11": "Name - Folge",
- "12": "Datum - Kameraname"
+ "12": "Datum - Kameraname",
+ "13": "Veröffentlichte intelligente Sammlung erstellen...",
+ "14": "Intelligente Sammlung erstellen",
+ "15": "Intelligente Sammlung erstellen...",
+ "16": "Erstellt eine intelligente Sammlung mit den Regeln der Vorlage; bearbeiten Sie sie später wie jede intelligente Sammlung.",
+ "17": "Intelligente Sammlung bearbeiten...",
+ "18": "Erstellt für das Shooting ein Sammlungsset mit „Alle Fotos“ und intelligenten Sammlungen für jede Phase (Auswahl, Zu bearbeiten, Bearbeitet, Portfolio, Abgelehnt). Importieren Sie in „Alle Fotos“ oder legen Sie es als Zielsammlung fest.",
+ "19": "Neue intelligente Sammlung aus Vorlage",
+ "20": "Neue intelligente Sammlung aus Vorlage...",
+ "21": "Fotos kommen in eine Sammlung, nicht in einen Satz oder eine intelligente Sammlung",
+ "22": "Intelligente Sammlung",
+ "23": "Intelligente veröffentlichte Sammlung",
+ "24": "Intelligente Sammlung {0} erstellt"
 }

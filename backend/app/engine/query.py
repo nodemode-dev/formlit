@@ -192,9 +192,9 @@ RULE_OPS = {"=", "is", "!=", "isNot", ">", "<", ">=", "<=", "contains", "notCont
 
 def validate_rules(rules: Any, depth: int = 0) -> None:
     if not isinstance(rules, dict):
-        raise ValueError("Smart collection rules must be an object with rules and match")
+        raise ValueError("Intelligent collection rules must be an object with rules and match")
     if depth > 8:
-        raise ValueError("Smart collection rules nest too deeply")
+        raise ValueError("Intelligent collection rules nest too deeply")
     if rules.get("match", "all") not in ("all", "any", "none"):
         raise ValueError("match must be all, any or none")
     items, groups = rules.get("rules", []), rules.get("groups", [])
@@ -202,9 +202,9 @@ def validate_rules(rules: Any, depth: int = 0) -> None:
         raise ValueError("rules and groups must be lists")
     for r in items:
         if not isinstance(r, dict) or r.get("field") not in RULE_FIELDS:
-            raise ValueError(f"Unknown smart collection field {r.get('field') if isinstance(r, dict) else r!r}; known fields: {', '.join(sorted(RULE_FIELDS))}")
+            raise ValueError(f"Unknown intelligent collection field{r.get('field') if isinstance(r, dict) else r!r}; known fields: {', '.join(sorted(RULE_FIELDS))}")
         if r.get("op", "=") not in RULE_OPS:
-            raise ValueError(f"Unknown smart collection operator {r.get('op')!r}")
+            raise ValueError(f"Unknown intelligent collection operator{r.get('op')!r}")
         if isinstance(r.get("value"), (dict, list)) and r.get("op") != "between":
             raise ValueError(f"The value for {r['field']} must be a single value")
     for g in groups:

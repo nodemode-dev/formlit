@@ -129,7 +129,7 @@ Named develop states inside one photo: action create saves the current settings 
 
 ## setup_shoot
 
-Starts a job from a shoot recipe (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro; list_templates kind shoot): makes a collection set named for the shoot with All Photos and smart collections for Picks, To Edit, Edited, Portfolio and Rejects limited to it, in one undo step. With paths it imports straight into it with the recipe's folder and file naming, metadata template, keyword set and previews, then applies noise reduction by ISO when the recipe calls for it. values fills the metadata (creator, email, url, client, event, job; creator, email and url are remembered). Returns the stage collection ids, the recipe's export presets and its workflow prompt to follow next.
+Starts a job from a shoot recipe (wedding, portrait, headshots, event, news-sports, landscape, real-estate, product, concert, stock, family, astro; list_templates kind shoot): makes a collection set named for the shoot with All Photos and intelligent collections for Picks, To Edit, Edited, Portfolio and Rejects limited to it, in one undo step. With paths it imports straight into it with the recipe's folder and file naming, metadata template, keyword set and previews, then applies noise reduction by ISO when the recipe calls for it. values fills the metadata (creator, email, url, client, event, job; creator, email and url are remembered). Returns the stage collection ids, the recipe's export presets and its workflow prompt to follow next.
 
 - `recipe`: string; required
 - `name`: string; required; the shoot, client or event, used for the set, the folders and {custom} in names
@@ -151,7 +151,7 @@ Note: read-only.
 
 ## apply_template
 
-Applies a template by id or name: kind metadata writes its IPTC fields (values fills creator, email, url, client, event, job); keywordSet adds its keywords (or the listed subset); filename renames the files on disk (custom fills {custom}; preview true shows the names first); smartCollection creates a smart collection (within limits it to a collection id, parent puts it in a set). One undo step each.
+Applies a template by id or name: kind metadata writes its IPTC fields (values fills creator, email, url, client, event, job); keywordSet adds its keywords (or the listed subset); filename renames the files on disk (custom fills {custom}; preview true shows the names first); smartCollection creates an intelligent collection (within limits it to a collection id, parent puts it in a set). One undo step each.
 
 - `kind`: string (metadata | keywordSet | filename | smartCollection); required
 - `template`: string; required

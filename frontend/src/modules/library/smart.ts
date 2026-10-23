@@ -48,7 +48,7 @@ class SmartDialog extends Dialog {
   private parent: number | null = null;
 
   constructor(private readonly ctx: Ctx) {
-    super('Create Smart Collection', 640);
+    super('Create Intelligent Collection', 640);
     this.field('Name', this.name);
     const head = el('<div class="fl-rules-head">Match <span></span> of the following rules:</div>');
     q(head, 'span').replaceWith(this.match);
@@ -65,9 +65,9 @@ class SmartDialog extends Dialog {
     this.target = c;
     this.parent = parent;
     this.extra = extra;
-    const what = extra.kind === 'published' ? 'Smart Published Collection' : 'Smart Collection';
+    const what = extra.kind === 'published' ? 'Intelligent Published Collection' : 'Intelligent Collection';
     this.setTitle(c ? `Edit ${what}: ${c.name}` : `Create ${what}`);
-    this.name.value = c?.name ?? 'Smart Collection';
+    this.name.value = c?.name ?? 'Intelligent Collection';
     const rules = (c?.rules as { match?: string; rules?: Rule[] } | null) ?? { match: 'all', rules: [{ field: 'rating', op: '>=', value: 3 }] };
     this.match.value = rules.match ?? 'all';
     this.rows.replaceChildren();
@@ -115,7 +115,7 @@ class SmartDialog extends Dialog {
 
   private async save(): Promise<void> {
     const rules = this.collect();
-    const name = this.name.value.trim() || 'Smart Collection';
+    const name = this.name.value.trim() || 'Intelligent Collection';
     try {
       if (this.target) await this.ctx.api.cmd('collection.update', { id: this.target.id, name, rules });
       else await this.ctx.api.cmd('collection.create', { name, kind: 'smart', rules, parent: this.parent, ...this.extra });

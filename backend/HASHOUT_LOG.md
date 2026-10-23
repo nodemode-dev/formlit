@@ -1460,6 +1460,11 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 - Checked and kept: folder, metadata, keyword and shoot templates, the book layouts, and the web gallery settings.
 - Not renamed here: "Smart Collection" is also the other library's term for a rule-based collection. It was not on the approved rename list, so it is left for the owner's decision.
 
+## v0.46.4 Intelligent Collection {#v0-46-4}
+
+- The owner chose Intelligent Collection for the rule-based collection. Every label, dialog, undo label, error message, agent tool description, workflow prompt, the README, the wiki, PARITY and the skills now say Intelligent Collection (and Intelligent Published Collection). Kinds, ids and code names keep `smart`: the collection kind `smart`, `template.smart`, `template.smartCollection`, `pub.newSmart`, `lib.colNewSmart`, `openSmartCollection` and the stored rules. Saved catalogs and agent calls are unchanged.
+- Translations: 12 English keys renamed in place in keys.json; 14 languages whose wording was the other library's localized term (Smart-Sammlung, collection dynamique, raccolta dinamica, スマートコレクション and the rest) got the new wording through `./formlit i18n import`. The other 11 already said "intelligent" in their own words (colección inteligente, intelligens gyűjtemény, 智能收藏夹 and the rest) and were left as they were.
+
 ---
 
 ## Files with no entries {#no-entries}

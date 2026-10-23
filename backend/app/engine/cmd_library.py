@@ -15,7 +15,7 @@ from app.engine.commands import SESSION, CommandError, command, resolve_ids
 from app.services import codes, importer, metadata, previews, rename
 
 FLAG_NAMES = {"pick": 1, "reject": -1, "none": 0, "unflag": 0, "unflagged": 0}
-COLLECTION_KINDS = {"collection": "Collection", "set": "Collection Set", "smart": "Smart Collection", "book": "Book", "print": "Print",
+COLLECTION_KINDS = {"collection": "Collection", "set": "Collection Set", "smart": "Intelligent Collection", "book": "Book", "print": "Print",
                     "slideshow": "Slideshow", "web": "Web Gallery", "published": "Published Collection", "publishedSet": "Published Collection Set"}
 
 
@@ -896,7 +896,7 @@ def collection_add(id: int | None = None, ids: Any = None) -> dict:
         cid = int(id) if id is not None else int((c.db.execute("SELECT id FROM collections WHERE target=1").fetchone() or [0])[0]) or _quick_id(ch)
         kind = c.db.execute("SELECT kind FROM collections WHERE id=?", (cid,)).fetchone()
         if kind is None or kind["kind"] in ("set", "smart"):
-            raise CommandError("Photos go into a collection, not a set or a smart collection")
+            raise CommandError("Photos go into a collection, not a set or an intelligent collection")
         pos = int(c.db.execute("SELECT COALESCE(MAX(position), 0) FROM collection_photos WHERE collection_id=?", (cid,)).fetchone()[0])
         for pid in pids:
             if not c.db.execute("SELECT 1 FROM collection_photos WHERE collection_id=? AND photo_id=?", (cid, pid)).fetchone():
