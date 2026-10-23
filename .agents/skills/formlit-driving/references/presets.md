@@ -133,12 +133,12 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | --- | --- | --- |
 | Teal Night (`builtin:cinematic/teal-night`) | Teal-and-orange profile with extra teal in the shadows, darker and vignetted. | grading, light, profile, vignette |
 | Warm Glow (`builtin:cinematic/warm-glow`) | Golden profile with softer clarity and recovered highlights. | effects, light, profile |
-| Teal and Orange (`builtin:cinematic/teal-and-orange`) | The classic complementary grade: teal shadows (hue near 210) and orange highlights (near 35), matching a real exported Cinematic Teal and Orange preset. | curve, grading, grain, light, mixer, vignette |
+| Teal and Orange (`builtin:cinematic/teal-and-orange`) | The classic complementary grade: teal shadows (hue near 205) and orange highlights (near 38). | curve, grading, grain, light, mixer, vignette |
 | Blockbuster (`builtin:cinematic/blockbuster`) | Stronger teal and orange with calibration shifts (red primary hue up, blue primary hue down) for a saturated movie look. | calibration, grading, light, vignette |
 | Night City (`builtin:cinematic/night-city`) | Cool, contrasty urban night grade with teal shadows and preserved warm lights. | effects, grading, light, mixer |
 | Desert Heat (`builtin:cinematic/desert-heat`) | Warm, dusty grade: orange midtones, softened greens and blues, gentle fade. | curve, grading, light, mixer |
 | Bleach Bypass (`builtin:cinematic/bleach-bypass`) | Low saturation and high contrast with bright highlights, like skipping the bleach in film processing. | color, curve, effects, light |
-| Moody Green (`builtin:cinematic/moody-green`) | Pacific Northwest style moody grade: deep greens pushed toward teal, desaturated, lifted blacks, after a real Moody PNW preset. | color, curve, effects, grading, grain, light, mixer |
+| Moody Green (`builtin:cinematic/moody-green`) | Moody forest grade: deep greens pushed toward teal, desaturated, lifted blacks. | color, curve, effects, grading, grain, light, mixer |
 | Cold Thriller (`builtin:cinematic/cold-thriller`) | Steel-blue overall cast with crushed blacks, for tense, cold scenes. | color, grading, light, vignette |
 | Golden Matte (`builtin:cinematic/golden-matte`) | Warm golden highlights over a matte curve, for late-afternoon story frames. | color, curve, grading, light |
 | Wide Screen Fade (`builtin:cinematic/wide-screen-fade`) | Low-contrast, slightly cool cinema fade with soft highlights. | color, curve, grading, light |
@@ -157,7 +157,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 | Sepia Tone (`builtin:b-w/sepia-tone`) | Black and white toned brown in shadows and highlights. | grading, treatment |
 | Selenium Tone (`builtin:b-w/selenium-tone`) | Black and white with cool purple-brown shadows. | grading, light, treatment |
 | Infrared Dream (`builtin:b-w/infrared-dream`) | Infrared-style black and white: bright foliage, dark sky, softer clarity. | bw, effects, grain, light, treatment |
-| Tri-X Style (`builtin:b-w/tri-x-style`) | Gritty, high-contrast black and white with heavy grain and darkened blue sky, from a real Kodak Tri-X 400 preset. | bw, grain, light, treatment |
+| Tri-X Style (`builtin:b-w/tri-x-style`) | Gritty, high-contrast black and white with heavy grain and darkened blue sky. | bw, grain, light, treatment |
 | Silver Fine (`builtin:b-w/silver-fine`) | Smooth, fine-grain black and white with full tonal range. | grain, light, treatment |
 | High-Key B&W (`builtin:b-w/high-key-b-w`) | Bright, airy black and white with soft blacks. | curve, light, treatment |
 | Low-Key B&W (`builtin:b-w/low-key-b-w`) | Dark black and white after Digital Camera World's low-key portrait settings (exposure -0.45, contrast +47, highlights -100). | grain, light, treatment |
@@ -224,7 +224,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
-| Matte Fade (`builtin:style/matte-fade`) | Matte look from a real exported preset: raised black point, lower contrast, slight desaturation. | color, curve, effects, light |
+| Matte Fade (`builtin:style/matte-fade`) | Matte look: raised black point, lower contrast, slight desaturation. | color, curve, effects, light |
 | Pastel Day (`builtin:style/pastel-day`) | Pastel grade: violet shadows and peach highlights at low saturation, brighter and softer. | color, curve, grading, light |
 | Earth Tones (`builtin:style/earth-tones`) | Earthy palette: muted blues and greens, warm highlights. | color, grading, mixer |
 | Vintage Vignette (`builtin:style/vintage-vignette`) | Faded vintage with a strong vignette and grain. | color, curve, grain, vignette |
@@ -273,7 +273,7 @@ Generated from formlit's preset list; do not edit by hand. Preview one with `get
 
 | Preset | What it does | Touches |
 | --- | --- | --- |
-| Portra Style (`builtin:film-inspired/portra-style`) | Warm, low-contrast colour negative look with soft skin and fine grain, from a real Kodak Portra 400 preset's values. | grading, grain, light, mixer |
+| Portra Style (`builtin:film-inspired/portra-style`) | Warm, low-contrast colour negative look with soft skin and fine grain. | grading, grain, light, mixer |
 | Gold Daylight (`builtin:film-inspired/gold-daylight`) | Saturated, warm consumer-film colour with yellow highlights and punchy blues. | color, grading, grain, light, mixer |
 | Cool Negative (`builtin:film-inspired/cool-negative`) | Cool, green-leaning negative film: cyan shadows, muted reds, gentle fade. | curve, grading, grain, mixer |
 | Slide Velvia (`builtin:film-inspired/slide-velvia`) | High-saturation slide film: deep blues and greens, rich contrast, dark blacks. | color, light, mixer, profile |
