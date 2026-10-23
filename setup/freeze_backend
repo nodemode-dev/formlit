@@ -9,6 +9,10 @@ cd "$FORMLIT_ROOT/backend"
 sep=":"
 [ "$(fl_os)" = windows ] && sep=";"
 ext="$(fl_exe)"
+if [ "$(fl_os)" = macos ]; then
+  gpl="$(python -c 'import pathlib, cv2; print("\n".join(str(p) for p in pathlib.Path(cv2.__file__).parent.rglob("*") if any(k in p.name.lower() for k in ("libx264", "libx265", "librubberband", "libvidstab", "libpostproc"))))' 2>/dev/null | head -1)"
+  [ -z "$gpl" ] || fl_die "GPL FFmpeg library in OpenCV: $gpl. Reinstall opencv from source without FFmpeg: PIP_NO_BINARY=opencv-python,opencv-python-headless CMAKE_ARGS=-DWITH_FFMPEG=OFF pip install --force-reinstall -r requirements_macos.txt"
+fi
 rm -rf build/pyinstaller dist-engine
 pyinstaller --noconfirm --clean --onefile --name formlit-engine \
   --distpath dist-engine --workpath build/pyinstaller --specpath build/pyinstaller --paths "$FORMLIT_ROOT/backend" \

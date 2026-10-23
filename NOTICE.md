@@ -41,7 +41,7 @@ formlit reads and writes DNG files (AI Denoise and import conversion write them,
 | fastapi, uvicorn, python-multipart, httpx | MIT, BSD-3-Clause | engine |
 | Pillow | MIT-CMU | engine |
 | numpy | BSD-3-Clause | engine |
-| opencv-python-headless | Apache-2.0 (OpenCV), MIT (packaging) | engine; its wheels carry LGPL FFmpeg as separate shared libraries, kept separable in the frozen engine |
+| opencv-python-headless | Apache-2.0 (OpenCV), MIT (packaging) | engine; its Linux and Windows wheels carry LGPL FFmpeg as separate shared libraries, kept separable in the frozen engine. The macOS wheel carries GPL FFmpeg parts (libx264, libx265, rubberband, vidstab, postproc), so macOS builds install OpenCV from source without FFmpeg and `setup/freeze_backend` stops if any of those libraries are in the installed OpenCV |
 | rawpy, with LibRaw | MIT (rawpy); LibRaw is LGPL-2.1 or CDDL-1.0 at the recipient's choice | camera raw decoding; LibRaw ships in rawpy's wheels as a separate shared library, kept separable and replaceable in the frozen engine |
 | pillow-heif | BSD-3-Clause; bundles LGPL libheif and GPL x265 | server-side engine only; excluded from the frozen desktop engine |
 | exifread | BSD-3-Clause | EXIF reading for every format |
@@ -69,8 +69,46 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 | SAM 2.1 tiny (ONNX) | Apache-2.0 | Select Objects |
 | LaMa (Carve ONNX export) | Apache-2.0 | Generative Remove |
 | Real-ESRGAN x4plus | BSD-3-Clause | Super Resolution |
+| U-2-Net human segmentation (u2net_human_seg.onnx, rembg release v0.0.0), https://github.com/danielgatis/rembg/releases/tag/v0.0.0 | Apache-2.0, as `backend/app/ai/models.py` records | Select People |
+| MediaPipe selfie multiclass (Google), 256x256 ONNX export senty-au/selfie_multiclass_256x256-ONNX, https://huggingface.co/senty-au/selfie_multiclass_256x256-ONNX | Apache-2.0, as `models.py` records | Parts masks: hair, skin, clothes |
+| SCUNet real-world denoiser (Kai Zhang et al.), scunet_color_real_psnr as ONNX by Heliosoph, https://huggingface.co/Heliosoph/scunet-onnx | Apache-2.0 (SCUNet), MIT (KAIR weights), as `models.py` records | AI Denoise |
+| Mask R-CNN v2 ResNet-50 FPN (torchvision), ONNX export in the ONNX Model Zoo, https://huggingface.co/onnxmodelzoo/maskrcnn_resnet50_fpn_v2_Opset17 | BSD-3-Clause weights, Apache-2.0 export, as `models.py` records | Selecting each person apart |
+| SigLIP base patch16-224 (Google), quantized ONNX export by Xenova, https://huggingface.co/Xenova/siglip-base-patch16-224 | Apache-2.0, as `models.py` records | Search by description |
 
-The lens profile database is downloaded when the person chooses Download Lens Profiles in Lens Corrections: the Lensfun project's XML files (data/db, lensfun.github.io), used unmodified under CC BY-SA 3.0 and credited in the panel. formlit reads the files and keeps a derived index beside them in the models folder; Lensfun's LGPL library code is not used. Unlike the models, the files track Lensfun's main branch and are not hash-pinned, because the database is updated as lenses are calibrated.
+The lens profile database is downloaded when the person chooses Download Lens Profiles in Lens Corrections: the Lensfun project's XML files (data/db, lensfun.github.io), used unmodified under CC BY-SA 3.0 and credited in the panel. formlit reads the files and keeps a derived index beside them in the models folder; Lensfun's LGPL library code is not used. Unlike the models, the files track Lensfun's main branch and are not hash-pinned, because the database is updated as lenses are calibrated. The data is downloaded only on request, and no checksum is pinned or checked for it.
+
+## Python packages frozen into the engine, beyond the tables above
+
+The engine is frozen with PyInstaller `--onefile` (`setup/freeze_backend`). These packages are installed in `backend/venv` from `backend/requirements.txt` and are collected by the freeze (directly or as dependencies of fastapi, uvicorn[standard], httpx, paramiko, pikepdf and onnxruntime); each licence is read from the package's installed metadata. "Frozen in" is inferred from the freeze flags and imports, not from a built bundle.
+
+| Package | Licence |
+| --- | --- |
+| CPython runtime and standard library | PSF-2.0 |
+| typing_extensions | PSF-2.0 |
+| certifi 2026.10.19 | MPL-2.0 (cacert.pem unedited) |
+| PyInstaller 6.22.3 (its bootloader is the executable stub of the frozen engine) | GPL-2.0-or-later with the PyInstaller exception that permits distributing the frozen program under another licence (PyPI metadata for 6.22.3) |
+| starlette, pydantic, pydantic_core, annotated-types, annotated-doc, typing-inspection, anyio, h11, httptools, uvloop, watchfiles, PyYAML, Deprecated | MIT (uvloop: MIT or Apache-2.0) |
+| websockets, click, httpcore, idna, python-dotenv, protobuf, lxml, pycparser | BSD-3-Clause |
+| invoke, wrapt | BSD-2-Clause |
+| charset-normalizer | MIT |
+| bcrypt, PyNaCl | Apache-2.0 |
+| cryptography 50.0.2 | Apache-2.0 OR BSD-3-Clause |
+| cffi 2.1.1 | MIT-0 |
+| flatbuffers 25.12.19 | Apache-2.0 |
+| packaging | Apache-2.0 OR BSD-2-Clause |
+
+## Desktop shell: crates under other licences
+
+Tauri links these crates unedited (no `[patch]` and no vendored copy):
+
+| Crate | Licence | Why it is there |
+| --- | --- | --- |
+| cssparser, selectors, dtoa-short, option-ext | MPL-2.0 | Tauri's HTML handling (tauri-utils); used unmodified, source at crates.io |
+| ring | Apache-2.0 AND ISC | TLS for the updater (rustls) |
+| webpki-root-certs | CDLA-Permissive-2.0 | root certificates for the updater's TLS |
+| r-efi | MIT OR Apache-2.0 OR LGPL-2.1-or-later | used under MIT |
+
+The Linux AppImage also carries the build machine's WebKitGTK, GTK and GLib (LGPL-2.1-or-later) as separate shared libraries.
 
 ## Map tiles
 
