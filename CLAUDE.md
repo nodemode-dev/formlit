@@ -28,3 +28,12 @@ When the person wants photos imported, culled, developed, masked, exported, prin
 ## Laws
 
 Single-region hand edits only (no sed, patch, git apply or scripted edits), zero DOM flash or re-render (verify under 4x CPU and slow network), no emoji, no em dash in markdown, no icon-library dependencies, z-index only through tokens, near-zero comments with rationale in the HASHOUT logs, `v*.*.*` versions, Conventional Commits.
+
+## Trademarks, copyright and licences
+
+- Other vendors' product and feature names appear only to name a file format or compatibility (XMP sidecars and DNG files Lightroom and Camera Raw read, Adobe profile names written into XMP by `services/xmp_presets.py`). Never as a formlit command, panel, preset group, preset name or agent tool name, and never as "like Lightroom" or "Lightroom's" in UI text or READMEs. formlit's names: Intelligent Previews, Adaptable preset groups. The notice in `README.md` and `NOTICE.md` lists every vendor mark named.
+- Built-in preset ids never change when a group or name is renamed: make them with `presets.builtin_id` and add the old slug to `LEGACY_SLUGS`.
+- Preset values come from formlit's own tuning or from published technique articles, never from another vendor's or creator's preset file; descriptions never say a preset copies one. Never bundle Adobe's presets, profiles (.dcp), lens profiles (.lcp) or templates.
+- The DNG notice ("This product includes DNG technology under license by Adobe Systems Incorporated.") stays in the About box (Licences and notices), `NOTICE.md` and the README while formlit reads or writes DNG.
+- Never copy vendor help or documentation text, and never import or trace vendor icons.
+- Every new dependency, binary, model, font or data file gets a row in `NOTICE.md` before it is used. GPL stays outside the distributed bundle, AGPL nowhere, LGPL dynamically linked and replaceable, MPL files unedited; CC BY credited, CC BY-SA only unmodified, CC NC and ND never.
