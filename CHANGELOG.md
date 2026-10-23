@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.3 · 2026-10-23
+
+- Changed: built-in print, filename and smart collection templates that shared their names with another photo library's built-in sets have formlit's own names (Gallery Mat, Full Page, Proof Sheet 20 per Page, Print Set, Name - Sequence, Red Label, Top Rated and the rest); every id is unchanged. The new names are translated in all 25 languages.
+- Not verified yet: the renamed templates were not seen in the window.
+
 ## v0.46.2 · 2026-10-23
 
 - Added: About formlit opens a dialog with the version and a closed "Licences and notices" section carrying Adobe's required DNG notice; the notice is also in NOTICE.md and the README.
