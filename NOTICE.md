@@ -24,6 +24,12 @@ Material used only to test this build on the developer's machine is not included
 
 Camera-matching profile names (for example Faithful, Velvia/Vivid, CLASSIC CHROME, ACROS, Cinelike, i-Enhance) are the names camera makers give to settings in their cameras. formlit uses them only to say which in-camera setting a profile approximates; they are trademarks of their owners, and formlit is not affiliated with or endorsed by any camera maker. The profiles themselves are formlit's own approximations, built on a per-photo fit to the camera's embedded JPEG; no maker or Adobe profile data is included.
 
+## Adobe DNG patent licence
+
+This product includes DNG technology under license by Adobe Systems Incorporated.
+
+formlit reads and writes DNG files (AI Denoise and import conversion write them, through `backend/app/ai/dng.py`). Adobe's DNG Specification patent licence is worldwide and royalty-free for reading and writing files that comply with the DNG Specification, on condition that distributed products display the notice above prominently; it is shown in formlit's About box under Licences and notices. Adobe may revoke the licence from anyone who, with their affiliates, brings a patent action against Adobe over reading or writing DNG files. Source: the licence text Adobe ships with the DNG SDK (`PATENTS`).
+
 ## Distributed with the app
 
 | Package | License | Notes |
@@ -69,3 +75,7 @@ The lens profile database is downloaded when the person chooses Download Lens Pr
 ## Map tiles
 
 The Map module shows OpenStreetMap tiles. Map data copyright OpenStreetMap contributors, available under the Open Database License; the attribution is drawn on the map. The Terrain style shows OpenTopoMap tiles (CC-BY-SA, with SRTM elevation data), also attributed on the map. Tiles are fetched while the Map module is open and are not stored in the repository. Look Up Address asks the OpenStreetMap Nominatim service for place names (one request per second, only when the user runs it); results are data from OpenStreetMap contributors under the ODbL. Search Map uses the same Nominatim service, one request per second, only when the user presses Enter. The Satellite and Hybrid styles show Sentinel-2 cloudless 2016 by EOX IT Services GmbH (https://s2maps.eu), licensed CC BY 4.0, containing modified Copernicus Sentinel data 2016; the attribution is drawn on the map. Only the 2016 layer is used, because the later EOX years are licensed CC BY-NC-SA, which this project does not accept. The Light and Dark styles are the OpenStreetMap tiles recoloured in the browser.
+
+## Trademarks
+
+Adobe, Camera Raw, Lightroom and Photoshop are either registered trademarks or trademarks of Adobe in the United States and/or other countries. formlit is not affiliated with or endorsed by Adobe; the names describe file formats and compatibility only (XMP sidecars and DNG files that Lightroom and Camera Raw read and write).
