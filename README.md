@@ -151,7 +151,7 @@ Release history: `CHANGELOG.md`. What is not verified yet:
 
 ## Licensing
 
-Apache License 2.0. Copyright 2026 nodemode-ai. See `LICENSE`, and `NOTICE.md` for the open-source code, models and data formlit uses and their licenses.
+Apache License 2.0. Copyright 2026 NodeAgentc, Inc. See `LICENSE`, and `NOTICE.md` for the open-source code, models and data formlit uses and their licenses.
 
 This product includes DNG technology under license by Adobe Systems Incorporated.
 

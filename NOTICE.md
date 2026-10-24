@@ -1,6 +1,6 @@
 # Third-party notices
 
-formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026 nodemode-ai. It includes, ports or depends on the following works.
+formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026 NodeAgentc, Inc. It includes, ports or depends on the following works.
 
 ## Included in this repository
 
