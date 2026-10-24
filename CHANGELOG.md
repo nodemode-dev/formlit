@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.6 · 2026-10-24
+
+- The copyright holder in LICENSE, NOTICE.md and the README is NodeAgentc, Inc.
+- The About box carries the credit "by nodemode.ai".
+- Not verified: the About box was not opened in a window here.
+
 ## v0.46.5 · 2026-10-23
 
 - NOTICE.md lists five more downloaded models, the Python packages frozen into the engine, the desktop shell's crates under other licences, and how the lens profile database is fetched; the installers carry LICENSE and NOTICE.md.
