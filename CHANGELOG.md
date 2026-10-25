@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.9 · 2026-10-25
+
+- A web page can no longer reach the engine through an image or a link.
+- Not verified: the desktop build was not run here.
+
 ## v0.46.8 · 2026-10-25
 
 - The engine answers only this computer's own window and agents.
