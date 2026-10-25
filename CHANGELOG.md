@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.46.7 · 2026-10-25
+
+- The frontend's vite dev dependency moves from 8.3.0 to 8.3.5, which clears two command-injection advisories in the dev server's launch-editor; `npm audit` reports 0 vulnerabilities. Dev dependency only, nothing in the shipped bundle changed.
+- Not verified: the desktop build was not run here.
+
 ## v0.46.6 · 2026-10-24
 
 - The copyright holder in LICENSE, NOTICE.md and the README is NodeAgentc, Inc.
