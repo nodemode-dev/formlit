@@ -859,3 +859,10 @@ The dock is a fixed row of the app grid between the filmstrip and the status bar
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
+
+### package.json · vite 8.3.5
+- refers-to: package.json :: devDependencies.vite; package-lock.json
+- kind: rationale
+- logged: v0.46.7 · 2026-10-25
+
+Family rule from `FAMILY_DEV_PLAN.md` v0.4.x Phase 2b (formai_dev sidecar): every frontend installs with zero `npm audit` findings. Vite 8.3.0 carries a `launch-editor` with two command-injection advisories in the dev server (ledger FB-004); 8.3.5 clears them. Dev dependency only, nothing in the shipped bundle changed. Verified: `npm install` then `npm audit` reports 0 vulnerabilities, `npm run typecheck` passes, `vite build` succeeds, and the dev server starts as VITE v8.3.5, answers 200 on localhost and prints no Network address.
