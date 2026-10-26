@@ -1,4 +1,4 @@
-import { el, escapeHtml, patchList, q, setClass, setHtml, setText, setTitle } from './dom';
+import { el, escapeHtml, patchList, q, setClass, setHtml, setStyleVar, setText, setTitle } from './dom';
 import { icon } from './icons';
 
 export interface TreeNode {
@@ -23,6 +23,7 @@ export interface TreeOptions {
   canDrop?: (n: TreeNode) => boolean;
   onRename?: (n: TreeNode, name: string) => void;
   empty?: string;
+  rows?: number;
 }
 
 const OPEN_KEY = 'formlit_tree_open';
@@ -41,10 +42,11 @@ export class Tree {
   private readonly list: HTMLElement;
 
   constructor(private readonly opts: TreeOptions) {
-    this.root = el(`<div class="fl-tree" role="tree"><div class="fl-tree-list"></div><div class="fl-tree-empty" hidden></div></div>`);
+    this.root = el(`<div class="fl-tree" role="tree"><div class="fl-tree-list"></div><div class="fl-tree-empty${opts.empty ? ' is-pending' : ''}"${opts.empty ? '' : ' hidden'}></div></div>`);
     this.list = q(this.root, '.fl-tree-list');
     this.empty = q(this.root, '.fl-tree-empty');
     setText(this.empty, opts.empty ?? 'Nothing here yet');
+    if (opts.rows) setStyleVar(this.root, '--rows', String(opts.rows));
     this.list.addEventListener('click', (e) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>('.fl-tree-row');
       if (!row) return;
@@ -130,6 +132,7 @@ export class Tree {
   private render(): void {
     const rows = this.visible();
     this.empty.hidden = this.nodes.length > 0;
+    setClass(this.empty, 'is-pending', false);
     patchList(this.list, rows, {
       key: (n) => n.key,
       create: (n) => {

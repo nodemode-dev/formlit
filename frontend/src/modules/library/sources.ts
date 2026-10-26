@@ -85,7 +85,7 @@ export class SourcePanels {
   private ctxNode: TreeNode | null = null;
 
   constructor(private readonly ctx: Ctx, host: HTMLElement) {
-    this.catalogTree = new Tree({ id: 'catalog', onPick: (n) => library.setSource(n.data as Source) });
+    this.catalogTree = new Tree({ id: 'catalog', rows: 3, onPick: (n) => library.setSource(n.data as Source) });
     this.folders = new Tree({
       id: 'folders', empty: 'Import photos to see their folders here',
       onPick: (n) => { const r = n.data as FolderRow; library.setSource({ kind: 'folder', id: r.id, label: r.name, recursive: true }); },

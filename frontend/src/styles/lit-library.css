@@ -220,7 +220,7 @@
 .fl-foot-row { display: flex; gap: 6px; width: 100%; }
 .fl-foot-row .cv-btn { flex: 1; justify-content: center; }
 
-.fl-tree { display: flex; flex-direction: column; }
+.fl-tree { display: flex; flex-direction: column; min-height: calc(var(--rows, 0) * 24px); }
 .fl-tree-row { display: grid; grid-template-columns: 14px 18px minmax(0, 1fr) auto auto; align-items: center; gap: 4px; height: 24px; padding: 0 6px 0 calc(4px + var(--depth, 0) * 14px); border-radius: 5px; color: var(--text-secondary); font-size: var(--fs-12); cursor: default; }
 .fl-tree-row:hover { background: var(--surface-2); color: var(--text-primary); }
 .fl-tree-row.is-active { background: var(--accent-soft); color: var(--text-primary); }
@@ -236,6 +236,7 @@
 .fl-tree-count { color: var(--text-muted); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
 .fl-tree-empty { padding: 6px 4px; color: var(--text-muted); font-size: var(--fs-11); line-height: 1.5; }
 .fl-tree-empty[hidden] { display: none; }
+.fl-tree-empty.is-pending { visibility: hidden; }
 .fl-tree-row.is-head { margin-top: 2px; background: var(--group-head); color: var(--text-primary); font-weight: 600; }
 .fl-tree-row.is-head:first-child { margin-top: 0; }
 .fl-tree-row.is-head .fl-tree-count { font-weight: 400; }

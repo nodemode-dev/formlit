@@ -146,6 +146,7 @@ frontend/
 - [src/ui/terminal-dock.ts, src/modules/shared/terminal.ts](#ui-terminal-dock)
 - [src/ui/about-dialog.ts](#ui-about-dialog)
 - [public/splash.html](#public-splash)
+- [src/ui/tree.ts](#ui-tree)
 - [Files with no entries](#no-entries)
 
 ---
@@ -171,6 +172,14 @@ app.ts no longer imports `VERSION`; the dialog reads it.
 - logged: v0.47.2 · 2026-10-26 · FB-110
 
 The F7 window smoke found a layout shift of 0.0000584 on the splash page in about half of the throttled loads (4x CPU, slow network): the inline mark is large, so the first paint came with the svg alone, centred, and the caption `<p>` joined the flex column a frame later, moving the mark up 17 px. The caption is now taken out of the flow (absolute, centred, 37 px below the middle) and the body carries 34 px of bottom padding, so the mark sits where it did before and nothing moves when the caption parses. Removed rules: `body { gap: 18px }` and the flowing `p { margin: 0; letter-spacing: 0.2px }`.
+
+## src/ui/tree.ts {#ui-tree}
+
+- refers-to: src/ui/tree.ts :: Tree, TreeOptions.rows; src/styles/lit-library.css :: .fl-tree, .fl-tree-empty.is-pending; src/modules/library/sources.ts :: SourcePanels (catalog tree)
+- kind: fix
+- logged: v0.47.2 · 2026-10-26 · FB-111
+
+The F7 window smoke caught a layout shift of 0.0063 in about one cold load in ten under 4x CPU and the slow network: the Catalog, Folders and Collections trees start empty and fill when `library.tree` answers, so their rows (Catalog) or empty-state line (Folders, Collections) appeared late and pushed the panels below (Collections, Folders, People, Publish Services) down. Reproduced on demand by delaying `library.tree` 5 s in the page: 3 of 11 loads shifted on the start build, 0 of 11 on the fix. A tree with an `empty` text now starts with that text in the flow but invisible (`is-pending`, `visibility: hidden`) until its first `set()`, and the Catalog tree reserves its three fixed rows through the new `rows` option (`--rows`, 24 px per row, the tree row height). The visible result is unchanged. A catalog with many folders still grows when it arrives; only the empty and fixed-row cases are reserved. Removed: nothing; the empty element was `hidden` until the first render.
 
 ## src/ui/dom.ts, themes.ts, dropdown.ts, dialogs.ts, menu.ts, toast.ts (vendored) {#ui-vendored}
 
