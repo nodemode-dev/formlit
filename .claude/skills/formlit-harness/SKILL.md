@@ -54,7 +54,7 @@ Start with `sub-skills/harness-director/SUB-SKILL.md` for anything broad. Load a
 4. Zero DOM flash: mount once, patch in place, reserve space before content arrives.
 5. Colours and z-index come from tokens; icons are inline currentColor SVG from `frontend/src/ui/icons-lit.ts`; no icon libraries.
 6. No emoji anywhere and no U+2014 em dash in markdown (use the interpunct). Near-zero comments; context goes in `frontend/HASHOUT_LOG.md` or `backend/HASHOUT_LOG.md`.
-7. No self-written tests until the person asks; what should be tested goes in the planning sidecar's `TEST_PLAN.md`.
+7. Tests live in `backend/tests/` and run in CI; write only the tests FAMILY_TEST_PLAN (formai_dev sidecar) or its successor names, and list what is covered in the planning sidecar's `TEST_PLAN.md`.
 8. Destructive actions stay with the person: deleting files from disk and switching catalogs are refused over MCP.
 9. Outside agents are asked once: every MCP tool call passes `agents.require` in `call_tool` against the `outsideAgents` setting (ask, allowed or blocked). Only the handshake, listing tools and prompts, and the window's own REST calls are open. A new tool gets no exemption, and `agents.respond` stays in `BLOCKED` so an agent cannot answer its own prompt.
 
