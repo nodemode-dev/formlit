@@ -27,7 +27,7 @@ When the person wants photos imported, culled, developed, masked, exported, prin
 
 ## Laws
 
-Tests live in `backend/tests/` and run in CI; write only the tests FAMILY_TEST_PLAN (formai_dev sidecar) or its successor names. Single-region hand edits only (no sed, patch, git apply or scripted edits), zero DOM flash or re-render (verify under 4x CPU and slow network), no emoji, no em dash in markdown, no icon-library dependencies, z-index only through tokens, near-zero comments with rationale in the HASHOUT logs, `v*.*.*` versions, Conventional Commits.
+Tests live in `backend/tests/` and `frontend/tests/window/` and run in CI; write only the tests FAMILY_TEST_PLAN (formai_dev sidecar) or its successor names. Single-region hand edits only (no sed, patch, git apply or scripted edits), zero DOM flash or re-render (verify under 4x CPU and slow network), no emoji, no em dash in markdown, no icon-library dependencies, z-index only through tokens, near-zero comments with rationale in the HASHOUT logs, `v*.*.*` versions, Conventional Commits.
 
 ## Trademarks, copyright and licences
 

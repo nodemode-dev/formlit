@@ -115,6 +115,7 @@ The Linux AppImage also carries the build machine's WebKitGTK, GTK and GLib (LGP
 | Package | Licence | Notes |
 | --- | --- | --- |
 | pytest 9.1.1 (with iniconfig, packaging, pluggy, pygments) | MIT (pytest, iniconfig, pluggy), Apache-2.0 OR BSD-2-Clause (packaging), BSD-2-Clause (pygments) | runs `backend/tests` in CI (`backend/requirements-test.txt`); never installed in the app |
+| Playwright for Python 1.63.0 (with its Chromium) | Apache-2.0 | runs `frontend/tests/window` (the window smoke) in CI; never installed in the app |
 
 ## Map tiles
 
