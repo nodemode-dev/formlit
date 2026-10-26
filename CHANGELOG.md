@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.0 · 2026-10-26
+
+- The desktop release build keeps its symbols, since macOS builds fail on a stripped binary. A minor number only because a patch number never reaches two digits.
+- Not verified: the desktop build was not run here.
+
 ## v0.46.9 · 2026-10-25
 
 - A web page can no longer reach the engine through an image or a link.
