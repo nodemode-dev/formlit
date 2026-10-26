@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.2 · 2026-10-26
+
+- A window smoke test in frontend/tests/window loads the built window and its splash page under a slowed CPU and network and fails on any layout shift, console error, failed request or request the local guard refuses. CI runs it as the window job (F7).
+- Fixed (FB-110): the splash page's caption no longer moves the mark when it parses.
+- Fixed (FB-111): the Catalog, Folders and Collections panels reserve their empty-state and fixed rows before the library tree answers, so the panels below no longer jump on a slow start.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.1 · 2026-10-26
 
 - The engine has a test suite in backend/tests that runs in CI: the local guard, outside-agent consent, the MCP server, the version sites, the engine boot, that originals are never modified, the develop math, catalog migration and the files export writes. No behaviour changed.
