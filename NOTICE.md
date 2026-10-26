@@ -110,6 +110,12 @@ Tauri links these crates unedited (no `[patch]` and no vendored copy):
 
 The Linux AppImage also carries the build machine's WebKitGTK, GTK and GLib (LGPL-2.1-or-later) as separate shared libraries.
 
+## Development only, never shipped
+
+| Package | Licence | Notes |
+| --- | --- | --- |
+| pytest 9.1.1 (with iniconfig, packaging, pluggy, pygments) | MIT (pytest, iniconfig, pluggy), Apache-2.0 OR BSD-2-Clause (packaging), BSD-2-Clause (pygments) | runs `backend/tests` in CI (`backend/requirements-test.txt`); never installed in the app |
+
 ## Map tiles
 
 The Map module shows OpenStreetMap tiles. Map data copyright OpenStreetMap contributors, available under the Open Database License; the attribution is drawn on the map. The Terrain style shows OpenTopoMap tiles (CC-BY-SA, with SRTM elevation data), also attributed on the map. Tiles are fetched while the Map module is open and are not stored in the repository. Look Up Address asks the OpenStreetMap Nominatim service for place names (one request per second, only when the user runs it); results are data from OpenStreetMap contributors under the ODbL. Search Map uses the same Nominatim service, one request per second, only when the user presses Enter. The Satellite and Hybrid styles show Sentinel-2 cloudless 2016 by EOX IT Services GmbH (https://s2maps.eu), licensed CC BY 4.0, containing modified Copernicus Sentinel data 2016; the attribution is drawn on the map. Only the 2016 layer is used, because the later EOX years are licensed CC BY-NC-SA, which this project does not accept. The Light and Dark styles are the OpenStreetMap tiles recoloured in the browser.
