@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.1 · 2026-10-26
+
+- The engine has a test suite in backend/tests that runs in CI: the local guard, outside-agent consent, the MCP server, the version sites, the engine boot, that originals are never modified, the develop math, catalog migration and the files export writes. No behaviour changed.
+- CI audits the frontend lockfile with npm audit.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.0 · 2026-10-26
 
 - The desktop release build keeps its symbols, since macOS builds fail on a stripped binary. A minor number only because a patch number never reaches two digits.
