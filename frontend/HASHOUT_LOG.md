@@ -145,6 +145,7 @@ frontend/
 - [vite.config.ts](#vite-config)
 - [src/ui/terminal-dock.ts, src/modules/shared/terminal.ts](#ui-terminal-dock)
 - [src/ui/about-dialog.ts](#ui-about-dialog)
+- [public/splash.html](#public-splash)
 - [Files with no entries](#no-entries)
 
 ---
@@ -162,6 +163,14 @@ The owner's licensing plan (L1, approved 2026-10-23): Adobe's DNG patent licence
 ```
 
 app.ts no longer imports `VERSION`; the dialog reads it.
+
+## public/splash.html {#public-splash}
+
+- refers-to: public/splash.html :: body, p
+- kind: fix
+- logged: v0.47.2 · 2026-10-26 · FB-110
+
+The F7 window smoke found a layout shift of 0.0000584 on the splash page in about half of the throttled loads (4x CPU, slow network): the inline mark is large, so the first paint came with the svg alone, centred, and the caption `<p>` joined the flex column a frame later, moving the mark up 17 px. The caption is now taken out of the flow (absolute, centred, 37 px below the middle) and the body carries 34 px of bottom padding, so the mark sits where it did before and nothing moves when the caption parses. Removed rules: `body { gap: 18px }` and the flowing `p { margin: 0; letter-spacing: 0.2px }`.
 
 ## src/ui/dom.ts, themes.ts, dropdown.ts, dialogs.ts, menu.ts, toast.ts (vendored) {#ui-vendored}
 
