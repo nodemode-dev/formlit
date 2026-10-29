@@ -72,7 +72,7 @@ const save = () => { try { store.set(marks); } catch (e) {} };
 const $ = (id) => document.getElementById(id);
 const grid = $('grid'); let cur = -1; let shown = DATA.photos.map((_, i) => i);
 const m = (k) => marks[k] || (marks[k] = { pick: false, reject: false, rating: 0, comment: '' });
-function cellHtml(p) { const s = marks[p.key] || {}; const st = s.rating ? '★'.repeat(s.rating) : ''; return `${s.pick ? '<span class="badge pick">Pick</span>' : s.reject ? '<span class="badge reject">Reject</span>' : ''}<img loading="lazy" src="${p.thumb}" alt="${p.label}"><div class="bar"><span>${p.label}</span><span class="stars">${st}</span><span class="c">${s.comment ? 'Comment' : ''}</span></div>`; }
+function cellHtml(p) { const s = marks[p.key] || {}; const st = s.rating ? '\u2605'.repeat(s.rating) : ''; return `${s.pick ? '<span class="badge pick">Pick</span>' : s.reject ? '<span class="badge reject">Reject</span>' : ''}<img loading="lazy" src="${p.thumb}" alt="${p.label}"><div class="bar"><span>${p.label}</span><span class="stars">${st}</span><span class="c">${s.comment ? 'Comment' : ''}</span></div>`; }
 function paintCell(i) { const p = DATA.photos[i]; const el = grid.querySelector(`[data-i="${i}"]`); if (!el) return; const s = marks[p.key] || {}; el.className = 'cell' + (s.pick ? ' pick' : s.reject ? ' reject' : ''); el.innerHTML = cellHtml(p); }
 function build() { const f = $('filter').value; shown = DATA.photos.map((_, i) => i).filter((i) => { const s = marks[DATA.photos[i].key] || {}; return f === 'all' || (f === 'pick' && s.pick) || (f === 'reject' && s.reject) || (f === 'unmarked' && !s.pick && !s.reject); });
   grid.innerHTML = shown.map((i) => `<div class="cell" data-i="${i}" tabindex="0"></div>`).join(''); shown.forEach(paintCell); count(); }
@@ -80,7 +80,7 @@ const picks = () => Object.values(marks).filter((s) => s.pick).length;
 function count() { const v = Object.values(marks); $('count').textContent = `${DATA.photos.length} photos · ${picks()}${DATA.limit ? ` of ${DATA.limit}` : ''} picked · ${v.filter((s) => s.reject).length} rejected`; }
 function open(i) { cur = i; const p = DATA.photos[i]; $('big').src = p.large; $('big').alt = p.label; $('loupe').classList.add('on'); tools(); }
 function tools() { const p = DATA.photos[cur]; const s = marks[p.key] || {}; $('bpick').className = s.pick ? 'on-pick' : ''; $('breject').className = s.reject ? 'on-reject' : '';
-  $('bstars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}" class="${(s.rating || 0) >= n ? 'on-star' : ''}" aria-label="${n} stars">★</button>`).join(''); if (document.activeElement !== $('comment')) $('comment').value = s.comment || ''; }
+  $('bstars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}" class="${(s.rating || 0) >= n ? 'on-star' : ''}" aria-label="${n} stars">\u2605</button>`).join(''); if (document.activeElement !== $('comment')) $('comment').value = s.comment || ''; }
 function setMark(fn) { const p = DATA.photos[cur]; fn(m(p.key)); save(); tools(); paintCell(cur); count(); }
 function move(d) { const at = shown.indexOf(cur); const nx = shown[Math.max(0, Math.min(shown.length - 1, (at < 0 ? 0 : at) + d))]; if (nx !== undefined) open(nx); }
 grid.addEventListener('click', (e) => { const c = e.target.closest('[data-i]'); if (c) open(+c.dataset.i); });
