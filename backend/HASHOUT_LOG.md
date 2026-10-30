@@ -10,6 +10,7 @@ Last updated: 2026-10-26 · v0.47.1 the family test suite, no engine changes; 20
 ## v0.47.3 · formcompiler builds on every OS (2026-10-30)
 
 - formlit.bat `desktop build` passes its third to ninth arguments to setup\desktop_build.bat, which passes all of them (`%*`) to `tauri.cmd build`. formcompiler's Windows line can now end in `%FORMCOMPILER_CONFIG_ARG%` (`--config <file>`), so Windows builds get the updater settings and latest.json gets a windows-x86_64 entry. With no extra arguments the build is the same as before. The macOS and Linux `setup/desktop_build` already passed `"$@"`.
+- requirements_macos.txt pins `opencv-python-headless==5.0.0.93`, the version requirements.txt uses on Linux and Windows. On macOS OpenCV is built from source without FFmpeg (formcompiler sets `PIP_NO_BINARY` and `CMAKE_ARGS`; freeze_backend refuses a GPL FFmpeg library), so an unpinned name meant each build compiled whatever OpenCV was newest that day. The other macOS entries stay unpinned as before.
 
 ---
 
