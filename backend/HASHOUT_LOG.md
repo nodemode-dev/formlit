@@ -7,6 +7,12 @@ Last updated: 2026-10-26 · v0.47.1 the family test suite, no engine changes; 20
 
 ---
 
+## v0.47.3 · formcompiler builds on every OS (2026-10-30)
+
+- formlit.bat `desktop build` passes its third to ninth arguments to setup\desktop_build.bat, which passes all of them (`%*`) to `tauri.cmd build`. formcompiler's Windows line can now end in `%FORMCOMPILER_CONFIG_ARG%` (`--config <file>`), so Windows builds get the updater settings and latest.json gets a windows-x86_64 entry. With no extra arguments the build is the same as before. The macOS and Linux `setup/desktop_build` already passed `"$@"`.
+
+---
+
 ## v0.47.1 · the family test suite (2026-10-26)
 
 - `backend/tests` (pytest 9.1.1, `backend/requirements-test.txt`) runs in CI and writes only what FAMILY_TEST_PLAN names: F1 guard, F2 consent, F3 MCP, F4 versions, F5 boot, F9 release profiles, and formlit's own P1 set (originals never modified, develop math, catalog migration, export files). No engine code changed and no bug was found.

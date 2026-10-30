@@ -15,7 +15,7 @@ if /i "%CMD%"=="build" ( call setup\build_frontend.bat & goto :eof )
 if /i "%CMD%"=="serve" ( call setup\serve.bat & goto :eof )
 if /i "%CMD%"=="freeze" ( call setup\freeze_backend.bat & goto :eof )
 if /i "%CMD%"=="desktop" (
-  if /i "%ARG%"=="build" ( call setup\desktop_build.bat ) else ( call setup\desktop_dev.bat )
+  if /i "%ARG%"=="build" ( call setup\desktop_build.bat %3 %4 %5 %6 %7 %8 %9 ) else ( call setup\desktop_dev.bat )
   goto :eof
 )
 if /i "%CMD%"=="mcp" ( python setup\mcp_stdio.py & goto :eof )
@@ -36,5 +36,5 @@ exit /b 2
 :usage
 echo formlit.bat [command]
 echo   boot ^| install [--lite] ^| install-ml ^| install-desktop ^| backend ^| frontend
-echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build ^| mcp ^| claude [args] ^| agents install^|sync ^| cli ^| doctor ^| counts ^| i18n export^|import LANG FILE.csv ^| clean [--all] ^| help
+echo   build ^| serve ^| freeze ^| desktop dev ^| desktop build [tauri build args] ^| mcp ^| claude [args] ^| agents install^|sync ^| cli ^| doctor ^| counts ^| i18n export^|import LANG FILE.csv ^| clean [--all] ^| help
 exit /b 0
