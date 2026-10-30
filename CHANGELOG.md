@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.3 · 2026-10-30
+
+- Windows desktop builds take `--config`: `formlit.bat desktop build --config FILE` passes it to `tauri build`, so formcompiler's Windows release can carry updater files.
+- macOS installs pin opencv-python-headless to 5.0.0.93, the version Linux and Windows use, so the from-source OpenCV build is the same on every run.
+- A .gitattributes keeps text files LF and checks batch files out with CRLF.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.2 · 2026-10-26
 
 - A window smoke test in frontend/tests/window loads the built window and its splash page under a slowed CPU and network and fails on any layout shift, console error, failed request or request the local guard refuses. CI runs it as the window job (F7).
