@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.4 · 2026-10-31
+
+- The Windows desktop app no longer opens to a blank window on PCs where an installer set the `.js` file type to `text/plain` in the registry: the engine now serves scripts and stylesheets with their real types.
+- Video thumbnails, video export and slideshow video no longer need ffmpeg installed: when none is found, the desktop app downloads its own LGPL ffmpeg on first run, checks every file against its pinned SHA-256, and uses it. An installed ffmpeg is still used first.
+- On Linux, the .deb and .rpm recommend GStreamer's plugins and the AppImage carries the base and good ones, so the video player and slideshows play on a fresh install.
+- Not verified: the desktop build was not run here; the ffmpeg download was run against the real release on Linux.
+
 ## v0.47.3 · 2026-10-30
 
 - Windows desktop builds take `--config`: `formlit.bat desktop build --config FILE` passes it to `tauri build`, so formcompiler's Windows release can carry updater files.
