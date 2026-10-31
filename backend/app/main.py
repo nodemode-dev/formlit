@@ -9,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES
 
+from app import ffmpeg_fetch
 from app.core import config
 from app.core.local_guard import LocalGuard
 from app.routers import ROUTERS, startup, shutdown
@@ -16,6 +17,7 @@ from app.routers import ROUTERS, startup, shutdown
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
+ffmpeg_fetch.start()
 
 
 @asynccontextmanager

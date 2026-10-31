@@ -51,7 +51,7 @@ formlit reads and writes DNG files (AI Denoise and import conversion write them,
 | @xterm/xterm, @xterm/addon-fit | MIT | the terminal dock |
 | ptyprocess (macOS, Linux), pywinpty (Windows) | ISC, MIT | pseudo-terminals for the terminal dock |
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
-| ffmpeg | LGPL or GPL builds | not bundled; used as an external program for slideshow video and video export when it is installed |
+| ffmpeg 7.1.5, ffprobe | LGPL-2.1-or-later for the downloaded build; an installed one keeps its own licence | not bundled; an installed ffmpeg is used as before, and when none is found the engine downloads the LGPL build (`--disable-gpl --disable-nonfree`; libopus and libvpx BSD-3-Clause) from the nodemode-dev/formcut-binaries release on first run, checks every file's SHA-256 against `backend/app/ffmpeg_record.py`, and runs it as an external program for video thumbnails, slideshow video and video export; its source is attached to that release |
 | gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode and reads its output, without linking to libgphoto2 |
 | digiCamControl | MIT | not bundled; tethered capture on Windows runs the user's installed CameraControlCmd.exe |
 | imagecodecs | BSD-3-Clause; bundles libjxl (BSD-3-Clause), libavif (BSD-2-Clause), libultrahdr (Apache-2.0), aom and dav1d (BSD-2-Clause) and other permissively licensed codecs, each licence in its `licenses/` folder | JPEG XL import and export, HDR AVIF and JPEG XL export, Ultra HDR checks |

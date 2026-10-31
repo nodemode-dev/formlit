@@ -7,6 +7,12 @@ Last updated: 2026-10-30 · v0.47.3 no engine changes (Windows desktop build pas
 
 ---
 
+## v0.47.4 · ffmpeg arrives on first run, from formcut-binaries (2026-10-31)
+
+- refers-to: app/main.py :: ffmpeg_fetch.start() after the MIME lines; app/ffmpeg_fetch.py (new); app/ffmpeg_record.py (new)
+
+The two modules are new and identical in formvis, formvfx, formwav, formlit, formpromo and formDAM. ffmpeg stays external, as formcut's does: nothing is bundled. When no ffmpeg is on PATH, the frozen engine downloads, in a background thread, the LGPL build pinned in `ffmpeg_record.py` (release 7.1.5-2, the record formcut carries) from `nodemode-dev/formcut-binaries`, checks every file for the host triple against its SHA-256 before placing any, and installs it in the shared per-person folder `formcut-binaries/ffmpeg-7.1.5-2` (Application Support on macOS, LOCALAPPDATA on Windows, XDG_DATA_HOME or ~/.local/share on Linux), so the family downloads it once. The programs get their plain names and the folder goes first on PATH, so `services/decode.py`, `services/metadata.py`, `output/export.py` and `output/slideshow.py` find them by name with no change. An ffmpeg already on PATH is used and nothing is fetched. Outside a frozen build nothing is fetched unless `FORM_FFMPEG_AUTO=1`, so tests never reach the network; `FORM_FFMPEG_AUTO=0` turns it off in a desktop build, and `FORMCUT_FFMPEG_RELEASE` points at a mirror. Checked against the real release in the formvis copy of the module (byte-identical): pins equal the record, the Linux archive downloaded, verified and ran from the new PATH entry (7.1.5, LGPL), a tampered hash installed nothing, and the background start fetched only when no ffmpeg was on PATH. Not run in a built desktop app.
+
 ## v0.47.4 · the Linux packages pull in the media plugins (2026-10-31)
 
 - refers-to: src-tauri/tauri.conf.json :: bundle.linux (deb.recommends, rpm.recommends, appimage.bundleMediaFramework); formcompiler apps/formlit.json :: toolchain.linux_packages
@@ -47,6 +53,8 @@ backend/
 ├── requirements*.txt              pinned deps; _ml adds the AI extra, _desktop adds PyInstaller
 └── app/
     ├── __init__.py                __version__
+    ├── ffmpeg_fetch.py            first-run download of the pinned LGPL ffmpeg, PATH order
+    ├── ffmpeg_record.py           release and per-file SHA-256 pins for that download
     ├── main.py                    FastAPI app, routers, startup and shutdown
     ├── core/
     │   ├── config.py              ports, data folders, workers, env loading
