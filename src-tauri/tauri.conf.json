@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "formlit",
+  "productName": "FormLit",
   "version": "0.47.4",
   "identifier": "ai.nodemode.formlit",
   "build": {
@@ -10,7 +10,7 @@
     "windows": [
       {
         "label": "splash",
-        "title": "formlit",
+        "title": "FormLit",
         "url": "splash.html",
         "width": 360,
         "height": 180,

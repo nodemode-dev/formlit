@@ -44,7 +44,7 @@ async function openSecondWindow(mode?: SecondMode): Promise<void> {
     const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
     const existing = await WebviewWindow.getByLabel('second');
     if (existing) { if (mode) secondCh.postMessage({ kind: 'mode', mode } satisfies SecondMsg); await existing.setFocus(); return; }
-    new WebviewWindow('second', { url, title: 'formlit · Second Window', width: 1200, height: 800 });
+    new WebviewWindow('second', { url, title: 'FormLit · Second Window', width: 1200, height: 800 });
     return;
   }
   if (secondRef && !secondRef.closed) { if (mode) secondCh.postMessage({ kind: 'mode', mode } satisfies SecondMsg); secondRef.focus(); return; }
