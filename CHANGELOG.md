@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.5 · 2026-11-03
+
+- The app icon is the unified family icon in the desktop bundle, the web favicon and the README; the old SVG favicon is gone.
+- The compiled app is named FormLit: product name, window titles and page titles.
+- The repo has a CODEOWNERS file: `* @nodemode-ai @gbarnai`.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.4 · 2026-10-31
 
 - The Windows desktop app no longer opens to a blank window on PCs where an installer set the `.js` file type to `text/plain` in the registry: the engine now serves scripts and stylesheets with their real types.
