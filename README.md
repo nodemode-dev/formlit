@@ -28,9 +28,9 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/formlit-hero.webp" alt="The Develop module showing a sunset seafront photo with the preset list on the left, the histogram and Basic panel on the right and the filmstrip below" width="100%">
+  <img src="docs/images/formlit-hero.jpg" alt="The Develop module showing a coastal photo of driftwood and rocks, with the navigator and preset groups on the left, the tone curve on the right and a filmstrip of twelve coast picks below" width="100%">
   <br>
-  <sub>The Develop module on a CC0 sunset photo, with presets, histogram and the filmstrip.</sub>
+  <sub>The Develop module on a coastal photo, with presets, the tone curve and the filmstrip.</sub>
 </p>
 
 <p align="center">
