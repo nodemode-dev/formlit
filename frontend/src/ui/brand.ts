@@ -4,6 +4,6 @@ let copies = 0;
 
 export function brandMark(size: number, label = 'formlit'): string {
   copies += 1;
-  const svg = MARK.split('{p}').join(`flm${copies}-`).replace('<svg ', `<svg width="${size}" height="${size}" role="img" aria-label="${label}" `);
-  return `<span class="fl-mark" style="width:${size}px;height:${size}px">${svg}</span>`;
+  const img = `<img src="/favicon.png" width="${size}" height="${size}" alt="${label}" draggable="false" style="display:block">`;
+  return `<span class="fl-brand-mark" style="width:${size}px;height:${size}px">${img}</span>`;
 }
