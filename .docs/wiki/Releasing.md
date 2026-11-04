@@ -1,6 +1,6 @@
 # Releasing
 
-formlit's own repository builds no release; its GitHub Actions only run the checks. Desktop releases are built by formcompiler (`nodemode-ai/formcompiler`), the release pipeline for every form* app: macOS (Apple silicon and Intel), Linux (AppImage, deb, rpm) and Windows (MSI, NSIS). formcompiler collects the bundles into a draft release named `formlit-vX.Y.Z` on its own release page. Publishing the draft there makes it the one the updater feed (`formlit-updates/latest.json` on formcompiler) points at.
+formlit's own repository builds no release; its GitHub Actions only run the checks. Desktop releases are built by formcompiler (`nodemode-dev/formcompiler`), the release pipeline for every form* app: macOS (Apple silicon and Intel), Linux (AppImage, deb, rpm) and Windows (MSI, NSIS). formcompiler collects the bundles into a draft release `vX.Y.Z` on formlit's own Releases page. Publishing the draft there makes it the one the updater feed (`https://dl.formai.studio/formlit/updates/latest.json`) points at.
 
 ## One-time setup: signing secrets in formcompiler
 
@@ -31,8 +31,8 @@ Put the private key file's contents in formcompiler's `TAURI_SIGNING_PRIVATE_KEY
 
 1. Bump the version in every place `.docs/BRANCHING.md` lists, as the last commit of the series, on main.
 2. Push a branch named `compile_vX.Y.Z` from that commit, for example `git push origin HEAD:compile_v0.46.1`. CI runs on it. The name must match the version in `src-tauri/tauri.conf.json`, or formcompiler refuses it and says why.
-3. formcompiler finds the branch on its next watch run (every 8 hours), or at once when its watch is run by hand. Once CI has passed on that commit, it freezes the engine on each platform, builds the bundles, signs and notarizes the macOS app when its Apple secrets are set, and writes `latest.json` from the updater signatures.
-4. Check the draft release's assets on formcompiler's release page, then publish it there.
+3. formcompiler finds the branch on its next watch run (every hour), or at once when its watch is run by hand. Once CI has passed on that commit, it freezes the engine on each platform, builds the bundles, signs and notarizes the macOS app when its Apple secrets are set, and writes `latest.json` from the updater signatures.
+4. Check the draft release's assets on formlit's own Releases page, then publish it there.
 
 ## Notes
 

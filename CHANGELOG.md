@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.7 · 2026-11-04
+
+- README in the Form family template (Mackin's #6), merged with main.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.6 · 2026-11-03
 
 - The README follows the Form family layout, with screenshots of the Library, Develop and Export in `docs/images/`.
@@ -13,6 +18,8 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 - The app icon is the unified family icon in the desktop bundle, the web favicon and the README; the old SVG favicon is gone.
 - The compiled app is named FormLit: product name, window titles and page titles.
 - The repo has a CODEOWNERS file: `* @nodemode-ai @gbarnai`.
+- The About box and the installers name NodeAgentc, Inc. as the publisher, with the licence (Apache-2.0) and a link to the LICENSE file. The bundle sets `publisher`, `copyright`, `license` and `licenseFile`, so the macOS About panel, the Windows file properties and installer, and the Linux packages say the same.
+- The updater reads its feed from the download store, `https://dl.formai.studio/formlit/updates/latest.json`, instead of formcompiler's private release page; the release notes in `.docs` and the release-keeper skill name the current flow (formcompiler at `nodemode-dev`, the draft `vX.Y.Z` on formlit's own Releases page).
 - Not verified: the desktop build was not run here.
 
 ## v0.47.4 · 2026-10-31
