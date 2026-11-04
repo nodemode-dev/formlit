@@ -1,7 +1,7 @@
 html, body { height: 100%; }
 #app { height: 100%; }
-.fl-mark { display: inline-flex; flex: none; }
-.fl-mark svg { display: block; width: 100%; height: 100%; }
+.fl-brand-mark { display: inline-flex; flex: none; }
+.fl-brand-mark img { display: block; width: 100%; height: 100%; }
 
 .fl-app { --fl-strip-row: var(--fl-filmstrip-h); position: relative; display: grid; grid-template-rows: var(--cv-titlebar-h) minmax(0, 1fr) var(--fl-strip-row) var(--fl-dock-h) var(--cv-status-h); height: 100%; background: var(--bg-primary); color: var(--text-primary); user-select: none; -webkit-user-select: none; }
 .fl-app.is-filmstrip-collapsed { --fl-strip-row: 28px; }

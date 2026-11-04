@@ -8,7 +8,7 @@ export const SECOND_CHANNEL = 'formlit-second';
 
 export function mountSecondWindow(host: HTMLElement): void {
   applyTheme();
-  document.title = 'formlit · Second Window';
+  document.title = 'FormLit · Second Window';
   const segs = SECOND_MODES.map(([m, l]) => `<button type="button" data-mode="${m}"${m === 'loupe' ? ' class="is-on"' : ''}>${l}</button>`).join('');
   const root = el(`<div class="fl-second"><div class="fl-second-bar"><div class="cv-seg fl-seg-sm" role="radiogroup" aria-label="View">${segs}</div><div class="cv-seg fl-seg-sm" role="radiogroup" aria-label="Loupe" data-g="loupe"><button type="button" data-m="normal" class="is-on">Normal</button><button type="button" data-m="live">Live</button><button type="button" data-m="locked">Locked</button></div><input class="cv-slider fl-second-size" type="range" min="80" max="320" step="8" value="160" aria-label="Thumbnail size" hidden><span class="fl-second-name"></span><span class="fl-tb-spacer"></span></div></div>`);
   const ch = new BroadcastChannel(SECOND_CHANNEL);
