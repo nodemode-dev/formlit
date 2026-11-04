@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.6 · 2026-11-03
+
+- The README follows the Form family layout, with screenshots of the Library, Develop and Export in `docs/images/`.
+- The title bar and splash screen show the unified app icon (`favicon.png`) instead of the old inline SVG art.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.5 · 2026-11-03
 
 - The app icon is the unified family icon in the desktop bundle, the web favicon and the README; the old SVG favicon is gone.
