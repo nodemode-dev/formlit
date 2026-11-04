@@ -99,7 +99,7 @@ def test_removing_a_folder_from_the_catalog_keeps_its_files(commands, sandbox):
     res = commands("library.import", {"paths": [str(f) for f in files], "mode": "add", "wait": True})
     assert len(res["ids"]) == 2
     before = {f: digest(f) for f in files}
-    row = [f for f in commands("library.tree", {})["folders"] if f["path"] == str(folder)]
+    row = [f for f in commands("library.tree", {})["folders"] if f["path"] == str(folder.resolve())]
     assert row, "the imported folder is not in the catalog tree"
     commands("folder.remove", {"id": row[0]["id"]})
     for f, h in before.items():

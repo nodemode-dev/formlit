@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.8 · 2026-11-04
+
+- The folder-removal test in `test_originals_untouched.py` passes on macOS. The catalog stores each folder by its resolved path, and macOS's temp folder `/var/folders/...` resolves to `/private/var/folders/...`, so the test looked up the unresolved path and never found the folder. It now looks up `folder.resolve()`. No app change: removing a folder from the catalog only drops its catalog rows and leaves the files on disk, as before.
+- Not verified: the desktop build was not run here.
+
 ## v0.47.7 · 2026-11-04
 
 - README in the Form family template (Mackin's #6), merged with main.

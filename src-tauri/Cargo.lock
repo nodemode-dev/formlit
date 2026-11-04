@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "formlit"
-version = "0.47.7"
+version = "0.47.8"
 dependencies = [
  "regex",
  "serde",
