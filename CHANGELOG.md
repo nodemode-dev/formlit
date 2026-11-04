@@ -5,6 +5,7 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 ## v0.47.5 · 2026-11-03
 
 - The About box and the installers name NodeAgentc, Inc. as the publisher, with the licence (Apache-2.0) and a link to the LICENSE file. The bundle sets `publisher`, `copyright`, `license` and `licenseFile`, so the macOS About panel, the Windows file properties and installer, and the Linux packages say the same.
+- The updater reads its feed from the download store, `https://dl.formai.studio/formlit/updates/latest.json`, instead of formcompiler's private release page; the release notes in `.docs` and the release-keeper skill name the current flow (formcompiler at `nodemode-dev`, the draft `vX.Y.Z` on formlit's own Releases page).
 
 ## v0.47.4 · 2026-10-31
 
