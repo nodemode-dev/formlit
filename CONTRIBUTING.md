@@ -96,8 +96,19 @@ third-party code and its licence in the pull request.
 
 ## Patents and other people's IP
 
-A feature may be held back or removed if it would infringe someone else's patent or
-other intellectual property. The maintainers decide.
+Some features are deliberately not built, or were taken out, because they come too close to someone else's patent, trademark, copyright or design. The maintainers hold that line with counsel; contributors do not decide it, and nobody here redesigns a feature on their own reading of a patent. This is engineering diligence, not legal advice.
+
+### Features this project will not implement
+
+No feature of formlit has been held back so far. The rules below apply to every change, and a feature can still be held back or removed later; when that happens it is listed here first.
+
+### Rules for every contribution
+
+- Patents: do not add a feature, or a dependency that provides one, that reproduces a method you know to be patented. If you are unsure, open an issue that describes what the feature does, not which patent it resembles. Patent numbers stay out of code, commits, comments, logs and changelogs.
+- Trademarks: other vendors' product and feature names appear only to name a file format or compatibility ("opens <format> files", "for use with"). No command, menu, panel, tool, preset, template, theme or agent tool takes another product's feature name, and no text says "like X" or "the way X does it". Describe what the feature does.
+- Copyright: never copy another product's help, tooltip, dialog or documentation text (link to it instead); never trace or import vendor icons; never bundle vendor templates, themes, presets, brushes, swatches, LUTs, materials, sample files, sound libraries, stock media or fonts; colour-book names only when reading a person's file. Compatibility layers carry names and signatures only. Test fixtures come from this repository's own scripts.
+- Licences: every new dependency, binary, model, font, profile or data file gets a row in `NOTICE.md` before it is used. GPL stays outside the distributed bundle, AGPL nowhere, LGPL dynamically linked and replaceable, MPL files unedited. CC BY credited, CC BY-SA only unmodified, CC NC and ND never. Models with gated or non-commercial terms are optional downloads, never bundled.
+- Licence conditions: formlit reads and writes DNG under a specification patent licence whose condition is a prominent notice: the DNG notice stays in the About box, in the ledger and in the README while the app reads or writes DNG.
 
 ## Conduct
 
