@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.47.9" src="https://img.shields.io/badge/version-0.47.9-eef0f4?style=flat-square">
+  <img alt="version 0.48.0" src="https://img.shields.io/badge/version-0.48.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776ab?style=flat-square&logo=python&logoColor=white">
   <img alt="macOS, Windows, Linux" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-native-2f7bf5?style=flat-square">
