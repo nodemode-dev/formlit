@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.48.0 · 2026-11-05
+
+- The Intel Mac build of FormLit still stopped while installing its Python libraries, with "No matching distribution found for rawpy==0.25.1". 0.47.9 taught setup to use Python 3.13 or 3.12 on Intel Macs, but the engine installer (`backend/oc_install`, which `./formlit install` runs) picked its Python on its own and still made the engine's environment with Python 3.14, for which those library versions do not exist.
+- Now the installer uses the same choice as the rest of setup, and if an Intel Mac already has an environment made with Python 3.14 it is made again with 3.13 or 3.12. Apple Silicon Macs, Linux and Windows are unchanged.
+- The version is 0.48.0 because the last number runs 0 to 9.
+- Not verified: the full desktop build on formcompiler's Intel Mac machine; the install was run here under Rosetta.
+
 ## v0.47.9 · 2026-11-05
 
 - FormLit installs again on Windows and on Intel Macs. The Windows install picked the newest Python on the machine (3.15 on the build service), and onnxruntime, which runs the local AI tools, has no version for Python 3.15 yet, so the install stopped. On an Intel Mac, onnxruntime, rawpy (camera RAW files), numba, pikepdf (PDF export) and cryptography have stopped publishing Intel Mac versions, and the last ones exist only up to Python 3.13.
