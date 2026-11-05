@@ -1,6 +1,6 @@
 [package]
 name = "formlit"
-version = "0.47.8"
+version = "0.47.9"
 description = "formlit desktop shell"
 authors = ["NodeAgentc, Inc."]
 license = "Apache-2.0"

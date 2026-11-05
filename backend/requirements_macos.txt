@@ -4,15 +4,21 @@ python-multipart
 httpx
 pillow
 pillow-heif
-rawpy
+# On Intel Macs these take the last release that still ships an Intel Mac build; Apple Silicon takes the newest
+rawpy==0.25.1; platform_machine == "x86_64"
+rawpy; platform_machine != "x86_64"
 numpy
-numba
+numba==0.62.1; platform_machine == "x86_64"
+numba; platform_machine != "x86_64"
 opencv-python-headless==5.0.0.93
 exifread
 tifffile
 imagecodecs
 reportlab
 paramiko
-pikepdf
+pikepdf==10.13.0.post1; platform_machine == "x86_64"
+pikepdf; platform_machine != "x86_64"
 ptyprocess
-onnxruntime
+onnxruntime==1.23.2; platform_machine == "x86_64"
+onnxruntime; platform_machine != "x86_64"
+cryptography==48.0.1; platform_machine == "x86_64"
