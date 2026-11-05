@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.47.9 · 2026-11-05
+
+- FormLit installs again on Windows and on Intel Macs. The Windows install picked the newest Python on the machine (3.15 on the build service), and onnxruntime, which runs the local AI tools, has no version for Python 3.15 yet, so the install stopped. On an Intel Mac, onnxruntime, rawpy (camera RAW files), numba, pikepdf (PDF export) and cryptography have stopped publishing Intel Mac versions, and the last ones exist only up to Python 3.13.
+- Now the install uses Python 3.14, 3.13 or 3.12 (3.13 or 3.12 on an Intel Mac), and an Intel Mac installs the last version of each of those five libraries that still supports it: onnxruntime 1.23.2, rawpy 0.25.1, numba 0.62.1, pikepdf 10.13.0.post1 and cryptography 48.0.1. Apple Silicon Macs and Linux are unchanged; Windows only changes which Python it uses.
+- Not verified: the Windows install and the desktop builds were not run here; the Intel Mac libraries were installed and tested under Rosetta.
+
 ## v0.47.8 · 2026-11-04
 
 - The folder-removal test in `test_originals_untouched.py` passes on macOS. The catalog stores each folder by its resolved path, and macOS's temp folder `/var/folders/...` resolves to `/private/var/folders/...`, so the test looked up the unresolved path and never found the folder. It now looks up `folder.resolve()`. No app change: removing a folder from the catalog only drops its catalog rows and leaves the files on disk, as before.
