@@ -38,6 +38,11 @@ def fake_bin(tmp_path: Path, machine: str, system: str, minors: tuple[int, ...])
     uname = bin_dir / "uname"
     uname.write_text(f'#!/bin/sh\ncase "$1" in -m) echo {machine} ;; *) echo {system} ;; esac\n')
     uname.chmod(0o755)
+    # Hide the machine's own Pythons (Ubuntu has /usr/bin/python3 and python3.12) behind stubs that fail.
+    for name in ("python3", "python", *(f"python3.{m}" for m in range(10, 16) if m not in minors)):
+        stub = bin_dir / name
+        stub.write_text("#!/bin/sh\nexit 1\n")
+        stub.chmod(0o755)
     for minor in minors:
         exe = bin_dir / f"python3.{minor}"
         exe.write_text(FAKE_PYTHON.format(minor=minor, real=sys.executable))
