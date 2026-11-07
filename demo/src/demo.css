@@ -10,13 +10,15 @@
 .fl-dtb-crop { display: inline-flex; align-items: center; gap: 6px; }
 .fl-dtb-crop[hidden] { display: none; }
 .fl-tb-search { width: 190px; flex: 0 1 190px; min-width: 90px; }
-.fl-demo-skel { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fill, 190px); grid-auto-rows: 190px; gap: 8px; padding: 8px; align-content: start; overflow: hidden; pointer-events: none; }
+.fl-demo-skel { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fill, var(--fl-skel, 190px)); grid-auto-rows: var(--fl-skel, 190px); gap: 8px; padding: 8px; align-content: start; overflow: hidden; pointer-events: none; }
 .fl-cell[data-label="red"] { background: color-mix(in srgb, var(--fl-label-red) 9%, var(--surface-1)); }
 .fl-cell[data-label="yellow"] { background: color-mix(in srgb, var(--fl-label-yellow) 8%, var(--surface-1)); }
 .fl-cell[data-label="green"] { background: color-mix(in srgb, var(--fl-label-green) 9%, var(--surface-1)); }
 .fl-cell[data-label="blue"] { background: color-mix(in srgb, var(--fl-label-blue) 9%, var(--surface-1)); }
 .fl-cell[data-label="purple"] { background: color-mix(in srgb, var(--fl-label-purple) 10%, var(--surface-1)); }
 .fl-cell.is-selected[data-label] { background: var(--surface-raised); }
+.fl-kv-row strong { flex: 1; min-width: 0; }
+.fl-lib-grid .fl-grid { scrollbar-gutter: stable; }
 .fl-demo-skel[hidden] { display: none; }
 .fl-demo-skel-cell { position: relative; border-radius: 6px; background: var(--surface-1); border: 1px solid var(--line-1); }
 .fl-demo-skel-cell > div { position: absolute; inset: 8px 8px 22px; border-radius: 2px; background: var(--surface-2); }

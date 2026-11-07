@@ -40,6 +40,12 @@ Label tints on grid cells are cut to about 9 percent so the colour labels read a
 
 Pexels' EXIF Artist field is ASCII, so two photographer names lost characters. XPAuthor (UTF-16) now carries the exact name beside the folded Artist.
 
+## Metadata panel height and grid fill (second verifier fix)
+
+The Metadata panel was empty until the library arrived and then grew by eight rows, pushing Quick Develop and Export down 157 px. It now renders the eight labelled rows from first paint with a non-breaking space as the value, and each value box is flex: 1 so the box does not change width when text arrives. A per-frame layout-shift observer under 4x CPU, 150 ms latency and 400 KB/s measures 0 at 1440 and 1600 px wide (it was 0.0117, then 0.0006 from the value boxes alone).
+
+The thumbnail size slider is now a target. The grid picks the column count that target allows and widens the cells so the columns exactly fill the width, so there is no unused strip at the right. The scrollbar gutter is reserved so the width does not change when the scrollbar appears, and the skeleton cells use the same computed size.
+
 ## Interleaved order
 
 Photos are added round-robin across the four collections so the first rows of the grid show every kind of scene. Collections are still one click away in the Catalog panel, with counts.

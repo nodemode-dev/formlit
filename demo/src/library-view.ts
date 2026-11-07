@@ -16,6 +16,8 @@ const SORTS: Array<[string, string]> = [['importTime', 'Added Order'], ['capture
 const LABELS = ['red', 'yellow', 'green', 'blue', 'purple'];
 
 const SKELETON_CELLS = 25;
+const META_LABELS = ['File', 'Size', 'Captured', 'Camera', 'Focal length', 'Exposure', 'Rating', 'Flag'];
+const GRID_GAP = 8;
 
 export interface LibraryHooks { openDevelop(id: number): void; pickFiles(): void }
 
@@ -30,6 +32,7 @@ export class LibraryView {
   private readonly empty: HTMLElement;
   private readonly skeleton: HTMLElement;
   private loading = true;
+  private target = 190;
   private readonly metaBody: HTMLElement;
   private readonly sources: HTMLElement;
   private readonly count: HTMLElement;
@@ -38,7 +41,8 @@ export class LibraryView {
 
   constructor(hosts: { left: HTMLElement; stage: HTMLElement; toolbar: HTMLElement; right: HTMLElement; strip: HTMLElement }, hook: LibraryHooks) {
     this.grid = new ThumbGrid({ axis: 'y', cls: 'fl-lg', names: true, onOpen: (id) => { library.setActive(id); this.setView('loupe'); } });
-    this.grid.setSize(190);
+    this.fit();
+    new ResizeObserver(() => this.fit()).observe(this.grid.root);
     this.loupe = new Viewer('fl-loupe');
     this.loupe.onClick = (e) => this.loupe.toggleZoom(e);
     this.gridWrap = el('<div class="fl-lib-view fl-lib-grid"></div>');
@@ -157,6 +161,16 @@ export class LibraryView {
     this.sync();
   }
 
+  private fit(): void {
+    const w = this.grid.root.clientWidth;
+    const t = this.target;
+    if (w <= 0) { this.grid.setSize(t); return; }
+    const cols = Math.max(1, Math.floor((w - GRID_GAP) / (t + GRID_GAP)));
+    const size = Math.floor((w - GRID_GAP) / cols) - GRID_GAP;
+    this.grid.setSize(size);
+    this.skeleton?.style.setProperty('--fl-skel', `${size}px`);
+  }
+
   current(): Item | null {
     const id = library.active;
     return id === null ? null : store.items.get(id) ?? null;
@@ -193,7 +207,7 @@ export class LibraryView {
     const search = q<HTMLInputElement>(this.bar, '.fl-tb-search');
     search.addEventListener('input', () => library.setFilter({ text: search.value }));
     const size = q<HTMLInputElement>(this.bar, '.fl-tb-size');
-    size.addEventListener('input', () => this.grid.setSize(Number(size.value)));
+    size.addEventListener('input', () => { this.target = Number(size.value); this.fit(); });
     this.bar.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       const v = t.closest<HTMLElement>('[data-v]')?.dataset.v;
@@ -254,7 +268,7 @@ export class LibraryView {
       ['File', it.name], ['Size', `${it.fullW} x ${it.fullH}`], ['Captured', it.exif.time ? it.exif.time.slice(0, 10) : 'unknown'], ['Camera', [it.exif.make, it.exif.model].filter(Boolean).join(' ') || 'unknown'],
       ['Focal length', it.exif.focal ? `${it.exif.focal} mm` : 'unknown'], ['Exposure', [it.exif.exposure, it.exif.fnumber ? `f/${it.exif.fnumber}` : '', it.exif.iso ? `ISO ${it.exif.iso}` : ''].filter(Boolean).join('  ') || 'unknown'],
       ['Rating', it.rating ? `${it.rating} of 5` : 'none'], ['Flag', it.flag > 0 ? 'Pick' : it.flag < 0 ? 'Rejected' : 'none'],
-    ] : [];
+    ] : META_LABELS.map((l): [string, string] => [l, ' ']);
     const key = JSON.stringify(rows);
     if (this.metaBody.dataset.key !== key) {
       this.metaBody.dataset.key = key;
