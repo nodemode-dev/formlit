@@ -23,8 +23,11 @@ import { Shell } from '../../frontend/src/ui/shell';
 import { THEMES, applyTheme, readChoice, setTheme, themeSwatchesHtml } from '../../frontend/src/ui/themes';
 import { toast } from '../../frontend/src/ui/toast';
 import { copySettings, exportSettings, importSettings, openExport, openInfo, openSync, pasteSettings, resetSettings } from './actions';
+import { COLLECTIONS, PHOTOS } from './data/library';
+import { SCENES } from './data/scenes';
 import { DevelopModule } from './develop-module';
 import { LibraryView } from './library-view';
+import { dataBytes, jpegSize, loadPack, releasePack } from './media';
 import { develop } from './shims/develop';
 import { library } from './shims/library';
 import { store } from './store';
@@ -88,6 +91,12 @@ function goDevelop(id?: number): void {
   if (id !== undefined) library.setActive(id);
   const item = library.active === null ? null : store.items.get(library.active) ?? null;
   if (!item) { toast('Select a photo first', 'error'); return; }
+  if (item.blob && !item.full) {
+    const done = shell.busy('Opening photo');
+    void store.ensureFull(item.id).then(() => { done(); if (library.active === item.id) setModule('develop'); });
+    return;
+  }
+  void store.ensureFull(item.id);
   setModule('develop');
 }
 
@@ -119,7 +128,11 @@ library.listen('selection', () => {
   syncStatus();
   if (module === 'develop') {
     const item = library.active === null ? null : store.items.get(library.active) ?? null;
-    if (item?.id !== develop.item?.id) { develop.open(item); dev.open(); }
+    if (item && item.id !== develop.item?.id) {
+      void store.ensureFull(item.id).then(() => {
+        if (module === 'develop' && library.active === item.id && item.id !== develop.item?.id) { develop.open(item); dev.open(); }
+      });
+    } else if (!item && develop.item) { develop.open(null); dev.open(); }
   }
 });
 
@@ -219,6 +232,7 @@ function openAbout(): void {
   d.foot.textContent = '';
   d.body.appendChild(el(`<div class="fl-about-lines">
 <p>This is the formlit window running entirely in your browser, with no engine and no network. The develop pipeline is a TypeScript port of the desktop engine, so edits you make here behave like the real ones.</p>
+<p>The library holds 25 real photographs from Pexels in four collections, with ratings, flags, labels and keywords written for this demo. Camera, lens settings and capture dates are the values the Pexels photo pages publish. Sources and licences are in demo/CREDITS.md.</p>
 <p>Open your own photos with Open Your Photos or by dropping them on the window. JPEG, PNG, WebP and the embedded preview of most RAW files work. Nothing is uploaded.</p>
 <p>Not in the demo: catalog on disk, masks, maps, books, printing, web galleries, and RAW demosaicing. Those need the desktop app.</p>
 </div>`));
@@ -228,7 +242,29 @@ function openAbout(): void {
 
 setModule('library');
 q(host, '.fl-identity').appendChild(el('<span class="fl-demo-badge">demo</span>'));
-void Promise.all([store.addSample(0), store.addSample(1), store.addSample(2), store.addSample(3), store.addSample(4), store.addSample(5)]).then(() => {
+async function openLibrary(): Promise<void> {
+  const done = shell.busy('Opening the library');
+  try {
+    const packs = await Promise.all(COLLECTIONS.map(async (c) => [c.id, await loadPack(c.id)] as const));
+    const byPack = new Map(packs);
+    const lanes = COLLECTIONS.map((c) => PHOTOS.filter((p) => p.collection === c.id));
+    const order: typeof PHOTOS = [];
+    for (let i = 0; order.length < PHOTOS.length; i += 1) for (const lane of lanes) if (lane[i]) order.push(lane[i]);
+    for (const p of order) {
+      const uri = byPack.get(p.pack)?.[p.file];
+      if (!uri) continue;
+      const bytes = dataBytes(uri);
+      const [width, height] = jpegSize(bytes);
+      await store.addPhoto({ name: p.file, blob: new Blob([bytes], { type: 'image/jpeg' }), bytes: bytes.buffer, width, height, collection: p.collection, keywords: p.keywords, rating: p.rating, flag: p.flag, label: p.label, edits: p.edits });
+    }
+    for (const c of COLLECTIONS) releasePack(c.id);
+  } catch (err) {
+    toast(`${(err as Error).message}; showing the procedural samples instead`, 'error');
+    await Promise.all(SCENES.map((_s, i) => store.addSample(i)));
+  }
+  done();
   if (library.ids.length) library.setActive(library.ids[0], false);
-});
+}
+
+void openLibrary();
 requestAnimationFrame(() => revealApp());

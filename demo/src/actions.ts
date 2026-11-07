@@ -14,13 +14,14 @@ const MIME = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' } as con
 const exporter = new Renderer();
 
 export async function renderExport(item: Item, o: ExportOptions): Promise<{ blob: Blob; name: string; w: number; h: number }> {
+  await store.ensureFull(item.id);
   const r = exporter.render(item.src, item.dev, o.long > 0 ? o.long : null);
   const c = document.createElement('canvas');
   c.width = r.w;
   c.height = r.h;
   c.getContext('2d')?.putImageData(new ImageData(r.rgba, r.w, r.h), 0, 0);
   const blob = await toBlob(c, MIME[o.format], o.quality / 100);
-  exporter.drop(item.id);
+  exporter.drop(item.src.id);
   const base = item.name.replace(/\.[^.]+$/, '');
   return { blob, name: `${base}${o.suffix}.${EXT[o.format]}`, w: r.w, h: r.h };
 }

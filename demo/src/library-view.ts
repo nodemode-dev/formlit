@@ -8,7 +8,7 @@ import { autoTone } from './auto';
 import { SCENES } from './data/scenes';
 import { clone } from './engine/settings';
 import { PRESETS, presetDev } from './presets';
-import { SOURCES, library } from './shims/library';
+import { SOURCES, library, sourceKey } from './shims/library';
 import { store, type Item } from './store';
 import { copySettings, exportSettings, importSettings, openExport, openInfo, openSync, pasteSettings, resetSettings } from './actions';
 
@@ -66,13 +66,13 @@ export class LibraryView {
     this.sources = el('<div class="fl-list"></div>');
     for (const s of SOURCES) {
       const row = el(`<button class="fl-list-row" type="button"><span></span><em></em></button>`);
-      row.dataset.kind = s.kind;
+      row.dataset.key = sourceKey(s);
       setText(q(row, 'span'), s.label ?? s.kind);
       this.sources.appendChild(row);
     }
     this.sources.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-kind]');
-      const s = SOURCES.find((x) => x.kind === b?.dataset.kind);
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
+      const s = SOURCES.find((x) => sourceKey(x) === b?.dataset.key);
       if (s) library.setSource(s);
     });
     pSrc.body.appendChild(this.sources);
@@ -146,6 +146,7 @@ export class LibraryView {
     library.listen('list', () => this.sync());
     library.listen('selection', () => this.sync());
     library.listen('photos', () => this.sync());
+    library.listen('render', (id, size) => { if (size === 'p' && this.view === 'loupe' && library.active === id) this.loupe.refresh(); });
     this.sync();
   }
 
@@ -216,7 +217,11 @@ export class LibraryView {
   sync(): void {
     setHidden(this.empty, library.ids.length > 0);
     const it = this.current();
-    for (const b of Array.from(this.sources.children) as HTMLElement[]) setClass(b, 'is-on', b.dataset.kind === library.source.kind);
+    for (const b of Array.from(this.sources.children) as HTMLElement[]) {
+      setClass(b, 'is-on', b.dataset.key === sourceKey(library.source));
+      const s = SOURCES.find((x) => sourceKey(x) === b.dataset.key);
+      if (s) setText(q(b, 'em'), String(library.count(s)));
+    }
     const p = library.photo(library.active);
     if (this.view === 'loupe') void this.loupe.show(p ?? null);
     const stars = Array.from(this.bar.querySelectorAll<HTMLElement>('[data-rate]'));
@@ -224,8 +229,8 @@ export class LibraryView {
     for (const s of Array.from(this.bar.querySelectorAll<HTMLElement>('[data-label]'))) setClass(s, 'is-on', !!it && it.label === s.dataset.label);
     setValue(this.keywords, it ? it.keywords.join(', ') : '');
     const rows: Array<[string, string]> = it ? [
-      ['File', it.name], ['Size', `${it.fullW} x ${it.fullH}`], ['Camera', [it.exif.make, it.exif.model].filter(Boolean).join(' ') || 'unknown'],
-      ['Lens', it.exif.lens ?? 'unknown'], ['Exposure', [it.exif.exposure, it.exif.fnumber ? `f/${it.exif.fnumber}` : '', it.exif.iso ? `ISO ${it.exif.iso}` : ''].filter(Boolean).join('  ') || 'unknown'],
+      ['File', it.name], ['Size', `${it.fullW} x ${it.fullH}`], ['Captured', it.exif.time ? it.exif.time.slice(0, 10) : 'unknown'], ['Camera', [it.exif.make, it.exif.model].filter(Boolean).join(' ') || 'unknown'],
+      ['Focal length', it.exif.focal ? `${it.exif.focal} mm` : 'unknown'], ['Exposure', [it.exif.exposure, it.exif.fnumber ? `f/${it.exif.fnumber}` : '', it.exif.iso ? `ISO ${it.exif.iso}` : ''].filter(Boolean).join('  ') || 'unknown'],
       ['Rating', it.rating ? `${it.rating} of 5` : 'none'], ['Flag', it.flag > 0 ? 'Pick' : it.flag < 0 ? 'Rejected' : 'none'],
     ] : [];
     const key = JSON.stringify(rows);

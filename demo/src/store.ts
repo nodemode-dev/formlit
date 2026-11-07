@@ -1,7 +1,7 @@
 import { srgbToWorking, srgbDecode } from './engine/colour';
 import { makeSource, type Source } from './engine/geometry';
 import { Renderer } from './engine/render';
-import { clone, prune, type Dev } from './engine/settings';
+import { clone, merge, prune, type Dev } from './engine/settings';
 import { largestEmbeddedJpeg, readExif, type Exif } from './exif';
 import { SCENES, renderScene } from './data/scenes';
 
@@ -15,7 +15,13 @@ export interface Item {
   id: number; name: string; w: number; h: number; fullW: number; fullH: number; src: Source; bytes: number; sample: boolean; fmt: string; note: string;
   exif: Exif; keywords: string[]; dev: Dev; hist: HistoryEntry[]; hi: number; rating: number; flag: number; label: string; rev: number; added: number;
   thumb: string; preview: string; previewRev: number; thumbRev: number;
+  collection: string; blob: Blob | null; small: Source; full: Source | null; used: number;
 }
+
+export interface PhotoInput { name: string; blob: Blob; bytes: ArrayBuffer; width: number; height: number; collection: string; keywords: string[]; rating: number; flag: number; label: string; edits: Array<{ label: string; patch: Dev }> }
+
+const SMALL_LONG = 512;
+const KEEP_FULL = 6;
 
 type Kind = 'list' | 'item' | 'render';
 type Fn = (a?: number, b?: string) => void;
@@ -74,9 +80,11 @@ export class Store {
 
   private make(name: string, w: number, h: number, fullW: number, fullH: number, lin: Float32Array, bytes: number, sample: boolean, fmt: string, exif: Exif, note: string, keywords: string[]): Item {
     const id = this.nextId++;
+    const src = makeSource(id, w, h, lin);
     const item: Item = {
-      id, name, w, h, fullW, fullH, src: makeSource(id, w, h, lin), bytes, sample, fmt, note, exif, keywords, dev: {}, hist: [{ label: 'Import', dev: {} }], hi: 0,
+      id, name, w, h, fullW, fullH, src, bytes, sample, fmt, note, exif, keywords, dev: {}, hist: [{ label: 'Import', dev: {} }], hi: 0,
       rating: 0, flag: 0, label: '', rev: 1, added: Date.now(), thumb: '', preview: '', previewRev: 0, thumbRev: 0,
+      collection: '', blob: null, small: src, full: null, used: 0,
     };
     this.items.set(id, item);
     this.order.push(id);
@@ -95,6 +103,72 @@ export class Store {
         resolve(item);
       });
     });
+  }
+
+  async addPhoto(input: PhotoInput): Promise<Item> {
+    const exif = readExif(input.bytes);
+    const fullW = input.width, fullH = input.height;
+    const k = Math.min(1, SMALL_LONG / Math.max(fullW, fullH));
+    const w = Math.max(1, Math.round(fullW * k)), h = Math.max(1, Math.round(fullH * k));
+    const rgba = await this.decode(input.blob, w, h);
+    const item = this.make(input.name, w, h, fullW, fullH, toLinear(rgba, w, h), input.blob.size, false, 'JPEG', exif, 'Photo from the demo library; see CREDITS.md for its source and licence', input.keywords);
+    item.blob = input.blob;
+    item.collection = input.collection;
+    item.rating = input.rating;
+    item.flag = input.flag;
+    item.label = input.label;
+    let cur: Dev = {};
+    for (const e of input.edits) {
+      cur = merge(cur, e.patch);
+      this.commit(item, cur, e.label);
+    }
+    this.afterAdd(item);
+    return item;
+  }
+
+  private async decode(blob: Blob, w: number, h: number): Promise<Uint8ClampedArray> {
+    const bm = await createImageBitmap(blob, { imageOrientation: 'from-image', resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+    const c = canvasOf(w, h);
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('canvas unavailable');
+    ctx.drawImage(bm, 0, 0);
+    bm.close();
+    return ctx.getImageData(0, 0, w, h).data;
+  }
+
+  private readonly upgrading = new Map<number, Promise<void>>();
+  private srcSeq = 1000000;
+  private useSeq = 0;
+
+  async ensureFull(id: number): Promise<void> {
+    const item = this.items.get(id);
+    if (!item || !item.blob) return;
+    item.used = ++this.useSeq;
+    if (item.full) return;
+    const pending = this.upgrading.get(id);
+    if (pending) { await pending; return; }
+    const blob = item.blob;
+    const job = (async () => {
+      const rgba = await this.decode(blob, item.fullW, item.fullH);
+      const src = makeSource(this.srcSeq++, item.fullW, item.fullH, toLinear(rgba, item.fullW, item.fullH));
+      item.full = src;
+      item.src = src;
+      item.used = ++this.useSeq;
+      this.trim(id);
+    })().finally(() => { this.upgrading.delete(id); });
+    this.upgrading.set(id, job);
+    await job;
+  }
+
+  private trim(keep: number): void {
+    const held = Array.from(this.items.values()).filter((x) => x.full && x.id !== keep).sort((a, b) => a.used - b.used);
+    while (held.length > KEEP_FULL - 1) {
+      const old = held.shift();
+      if (!old) break;
+      if (old.full) this.thumbRenderer.drop(old.full.id);
+      old.full = null;
+      old.src = old.small;
+    }
   }
 
   async addFile(file: File): Promise<Item> {
@@ -155,6 +229,7 @@ export class Store {
   }
 
   async makePreview(id: number): Promise<void> {
+    await this.ensureFull(id);
     const item = this.items.get(id);
     if (!item || item.previewRev === item.rev) return;
     const rev = item.rev;
@@ -210,7 +285,8 @@ export class Store {
       if (it.thumb) URL.revokeObjectURL(it.thumb);
       if (it.preview) URL.revokeObjectURL(it.preview);
       this.items.delete(id);
-      this.thumbRenderer.drop(id);
+      this.thumbRenderer.drop(it.small.id);
+      if (it.full) this.thumbRenderer.drop(it.full.id);
     }
     this.order = this.order.filter((id) => this.items.has(id));
     this.emit('list');

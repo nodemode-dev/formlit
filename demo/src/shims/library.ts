@@ -1,4 +1,5 @@
 import { Frame } from '../engine/geometry';
+import { COLLECTIONS } from '../data/library';
 import { store, type Item } from '../store';
 
 export interface Photo {
@@ -13,11 +14,14 @@ type Fn = () => void;
 
 export const SOURCES: Source[] = [
   { kind: 'all', label: 'All Photographs' },
-  { kind: 'samples', label: 'Procedural Samples' },
-  { kind: 'imported', label: 'Your Files' },
+  ...COLLECTIONS.map((c): Source => ({ kind: 'collection', value: c.id, label: c.name })),
   { kind: 'picks', label: 'Picks' },
   { kind: 'edited', label: 'Edited' },
+  { kind: 'imported', label: 'Your Files' },
+  { kind: 'samples', label: 'Procedural Samples' },
 ];
+
+export const sourceKey = (s: Source): string => `${s.kind}:${s.value ?? ''}`;
 
 export function photoOf(it: Item): Photo {
   const [nw, nh] = new Frame(it.src.w, it.src.h, it.dev).nativeSize();
@@ -77,12 +81,24 @@ export class Library {
     return ids;
   }
 
+  inSource(it: Item, s: Source): boolean {
+    const k = s.kind;
+    if (k === 'collection') return it.collection === s.value;
+    if (k === 'samples') return it.sample;
+    if (k === 'imported') return !it.sample && !it.blob;
+    if (k === 'picks') return it.flag > 0;
+    if (k === 'edited') return store.isEdited(it);
+    return true;
+  }
+
+  count(s: Source): number {
+    let n = 0;
+    for (const it of store.items.values()) if (this.inSource(it, s)) n += 1;
+    return n;
+  }
+
   private matches(it: Item): boolean {
-    const k = this.source.kind;
-    if (k === 'samples' && !it.sample) return false;
-    if (k === 'imported' && it.sample) return false;
-    if (k === 'picks' && it.flag <= 0) return false;
-    if (k === 'edited' && !store.isEdited(it)) return false;
+    if (!this.inSource(it, this.source)) return false;
     const f = this.filter;
     if (f.text && !`${it.name} ${it.keywords.join(' ')} ${it.exif.model ?? ''}`.toLowerCase().includes(f.text.toLowerCase())) return false;
     if (typeof f.rating === 'number' && f.rating > 0 && it.rating < f.rating) return false;
