@@ -23,7 +23,7 @@ const SHELL = `<div class="fl-app">
 <div class="fl-rsz fl-rsz-left" role="separator" aria-orientation="vertical" aria-label="Resize the left panels"></div>
 <section class="fl-center"><div class="fl-stage"></div><div class="fl-toolbar"></div></section>
 <div class="fl-rsz fl-rsz-right" role="separator" aria-orientation="vertical" aria-label="Resize the right panels"></div>
-<aside class="fl-col fl-right" aria-label="Right panels"><div class="fl-col-pages"></div><div class="fl-col-foots"></div></aside>
+<aside class="fl-col fl-right" aria-label="Right panels"><div class="fl-col-pages"><div class="fl-col-page fl-ext-page" aria-label="Extensions" hidden></div></div><div class="fl-col-foots"></div></aside>
 </div>
 <div class="fl-filmstrip"><div class="fl-strip-rsz" role="separator" aria-orientation="horizontal" aria-label="Resize the filmstrip"></div></div>
 <section class="fl-dock" aria-label="Terminal" hidden></section>
@@ -53,6 +53,8 @@ export class Shell {
   private readonly rightPages: HTMLElement;
   private readonly leftFoots: HTMLElement;
   private readonly rightFoots: HTMLElement;
+  readonly extPage: HTMLElement;
+  private extOpen = false;
   private readonly stage: HTMLElement;
   private readonly toolbar: HTMLElement;
   private readonly hosts = new Map<string, ModuleHosts>();
@@ -76,6 +78,7 @@ export class Shell {
     this.rightPages = q(host, '.fl-right .fl-col-pages');
     this.leftFoots = q(host, '.fl-left .fl-col-foots');
     this.rightFoots = q(host, '.fl-right .fl-col-foots');
+    this.extPage = q(host, '.fl-ext-page');
     this.restoreWidths();
     try {
       const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') as Record<string, boolean>;
@@ -190,15 +193,24 @@ export class Shell {
       setHidden(h.left, !on);
       setHidden(h.stage, !on);
       setHidden(h.toolbar, !on);
-      setHidden(h.right, !on);
+      setHidden(h.right, !on || this.extOpen);
       setHidden(h.leftFoot, !on || h.leftFoot.childElementCount === 0);
-      setHidden(h.rightFoot, !on || h.rightFoot.childElementCount === 0);
+      setHidden(h.rightFoot, !on || this.extOpen || h.rightFoot.childElementCount === 0);
     }
+    setHidden(this.extPage, !this.extOpen);
     for (const [mid, b] of this.tabs) {
       setClass(b, 'is-active', mid === id);
       b.setAttribute('aria-selected', String(mid === id));
     }
     this.app.dataset.module = id;
+  }
+
+  extensionsOpen(): boolean { return this.extOpen; }
+
+  setExtensions(open: boolean): void {
+    this.extOpen = open;
+    if (open) this.toggle('is-right-hidden', false);
+    this.show(this.app.dataset.module ?? '');
   }
 
   toggle(cls: ShellArea, on?: boolean): void {

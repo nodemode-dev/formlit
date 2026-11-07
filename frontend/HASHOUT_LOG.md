@@ -147,7 +147,50 @@ frontend/
 - [src/ui/about-dialog.ts](#ui-about-dialog)
 - [public/splash.html](#public-splash)
 - [src/ui/tree.ts](#ui-tree)
+- [src/modules/shared/extensions.ts, src/ui/host-bridge.ts, src/ui/shell.ts · the extension host](#shared-extensions)
 - [Files with no entries](#no-entries)
+
+---
+
+## src/modules/shared/extensions.ts, src/ui/host-bridge.ts, src/ui/shell.ts · the extension host {#shared-extensions}
+
+### src/ui/host-bridge.ts · vendored
+- refers-to: src/ui/host-bridge.ts
+- kind: explainer
+- logged: v0.50.0 · 2026-11-07
+
+The Form Extension Contract kit's host bridge (API 1), copied unchanged; NOTICE has its row. formlit adapts it by wrapping (`extensions.ts`), never by editing it: the sandboxed frame, origin and permission checks, timeouts, consent grants (`formext.grants` in local storage, per id, version and permission set) and extension storage all live there.
+
+### src/ui/shell.ts · extPage, setExtensions
+- refers-to: src/ui/shell.ts :: SHELL, Shell.show, Shell.setExtensions
+- kind: rationale
+- logged: v0.50.0 · 2026-11-07
+
+formlit keeps panels per module, and an iframe moved in the DOM reloads, so extension panels get one page of their own in the right column that no module owns. It is in the shell template, hidden, so it exists in its final place before the first paint. While it is open, `show` hides the module's right page and foot instead of the extension page moving, and opening it also shows the right column. Dock panels stack under the list; they are not `Panel` instances because dragging a `Panel` re-parents it, which would reload the frame.
+
+### src/modules/shared/extensions.ts · the host
+- refers-to: src/modules/shared/extensions.ts :: Extensions, registerExtensions, extensionMenuItems
+- kind: explainer
+- logged: v0.50.0 · 2026-11-07
+
+The list comes from `GET /api/extensions`; every 2 s while the window has focus (and on focus) it asks with `since=<stamp>` and gets `changed: false` until FormPortal's `enabled.json` or form.ext's `dev.json` changes. Reload Extensions asks with `reload=true`, which re-reads every manifest. `apply` compares each extension's signature (version, state, entry, permissions, panels, commands): only a changed or removed extension loses its frames and menu commands, so an open panel of an unchanged one keeps running through a reload. Rows are `patchList` keyed by id; chips and Open buttons go through `setHtml` keyed by their content.
+
+Contributed commands are window commands `ext.<id>.<command>` labelled `Name: Title`, added and removed with the list; the Extensions menu resolves its items each time it opens (`extensionMenuItems`). formlit has no command palette, so the menu, the panel and the agent tools are where commands run.
+
+Handlers: `document.read` is the engine's `extensions.document` with the window's selection, active photo, module and source; `document.apply` and `app.run` are `extensions.apply` (one undo step); `app.commands` is `/api/commands` without the window-only groups and the commands that stay with the person; `files.open` is the system picker through a file input; `files.save` is the Choose Folder dialog and `extensions.saveFile`; `net.fetch` is not offered (-32003). Engine errors come back as -32004 with the engine's words.
+
+Theme tokens are resolved through a probe span (`color: var(--surface-0)` read back as `rgb(...)`), so a frame gets plain colours and not `color-mix` expressions it cannot resolve; the theme is sent again on `nm:ui-settings-changed`. `document.changed` coalesces the engine's change events to one per animation frame; `module.changed` watches the shell's `data-module`.
+
+Agents: the engine publishes `extensions.request` (kind `list` or `command`), the window answers with `extensions.reply`. A command from an agent passes the same consent as the menu.
+
+Panels open through the bridge's `open` (contract update of 07:47): consent is asked before the frame is created, into a detached frame host, and only an allowed frame gets its dock section or dialog; Not Now leaves nothing behind and is not stored. A second open of the same panel while the dialog was up disposes the extra frame. The consent note says what undo covers: catalog changes are one undo step, saved files are not undone.
+
+### src/modules/shared/plugin-manager.ts · Extensions Panel button
+- refers-to: src/modules/shared/plugin-manager.ts :: PluginManager constructor
+- kind: explainer
+- logged: v0.50.0 · 2026-11-07
+
+Publish plug-ins and contract extensions are separate systems; the Plug-in Manager's Extensions Panel button closes it and opens the Extensions panel, so one place leads to both.
 
 ---
 

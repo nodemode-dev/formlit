@@ -23,6 +23,7 @@ import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
 import { registerAgentConsent } from './modules/shared/agent-consent';
 import { registerTerminal } from './modules/shared/terminal';
+import { extensionMenuItems, registerExtensions } from './modules/shared/extensions';
 import { openPreferences } from './ui/preferences';
 import { library, type Source } from './state/library';
 import { develop } from './state/develop';
@@ -86,6 +87,7 @@ export class App implements Ctx {
     registerPluginManager(this);
     registerAgentConsent(this);
     registerTerminal(this);
+    registerExtensions(this);
     registerWorkspace(this);
     this.engineStatus();
     for (const m of modules()) {
@@ -233,6 +235,7 @@ export class App implements Ctx {
       { label: 'Develop', items: () => tidy(['develop.auto', 'develop.copy', 'develop.paste', 'develop.pastePrevious', 'develop.syncSettings', 'develop.reset', '-', 'develop.profileBrowser', 'develop.snapshot', 'develop.beforeAfter', 'develop.preset', '-', 'develop.copyAfterToBefore', 'develop.copyBeforeToAfter', 'develop.swapBeforeAfter', 'develop.resetBefore', '-', 'develop.referenceView', 'develop.setReference', 'develop.matchReference', '-', 'develop.matchExposure', 'develop.noiseByIso', 'develop.autoBw']) },
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', 'view.cull', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', 'view.faceRegions', 'photo.controlMaps', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.filmstripCollapse', 'view.filmstripTop', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
       { label: 'Window', items: () => [workspaceMenu(this), '-', ...tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude', 'agent.chat'])] },
+      { label: 'Extensions', items: () => extensionMenuItems() },
       { label: 'Help', items: () => tidy(['app.shortcuts', 'agent.chat', 'agent.claude', 'app.agents', 'app.about']) },
     ];
     new MenuBar(this.shell.menubar, this.commands, defs);

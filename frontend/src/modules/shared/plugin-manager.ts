@@ -15,6 +15,7 @@ class PluginManager extends Dialog {
   constructor(private readonly ctx: Ctx) {
     super('Plug-in Manager', 560);
     this.body.append(el('<p class="cv-note">Publish plug-ins add services to the Publish Services panel. Put a plug-in (a .py file, or a folder with __init__.py) in the Plugins folder, then press Reload. The API is described in docs/plugins and the wiki.</p>'), this.list, this.errors, this.where);
+    this.button('Extensions Panel', 'ghost', () => { this.close(); this.ctx.run('ext.panel'); });
     this.button('Show Plugins Folder', 'ghost', () => void this.reveal());
     this.button('Reload Plug-ins', '', () => void this.load(true));
     this.button('Done', 'primary', () => this.close());
