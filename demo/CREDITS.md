@@ -4,7 +4,7 @@ The 25 photographs in `assets/media/` come from Pexels and are used under the Pe
 
 ## What was changed in every file
 
-The original was downloaded from images.pexels.com at its full size, its orientation applied, scaled down so the long edge is at most 1600 px (never enlarged), and re-encoded as a progressive JPEG at quality 82 in sRGB. The original files carry no camera metadata, so the camera model, focal length, aperture, ISO, shutter speed and capture date that the Pexels photo page published for the photo were written back into the file as EXIF (model, FNumber, ISOSpeedRatings, FocalLength, ExposureTime, DateTimeOriginal) together with the photographer's name as Artist. Where a page did not publish a value, the tag is absent.
+The original was downloaded from images.pexels.com at its full size, its orientation applied, scaled down so the long edge is at most 1600 px (never enlarged), and re-encoded as a progressive JPEG at quality 82 in sRGB. The original files carry no camera metadata, so the camera model, focal length, aperture, ISO, shutter speed and capture date that the Pexels photo page published for the photo were written back into the file as EXIF (model, FNumber, ISOSpeedRatings, FocalLength, ExposureTime, DateTimeOriginal) together with the photographer's name as Artist (folded to plain ASCII, as EXIF requires) and as XPAuthor (UTF-16, with the correct spelling). Where a page did not publish a value, the tag is absent.
 
 Pages publish a capture date but no time of day, so DateTimeOriginal carries 00:00:00. Two photos have no published shutter time (autumn-02-birch-light.jpg and city-05-waterfront.jpg). Lens names are not published for any photo, so the demo shows none.
 
