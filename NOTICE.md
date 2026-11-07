@@ -11,6 +11,7 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 | formvis 1.63.0 infrastructure: setup scripts, the PyInstaller sidecar, the Tauri 2 shell, the CI and desktop workflows, the MCP bridge and agents installer pattern (nodemode-ai) | Apache-2.0 | `setup/`, `src-tauri/`, `.github/workflows/`, `backend/formlit_engine.py` |
 | NodeMode stylized design system (tokens, theme profiles, dom-stable helpers), as carried by formvis | MIT | `frontend/src/styles/tokens.css`, `frontend/src/ui/themes.ts`, `frontend/src/ui/dom.ts` |
 | `paintbrush` and `hand` icons from Remix Icon, as carried by formvis | Apache-2.0 | `frontend/src/ui/icons.ts` |
+| 25 photographs from Pexels, resized and re-encoded, in the offline demo (photographers and source pages in `demo/CREDITS.md`) | Pexels License | `demo/assets/media/` |
 The formlit mark is original.
 
 Material used only to test this build on the developer's machine is not included in the repository or any bundle: raw sample files from raw.pixls.us (CC0) and camera DCPs from RawTherapee (used to check DCP rendering, not distributed).
