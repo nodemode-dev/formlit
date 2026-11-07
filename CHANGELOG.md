@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.49.0 · 2026-11-07
+
+- New: an offline demo in `demo/`. Open `demo/index.html` from disk or from any static server and the formlit window runs in the browser with no engine, no network and no install. It has the Library (grid, loupe, filmstrip, ratings, flags, labels, keywords, EXIF), Develop (the global develop controls, 12 presets, history, before and after, clipping, white balance picker, crop and straighten, Auto Tone), and export to JPEG, PNG or WebP with a ZIP for several photos, copy, paste and synchronize settings, and settings files. It runs on six built-in procedural samples or on your own photos, which never leave the page.
+- The demo's develop pipeline is a TypeScript port of the engine's global path, and its interface is the app's own modules and stylesheets. Nothing in `frontend/src` or `backend/` changed.
+- The version is 0.49.0 because the last number runs 0 to 9.
+- Not verified: the demo was checked in headless Chrome over `file://` only; RAW files open through their embedded JPEG preview and were not tried against a real RAW file; the desktop build was not run here.
+
 ## v0.48.0 · 2026-11-05
 
 - The Intel Mac build of FormLit still stopped while installing its Python libraries, with "No matching distribution found for rawpy==0.25.1". 0.47.9 taught setup to use Python 3.13 or 3.12 on Intel Macs, but the engine installer (`backend/oc_install`, which `./formlit install` runs) picked its Python on its own and still made the engine's environment with Python 3.14, for which those library versions do not exist.
