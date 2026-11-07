@@ -1,0 +1,234 @@
+import '../../frontend/src/styles/fonts.css';
+import '../../frontend/src/styles/tokens.css';
+import '../../frontend/src/styles/lit-tokens.css';
+import '../../frontend/src/styles/shell.css';
+import '../../frontend/src/styles/panels.css';
+import '../../frontend/src/styles/dialogs.css';
+import '../../frontend/src/styles/lit-shell.css';
+import '../../frontend/src/styles/lit-library.css';
+import '../../frontend/src/styles/lit-develop.css';
+import '../../frontend/src/styles/lit-modules.css';
+import '../../frontend/src/styles/lit-control.css';
+import '../../frontend/src/styles/lit-dock.css';
+import '../../frontend/src/styles/light-mode.css';
+import '../../frontend/src/styles/scrollbars.css';
+import './demo.css';
+import '../../frontend/src/ui/icons-lit';
+import { Commands, type Command } from '../../frontend/src/ui/commands';
+import { Dialog, anyDialogOpen } from '../../frontend/src/ui/dialogs';
+import markUrl from '../site/favicon.png';
+import { el, q, revealApp, setClass, setHidden } from '../../frontend/src/ui/dom';
+import { MenuBar, type MenuDef } from '../../frontend/src/ui/menu';
+import { Shell } from '../../frontend/src/ui/shell';
+import { THEMES, applyTheme, readChoice, setTheme, themeSwatchesHtml } from '../../frontend/src/ui/themes';
+import { toast } from '../../frontend/src/ui/toast';
+import { copySettings, exportSettings, importSettings, openExport, openInfo, openSync, pasteSettings, resetSettings } from './actions';
+import { DevelopModule } from './develop-module';
+import { LibraryView } from './library-view';
+import { develop } from './shims/develop';
+import { library } from './shims/library';
+import { store } from './store';
+
+const host = document.getElementById('app') as HTMLElement;
+applyTheme();
+const shell = new Shell(host);
+const commands = new Commands();
+let module: 'library' | 'develop' = 'library';
+
+shell.addModuleTab('library', 'Library', 'modLibrary', 'Library (G)');
+shell.addModuleTab('develop', 'Develop', 'modDevelop', 'Develop (D)');
+const libHosts = shell.hostsFor('library');
+const devHosts = shell.hostsFor('develop');
+const picker = el<HTMLInputElement>('<input type="file" accept="image/*,.dng,.cr2,.cr3,.nef,.arw,.orf,.rw2,.raf,.pef,.srw" multiple hidden>');
+document.body.appendChild(picker);
+
+const lib = new LibraryView({ left: libHosts.left, stage: libHosts.stage, toolbar: libHosts.toolbar, right: libHosts.right, strip: shell.filmstrip }, { openDevelop: (id) => goDevelop(id), pickFiles: () => picker.click() });
+const dev = new DevelopModule({ left: devHosts.left, stage: devHosts.stage, toolbar: devHosts.toolbar, right: devHosts.right, rightFoot: devHosts.rightFoot });
+
+async function addFiles(files: File[]): Promise<void> {
+  const done = shell.busy(`Opening ${files.length} photo${files.length === 1 ? '' : 's'}`);
+  let last: number | null = null;
+  for (const f of files) {
+    try {
+      const it = await store.addFile(f);
+      last = it.id;
+    } catch (err) {
+      toast(`${f.name}: ${(err as Error).message}`, 'error');
+    }
+  }
+  done();
+  if (last !== null) {
+    library.setSource({ kind: 'all', label: 'All Photographs' });
+    library.setActive(last, false);
+  }
+}
+
+picker.addEventListener('change', () => {
+  const files = Array.from(picker.files ?? []);
+  picker.value = '';
+  if (files.length) void addFiles(files);
+});
+
+const drop = el('<div class="fl-demo-drop" hidden>Drop photos to open them here</div>');
+host.appendChild(drop);
+let depth = 0;
+const hasFiles = (e: DragEvent): boolean => !!e.dataTransfer?.types.includes('Files');
+window.addEventListener('dragenter', (e) => { if (hasFiles(e)) { depth += 1; setHidden(drop, false); } });
+window.addEventListener('dragleave', (e) => { if (hasFiles(e)) { depth = Math.max(0, depth - 1); if (!depth) setHidden(drop, true); } });
+window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  depth = 0;
+  setHidden(drop, true);
+  void addFiles(Array.from(e.dataTransfer?.files ?? []));
+});
+
+function goDevelop(id?: number): void {
+  if (id !== undefined) library.setActive(id);
+  const item = library.active === null ? null : store.items.get(library.active) ?? null;
+  if (!item) { toast('Select a photo first', 'error'); return; }
+  setModule('develop');
+}
+
+function setModule(m: 'library' | 'develop'): void {
+  module = m;
+  shell.show(m);
+  lib.show(m === 'library');
+  dev.activate(m === 'develop');
+  if (m === 'develop') {
+    const item = library.active === null ? null : store.items.get(library.active) ?? null;
+    develop.open(item);
+    dev.open();
+  }
+  syncStatus();
+}
+
+shell.onModule = (m) => { if (m === 'develop') goDevelop(); else setModule('library'); };
+
+function syncStatus(): void {
+  const n = library.ids.length;
+  shell.setCount(`${n} photo${n === 1 ? '' : 's'}`);
+  const s = library.selected().length;
+  shell.setSelection(s ? `${s} selected` : '');
+  shell.setHint('Everything runs in this page');
+}
+
+library.listen('list', syncStatus);
+library.listen('selection', () => {
+  syncStatus();
+  if (module === 'develop') {
+    const item = library.active === null ? null : store.items.get(library.active) ?? null;
+    if (item?.id !== develop.item?.id) { develop.open(item); dev.open(); }
+  }
+});
+
+const active = (): ReturnType<typeof lib.current> => (module === 'develop' ? develop.item : lib.current());
+const targets = (): ReturnType<typeof lib.targets> => (module === 'develop' && develop.item ? [develop.item] : lib.targets());
+
+const cmds: Command[] = [
+  { id: 'file.open', label: 'Open Photos', keys: ['Mod+O'], icon: 'importLit', run: () => picker.click() },
+  { id: 'file.export', label: 'Export Selected', keys: ['Mod+Shift+E'], icon: 'exportLit', run: () => openExport(targets()) },
+  { id: 'file.info', label: 'Photo Information', keys: ['Mod+I'], run: () => openInfo(active()) },
+  { id: 'file.remove', label: 'Remove from Demo', keys: ['Delete'], enabled: () => library.ids.length > 0, run: () => { store.remove(library.selected()); if (module === 'develop' && !library.ids.length) setModule('library'); } },
+  { id: 'edit.undo', label: 'Undo', keys: ['Mod+Z'], enabled: () => !!develop.item || !!lib.current(), run: () => { const it = active(); if (it && store.undo(it)) { if (develop.item?.id === it.id) develop.resync(); } } },
+  { id: 'edit.redo', label: 'Redo', keys: ['Mod+Shift+Z'], run: () => { const it = active(); if (it && store.redo(it)) { if (develop.item?.id === it.id) develop.resync(); } } },
+  { id: 'edit.copy', label: 'Copy Settings', keys: ['Mod+Shift+C'], run: () => copySettings(active()) },
+  { id: 'edit.paste', label: 'Paste Settings', keys: ['Mod+Shift+V'], run: () => pasteSettings(targets()) },
+  { id: 'edit.sync', label: 'Synchronize Settings', keys: ['Mod+Shift+S'], run: () => openSync(active(), lib.targets()) },
+  { id: 'edit.reset', label: 'Reset Settings', run: () => resetSettings(active()) },
+  { id: 'edit.save', label: 'Save Settings File', run: () => exportSettings(active()) },
+  { id: 'edit.load', label: 'Load Settings File', run: () => importSettings(targets()) },
+  { id: 'edit.all', label: 'Select All', keys: ['Mod+A'], run: () => library.selectAll() },
+  { id: 'photo.pick', label: 'Flag as Pick', keys: ['P'], run: () => lib.flag(1) },
+  { id: 'photo.reject', label: 'Flag as Rejected', keys: ['X'], run: () => lib.flag(-1) },
+  { id: 'photo.unflag', label: 'Unflag', keys: ['U'], run: () => { for (const it of targets()) store.setMeta(it, { flag: 0 }); } },
+  { id: 'photo.next', label: 'Next Photo', keys: ['Right'], run: () => library.step(1) },
+  { id: 'photo.prev', label: 'Previous Photo', keys: ['Left'], run: () => library.step(-1) },
+  { id: 'view.library', label: 'Library', keys: ['G'], checked: () => module === 'library', run: () => setModule('library') },
+  { id: 'view.develop', label: 'Develop', keys: ['D'], checked: () => module === 'develop', run: () => goDevelop() },
+  { id: 'view.grid', label: 'Grid', run: () => { setModule('library'); lib.setView('grid'); } },
+  { id: 'view.loupe', label: 'Loupe', keys: ['E'], run: () => { setModule('library'); lib.setView('loupe'); } },
+  { id: 'view.compare', label: 'Before and After', keys: ['Y'], enabled: () => module === 'develop', run: () => dev.cycleMode() },
+  { id: 'view.clipping', label: 'Show Clipping', keys: ['J'], enabled: () => module === 'develop', run: () => dev.toggleClip() },
+  { id: 'dev.crop', label: 'Crop and Straighten', keys: ['R'], enabled: () => module === 'develop', run: () => dev.setTool(dev.view.tool === 'crop' ? 'none' : 'crop') },
+  { id: 'dev.wb', label: 'White Balance Selector', keys: ['W'], enabled: () => module === 'develop', run: () => dev.setTool(dev.view.tool === 'wb' ? 'none' : 'wb') },
+  { id: 'dev.auto', label: 'Auto Tone', keys: ['Shift+A'], enabled: () => module === 'develop', run: () => dev.auto() },
+  { id: 'app.lights', label: 'Lights Out', keys: ['L'], run: () => shell.cycleLights() },
+  { id: 'app.preferences', label: 'Appearance', run: () => openAppearance() },
+  { id: 'app.about', label: 'About This Demo', run: () => openAbout() },
+  { id: 'view.panels', label: 'Hide Side Panels', keys: ['Tab'], run: () => shell.togglePanels() },
+];
+for (const n of [0, 1, 2, 3, 4, 5]) cmds.push({ id: `photo.rate${n}`, label: n ? `Rate ${n} Star${n === 1 ? '' : 's'}` : 'Clear Rating', keys: [String(n)], run: () => { for (const it of targets()) store.setMeta(it, { rating: n }); } });
+commands.add(...cmds);
+
+const defs: MenuDef[] = [
+  { label: 'File', items: ['file.open', 'file.export', '-', 'file.info', '-', 'file.remove'] },
+  { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.copy', 'edit.paste', 'edit.sync', '-', 'edit.reset', 'edit.save', 'edit.load', '-', 'edit.all'] },
+  { label: 'Photo', items: ['photo.pick', 'photo.reject', 'photo.unflag', '-', 'photo.rate0', 'photo.rate1', 'photo.rate2', 'photo.rate3', 'photo.rate4', 'photo.rate5', '-', 'photo.prev', 'photo.next'] },
+  { label: 'Develop', items: ['dev.auto', 'dev.crop', 'dev.wb', '-', 'view.compare', 'view.clipping'] },
+  { label: 'View', items: ['view.library', 'view.develop', '-', 'view.grid', 'view.loupe', '-', 'view.panels', 'app.lights', 'app.preferences'] },
+  { label: 'Help', items: ['app.about'] },
+];
+new MenuBar(shell.menubar, commands, defs);
+
+host.addEventListener('click', (e) => {
+  const id = (e.target as HTMLElement).closest<HTMLElement>('[data-cmd]')?.dataset.cmd;
+  if (id) commands.run(id);
+});
+for (const id of ['agent.claude', 'view.terminal']) {
+  const b = host.querySelector<HTMLElement>(`[data-cmd="${id}"]`);
+  if (b) setClass(b, 'hidden', true);
+}
+for (const img of Array.from(host.querySelectorAll<HTMLImageElement>('.fl-brand-mark img'))) img.src = markUrl;
+
+window.addEventListener('keydown', (e) => {
+  if (anyDialogOpen()) return;
+  const t = e.target as HTMLElement;
+  if (t.closest('input, textarea, select') && e.key !== 'Escape') return;
+  const c = commands.forEvent(e);
+  if (!c) return;
+  if (!commands.enabled(c)) return;
+  e.preventDefault();
+  commands.run(c.id);
+});
+
+let appearance: Dialog | null = null;
+function openAppearance(): void {
+  appearance ??= new Dialog('Appearance', 420);
+  const d = appearance;
+  d.body.textContent = '';
+  d.foot.textContent = '';
+  const row = el(`<div class="nm-theme-swatches">${themeSwatchesHtml()}</div>`);
+  row.addEventListener('click', (e) => {
+    const id = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-id]')?.dataset.themeId;
+    if (!id || !(id in THEMES)) return;
+    setTheme(id);
+    row.innerHTML = themeSwatchesHtml(id, readChoice().accentColor);
+  });
+  d.body.append(el('<p class="cv-note">Choose one of the fourteen Studio Dark and light profiles.</p>'), row);
+  d.button('Done', 'primary', () => d.close());
+  d.open();
+}
+
+let about: Dialog | null = null;
+function openAbout(): void {
+  about ??= new Dialog('About This Demo', 480);
+  const d = about;
+  d.body.textContent = '';
+  d.foot.textContent = '';
+  d.body.appendChild(el(`<div class="fl-about-lines">
+<p>This is the formlit window running entirely in your browser, with no engine and no network. The develop pipeline is a TypeScript port of the desktop engine, so edits you make here behave like the real ones.</p>
+<p>Open your own photos with Open Your Photos or by dropping them on the window. JPEG, PNG, WebP and the embedded preview of most RAW files work. Nothing is uploaded.</p>
+<p>Not in the demo: catalog on disk, masks, maps, books, printing, web galleries, and RAW demosaicing. Those need the desktop app.</p>
+</div>`));
+  d.button('Close', 'primary', () => d.close());
+  d.open();
+}
+
+setModule('library');
+q(host, '.fl-identity').appendChild(el('<span class="fl-demo-badge">demo</span>'));
+void Promise.all([store.addSample(0), store.addSample(1), store.addSample(2), store.addSample(3), store.addSample(4), store.addSample(5)]).then(() => {
+  if (library.ids.length) library.setActive(library.ids[0], false);
+});
+requestAnimationFrame(() => revealApp());
