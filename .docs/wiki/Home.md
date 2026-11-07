@@ -10,6 +10,7 @@ formlit is the form family's photo library and raw developer, an alternative to 
 | [Interface](Interface) | The shell, modules, panels and the zero-flash rules |
 | [Agents and MCP](Agents-and-MCP) | Using formlit from Claude, the MCP server, the driving skill and the harness |
 | [Publish Plug-ins](Publish-Plug-ins) | Writing a publish service plug-in |
+| [Extensions](Extensions) | Form extensions: installing, the Extensions menu and panel, permissions, agents |
 | [Keyboard Shortcuts](Keyboard-Shortcuts) | The main shortcuts |
 | [Desktop](Desktop) | The Tauri shell and the frozen engine |
 | [Releasing](Releasing) | Secrets, the updater key and cutting a desktop release |

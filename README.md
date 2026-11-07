@@ -49,7 +49,7 @@
     <td width="25%" valign="top"><h3>Non-destructive</h3>One catalog with undo for every change, and edits kept in settings and sidecars, never in your originals.</td>
     <td width="25%" valign="top"><h3>Raw to print</h3>Library, Develop, Map, Book, Slideshow, Print and Web modules take a shoot from import to delivery.</td>
     <td width="25%" valign="top"><h3>Local AI</h3>Masks, denoise, culling and search by description run on your machine with ONNX Runtime and pinned models.</td>
-    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 280 commands from the window, the terminal and an MCP server for Claude Code, Codex and Cursor.</td>
+    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 288 commands from the window, the terminal and an MCP server for Claude Code, Codex and Cursor.</td>
   </tr>
 </table>
 
@@ -87,7 +87,7 @@
 
 ## Built for agents
 
-The window, the terminal and the MCP server call the same registry of 280 engine commands, and the MCP server exposes 80 curated tools over it.
+The window, the terminal and the MCP server call the same registry of 288 engine commands, and the MCP server exposes 82 curated tools over it.
 
 ```sh
 ./formlit cli list                                  # every engine command
@@ -97,6 +97,10 @@ The window, the terminal and the MCP server call the same registry of 280 engine
 ```
 
 `.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` are already wired in this repo. See [`AGENTS.md`](AGENTS.md).
+
+## Extensions
+
+formlit loads Form extensions (Form Extension Contract, API 1): web pages in a sandboxed frame that read and change the catalog through formlit's own commands, each change one undo step. Install them with FormPortal or make one with form.ext; they appear in the Extensions menu and the Extensions panel, and agents reach them with the `extensions_list` and `extension_command` tools. [`docs/EXTENSIONS.md`](docs/EXTENSIONS.md) is the API page.
 
 ## Under the hood
 
