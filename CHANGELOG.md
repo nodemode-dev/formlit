@@ -2,6 +2,12 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.49.2 · 2026-11-07
+
+- The desktop splash now matches the rest of the Form family: the same rounded card with the app icon, "Starting formlit" and the family-gradient progress bar, rounded corners on macOS with nothing square behind the card, and the same reveal. The main window stays unseen on a dark background until the page has drawn its first content and at least 2.6 s have passed since launch, then appears whole as the splash closes; there is no white frame.
+- The window page tells the shell when it is ready (`app_ready`), which needs the shell's capability to list the engine's loopback address. A page that never reports is shown after 20 s.
+- Not verified: the Rust shell was not compiled and the desktop build was not run here; the splash page was checked in headless Chrome.
+
 ## v0.49.1 · 2026-11-07
 
 - The offline demo now opens on a real photo library: 25 Pexels photographs in four collections (Mountain Lakes, Coastlines, City After Dark, Autumn Woods) with star ratings, pick and reject flags, colour labels, keywords, the camera data and capture dates the Pexels photo pages publish, and 18 photos that already carry develop settings and a history, so Before and After shows real work. The Catalog panel lists the collections with counts, and the Metadata panel shows capture date and focal length.
