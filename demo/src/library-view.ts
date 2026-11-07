@@ -15,6 +15,8 @@ import { copySettings, exportSettings, importSettings, openExport, openInfo, ope
 const SORTS: Array<[string, string]> = [['importTime', 'Added Order'], ['captureTime', 'Capture Time'], ['fileName', 'File Name'], ['rating', 'Rating'], ['flag', 'Pick']];
 const LABELS = ['red', 'yellow', 'green', 'blue', 'purple'];
 
+const SKELETON_CELLS = 25;
+
 export interface LibraryHooks { openDevelop(id: number): void; pickFiles(): void }
 
 export class LibraryView {
@@ -26,6 +28,8 @@ export class LibraryView {
   private readonly loupeWrap: HTMLElement;
   private readonly bar: HTMLElement;
   private readonly empty: HTMLElement;
+  private readonly skeleton: HTMLElement;
+  private loading = true;
   private readonly metaBody: HTMLElement;
   private readonly sources: HTMLElement;
   private readonly count: HTMLElement;
@@ -78,6 +82,8 @@ export class LibraryView {
     pSrc.body.appendChild(this.sources);
 
     const pAdd = new Panel('lib.samples', 'Add Photos');
+    this.skeleton = el(`<div class="fl-demo-skel" aria-hidden="true">${'<div class="fl-demo-skel-cell"><div></div></div>'.repeat(SKELETON_CELLS)}</div>`);
+    this.gridWrap.appendChild(this.skeleton);
     const addRow = el('<div class="fl-row"></div>');
     const pick = el<HTMLButtonElement>(`<button class="cv-btn cv-btn-primary fl-btn-sm" type="button">${icon('importLit', 13)} Open Your Photos</button>`);
     pick.addEventListener('click', () => hook.pickFiles());
@@ -91,11 +97,12 @@ export class LibraryView {
     });
     const all = el<HTMLButtonElement>('<button class="cv-btn fl-btn-sm" type="button">Add All Samples</button>');
     all.addEventListener('click', () => { SCENES.forEach((_s, i) => { void store.addSample(i); }); });
-    pAdd.body.append(addRow, el('<div class="fl-sub">Procedural samples</div>'), sample, el('<div class="fl-row"></div>'));
-    pAdd.body.lastElementChild?.appendChild(all);
     this.count = el('<div class="fl-muted fl-privacy">Everything runs in this page. Photos never leave your computer.</div>');
-    pAdd.body.appendChild(this.count);
-    hosts.left.append(pSrc.root, pAdd.root);
+    pAdd.body.append(addRow, this.count);
+    const pGen = new Panel('lib.generated', 'Generated Samples', { open: false });
+    pGen.body.append(sample, el('<div class="fl-row"></div>'));
+    pGen.body.lastElementChild?.appendChild(all);
+    hosts.left.append(pSrc.root, pAdd.root, pGen.root);
 
     const pMeta = new Panel('lib.meta', 'Metadata');
     this.metaBody = el('<div class="fl-kv"></div>');
@@ -214,13 +221,28 @@ export class LibraryView {
     if (on) this.sync();
   }
 
+  setLoading(on: boolean): void {
+    this.loading = on;
+    if (on) { this.sync(); return; }
+    this.sync();
+    let frames = 0;
+    const settle = (): void => {
+      frames += 1;
+      const pending = this.grid.root.querySelectorAll('.fl-cell-img:not(.is-loaded)').length;
+      const placed = this.grid.root.querySelectorAll('.fl-lg-cell').length;
+      if ((placed > 0 && pending === 0) || frames > 90) { setHidden(this.skeleton, true); return; }
+      requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
+  }
+
   sync(): void {
-    setHidden(this.empty, library.ids.length > 0);
+    setHidden(this.empty, this.loading || library.ids.length > 0);
     const it = this.current();
     for (const b of Array.from(this.sources.children) as HTMLElement[]) {
       setClass(b, 'is-on', b.dataset.key === sourceKey(library.source));
       const s = SOURCES.find((x) => sourceKey(x) === b.dataset.key);
-      if (s) setText(q(b, 'em'), String(library.count(s)));
+      if (s) setText(q(b, 'em'), this.loading ? '' : String(library.count(s)));
     }
     const p = library.photo(library.active);
     if (this.view === 'loupe') void this.loupe.show(p ?? null);

@@ -28,6 +28,7 @@ import { SCENES } from './data/scenes';
 import { DevelopModule } from './develop-module';
 import { LibraryView } from './library-view';
 import { dataBytes, jpegSize, loadPack, releasePack } from './media';
+import type { PhotoInput } from './store';
 import { develop } from './shims/develop';
 import { library } from './shims/library';
 import { store } from './store';
@@ -115,9 +116,11 @@ function setModule(m: 'library' | 'develop'): void {
 
 shell.onModule = (m) => { if (m === 'develop') goDevelop(); else setModule('library'); };
 
+let loadingLibrary = true;
+
 function syncStatus(): void {
   const n = library.ids.length;
-  shell.setCount(`${n} photo${n === 1 ? '' : 's'}`);
+  shell.setCount(loadingLibrary ? '' : `${n} photo${n === 1 ? '' : 's'}`);
   const s = library.selected().length;
   shell.setSelection(s ? `${s} selected` : '');
   shell.setHint('Everything runs in this page');
@@ -250,13 +253,15 @@ async function openLibrary(): Promise<void> {
     const lanes = COLLECTIONS.map((c) => PHOTOS.filter((p) => p.collection === c.id));
     const order: typeof PHOTOS = [];
     for (let i = 0; order.length < PHOTOS.length; i += 1) for (const lane of lanes) if (lane[i]) order.push(lane[i]);
+    const inputs: PhotoInput[] = [];
     for (const p of order) {
       const uri = byPack.get(p.pack)?.[p.file];
       if (!uri) continue;
       const bytes = dataBytes(uri);
       const [width, height] = jpegSize(bytes);
-      await store.addPhoto({ name: p.file, blob: new Blob([bytes], { type: 'image/jpeg' }), bytes: bytes.buffer, width, height, collection: p.collection, keywords: p.keywords, rating: p.rating, flag: p.flag, label: p.label, edits: p.edits });
+      inputs.push({ name: p.file, blob: new Blob([bytes], { type: 'image/jpeg' }), bytes: bytes.buffer, width, height, collection: p.collection, keywords: p.keywords, rating: p.rating, flag: p.flag, label: p.label, edits: p.edits });
     }
+    await store.addPhotos(inputs);
     for (const c of COLLECTIONS) releasePack(c.id);
   } catch (err) {
     toast(`${(err as Error).message}; showing the procedural samples instead`, 'error');
@@ -264,6 +269,9 @@ async function openLibrary(): Promise<void> {
   }
   done();
   if (library.ids.length) library.setActive(library.ids[0], false);
+  loadingLibrary = false;
+  syncStatus();
+  lib.setLoading(false);
 }
 
 void openLibrary();

@@ -18,7 +18,6 @@ export const SOURCES: Source[] = [
   { kind: 'picks', label: 'Picks' },
   { kind: 'edited', label: 'Edited' },
   { kind: 'imported', label: 'Your Files' },
-  { kind: 'samples', label: 'Procedural Samples' },
 ];
 
 export const sourceKey = (s: Source): string => `${s.kind}:${s.value ?? ''}`;

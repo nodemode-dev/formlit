@@ -32,6 +32,14 @@ Reading pixels needs a decode, and Chrome on `file://` blocks `fetch` of local f
 
 The loupe preview is rendered from the full source, and the loupe now refreshes when the preview is ready; before, it showed the thumbnail until something else redrew it.
 
+## Loading without a flash (verifier fix)
+
+Under 4x CPU and a slow link the first build showed the "No photos here" card for about 215 ms and then added the 25 photos one at a time over 12 s, with the catalog counts ticking up. Now the grid area carries 25 fixed-size skeleton cells (190 px, the same size, gap and inset as the real cells) from first paint, the empty card is never shown while the library loads, and the store builds all 25 items and their thumbnails quietly (no per-item events, no deferred thumbnail timers) and publishes them with one `list` event. The skeleton is removed only after every cell in the grid has its image loaded, in the same frame, so the cells fill in place. Catalog counts and the status count stay blank until that batch. A DOM timeline under 4x CPU shows the empty card never visible, cells going from 0 to 25 in one step, and the skeleton leaving after the last image.
+
+Label tints on grid cells are cut to about 9 percent so the colour labels read as labels, not as coloured tiles. The procedural scenes moved out of the Catalog into a Generated Samples panel that starts collapsed, so the real library leads.
+
+Pexels' EXIF Artist field is ASCII, so two photographer names lost characters. XPAuthor (UTF-16) now carries the exact name beside the folded Artist.
+
 ## Interleaved order
 
 Photos are added round-robin across the four collections so the first rows of the grid show every kind of scene. Collections are still one click away in the Catalog panel, with counts.

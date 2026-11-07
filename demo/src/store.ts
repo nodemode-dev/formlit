@@ -122,9 +122,26 @@ export class Store {
       cur = merge(cur, e.patch);
       this.commit(item, cur, e.label);
     }
-    this.afterAdd(item);
     return item;
   }
+
+  async addPhotos(inputs: PhotoInput[]): Promise<Item[]> {
+    this.quiet = true;
+    const made: Item[] = [];
+    try {
+      for (const input of inputs) {
+        const item = await this.addPhoto(input);
+        await this.makeThumb(item.id);
+        made.push(item);
+      }
+    } finally {
+      this.quiet = false;
+    }
+    this.emit('list');
+    return made;
+  }
+
+  private quiet = false;
 
   private async decode(blob: Blob, w: number, h: number): Promise<Uint8ClampedArray> {
     const bm = await createImageBitmap(blob, { imageOrientation: 'from-image', resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
@@ -209,6 +226,7 @@ export class Store {
   }
 
   scheduleThumb(id: number, delay = 120): void {
+    if (this.quiet) return;
     window.clearTimeout(this.thumbTimers.get(id));
     this.thumbTimers.set(id, window.setTimeout(() => {
       this.enqueue(async () => { await this.makeThumb(id); });
@@ -260,7 +278,7 @@ export class Store {
     item.dev = clone(dev);
     item.rev += 1;
     this.scheduleThumb(item.id);
-    this.emit('item', item.id);
+    if (!this.quiet) this.emit('item', item.id);
   }
 
   goto(item: Item, index: number): void {
