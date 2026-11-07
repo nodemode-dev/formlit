@@ -18,9 +18,27 @@ Reusing the app's real modules keeps the demo visually identical and honest. Tho
 
 Chrome refuses `type="module"` scripts and `crossorigin` stylesheets from `file://`. The build uses an IIFE bundle, moves the script to the end of the body, and strips `type` and `crossorigin`. Fonts are inlined as data URIs (the same Inter and JetBrains Mono files already listed in NOTICE.md), so the page makes no requests at all. The theme boot script is copied from `frontend/index.html` at build time so the first paint matches the app.
 
-## Why procedural samples
+## Why real photographs (media pass, v0.49.1)
 
-No photo is bundled, so nothing needs a licence and the folder stays small. Six scenes are drawn into canvases at start and carry fake EXIF so the metadata panel has content. Canvases are never tainted because no image is loaded from another origin.
+The first demo opened on procedural scenes and read as a tech test. It now opens on 25 Pexels photographs in four collections, chosen so the grid looks like a working photographer's library: mountain lakes, coastlines, city at night, autumn woods. Each photo page was read and stated "Free" under the Pexels License; sources are in CREDITS.md. Procedural scenes remain as an offline fallback and as optional extras in the left panel.
+
+Pexels strips camera metadata from the files it serves, but its photo pages publish camera model, focal length, aperture, ISO, shutter and capture date for most photos. Those published values were written back into each file as EXIF, so the app's own EXIF reader supplies the Metadata panel. The pages give a date without a time of day, so the time is 00:00:00. Photos whose page published no camera data were not used.
+
+Ratings, flags, labels, keywords and 18 develop histories are demo catalogue data written for the demo. Edits are composed from the app's own presets plus hand patches and committed through the same history call as the Develop module, one entry per step.
+
+## Why data packs and two decode sizes
+
+Reading pixels needs a decode, and Chrome on `file://` blocks `fetch` of local files and taints a canvas that draws a file image. So the photos ship as JS data packs of base64 data URIs, loaded by injecting a script tag. A 1600 px source decoded to a linear float image with its mip pyramid is about 27 MB, so 25 of them would not fit comfortably. Every photo is therefore decoded once at 512 px (about 2 MB) for thumbnails, and the full size is decoded when a photo is opened in Develop, previewed in the loupe or exported. At most six full sources are kept; the least recently used one drops back to its small source. Sources have unique ids so the renderers' per-source caches never mix sizes. The pack strings are released after the blobs are made.
+
+The loupe preview is rendered from the full source, and the loupe now refreshes when the preview is ready; before, it showed the thumbnail until something else redrew it.
+
+## Interleaved order
+
+Photos are added round-robin across the four collections so the first rows of the grid show every kind of scene. Collections are still one click away in the Catalog panel, with counts.
+
+## Why no procedural-only opening
+
+The brief for this pass is that the first screen is real media. Failure to load a pack shows a toast and falls back to the six procedural scenes.
 
 ## Responsiveness
 
