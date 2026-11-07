@@ -2,6 +2,16 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.50.0 · 2026-11-07
+
+- Extensions: formlit loads extensions made to the Form Extension Contract (API 1). FormPortal installs them (`extensions/formlit/enabled.json` under its folder) and form.ext runs one from a folder (`dev.json`); formlit picks up a change within 2 seconds or with Reload Extensions. Nothing of any extension ships with formlit.
+- A top-level Extensions menu lists each contributed command, then Extensions Panel, Reload Extensions and Manage in FormPortal. The Extensions panel in the right column shows every extension with its version, source, permissions and state (Ready, Needs Permission, or Refused with the reason). Dock panels open under it and dialog panels as formlit dialogs.
+- Extensions run in a sandboxed frame and reach the catalog only through formlit's own engine commands. formlit asks for their permissions before the frame exists, once per version; changes an extension makes are one undo step, and its files are saved through Choose Folder without ever replacing a file.
+- Agents: the MCP tools `extensions_list` and `extension_command`, and `./formlit cli extensions.list` and `extensions.run`, run contributed commands in the open window with the same consent.
+- The API page is `docs/EXTENSIONS.md`; the contract kit's host files are vendored unchanged (NOTICE).
+- Checked with the first formlit extension, Golden Hour (a separate repository and package), installed as FormPortal installs it and run from a folder.
+- Not verified: the desktop app was not rebuilt; `files.open` uses the system file picker, which was not driven headless; `net.fetch` is not offered.
+
 ## v0.49.3 · 2026-11-07
 
 - Two new offline demos open straight from disk beside the first: `demos/develop/` (masks and local adjustments, presets you make, virtual copies, on photos already edited) and `demos/share/` (map, book, slideshow, print and web gallery, with exports saved as PDF, JPEG and ZIP files). Each runs the app's own window code against an in-page engine, with no network.
