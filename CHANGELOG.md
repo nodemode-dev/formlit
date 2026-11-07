@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.49.1 · 2026-11-07
+
+- The offline demo now opens on a real photo library: 25 Pexels photographs in four collections (Mountain Lakes, Coastlines, City After Dark, Autumn Woods) with star ratings, pick and reject flags, colour labels, keywords, the camera data and capture dates the Pexels photo pages publish, and 18 photos that already carry develop settings and a history, so Before and After shows real work. The Catalog panel lists the collections with counts, and the Metadata panel shows capture date and focal length.
+- The library appears in one step: fixed-size placeholder cells fill the grid from first paint, the empty-library card never shows while loading, the Metadata panel keeps its eight rows at their final height, and the photos and counts arrive together with no layout shift. Grid cells widen to fill the grid width. Photos load from JavaScript data packs, decoded small for thumbnails and full size only when opened, previewed or exported, and the loupe swaps its thumbnail for the full preview when it is ready. The procedural scenes moved to a collapsed Generated Samples panel and remain as an offline fallback.
+- Sources, photographers and licences are in `demo/CREDITS.md`, with a row in `NOTICE.md`. Nothing in `frontend/src` or `backend/` changed.
+- Not verified: the demo was checked in headless Chrome over `file://` only; the desktop build was not run here.
+
 ## v0.49.0 · 2026-11-07
 
 - New: an offline demo in `demo/`. Open `demo/index.html` from disk or from any static server and the formlit window runs in the browser with no engine, no network and no install. It has the Library (grid, loupe, filmstrip, ratings, flags, labels, keywords, EXIF), Develop (the global develop controls, 12 presets, history, before and after, clipping, white balance picker, crop and straighten, Auto Tone), and export to JPEG, PNG or WebP with a ZIP for several photos, copy, paste and synchronize settings, and settings files. It runs on six built-in procedural samples or on your own photos, which never leave the page.
