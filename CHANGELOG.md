@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.49.3 · 2026-11-07
+
+- Two new offline demos open straight from disk beside the first: `demos/develop/` (masks and local adjustments, presets you make, virtual copies, on photos already edited) and `demos/share/` (map, book, slideshow, print and web gallery, with exports saved as PDF, JPEG and ZIP files). Each runs the app's own window code against an in-page engine, with no network.
+- The first demo shows a quiet Overview, Develop, Share link row in its status bar, as the new demos do; the status bar now sits in its own grid row so it is visible.
+- Sources and licences for the new demos' photographs, the NASA Blue Marble map image and the CC0 piano recording are in each demo's `CREDITS.md` and in `NOTICE.md`.
+- Not verified: the desktop app is unchanged and was not rebuilt; the demos were checked in headless Chrome over `file://`.
+
 ## v0.49.2 · 2026-11-07
 
 - The desktop splash now matches the rest of the Form family: the same rounded card with the app icon, "Starting formlit" and the family-gradient progress bar, rounded corners on macOS with nothing square behind the card, and the same reveal. The main window stays unseen on a dark background until the page has drawn its first content and at least 2.6 s have passed since launch, then appears whole as the splash closes; there is no white frame.

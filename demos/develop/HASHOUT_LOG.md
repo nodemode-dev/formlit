@@ -2,7 +2,7 @@
 
 Rationale and decisions for demo 2 (develop). Source files stay comment-free.
 
-Current build version: v0.49.2 (the version of the app this demo was built against).
+Current build version: v0.49.3 (the version of the app this demo was built against).
 
 ## What this demo adds to demo 1
 
