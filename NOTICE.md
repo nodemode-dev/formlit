@@ -12,6 +12,8 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 | NodeMode stylized design system (tokens, theme profiles, dom-stable helpers), as carried by formvis | MIT | `frontend/src/styles/tokens.css`, `frontend/src/ui/themes.ts`, `frontend/src/ui/dom.ts` |
 | `paintbrush` and `hand` icons from Remix Icon, as carried by formvis | Apache-2.0 | `frontend/src/ui/icons.ts` |
 | 25 photographs from Pexels, resized and re-encoded, in the offline demo (photographers and source pages in `demo/CREDITS.md`) | Pexels License | `demo/assets/media/` |
+| 9 photographs from Pexels and 6 selection bitmaps made from them, in the develop demo (photographers and source pages in `demos/develop/CREDITS.md`) | Pexels License | `demos/develop/assets/media/` |
+| 19 photographs from Pexels, the NASA Blue Marble Next Generation image (NASA Earth Observatory, reduced in size) and a 64 second excerpt of Piano Fantasia No. 1 by Peter Bille Larsen (CC0 1.0), in the share demo (sources and changes in `demos/share/CREDITS.md`) | Pexels License; NASA media usage guidelines; CC0 1.0 | `demos/share/assets/media/` |
 The formlit mark is original.
 
 Material used only to test this build on the developer's machine is not included in the repository or any bundle: raw sample files from raw.pixls.us (CC0) and camera DCPs from RawTherapee (used to check DCP rendering, not distributed).

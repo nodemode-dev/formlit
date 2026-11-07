@@ -24,5 +24,11 @@
 .fl-demo-skel-cell > div { position: absolute; inset: 8px 8px 22px; border-radius: 2px; background: var(--surface-2); }
 .fl-demo-drop { position: absolute; inset: 0; display: grid; place-items: center; background: var(--accent-soft); border: 2px dashed var(--accent-color); color: var(--text-primary); font-size: var(--fs-14); pointer-events: none; z-index: var(--z-overlay); }
 .fl-demo-drop[hidden] { display: none; }
+.fl-app > .fl-status { grid-row: 5; }
+.fl-demo-links { display: inline-flex; align-items: center; gap: var(--space-3); margin-left: auto; font-size: var(--fs-11); }
+.fl-demo-links a { color: var(--text-muted); text-decoration: none; }
+.fl-demo-links a:hover { color: var(--text-primary); }
+.fl-demo-links a[aria-current="page"] { color: var(--text-secondary); pointer-events: none; }
+.fl-demo-links i { width: 1px; height: 10px; background: var(--line-2); }
 .fl-demo-badge { margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent-color); font-size: var(--fs-11); }
 .fl-about-lines { display: flex; flex-direction: column; gap: 8px; font-size: var(--fs-12); color: var(--text-secondary); }

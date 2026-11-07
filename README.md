@@ -22,7 +22,7 @@
 <p align="center">
   <a href="https://formlit.formai.studio/"><b>Download FormLit on formai.studio</b></a> ·
   <a href="#run-it-from-source">Run it from source</a> ·
-  <a href="demo/README.md">Try the offline demo</a> (open <code>demo/index.html</code>, no install)
+  <a href="demo/README.md">Try the offline demo</a> (open <code>demo/index.html</code>, no install), and its two companions: <a href="demos/develop/README.md">develop</a> (masks, presets, virtual copies) and <a href="demos/share/README.md">share</a> (map, book, slideshow, print, web)
 </p>
 
 <br>

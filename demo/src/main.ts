@@ -245,6 +245,7 @@ function openAbout(): void {
 
 setModule('library');
 q(host, '.fl-identity').appendChild(el('<span class="fl-demo-badge">demo</span>'));
+q(host, '.fl-status').appendChild(el('<nav class="fl-demo-links" aria-label="formlit demos"><a href="./index.html" aria-current="page">Overview</a><i></i><a href="../demos/develop/index.html">Develop</a><i></i><a href="../demos/share/index.html">Share</a></nav>'));
 async function openLibrary(): Promise<void> {
   const done = shell.busy('Opening the library');
   try {
