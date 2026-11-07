@@ -1,0 +1,10 @@
+.fl-app > .fl-status { grid-row: 5; }
+.fl-demo-links { display: inline-flex; align-items: center; gap: var(--space-3); margin-left: auto; font-size: var(--fs-11); }
+.fl-demo-links a { color: var(--text-muted); text-decoration: none; }
+.fl-demo-links a:hover { color: var(--text-primary); }
+.fl-demo-links a[aria-current="page"] { color: var(--text-secondary); pointer-events: none; }
+.fl-demo-links i { width: 1px; height: 10px; background: var(--line-2); }
+.fl-demo-source { flex: 0 1 220px; min-width: 120px; height: 24px; font-size: var(--fs-11); }
+.fl-app.is-booting .fl-stage::after { content: ""; position: absolute; inset: 24px; border-radius: 6px; background: var(--surface-1); border: 1px solid var(--line-1); pointer-events: none; }
+.fl-app.is-booting .fl-col-pages { visibility: hidden; }
+.fl-app.is-booting .fl-col-foots { visibility: hidden; }
