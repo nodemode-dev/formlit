@@ -893,8 +893,10 @@ dependencies = [
 
 [[package]]
 name = "formlit"
-version = "0.48.0"
+version = "0.50.0"
 dependencies = [
+ "objc2",
+ "objc2-app-kit",
  "regex",
  "serde",
  "serde_json",

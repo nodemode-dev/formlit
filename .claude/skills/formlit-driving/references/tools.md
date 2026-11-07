@@ -11,7 +11,7 @@ Generated from formlit's own tool catalogue; do not edit by hand. Every tool wor
 - Develop: `match_look`, `match_exposures`, `virtual_copy`, `snapshot`, `noise_by_iso`, `develop_set`, `develop_patch`, `auto_tone`, `auto_white_balance`, `reset_develop`, `apply_preset`, `save_preset`, `sync_settings`, `add_ai_mask`, `add_gradient_mask`, `auto_straighten`, `upright`
 - Enhance and merge: `denoise`, `super_resolution`, `merge_hdr`, `merge_panorama`
 - Output: `export_photos`, `print_pdf`, `make_book`, `export_slideshow`, `export_web_gallery`, `publish`
-- Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `get_agent_access`
+- Window, history and everything else: `show_in_window`, `undo`, `redo`, `list_commands`, `run_command`, `extensions_list`, `extension_command`, `get_agent_access`
 - Other: `set_code_replacements`, `check_required_metadata`, `get_cull_groups`, `add_layer`, `set_layer`, `merge_focus_stack`, `merge_astro_stack`, `proofing_gallery`, `import_client_selections`, `search_photos_by_description`, `find_similar_photos`, `check_my_style`, `apply_my_style`, `get_control_maps`, `remove_object`, `merge_flash_blend`, `retouch_skin`, `session`, `session_move`
 
 ## get_catalog
@@ -720,6 +720,22 @@ Runs any engine command by id with its params (see list_commands). Deleting file
 
 - `command`: string; required
 - `params`: object
+
+## extensions_list
+
+The extensions installed in formlit (from FormPortal, or run from a folder by form.ext): id, name, version, source (catalogue, sideload, development), state (ready, needs-permission, refused with the reason) and the commands each contributes for extension_command.
+
+- no parameters
+
+Note: read-only.
+
+## extension_command
+
+Runs a command an extension contributes (ids from extensions_list) in formlit's window, which must be open. The first run of an extension version asks the person there to allow its permissions; a refusal ends the call. What it changes is one undoable step.
+
+- `id`: string; required; The extension id.
+- `command`: string; required; The command id.
+- `args`: object
 
 ## get_agent_access
 

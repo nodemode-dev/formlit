@@ -48,7 +48,7 @@ class LocalGuard:
             await self.app(scope, receive, send)
             return
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
-        if self._permitted(headers):
+        if self._permitted(headers) or (scope["type"] == "http" and scope.get("method") in ("GET", "HEAD") and str(scope.get("path", "")).startswith("/api/extensions/files/") and _host_of(headers.get("host", "")) in LOOPBACK):
             await self.app(scope, receive, send)
             return
         if scope["type"] == "websocket":

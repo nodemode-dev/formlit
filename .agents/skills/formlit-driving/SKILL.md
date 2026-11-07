@@ -87,6 +87,10 @@ Strength guide from real presets and practitioners (details and sources in the e
 - Deleting files and switching catalogs are refused here on purpose: the person does those in the window.
 - `run_command` reaches every engine command (`list_commands` shows them) when no curated tool fits. Its shape is `{"command": "ai.download", "params": {"model": "objects", "wait": true}}`: one `params` object, never a JSON string.
 
+## Extensions
+
+The person may have Form extensions installed (from FormPortal, or a folder run by form.ext). `extensions_list` shows each one's id, version, source, state (ready, needs-permission, refused with the reason) and the commands it adds; `extension_command` with `id` and `command` runs one in formlit's window, which must be open. The first run of an extension version asks the person there to allow it; a refusal or a closed window ends the call, so say so and stop. What an extension changes is one undo step, so `undo` reverses it. Check the result with `get_photo` or `get_preview` as with any other change.
+
 ## Local AI models
 
 Every model runs on the person's computer through ONNX Runtime, downloads once on first use from a pinned revision, and is checked against its SHA-256 before it is kept. `run_command` `ai.models` lists which are installed.

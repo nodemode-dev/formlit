@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.48.0" src="https://img.shields.io/badge/version-0.48.0-eef0f4?style=flat-square">
+  <img alt="version 0.50.0" src="https://img.shields.io/badge/version-0.50.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776ab?style=flat-square&logo=python&logoColor=white">
   <img alt="macOS, Windows, Linux" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-native-2f7bf5?style=flat-square">
@@ -21,7 +21,8 @@
 
 <p align="center">
   <a href="https://formlit.formai.studio/"><b>Download FormLit on formai.studio</b></a> ·
-  <a href="#run-it-from-source">Run it from source</a>
+  <a href="#run-it-from-source">Run it from source</a> ·
+  <a href="demo/README.md">Try the offline demo</a> (open <code>demo/index.html</code>, no install), and its two companions: <a href="demos/develop/README.md">develop</a> (masks, presets, virtual copies) and <a href="demos/share/README.md">share</a> (map, book, slideshow, print, web)
 </p>
 
 <br>
@@ -48,7 +49,7 @@
     <td width="25%" valign="top"><h3>Non-destructive</h3>One catalog with undo for every change, and edits kept in settings and sidecars, never in your originals.</td>
     <td width="25%" valign="top"><h3>Raw to print</h3>Library, Develop, Map, Book, Slideshow, Print and Web modules take a shoot from import to delivery.</td>
     <td width="25%" valign="top"><h3>Local AI</h3>Masks, denoise, culling and search by description run on your machine with ONNX Runtime and pinned models.</td>
-    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 280 commands from the window, the terminal and an MCP server for Claude Code, Codex and Cursor.</td>
+    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 288 commands from the window, the terminal and an MCP server for Claude Code, Codex and Cursor.</td>
   </tr>
 </table>
 
@@ -86,7 +87,7 @@
 
 ## Built for agents
 
-The window, the terminal and the MCP server call the same registry of 280 engine commands, and the MCP server exposes 80 curated tools over it.
+The window, the terminal and the MCP server call the same registry of 288 engine commands, and the MCP server exposes 82 curated tools over it.
 
 ```sh
 ./formlit cli list                                  # every engine command
@@ -96,6 +97,10 @@ The window, the terminal and the MCP server call the same registry of 280 engine
 ```
 
 `.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` are already wired in this repo. See [`AGENTS.md`](AGENTS.md).
+
+## Extensions
+
+formlit loads Form extensions (Form Extension Contract, API 1): web pages in a sandboxed frame that read and change the catalog through formlit's own commands, each change one undo step. Install them with FormPortal or make one with form.ext; they appear in the Extensions menu and the Extensions panel, and agents reach them with the `extensions_list` and `extension_command` tools. [`docs/EXTENSIONS.md`](docs/EXTENSIONS.md) is the API page.
 
 ## Under the hood
 

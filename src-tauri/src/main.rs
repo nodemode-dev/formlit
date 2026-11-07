@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod reveal;
+
 use std::sync::Mutex;
 
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
@@ -56,13 +58,16 @@ fn check_for_updates(handle: tauri::AppHandle) {
 }
 
 fn main() {
+    reveal::mark_launch();
     let app = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![reveal::app_ready])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Backend(Mutex::new(None)))
         .setup(|app| {
             let handle = app.handle().clone();
+            reveal::round_splash(&handle);
             let (mut rx, child) = app
                 .shell()
                 .sidecar("formlit-engine")
@@ -108,13 +113,18 @@ fn main() {
                                 )
                             })
                             .unwrap_or(FALLBACK_LOGICAL);
-                        let _ = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
+                        let built = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
                             .title("FormLit")
+                            .visible(reveal::BUILD_VISIBLE)
+                            .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)
                             .min_inner_size(MIN_LOGICAL.0, MIN_LOGICAL.1)
                             .center()
                             .build();
-                        close_splash(&handle);
+                        match built {
+                            Ok(window) => reveal::conceal(&window),
+                            Err(_) => close_splash(&handle),
+                        }
                         check_for_updates(handle.clone());
                     }
                     None => {

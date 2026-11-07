@@ -2,6 +2,43 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.50.0 · 2026-11-07
+
+- Extensions: formlit loads extensions made to the Form Extension Contract (API 1). FormPortal installs them (`extensions/formlit/enabled.json` under its folder) and form.ext runs one from a folder (`dev.json`); formlit picks up a change within 2 seconds or with Reload Extensions. Nothing of any extension ships with formlit.
+- A top-level Extensions menu lists each contributed command, then Extensions Panel, Reload Extensions and Manage in FormPortal. The Extensions panel in the right column shows every extension with its version, source, permissions and state (Ready, Needs Permission, or Refused with the reason). Dock panels open under it and dialog panels as formlit dialogs.
+- Extensions run in a sandboxed frame and reach the catalog only through formlit's own engine commands. formlit asks for their permissions before the frame exists, once per version; changes an extension makes are one undo step, and its files are saved through Choose Folder without ever replacing a file.
+- Agents: the MCP tools `extensions_list` and `extension_command`, and `./formlit cli extensions.list` and `extensions.run`, run contributed commands in the open window with the same consent.
+- The API page is `docs/EXTENSIONS.md`; the contract kit's host files are vendored unchanged (NOTICE).
+- Checked with the first formlit extension, Golden Hour (a separate repository and package), installed as FormPortal installs it and run from a folder.
+- Not verified: the desktop app was not rebuilt; `files.open` uses the system file picker, which was not driven headless; `net.fetch` is not offered.
+
+## v0.49.3 · 2026-11-07
+
+- Two new offline demos open straight from disk beside the first: `demos/develop/` (masks and local adjustments, presets you make, virtual copies, on photos already edited) and `demos/share/` (map, book, slideshow, print and web gallery, with exports saved as PDF, JPEG and ZIP files). Each runs the app's own window code against an in-page engine, with no network.
+- The first demo shows a quiet Overview, Develop, Share link row in its status bar, as the new demos do; the status bar now sits in its own grid row so it is visible.
+- Sources and licences for the new demos' photographs, the NASA Blue Marble map image and the CC0 piano recording are in each demo's `CREDITS.md` and in `NOTICE.md`.
+- Not verified: the desktop app is unchanged and was not rebuilt; the demos were checked in headless Chrome over `file://`.
+
+## v0.49.2 · 2026-11-07
+
+- The desktop splash now matches the rest of the Form family: the same rounded card with the app icon, "Starting formlit" and the family-gradient progress bar, rounded corners on macOS with nothing square behind the card, and the same reveal. The main window stays unseen on a dark background until the page has drawn its first content and at least 2.6 s have passed since launch, then appears whole as the splash closes; there is no white frame.
+- The window page tells the shell when it is ready (`app_ready`), which needs the shell's capability to list the engine's loopback address. A page that never reports is shown after 20 s.
+- Not verified: the Rust shell was not compiled and the desktop build was not run here; the splash page was checked in headless Chrome.
+
+## v0.49.1 · 2026-11-07
+
+- The offline demo now opens on a real photo library: 25 Pexels photographs in four collections (Mountain Lakes, Coastlines, City After Dark, Autumn Woods) with star ratings, pick and reject flags, colour labels, keywords, the camera data and capture dates the Pexels photo pages publish, and 18 photos that already carry develop settings and a history, so Before and After shows real work. The Catalog panel lists the collections with counts, and the Metadata panel shows capture date and focal length.
+- The library appears in one step: fixed-size placeholder cells fill the grid from first paint, the empty-library card never shows while loading, the Metadata panel keeps its eight rows at their final height, and the photos and counts arrive together with no layout shift. Grid cells widen to fill the grid width. Photos load from JavaScript data packs, decoded small for thumbnails and full size only when opened, previewed or exported, and the loupe swaps its thumbnail for the full preview when it is ready. The procedural scenes moved to a collapsed Generated Samples panel and remain as an offline fallback.
+- Sources, photographers and licences are in `demo/CREDITS.md`, with a row in `NOTICE.md`. Nothing in `frontend/src` or `backend/` changed.
+- Not verified: the demo was checked in headless Chrome over `file://` only; the desktop build was not run here.
+
+## v0.49.0 · 2026-11-07
+
+- New: an offline demo in `demo/`. Open `demo/index.html` from disk or from any static server and the formlit window runs in the browser with no engine, no network and no install. It has the Library (grid, loupe, filmstrip, ratings, flags, labels, keywords, EXIF), Develop (the global develop controls, 12 presets, history, before and after, clipping, white balance picker, crop and straighten, Auto Tone), and export to JPEG, PNG or WebP with a ZIP for several photos, copy, paste and synchronize settings, and settings files. It runs on six built-in procedural samples or on your own photos, which never leave the page.
+- The demo's develop pipeline is a TypeScript port of the engine's global path, and its interface is the app's own modules and stylesheets. Nothing in `frontend/src` or `backend/` changed.
+- The version is 0.49.0 because the last number runs 0 to 9.
+- Not verified: the demo was checked in headless Chrome over `file://` only; RAW files open through their embedded JPEG preview and were not tried against a real RAW file; the desktop build was not run here.
+
 ## v0.48.0 · 2026-11-05
 
 - The Intel Mac build of FormLit still stopped while installing its Python libraries, with "No matching distribution found for rawpy==0.25.1". 0.47.9 taught setup to use Python 3.13 or 3.12 on Intel Macs, but the engine installer (`backend/oc_install`, which `./formlit install` runs) picked its Python on its own and still made the engine's environment with Python 3.14, for which those library versions do not exist.

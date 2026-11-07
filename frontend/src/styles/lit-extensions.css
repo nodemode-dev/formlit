@@ -1,0 +1,33 @@
+.fl-ext-page { --fl-ext-frame-h: 360px; }
+.fl-ext-bar { position: sticky; top: 0; display: flex; align-items: center; gap: 2px; flex: none; height: var(--fl-panel-head-h); padding: 0 6px 0 10px; background: var(--group-head); border-bottom: 1px solid var(--line-0); color: var(--text-primary); font-size: var(--fs-12); font-weight: 600; z-index: var(--z-raised); }
+.fl-ext-bar-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fl-ext-bar .cv-tt-btn { width: 26px; height: 26px; }
+.fl-ext-rows { display: grid; gap: 8px; }
+.fl-ext-row { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-0); font-size: var(--fs-12); }
+.fl-ext-row-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.fl-ext-name { color: var(--text-primary); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-ext-ver { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fl-ext-source { margin-left: auto; color: var(--text-muted); font-style: normal; font-size: var(--fs-11); }
+.fl-ext-desc { color: var(--text-secondary); line-height: 1.4; }
+.fl-ext-desc:empty, .fl-ext-chips:empty, .fl-ext-actions:empty { display: none; }
+.fl-ext-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fl-ext-chip { padding: 1px 6px; border: 1px solid var(--line-1); border-radius: var(--radius-pill); color: var(--text-secondary); font-size: var(--fs-11); }
+.fl-ext-state { color: var(--text-secondary); font-size: var(--fs-11); }
+.fl-ext-state.is-asking { color: var(--accent-color); }
+.fl-ext-state.is-refused { color: var(--danger); }
+.fl-ext-path { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; }
+.fl-ext-path[hidden] { display: none; }
+.fl-ext-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.fl-ext-actions .cv-btn { height: 26px; font-size: var(--fs-11); }
+.fl-ext-empty { display: grid; justify-items: start; gap: 8px; }
+.fl-ext-empty[hidden] { display: none; }
+.fl-ext-empty .cv-note { margin: 0; }
+.fl-ext-where { margin: 8px 0 0; font-size: var(--fs-11); overflow-wrap: anywhere; }
+.fl-ext-where:empty { display: none; }
+.fl-ext-dock-head { cursor: default; }
+.fl-ext-dock-head .cv-tt-btn { width: 22px; height: 22px; }
+.fl-ext-frame { height: var(--fl-ext-frame-h, 360px); background: var(--surface-1); }
+.fl-ext-dialog .fl-ext-frame { height: var(--fl-ext-frame-h, 420px); }
+.fl-ext-frame .formext-frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+.fl-ext-hidden, .fl-ext-probe { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+.fl-ext-consent-list { margin: 0 0 8px; padding-left: 18px; color: var(--text-primary); font-size: var(--fs-12); line-height: 1.6; }

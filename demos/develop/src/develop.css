@@ -1,0 +1,27 @@
+.fl-mask-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.fl-mask-hint { min-height: 2.6em; margin: 2px 0 6px; font-size: var(--fs-11); line-height: 1.3; }
+.fl-mask-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.fl-mask-grid .fl-mask-new span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-mask-new:disabled { opacity: 0.4; cursor: not-allowed; }
+.fl-mask-new:disabled:hover { border-color: var(--line-2); color: var(--text-secondary); }
+.fl-mask-new.is-on { border-color: var(--accent-line); color: var(--text-primary); background: var(--accent-soft); }
+.fl-mask-comp .cv-btn.is-on { border-color: var(--accent-line); color: var(--accent-color); }
+.fl-mask-adjust .fl-sl { margin: 1px 0; }
+.fl-mask-adjust[hidden], .fl-mask-brush[hidden] { display: none; }
+.fl-user-row { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.fl-user-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-user-row em { flex: none; }
+.fl-user-row .cv-icon-btn { flex: none; width: 20px; height: 20px; opacity: 0; }
+.fl-user-row:hover .cv-icon-btn, .fl-user-row:focus-within .cv-icon-btn { opacity: 1; }
+.fl-app > .fl-status { grid-row: 5; }
+.fl-demo-links { display: inline-flex; align-items: center; gap: var(--space-3); margin-left: auto; font-size: var(--fs-11); }
+.fl-demo-links a { color: var(--text-muted); text-decoration: none; }
+.fl-demo-links a:hover { color: var(--text-primary); }
+.fl-demo-links a[aria-current="page"] { color: var(--text-secondary); pointer-events: none; }
+.fl-demo-links i { width: 1px; height: 10px; background: var(--line-2); }
+.fl-app.is-booting .fl-dv .fl-empty { display: none; }
+.fl-app.is-booting .fl-dv::after { content: ""; position: absolute; inset: 24px; border-radius: 6px; background: var(--surface-1); border: 1px solid var(--line-1); }
+.fl-app.is-booting .fl-mask-list { min-height: 108px; }
+.fl-app.is-booting .fl-versions { min-height: 24px; }
+.fl-app.is-booting .fl-mask-comp { min-height: 153px; }
+.fl-vc-badge { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--accent-soft); color: var(--accent-color); font-size: var(--fs-10); }

@@ -55,7 +55,7 @@ PROMPTS = [
 ] + [{"name": k, "title": v["title"], "description": v["description"], "arguments": []} for k, v in WORKFLOWS.items()]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
 BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
-WINDOW_ONLY = {"terminal", "claudecode", "chat"}
+WINDOW_ONLY = {"terminal", "claudecode", "chat", "extensions"}
 LIST_CACHE = {"ttlMs": 60_000, "cacheScope": "private"}
 SESSIONS: dict[str, str] = {}
 MAX_SESSIONS = 64
@@ -485,6 +485,11 @@ TOOLS: list[tuple[dict, Callable[[dict], Any]]] = [
     (_tool("list_commands", "Every engine command (id, group, parameters) for run_command, optionally one group.", {"group": {"type": "string"}}, read=True, idempotent=True),
      lambda a: {"commands": [{k: c[k] for k in ("id", "label", "group", "mutates", "params")} for c in catalogue() if not a.get("group") or c["group"] == a["group"]]}),
     (_tool("run_command", "Runs any engine command by id with its params (see list_commands). Deleting files and switching catalogs stay in the window.", {"command": {"type": "string"}, "params": {"type": "object"}}, ["command"]), _run_command),
+    (_tool("extensions_list", "The extensions installed in formlit (from FormPortal, or run from a folder by form.ext): id, name, version, source (catalogue, sideload, development), state (ready, needs-permission, refused with the reason) and the commands each contributes for extension_command.", {}, read=True, idempotent=True),
+     lambda a: _cmd("extensions.agentList")),
+    (_tool("extension_command", "Runs a command an extension contributes (ids from extensions_list) in formlit's window, which must be open. The first run of an extension version asks the person there to allow its permissions; a refusal ends the call. What it changes is one undoable step.",
+           {"id": {"type": "string", "description": "The extension id."}, "command": {"type": "string", "description": "The command id."}, "args": {"type": "object"}}, ["id", "command"]),
+     lambda a: _cmd("extensions.run", id=a["id"], command=a["command"], args=a.get("args") or {})),
     (_tool("get_agent_access", "Whether outside agents such as Claude may use formlit (outsideAgents: ask, allowed or blocked), which clients have called since formlit started, and whether a call is waiting for the person's answer. Like every tool it is refused while the setting is blocked.", {}, read=True, idempotent=True), lambda a: _cmd("agents.status")),
 ]
 

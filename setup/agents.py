@@ -32,7 +32,7 @@ GROUPS = [
     ("Develop", ["develop_set", "develop_patch", "match_look", "match_exposures", "noise_by_iso", "virtual_copy", "snapshot", "auto_tone", "auto_white_balance", "reset_develop", "apply_preset", "save_preset", "sync_settings", "add_ai_mask", "add_gradient_mask", "auto_straighten", "upright"]),
     ("Enhance and merge", ["denoise", "super_resolution", "merge_hdr", "merge_panorama"]),
     ("Output", ["export_photos", "print_pdf", "make_book", "export_slideshow", "export_web_gallery", "publish"]),
-    ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command", "get_agent_access"]),
+    ("Window, history and everything else", ["show_in_window", "undo", "redo", "list_commands", "run_command", "extensions_list", "extension_command", "get_agent_access"]),
 ]
 
 
