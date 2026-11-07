@@ -3,5 +3,6 @@
   "identifier": "default",
   "description": "The app talks HTTP to its engine; the shell owns the windows, the sidecar and updates.",
   "windows": ["splash", "main", "second"],
-  "permissions": ["core:default", "core:webview:allow-create-webview-window", "core:window:allow-set-focus"]
+  "remote": { "urls": ["http://127.0.0.1:*"] },
+  "permissions": ["core:default", "core:webview:allow-create-webview-window", "core:window:allow-set-focus", "allow-app-ready"]
 }
