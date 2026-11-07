@@ -7,6 +7,27 @@ Last updated: 2026-11-07 · v0.49.3 no backend changes (version string only); v0
 
 ---
 
+## v0.50.0 · the Form extension host (2026-11-07)
+
+- refers-to: app/services/formext_host.py (new, vendored); app/engine/cmd_extensions.py (new); app/routers/extensions.py (new); app/routers/__init__.py :: ROUTERS; app/engine/boot.py :: COMMAND_MODULES; app/core/local_guard.py :: LocalGuard.__call__; app/routers/mcp.py :: WINDOW_ONLY, TOOLS (extensions_list, extension_command)
+- kind: explainer
+
+`formext_host.py` is the Form Extension Contract kit's resolver, copied unchanged (NOTICE row): FormPortal's root, `extensions/formlit/enabled.json` and `dev.json`, manifest checks with their refusal reasons, and safe file serving (`file_for`, `headers_for`, `csp_for`). `cmd_extensions.resolved` caches its list by the two files' modification times (`stamp`), so the window's 2 s poll and every file request cost two `stat` calls; `reload=true` (Reload Extensions) re-reads every manifest.
+
+Routes: `GET /api/extensions` (the list with `stamp`; `since=<stamp>` answers `changed: false`) and `GET /api/extensions/files/{id}/{version}/{path}`, 404 with no detail for anything `file_for` refuses (outside the folder, a symlink, a type not in the contract's list, a refused or unknown extension or version), with the contract's headers on every answer. The window gives frames a relative `src`, so the files come from the window's own origin (the engine, or Vite's proxy in development) and the CSP's BASE is `'self'`.
+
+`LocalGuard` lets GET requests under `/api/extensions/files/` through from any origin, still on a loopback Host only: a sandboxed frame has an opaque origin, so its module scripts arrive with `Origin: null` and its styles with `Sec-Fetch-Site: cross-site`, which the guard refuses everywhere else. The files are the package's own and public (the contract sends them with `Access-Control-Allow-Origin: *`); every other route keeps the guard as it was.
+
+`extensions.apply` runs an extension's ops through `dispatch` and folds the undo entries they pushed into one entry named by the extension's label (`Catalog.push_undo`). It does not hold the catalog lock across the ops, because commands that wait for a task would deadlock against the task's own changes; a person's edit made in the same instant from another window could fold into the extension's step. When an op fails, the entries already pushed are undone and taken off the redo stack, then the error goes back (-32004 in the window). The window-only groups and the commands MCP keeps with the person are refused before anything runs.
+
+Agents: `extensions.agentList` and `extensions.run` publish `extensions.request` and wait on a `threading.Event` for the window's `extensions.reply` (5 s for the list, 150 s for a command, covering the contract's 120 s headless limit). The MCP tools run in a worker thread (`asyncio.to_thread`), so the wait does not block the event loop. With no event-stream subscriber the list comes from the engine (no permission state) and a command fails at once. `extensions` is in `WINDOW_ONLY`, so `run_command` cannot reach these commands (an agent could otherwise answer its own request); the two tools call them directly after `agents.require`.
+
+The files route answers GET and HEAD, and the guard's exemption covers both (contract section 4, updated at 07:47); POST and every other route keep the guard. `formext_host.py` was copied again from the updated kit: a development extension's version comes from its manifest before any refusal, and a non-object `entry` or `contributes` or a non-text `entry.ui` is refused with the standard message instead of raising.
+
+`extensions.saveFile` never replaces a file: an existing name gets ` 2`, ` 3` and so on. `extensions.manage` opens `formai://extensions?product=formlit` with the system's opener (`open`, `os.startfile`, `xdg-open`), so it works from the desktop shell and from a browser on the same computer.
+
+---
+
 ## v0.47.4 · ffmpeg arrives on first run, from formcut-binaries (2026-10-31)
 
 - refers-to: app/main.py :: ffmpeg_fetch.start() after the MIME lines; app/ffmpeg_fetch.py (new); app/ffmpeg_record.py (new)

@@ -25,6 +25,7 @@ COMMAND_MODULES = [
     "app.engine.cmd_color",
     "app.engine.cmd_chat",
     "app.engine.claude_code",
+    "app.engine.cmd_extensions",
 ]
 
 
