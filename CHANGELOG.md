@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.50.1 · 2026-11-08
+
+- Fixed: the Windows and Linux desktop builds stopped with "`objc2` only works on Apple platforms". The desktop shell's `objc2` and `objc2-app-kit`, used only for the macOS window reveal, are now macOS-only dependencies, as in FormVis; the code that uses them was already macOS-only.
+- Checked here: `cargo check --locked` on Linux. Not verified yet: the Windows and macOS builds, which FormCompiler runs.
+
 ## v0.50.0 · 2026-11-07
 
 - Extensions: formlit loads extensions made to the Form Extension Contract (API 1). FormPortal installs them (`extensions/formlit/enabled.json` under its folder) and form.ext runs one from a folder (`dev.json`); formlit picks up a change within 2 seconds or with Reload Extensions. Nothing of any extension ships with formlit.
