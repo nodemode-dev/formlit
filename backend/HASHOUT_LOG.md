@@ -1539,6 +1539,13 @@ On protocol 2026-07-28 a list result must carry `ttlMs` (a number) and `cacheSco
 
 ---
 
+## engine/cmd_demos.py · demo.open, the browser demos as demo catalogs (v0.51.0) {#demo-open}
+
+- `demo.open {id}` (library, develop, share) reads `<dist>/demos/<id>/demo.json` (the built interface, so the desktop sidecar's frontend_dist works; `frontend/public/demos` in a checkout without a build), copies the photos into a new folder `Formlit/Demos/formlit Demo <Name>[ n]` (never an existing one), switches to a new catalog there without publishing, imports, and applies the demo with the engine's own command functions: collection.create, photo.rate, flag, label, setKeywords, setMeta (title, caption), photo.setGps, location.save, develop.update once per history step with the demo's label, and the share demo's book (cover plus book.autoLayout pages), slideshow (music copied beside the catalog, its path made absolute), print and web collections. Selection bitmaps go to the demo catalog's own Masks/<photo id>/<key>.png, where masks.load_bitmap reads them. Undo and redo are cleared so the first Undo is not the demo's setup. Only then is `catalog.changed` published.
+- On any failure it switches back to the catalog that was open and removes the half-made folder.
+- `_switch_catalog(path, publish=True)`: the flag is the only change, so Open Catalog and New Catalog behave as before.
+- Agents reach it through run_command (not in BLOCKED: it changes no person's data, only which catalog is open, and the person's catalog stays in the recent list). Measured here: library 11.1 s (25 photos, 4 collections), develop 8.5 s (9 photos, 7 with masks), share 18.1 s (19 photos, 4 output collections).
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
