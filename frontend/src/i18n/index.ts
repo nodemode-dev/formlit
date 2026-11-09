@@ -13,6 +13,7 @@ import keys12 from './keys12.json';
 import keys13 from './keys13.json';
 import keys14 from './keys14.json';
 import keys15 from './keys15.json';
+import keys16 from './keys16.json';
 
 export const LANGUAGES: Array<[string, string]> = [
   ['en', 'English'], ['es', 'Español (España)'], ['es-MX', 'Español (México)'], ['pt-BR', 'Português (Brasil)'], ['fr', 'Français (France)'],
@@ -38,6 +39,7 @@ const loaders12 = import.meta.glob('./locales12/*.json');
 const loaders13 = import.meta.glob('./locales13/*.json');
 const loaders14 = import.meta.glob('./locales14/*.json');
 const loaders15 = import.meta.glob('./locales15/*.json');
+const loaders16 = import.meta.glob('./locales16/*.json');
 
 let code = 'en';
 const exact = new Map<string, string>();
@@ -159,8 +161,8 @@ export async function initLanguage(): Promise<void> {
   const more10 = loaders10[`./locales10/${want}.json`];
   const mod10 = (more10 ? await more10() : { default: {} }) as { default: Record<string, string> };
   const more11 = loaders11[`./locales11/${want}.json`], more12 = loaders12[`./locales12/${want}.json`], more13 = loaders13[`./locales13/${want}.json`];
-  const more14 = loaders14[`./locales14/${want}.json`], more15 = loaders15[`./locales15/${want}.json`];
-  const [mod11, mod12, mod13, mod14, mod15] = (await Promise.all([more11 ? more11() : none, more12 ? more12() : none, more13 ? more13() : none, more14 ? more14() : none, more15 ? more15() : none])) as Array<{ default: Record<string, string> }>;
+  const more14 = loaders14[`./locales14/${want}.json`], more15 = loaders15[`./locales15/${want}.json`], more16 = loaders16[`./locales16/${want}.json`];
+  const [mod11, mod12, mod13, mod14, mod15, mod16] = (await Promise.all([more11 ? more11() : none, more12 ? more12() : none, more13 ? more13() : none, more14 ? more14() : none, more15 ? more15() : none, more16 ? more16() : none])) as Array<{ default: Record<string, string> }>;
   const fixes = () => {
     (keys7 as string[]).forEach((en, i) => add(en, mod7.default[String(i)]));
     (keys8 as string[]).forEach((en, i) => add(en, mod8.default[String(i)]));
@@ -188,6 +190,7 @@ export async function initLanguage(): Promise<void> {
   (keys13 as string[]).forEach((en, i) => add(en, mod13.default[String(i)]));
   (keys14 as string[]).forEach((en, i) => add(en, mod14.default[String(i)]));
   (keys15 as string[]).forEach((en, i) => add(en, mod15.default[String(i)]));
+  (keys16 as string[]).forEach((en, i) => add(en, mod16.default[String(i)]));
   fixes();
   patterns.sort((a, b) => b[0].source.length - a[0].source.length);
   document.title = t(document.title);

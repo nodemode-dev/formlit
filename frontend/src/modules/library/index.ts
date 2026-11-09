@@ -24,6 +24,7 @@ import { CommentsPanel } from './comments';
 import { CullView } from './cull-view';
 import { SourcePanels } from './sources';
 import { VideoPlayer } from './video-player';
+import { demosSectionHtml } from '../../demos';
 
 type View = 'grid' | 'loupe' | 'compare' | 'survey' | 'cull';
 
@@ -144,7 +145,7 @@ class LibraryModule {
       if ((e.target as HTMLElement).closest('.fl-survey-x')) { library.selection.delete(id); library.emitSelection(); return; }
       library.setActive(id);
     });
-    this.empty = el(`<div class="fl-empty" hidden><div class="fl-empty-card"><div class="fl-empty-title">${brandMark(28)}<span>Your library is empty</span></div><div class="fl-empty-sub">Import a folder of photos to start. formlit reads raw files from every major camera, plus JPEG, HEIC, TIFF, PNG and video, and never changes your originals.</div><div class="fl-empty-actions"><button class="cv-btn fl-btn-cta" type="button" data-cmd="library.import">${icon('importLit', 16)} Import Photos...</button></div><div class="fl-empty-sub fl-muted">or drop photos anywhere on this window</div></div></div>`);
+    this.empty = el(`<div class="fl-empty" hidden><div class="fl-empty-card"><div class="fl-empty-title">${brandMark(28)}<span>Your library is empty</span></div><div class="fl-empty-sub">Import a folder of photos to start. formlit reads raw files from every major camera, plus JPEG, HEIC, TIFF, PNG and video, and never changes your originals.</div><div class="fl-empty-actions"><button class="cv-btn fl-btn-cta" type="button" data-cmd="library.import">${icon('importLit', 16)} Import Photos...</button></div><div class="fl-empty-sub fl-muted">or drop photos anywhere on this window</div>${demosSectionHtml()}</div></div>`);
     this.cull = new CullView(this.ctx);
     s.append(gridWrap, loupeWrap, compareWrap, this.survey, this.cull.root, this.empty);
     const drop = el('<div class="fl-dropzone" hidden><div>Drop photos to import</div></div>');

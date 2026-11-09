@@ -60,6 +60,7 @@ export class PopupMenu {
       const cmd = this.commands.get(item);
       if (!cmd) continue;
       const node = el<HTMLButtonElement>(`<button class="cv-menu-item" role="menuitem" type="button"><span class="cv-menu-check">${icon('check', 14)}</span><span class="cv-menu-label"></span><span class="cv-menu-keys"></span></button>`);
+      node.dataset.menuCmd = item;
       setText(q(node, '.cv-menu-keys'), this.commands.keyLabel(cmd));
       node.addEventListener('pointerenter', () => this.closeSub());
       node.addEventListener('click', () => { this.root().close(); this.commands.run(item); });
