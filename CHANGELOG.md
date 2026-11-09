@@ -2,6 +2,13 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.51.0 · 2026-11-09
+
+- Added: the three demos open inside the app. The empty library shows a Demos section with a card for each, Help has Demos... and one item per demo, and agents can run `demo.open` with `library`, `develop` or `share`. Each opens as a new demo catalog in its own folder under Formlit/Demos, built by the engine from the browser demos' own data: the 25-photo library with its collections, ratings, flags, labels, keywords and develop history; the nine develop photos with their sky, subject, gradient, colour and luminance range masks; and the 19 share photos with locations, saved locations, a book, a slideshow with music, a four-up print and a web gallery. Your own catalog is not changed and stays under File, Open Catalog. New strings in all 25 languages.
+- Added: `scripts/demo-media.mjs` copies the media the demos already ship and credit into the interface build (14.2 MB), with rows in `NOTICE.md`.
+- Not carried over: the develop demo's two seeded My Looks presets (presets are not per catalog) and demo 1's procedural sample scenes.
+- Checked here: type check and build, the three browser demos type-check and build, `demo.open` for all three demos in the engine, and every demo opened in the window from the empty library and from Help (screenshots). Not verified yet: the desktop builds, the macOS menu bar, and the Develop module on a demo photo in the headless browser here (the page crashed rendering it in this sandbox).
+
 ## v0.50.1 · 2026-11-08
 
 - Fixed: the Windows and Linux desktop builds stopped with "`objc2` only works on Apple platforms". The desktop shell's `objc2` and `objc2-app-kit`, used only for the macOS window reveal, are now macOS-only dependencies, as in FormVis; the code that uses them was already macOS-only.

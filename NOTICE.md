@@ -39,6 +39,7 @@ formlit reads and writes DNG files (AI Denoise and import conversion write them,
 | Package | License | Notes |
 | --- | --- | --- |
 | Inter, JetBrains Mono (via @fontsource) | SIL OFL 1.1 fonts, MIT packaging | bundled font files |
+| The in-app demos' media: the 25 demo photographs (`demo/CREDITS.md`), the 6 selection bitmaps of the develop demo (`demos/develop/CREDITS.md`), and the share demo's 19 photographs and the Piano Fantasia No. 1 excerpt by Peter Bille Larsen (`demos/share/CREDITS.md`), the same files the browser demos carry, decoded from their packs by `scripts/demo-media.mjs` | Pexels License; CC0 1.0 | `frontend/public/demos/`, copied into the interface build; Help > Demos copies a demo's files into a new demo catalog folder under Formlit/Demos. The share demo's NASA basemap is not shipped (the app's Map module uses its own tiles) |
 | Liberation Sans, Serif and Mono 2.1 (Red Hat; Arimo, Tinos, Cousine digitized data by Google) | SIL OFL 1.1 | `shared/fonts/liberation`, embedded in PDF/X book files (metric-compatible with Helvetica, Times and Courier); licence in that folder |
 | paramiko, pikepdf | LGPL-2.1, MPL-2.0 | engine: SFTP sending, PDF/X finishing |
 | tauri, tauri-plugin-shell, tauri-plugin-dialog, tauri-plugin-updater, regex, serde | Apache-2.0 or MIT | desktop shell |

@@ -17,6 +17,7 @@ import { registerExport } from './modules/shared/export';
 import { registerCaptions } from './modules/shared/captions';
 import { registerPhotoDialogs } from './modules/shared/photo-dialogs';
 import { registerCatalogCommands } from './modules/shared/catalog-commands';
+import { registerDemoCommands } from './demos';
 import { registerSessionCommands } from './modules/library/session-panel';
 import { registerProofing } from './modules/shared/proofing';
 import { registerTether } from './modules/shared/tether';
@@ -81,6 +82,7 @@ export class App implements Ctx {
     registerCaptions(this);
     registerPhotoDialogs(this);
     registerCatalogCommands(this);
+    registerDemoCommands(this);
     registerSessionCommands(this);
     registerProofing(this);
     registerTether(this);
@@ -236,7 +238,7 @@ export class App implements Ctx {
       { label: 'View', items: () => tidy(['view.grid', 'view.loupe', 'view.compare', 'view.survey', 'view.cull', '-', 'view.zoomToggle', 'view.zoomIn', 'view.zoomOut', 'view.info', 'view.faceRegions', 'photo.controlMaps', '-', 'view.togglePanels', 'view.toggleLeft', 'view.toggleRight', 'view.toggleFilmstrip', 'view.filmstripCollapse', 'view.filmstripTop', 'view.toggleToolbar', 'view.toggleAll', '-', 'app.lights', 'app.screen']) },
       { label: 'Window', items: () => [workspaceMenu(this), '-', ...tidy([...modules().map((m) => `module.${m.id}`), '-', 'view.secondWindow', 'view.second.grid', 'view.second.loupe', 'view.second.compare', 'view.second.survey', 'view.second.slideshow', '-', 'library.impromptuSlideshow', '-', 'view.terminal', 'view.newTerminal', 'agent.claude', 'agent.chat'])] },
       { label: 'Extensions', items: () => extensionMenuItems() },
-      { label: 'Help', items: () => tidy(['app.shortcuts', 'agent.chat', 'agent.claude', 'app.agents', 'app.about']) },
+      { label: 'Help', items: () => tidy(['app.shortcuts', '-', 'help.demos', 'demo.library', 'demo.develop', 'demo.share', '-', 'agent.chat', 'agent.claude', 'app.agents', 'app.about']) },
     ];
     new MenuBar(this.shell.menubar, this.commands, defs);
   }

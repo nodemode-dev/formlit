@@ -114,6 +114,22 @@ html, body { height: 100%; }
 .fl-empty-title { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--fs-18); font-weight: 600; }
 .fl-empty-sub { color: var(--text-secondary); font-size: var(--fs-13); line-height: 1.5; }
 .fl-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-2); }
+.fl-empty-card:has(.fl-demos) { max-width: 720px; }
+.fl-empty-card > .fl-empty-sub { max-width: 440px; }
+.fl-demos { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; margin-top: var(--space-4); padding-top: var(--space-5); border-top: 1px solid var(--line-1); text-align: left; }
+.fl-demos-head { font-size: var(--fs-14); font-weight: 600; color: var(--text-primary); }
+.fl-demos-sub { color: var(--text-secondary); font-size: var(--fs-12); line-height: 1.5; }
+.fl-demos-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-2); }
+.fl-demo-card { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2); border: 1px solid var(--line-2); border-radius: var(--radius-lg); background: var(--surface-2); color: var(--text-primary); text-align: left; cursor: pointer; font: inherit; }
+.fl-demo-card:hover { border-color: var(--accent-line); background: var(--surface-raised); }
+.fl-demo-card:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+.fl-demo-card:disabled { cursor: default; opacity: 0.6; }
+.fl-demo-thumb { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-md); background: var(--surface-0); }
+.fl-demo-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.fl-demo-title { margin-top: var(--space-1); font-size: var(--fs-13); font-weight: 600; line-height: 1.3; min-height: calc(2 * 1.3em); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fl-demo-line { color: var(--text-secondary); font-size: var(--fs-11); line-height: 1.4; min-height: calc(3 * 1.4em); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cv-dialog-body > .fl-demos { margin-top: 0; padding-top: 0; border-top: 0; }
+.cv-dialog-body > .fl-demos > .fl-demos-head { display: none; }
 .fl-btn-cta { background: var(--cta-bg); border-color: transparent; color: var(--cta-text); font-weight: 500; }
 .fl-btn-cta:hover { background: var(--cta-bg-hover); color: var(--cta-text); }
 

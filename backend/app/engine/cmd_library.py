@@ -1389,7 +1389,7 @@ def redo() -> dict:
     return {"label": label}
 
 
-def _switch_catalog(path: Path) -> dict:
+def _switch_catalog(path: Path, publish: bool = True) -> dict:
     from app.core import prefs
     from app.develop import render as render_mod
     os.environ["FORMLIT_CATALOG"] = str(path)
@@ -1405,7 +1405,8 @@ def _switch_catalog(path: Path) -> dict:
     watch.restart()
     prefs.update({"catalog": str(path), "recentCatalogs": [str(path)] + [p for p in (prefs.load().get("recentCatalogs") or []) if p != str(path)][:7]})
     from app.engine import events
-    events.publish("catalog.changed", path=str(path), name=path.stem)
+    if publish:
+        events.publish("catalog.changed", path=str(path), name=path.stem)
     return {"path": str(path), "name": path.stem, "photos": int(c.scalar("SELECT COUNT(*) FROM photos") or 0)}
 
 
