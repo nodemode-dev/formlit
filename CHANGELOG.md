@@ -2,6 +2,11 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.51.1 · 2026-11-10
+
+- Fixed: `frontend/package-lock.json` named formlit's own package as 0.49.1 in its `packages[""]` entry while the rest of the project was 0.51.0, so `npm install` rewrote the lockfile. Both version fields now read 0.51.1.
+- Checked here: the version-site and Python-pick tests, and the old version strings are gone from the version sites. Not verified yet: the desktop builds.
+
 ## v0.51.0 · 2026-11-09
 
 - Added: the three demos open inside the app. The empty library shows a Demos section with a card for each, Help has Demos... and one item per demo, and agents can run `demo.open` with `library`, `develop` or `share`. Each opens as a new demo catalog in its own folder under Formlit/Demos, built by the engine from the browser demos' own data: the 25-photo library with its collections, ratings, flags, labels, keywords and develop history; the nine develop photos with their sky, subject, gradient, colour and luminance range masks; and the 19 share photos with locations, saved locations, a book, a slideshow with music, a four-up print and a web gallery. Your own catalog is not changed and stays under File, Open Catalog. New strings in all 25 languages.
