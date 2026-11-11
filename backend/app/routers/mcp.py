@@ -637,4 +637,4 @@ async def mcp(request: Request) -> Response:
 
 @router.get("/api/mcp/status")
 def status() -> dict:
-    return {"endpoint": f"http://127.0.0.1:{config.BACKEND_PORT}/mcp", "tools": len(TOOLS), "commands": len(REGISTRY), "versions": VERSIONS, "deleteAllowed": ALLOW_DELETE}
+    return {"endpoint": config.engine_url() + "/mcp", "tools": len(TOOLS), "commands": len(REGISTRY), "versions": VERSIONS, "deleteAllowed": ALLOW_DELETE}
