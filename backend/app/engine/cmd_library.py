@@ -188,7 +188,9 @@ def _eject(path: str) -> bool:
     p = Path(path).expanduser()
     while not os.path.ismount(p) and p.parent != p:
         p = p.parent
-    if p == Path(p.anchor):
+    if os.name != "nt" and p == Path(p.anchor):
+        return False
+    if os.name == "nt" and p.anchor.upper() == os.environ.get("SystemDrive", "C:").upper() + "\\":
         return False
     system = platform.system()
     if system == "Darwin":
