@@ -154,7 +154,7 @@ class Session:
         dest = str(Path(str(o.get("destination") or (Path.home() / "Pictures" / "formlit Tether"))).expanduser() / str(o.get("session") or "Tethered"))
         try:
             res = importer.import_files([str(path)], "move", dest, "", str(o.get("renameTemplate") or ""), str(o.get("session") or ""), dev, None,
-                                        list(o.get("keywords") or []) or None, o.get("collection"), False, False)
+                                        list(o.get("keywords") or []) or None, o.get("collection"), False, False, start_seq=len(self.shots) + 1)
         except Exception as exc:
             events.publish("tether", state="error", error=str(exc))
             return

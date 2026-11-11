@@ -127,7 +127,7 @@ def _transfer(src: Path, dst: Path, move: bool) -> None:
 def import_files(paths: list[str], mode: str = "add", destination: str = "", folder_template: str = "{date:%Y}/{date:%Y-%m-%d}",
                  rename_template: str = "", custom: str = "", develop: dict | None = None, meta_preset: dict | None = None,
                  keywords: list[str] | None = None, collection: int | None = None, skip_duplicates: bool = True,
-                 recursive: bool = True, progress=None, backup: str = "") -> dict:
+                 recursive: bool = True, progress=None, backup: str = "", start_seq: int = 1) -> dict:
     cat = catalog_mod.get()
     files = walk(paths, recursive)
     hashes = {r["content_hash"] for r in cat.rows("SELECT content_hash FROM photos WHERE content_hash != ''")}
@@ -158,7 +158,7 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
             info = metadata.probe(src)
             final = src
             if mode in ("copy", "move", "dng") and dest_root is not None:
-                final = _destination(src, info, dest_root, folder_template, rename_template, len(added) + 1, custom)
+                final = _destination(src, info, dest_root, folder_template, rename_template, start_seq + len(added), custom)
                 converted = False
                 if mode == "dng" and info.get("kind") == "raw" and final.suffix.lower() != ".dng":
                     from app.ai import dng as dng_mod
