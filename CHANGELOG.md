@@ -2,6 +2,33 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.51.2 · 2026-11-10
+
+- Fixed: Delete from Disk removed photos from the catalog before moving their files, so a photo on another drive (a card, an external disk, D: on Windows) lost its catalog entry and edits while its file stayed. Each file is now moved first; a photo whose file cannot be moved stays in the catalog and the error names it. Without the optional send2trash package, files still go to a Trash folder in your home folder rather than the system's Trash.
+- Fixed: TIFF export (the TIFF presets, Edit In and HDR TIFF) failed when the copyright, creator or caption was not plain ASCII, such as "©". Those fields are now kept in the file's XMP only.
+- Fixed: Remove People, Dust, Remove fills, Auto Straighten and the AI masks no longer write their result into the next photo when you move on before they finish.
+- Fixed: in the desktop app the second window shows the photos selected in the main window.
+- Changed: agents can no longer change the outside-agent setting, the Claude Code program, first message or folder, or the external editors through run_command, and opening a demo now stays with you in the window, like opening a catalog.
+- Fixed: portrait TIFFs render upright in Develop and export and are stored with their real width and height, and TIFFs saved per channel decode correctly.
+- Fixed: when one file in Rename Photos or Move Photos cannot be changed, the others are still renamed or moved and the catalog matches the disk; the error names the files that were not.
+- Fixed: Add to Catalog with Stack stacks each export with its own original after a skipped or failed export.
+- Fixed: video exports no longer overwrite each other in one folder, and Skip works for them.
+- Fixed: sessions save and restore their settings on Windows, and a session no longer picks up a folder with a similar name.
+- Fixed: in the second window, leaving Slideshow stops its timer, so the bar stays on the mode you chose.
+- Fixed: the Loupe and the second window's panes show a photo again after they were emptied.
+- Fixed: Cmd or Ctrl-click to deselect a photo keeps the active photo on screen.
+- Fixed: switching photos quickly in Develop keeps the image, the settings and your edits on the same photo.
+- Fixed: `formlit.bat agents install` writes a Codex config.toml that Codex can read on Windows.
+- Fixed: Import from Another Catalog with Copy points virtual copies at the copied file.
+- Fixed: tethered and auto-imported shots count on in a {seq} rename template instead of all being number 1.
+- Fixed: Eject after import works on Windows.
+- Fixed: Send by FTP and web gallery upload create a relative remote folder under your login folder.
+- Fixed: a Chat message or first message starting with "-" reaches Claude Code as text.
+- Fixed: Preferences shows the MCP endpoint on the port the engine really uses.
+- Fixed: `formlit.bat clean --all` removes backend\venv even when frontend\node_modules is gone.
+- Fixed: the development window follows FORMLIT_PORT, `./formlit i18n` covers the demo strings, and the offline demos build on Windows with their offline data.
+- Checked here: the type check, the consent and MCP tests and the version-site test (with the image libraries stubbed), and scratch checks of each engine fix. Not verified yet: the desktop builds, Windows, and the render and export tests, which need OpenCV.
+
 ## v0.51.1 · 2026-11-10
 
 - Fixed: `frontend/package-lock.json` named formlit's own package as 0.49.1 in its `packages[""]` entry while the rest of the project was 0.51.0, so `npm install` rewrote the lockfile. Both version fields now read 0.51.1.
