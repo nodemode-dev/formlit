@@ -433,30 +433,36 @@ def _trash(path: Path) -> None:
         pass
     trash = Path.home() / (".Trash" if platform.system() == "Darwin" else ".local/share/Trash/files")
     trash.mkdir(parents=True, exist_ok=True)
-    path.replace(rename.unique(trash / path.name))
+    shutil.move(str(path), str(rename.unique(trash / path.name)))
 
 
 @command("photo.delete", "Delete from Disk", {"ids": {"type": "array"}})
 def delete(ids: Any = None) -> dict:
     pids = _ids(ids)
     c = cat()
-    paths = []
+    gone, trashed, failed = [], [], []
     for pid in pids:
         r = c.row("SELECT master_id FROM photos WHERE id=?", (pid,))
-        if r and not r["master_id"]:
-            p = c.photo_path(pid)
-            if p is not None:
-                paths.append(p)
-    _remove(pids, False)
-    trashed = []
-    for p in paths:
-        if p.is_file():
-            _trash(p)
+        p = c.photo_path(pid) if r and not r["master_id"] else None
+        if p is not None and p.is_file():
+            try:
+                _trash(p)
+            except OSError as exc:
+                failed.append(f"{p.name}: {exc}")
+                continue
             side = metadata.sidecar_path(p)
             if side.is_file():
-                _trash(side)
+                try:
+                    _trash(side)
+                except OSError:
+                    pass
             trashed.append(str(p))
-    return {"ids": pids, "trashed": trashed}
+        gone.append(pid)
+    if gone:
+        _remove(gone, False)
+    if failed:
+        raise CommandError(f"{len(failed)} of {len(pids)} photos could not be moved to the Trash and stay in the catalog ({'; '.join(failed[:3])})")
+    return {"ids": gone, "trashed": trashed}
 
 
 @command("photo.setCaptureTime", "Edit Capture Time", {"ids": {"type": "array"}, "time": {"type": "string"}, "shiftSeconds": {"type": "number"}})
