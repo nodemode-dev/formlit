@@ -199,7 +199,10 @@ export class Library {
     } else if (mode === 'toggle') {
       if (this.selection.has(id) && this.selection.size > 1) {
         this.selection.delete(id);
-        if (this.active === id) { this.active = this.ids.find((x) => this.selection.has(x)) ?? id; this.emitSelection(); return; }
+        if (this.active === id) this.active = this.ids.find((x) => this.selection.has(x)) ?? id;
+        this.anchor = id;
+        this.emitSelection();
+        return;
       } else this.selection.add(id);
       this.anchor = id;
     } else if (mode === 'range') {
