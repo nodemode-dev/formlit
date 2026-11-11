@@ -157,11 +157,9 @@ class DevelopModule {
     if (!this.panels) return;
     const id = library.active;
     const p = library.photo(id) ?? null;
-    if (develop.id !== id) {
-      this.view.setPhoto(p, false);
-      try { await develop.open(id); } catch (err) { this.ctx.fail(err); }
-      if (library.active !== id) return;
-    }
+    if (develop.id !== id) this.view.setPhoto(p, false);
+    try { await develop.open(id); } catch (err) { this.ctx.fail(err); }
+    if (library.active !== id) return;
     this.view.setPhoto(p);
     this.ctx.shell.setSelection(p ? p.file : '');
     this.ctx.shell.setCount(`${library.ids.length} photo${library.ids.length === 1 ? '' : 's'}`);

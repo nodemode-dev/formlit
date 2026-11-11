@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import socket
@@ -115,3 +116,67 @@ def test_window_loads_throttled_without_shift_errors_or_refusals(engine, path):
     assert not failed, f"failed requests: {failed}"
     assert not errors, f"console errors: {errors}"
     assert cls <= CLS_LIMIT, f"layout shift {cls}: {shifts}"
+
+
+def command(base, cid, params):
+    req = urllib.request.Request(f"{base}/api/commands/{cid}", data=json.dumps(params).encode(), headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode("utf-8"))["result"]
+
+
+def test_develop_returning_to_the_open_photo_cancels_the_pending_switch(engine, tmp_path):
+    """0.51.3: A to B to A while A's edit was still being saved let B's open finish last, so the next edit went to B."""
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+
+    paths = []
+    for i, shade in enumerate((60, 120, 180)):
+        path = tmp_path / f"switch_{i}.jpg"
+        Image.new("RGB", (64, 48), (shade, shade, shade)).save(path, "JPEG")
+        paths.append(str(path))
+    command(engine, "library.import", {"paths": paths, "mode": "add", "wait": True})
+    held, opened, updates = [], [], []
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+
+        def seen(r):
+            if r.url.endswith("/api/commands/develop.get"):
+                opened.append(json.loads(r.post_data)["id"])
+            if r.url.endswith("/api/commands/develop.update"):
+                updates.append(json.loads(r.post_data)["ids"])
+
+        page.on("request", seen)
+        page.goto(engine + "/", wait_until="load", timeout=120_000)
+        page.wait_for_load_state("networkidle", timeout=120_000)
+        page.keyboard.press("d")
+        page.locator(".fl-fs-head [data-cmd='photo.next']").first.click()
+        page.wait_for_function("() => document.querySelectorAll('.fl-sl-track').length > 0", timeout=30_000)
+        page.wait_for_load_state("networkidle", timeout=60_000)
+        assert opened, "Develop opened no photo"
+        first = opened[-1]
+        track = page.locator(".fl-sl[data-id='light.exposure'] .fl-sl-track").first
+        page.route("**/api/commands/develop.update", lambda route: held.append(route))
+        track.focus()
+        page.keyboard.press("ArrowRight")
+        page.locator(".fl-fs-head [data-cmd='photo.next']").first.click()
+        deadline = time.monotonic() + 10
+        while not held and time.monotonic() < deadline:
+            page.wait_for_timeout(50)
+        assert held, "the switch did not save the edit first"
+        page.locator(".fl-fs-head [data-cmd='photo.prev']").first.click()
+        page.wait_for_timeout(300)
+        for route in held:
+            route.continue_()
+        page.unroute("**/api/commands/develop.update")
+        page.wait_for_load_state("networkidle", timeout=60_000)
+        page.wait_for_timeout(500)
+        before = len(updates)
+        track.focus()
+        page.keyboard.press("ArrowRight")
+        deadline = time.monotonic() + 10
+        while len(updates) == before and time.monotonic() < deadline:
+            page.wait_for_timeout(50)
+        browser.close()
+    assert len(updates) > before, "the second edit was never saved"
+    assert updates[-1] == [first], f"the edit after returning to photo {first} went to {updates[-1]} (opened: {opened})"
