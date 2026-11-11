@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const front = resolve(here, '../../frontend');
+const front = resolve(here, '../../frontend').replace(/\\/g, '/');
 const shims = {
   'src/io/api': 'shims/api',
   'src/io/events': 'shims/events',

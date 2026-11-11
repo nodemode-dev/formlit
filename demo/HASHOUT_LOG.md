@@ -66,6 +66,10 @@ RAW files are opened by extracting the largest embedded JPEG. This was not teste
 
 5395 for the dev server and 5396 for preview, `host: false`, strict port.
 
+## Building on Windows (v0.51.2 fix)
+
+`swapBackend` swaps the window's engine client and state modules for the shims by checking that an importer is under `${front}/src/`. Vite hands importer ids with forward slashes on Windows (`C:/.../frontend/src/...`) while `path.resolve` returns backslashes, so the test never matched there and the real engine client was bundled, leaving the offline demo with no data. `front` is now written with forward slashes (`.replace(/\\/g, '/')`), the same in demos/share and, with `demo`, in demos/develop; `resolve` still accepts it, and nothing changes on macOS or Linux. Checked here: all three demos build on Linux into a scratch folder and none of the bundles holds the engine client's `/api/commands` call. Not run on Windows.
+
 ## Not done
 
 Masks, local tools, noise reduction, merges, map, book, print, web, catalog on disk, true RAW decoding, and undo across photos.

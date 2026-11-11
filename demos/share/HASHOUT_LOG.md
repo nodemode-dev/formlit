@@ -38,6 +38,10 @@ The modules refresh from engine events: `photos.changed`, `list.changed` with `c
 
 The window boots with `is-booting`: the stage keeps a placeholder panel and the left and right foot columns are hidden until the first render, so nothing moves when the photos arrive. A layout-shift observer under 4x CPU throttling reads 0 for the opening screen. The status bar sits in grid row 5 (`.fl-app > .fl-status`) because the hidden terminal dock leaves the footer in the dock row, which is 0 px tall.
 
+## Building on Windows (v0.51.2 fix)
+
+`front` in vite.config.mjs is written with forward slashes, because Vite's importer ids use them on Windows and the shim swap compared them with a backslashed path, so a Windows build bundled the real engine client. See demo/HASHOUT_LOG.md, "Building on Windows". Not run on Windows.
+
 ## Not done
 
 Video export for the slideshow, FTP upload, book printer packages, TIFF, street-level address lookup: all need the desktop app or a network. The slideshow plays its music through an `Audio` element from a blob URL made from the data pack.
