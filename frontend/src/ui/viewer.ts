@@ -47,7 +47,12 @@ export class Viewer {
     const same = this.photo?.id === p?.id;
     this.photo = p;
     if (!p) {
+      this.loadSeq += 1;
+      this.pending?.();
+      this.pending = null;
+      delete this.img.dataset.src;
       this.img.removeAttribute('src');
+      setClass(this.img, 'is-loaded', false);
       this.hi.hidden = true;
       setText(this.info, '');
       return;
