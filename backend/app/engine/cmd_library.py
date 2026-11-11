@@ -514,7 +514,7 @@ def rename_photos(ids: Any = None, template: str = "{name}", custom: str = "", s
         plan.append((pid, Path(d["path"]), Path(d["folderPath"]) / Path(name).name))
     if preview:
         return {"plan": [{"id": pid, "from": src.name, "to": dst.name} for pid, src, dst in plan]}
-    done = []
+    done, failed = [], []
     with c.change("Rename Photos") as ch:
         for pid, src, dst in plan:
             if src == dst:
@@ -522,16 +522,29 @@ def rename_photos(ids: Any = None, template: str = "{name}", custom: str = "", s
             if not src.is_file():
                 continue
             target = rename.unique(dst)
-            src.rename(target)
-            ch.moved(src, target)
             side = metadata.sidecar_path(src)
-            if side.is_file():
-                side.rename(metadata.sidecar_path(target))
+            has_side = side.is_file()
+            try:
+                src.rename(target)
+            except OSError as exc:
+                failed.append(f"{src.name}: {exc}")
+                continue
+            if has_side:
+                try:
+                    side.rename(metadata.sidecar_path(target))
+                except OSError as exc:
+                    target.rename(src)
+                    failed.append(f"{side.name}: {exc}")
+                    continue
+            ch.moved(src, target)
+            if has_side:
                 ch.moved(side, metadata.sidecar_path(target))
             ch.update("photos", pid, file_name=target.name)
             for vc in c.db.execute("SELECT id FROM photos WHERE master_id=?", (pid,)).fetchall():
                 ch.update("photos", int(vc["id"]), file_name=target.name)
             done.append({"id": pid, "name": target.name})
+    if failed:
+        raise CommandError(f"Renamed {len(done)}; {len(failed)} could not be renamed and keep their names ({'; '.join(failed[:3])})")
     return {"renamed": done}
 
 
@@ -1258,6 +1271,7 @@ def photo_move(ids: Any = None, folder: int = 0) -> dict:
             masters.append(mid)
     moved: list[int] = []
     skipped: list[int] = []
+    failed: list[str] = []
     with c.change("Move Photos", undoable=False) as ch:
         for mid in masters:
             m = c.row("SELECT p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.id=?", (mid,))
@@ -1268,13 +1282,24 @@ def photo_move(ids: Any = None, folder: int = 0) -> dict:
                 skipped.append(mid)
                 continue
             target = rename.unique(dest / src.name)
-            shutil.move(str(src), str(target))
+            try:
+                shutil.move(str(src), str(target))
+            except OSError as exc:
+                failed.append(f"{src.name}: {exc}")
+                continue
             side = metadata.sidecar_path(src)
             if side.is_file():
-                shutil.move(str(side), str(metadata.sidecar_path(target)))
+                try:
+                    shutil.move(str(side), str(metadata.sidecar_path(target)))
+                except OSError as exc:
+                    shutil.move(str(target), str(src))
+                    failed.append(f"{side.name}: {exc}")
+                    continue
             for pid in [mid] + [int(v["id"]) for v in c.db.execute("SELECT id FROM photos WHERE master_id=?", (mid,)).fetchall()]:
                 ch.update("photos", pid, folder_id=int(folder), file_name=target.name)
             moved.append(mid)
+    if failed:
+        raise CommandError(f"Moved {len(moved)}; {len(failed)} could not be moved and stay where they were ({'; '.join(failed[:3])})")
     return {"moved": moved, "skipped": skipped, "folder": str(dest)}
 
 
