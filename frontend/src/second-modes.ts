@@ -81,6 +81,7 @@ export class SecondModes {
     setHidden(this.show, m !== 'slideshow');
     this.grid.show(m === 'grid');
     if (m === 'slideshow') { this.slideIdx = Math.max(0, this.deck().indexOf(this.act ?? -1)); this.playing = true; }
+    else window.clearTimeout(this.timer);
     this.paint();
   }
 
@@ -188,7 +189,7 @@ export class SecondModes {
     setHidden(q(this.show, '[data-on]'), !this.playing);
     setHidden(q(this.show, '[data-off]'), this.playing);
     this.onShown?.(p, 'slideshow');
-    if (this.playing && deck.length > 1) this.timer = window.setTimeout(() => { this.slideIdx += 1; this.paintSlide(); }, SLIDE_MS);
+    if (this.playing && deck.length > 1) this.timer = window.setTimeout(() => { if (this.mode !== 'slideshow') return; this.slideIdx += 1; this.paintSlide(); }, SLIDE_MS);
   }
 
   private slideCmd(c: string): void {
