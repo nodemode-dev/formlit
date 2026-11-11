@@ -1676,6 +1676,13 @@ The status route named `config.BACKEND_PORT` (8390) as the MCP endpoint, but the
 
 The 0.51.2 fallback used `shutil.move`, which on EXDEV copies the file into the Trash folder and then unlinks the source. When the unlink failed (a read-only card, a file held open on Windows) the copy stayed in the Trash and the photo stayed in the catalog, so each retry of Delete from Disk left one more copy (`IMG_0001.jpg`, `IMG_0001-1.jpg`, ...). Now the move is all or nothing: `os.rename` first; only on EXDEV `shutil.copy2` then `os.unlink`, and when either fails the copy is removed before the error goes back. Any other rename error is raised as it is, with nothing copied. Tests: `tests/test_trash_and_thumbs.py` (the failing cross-drive move leaves the Trash empty after two tries; a cross-drive move and a same-drive move still move the file).
 
+### app/engine/cmd_library.py · _trash, the original gone after its copy
+- refers-to: app/engine/cmd_library.py :: _trash
+- kind: fix
+- logged: v0.51.3 · 2026-11-11
+
+The entry above removed the Trash copy on any failure of `copy2` or `unlink`, FileNotFoundError included. When the original vanished between the copy and the unlink (another program deleted it, the card was pulled), that removed the only copy left. The copy and the unlink now fail separately: a failed `copy2` still removes its partial copy; an unlink that raises FileNotFoundError counts as the move done and keeps the copy; any other unlink error removes the copy only while the original still exists, then raises. Tests: `tests/test_trash_and_thumbs.py::test_a_photo_that_vanishes_after_its_copy_keeps_the_copy_in_the_trash` and `::test_a_failed_unlink_after_the_original_vanished_keeps_the_copy` (both failed on the code above: the Trash was empty and the first raised FileNotFoundError).
+
 ### app/services/previews.py · _newest, best_thumb, best_preview; app/routers/photos.py · thumb
 - refers-to: app/services/previews.py :: _newest, best_thumb, best_preview; app/routers/photos.py :: thumb
 - kind: fix

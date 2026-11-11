@@ -445,9 +445,16 @@ def _trash(path: Path) -> None:
             raise
     try:
         shutil.copy2(path, dest)
-        os.unlink(path)
     except OSError:
         dest.unlink(missing_ok=True)
+        raise
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    except OSError:
+        if path.exists():
+            dest.unlink(missing_ok=True)
         raise
 
 

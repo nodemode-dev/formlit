@@ -60,6 +60,53 @@ def test_a_move_to_the_trash_across_drives_still_moves_the_file(no_send2trash, m
     assert [p.read_bytes() for p in trash.iterdir()] == [b"original"]
 
 
+def test_a_photo_that_vanishes_after_its_copy_keeps_the_copy_in_the_trash(no_send2trash, monkeypatch, tmp_path):
+    cmd_library, trash = no_send2trash
+    photo = tmp_path / "card" / "IMG_0004.jpg"
+    photo.parent.mkdir()
+    photo.write_bytes(b"original")
+    real_unlink = os.unlink
+
+    def rename(src, dst, *a, **k):
+        raise OSError(errno.EXDEV, "Invalid cross-device link")
+
+    def unlink(path, *a, **k):
+        if Path(path) == photo:
+            real_unlink(path)
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory", str(path))
+        return real_unlink(path, *a, **k)
+
+    monkeypatch.setattr(os, "rename", rename)
+    monkeypatch.setattr(os, "unlink", unlink)
+    cmd_library._trash(photo)
+    assert not photo.exists()
+    assert [p.read_bytes() for p in trash.iterdir()] == [b"original"]
+
+
+def test_a_failed_unlink_after_the_original_vanished_keeps_the_copy(no_send2trash, monkeypatch, tmp_path):
+    cmd_library, trash = no_send2trash
+    photo = tmp_path / "card" / "IMG_0005.jpg"
+    photo.parent.mkdir()
+    photo.write_bytes(b"original")
+    real_unlink = os.unlink
+
+    def rename(src, dst, *a, **k):
+        raise OSError(errno.EXDEV, "Invalid cross-device link")
+
+    def unlink(path, *a, **k):
+        if Path(path) == photo:
+            real_unlink(path)
+            raise OSError(errno.EIO, "Input/output error", str(path))
+        return real_unlink(path, *a, **k)
+
+    monkeypatch.setattr(os, "rename", rename)
+    monkeypatch.setattr(os, "unlink", unlink)
+    with pytest.raises(OSError):
+        cmd_library._trash(photo)
+    assert not photo.exists()
+    assert [p.read_bytes() for p in trash.iterdir()] == [b"original"]
+
+
 def test_a_move_to_the_trash_on_one_drive_renames_the_file(no_send2trash, tmp_path):
     cmd_library, trash = no_send2trash
     photo = tmp_path / "IMG_0003.jpg"
