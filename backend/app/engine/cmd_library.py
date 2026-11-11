@@ -1,3 +1,4 @@
+import errno
 import json
 import os
 import platform
@@ -435,7 +436,19 @@ def _trash(path: Path) -> None:
         pass
     trash = Path.home() / (".Trash" if platform.system() == "Darwin" else ".local/share/Trash/files")
     trash.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(path), str(rename.unique(trash / path.name)))
+    dest = rename.unique(trash / path.name)
+    try:
+        os.rename(path, dest)
+        return
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise
+    try:
+        shutil.copy2(path, dest)
+        os.unlink(path)
+    except OSError:
+        dest.unlink(missing_ok=True)
+        raise
 
 
 @command("photo.delete", "Delete from Disk", {"ids": {"type": "array"}})

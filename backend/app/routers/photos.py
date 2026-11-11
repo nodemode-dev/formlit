@@ -32,7 +32,10 @@ def _file(path, final: bool, versioned: bool, media: str = "image/jpeg") -> Resp
 @router.get("/{pid}/thumb")
 def thumb(pid: int, rev: int | None = None) -> Any:
     for _ in range(3):
-        path, final = previews.best_thumb(pid)
+        try:
+            path, final = previews.best_thumb(pid)
+        except FileNotFoundError:
+            continue
         if path is None:
             break
         out = _file(path, final, rev is not None)

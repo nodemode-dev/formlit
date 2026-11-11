@@ -212,6 +212,18 @@ def request(pid: int, size: str, foreground: bool = False) -> Future:
     return _once(f"{pid}:{rev}:{size}", _fg if foreground else _bg, job)
 
 
+def _newest(pid: int, size: str) -> Path | None:
+    best, when = None, float("-inf")
+    for p in cache_dir(pid).glob(f"{pid}-*-{size}.jpg"):
+        try:
+            t = p.stat().st_mtime
+        except FileNotFoundError:
+            continue
+        if t > when:
+            best, when = p, t
+    return best
+
+
 def best_thumb(pid: int) -> tuple[Path | None, bool]:
     cat = catalog_mod.get()
     r = cat.row("SELECT develop_rev FROM photos WHERE id=?", (pid,))
@@ -222,9 +234,9 @@ def best_thumb(pid: int) -> tuple[Path | None, bool]:
     if p.is_file():
         return p, True
     request(pid, "t")
-    older = sorted(cache_dir(pid).glob(f"{pid}-*-t.jpg"), key=lambda x: x.stat().st_mtime, reverse=True)
-    if older:
-        return older[0], False
+    older = _newest(pid, "t")
+    if older is not None:
+        return older, False
     e = embedded_path(pid)
     if e.is_file():
         return e, False
@@ -246,9 +258,9 @@ def best_preview(pid: int, wait: float = 0.0) -> tuple[Path | None, bool]:
             return fut.result(timeout=wait), True
         except Exception:
             pass
-    older = sorted(cache_dir(pid).glob(f"{pid}-*-p.jpg"), key=lambda x: x.stat().st_mtime, reverse=True)
-    if older:
-        return older[0], False
+    older = _newest(pid, "p")
+    if older is not None:
+        return older, False
     t, ok = best_thumb(pid)
     return t, False
 

@@ -2,6 +2,14 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.51.3 · 2026-11-11
+
+- Fixed: in Develop, going to another photo and quickly back kept the edits on the photo you came back to; before, the next edit could be saved to the photo you had left.
+- Fixed: a Delete from Disk that cannot remove a file from another drive no longer leaves a copy in the Trash on each try.
+- Fixed: a thumbnail or preview no longer fails to load when its cached file is replaced while it is being read.
+- Fixed: on a Mac, `./formlit install` chooses Python by the interpreter's own architecture, and on Apple silicon a native Python first, so an Intel Python 3.14 earlier on PATH no longer fails the install on rawpy.
+- Checked here: the full engine test suite, the window tests, the frontend build and audit, the engine boot probe and the script checks, on an Apple silicon Mac. Not verified yet: the desktop builds, Windows and Linux.
+
 ## v0.51.2 · 2026-11-10
 
 - Fixed: Delete from Disk removed photos from the catalog before moving their files, so a photo on another drive (a card, an external disk, D: on Windows) lost its catalog entry and edits while its file stayed. Each file is now moved first; a photo whose file cannot be moved stays in the catalog and the error names it. Without the optional send2trash package, files still go to a Trash folder in your home folder rather than the system's Trash.

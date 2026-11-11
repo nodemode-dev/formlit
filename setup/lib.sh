@@ -11,20 +11,29 @@ fl_os() {
     *) echo unknown ;;
   esac
 }
-# fl_python_ok EXE: EXE is a Python formlit supports here (3.12 to 3.14; 3.12 to 3.13 on Intel Macs, where
-# onnxruntime and rawpy publish no wheels for 3.14).
+fl_python_arch() {
+  "$1" -c "import platform; print(platform.machine())" 2>/dev/null
+}
+fl_apple_silicon() {
+  [ "$(uname -s)" = Darwin ] || return 1
+  [ "$(uname -m)" = arm64 ] || [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]
+}
+# fl_python_ok EXE: EXE is a Python formlit supports here (3.12 to 3.14; 3.12 to 3.13 for an x86_64 Python on a Mac,
+# where onnxruntime and rawpy publish no wheels for 3.14).
 fl_python_ok() {
   local top=14
-  if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = x86_64 ]; then top=13; fi
+  if [ "$(uname -s)" = Darwin ] && [ "$(fl_python_arch "$1")" = x86_64 ]; then top=13; fi
   "$1" -c "import sys; raise SystemExit(0 if (3, 12) <= sys.version_info[:2] <= (3, $top) else 1)" 2>/dev/null
 }
 fl_python() {
-  local c
-  for c in python3.14 python3.13 python3.12 python3; do
-    if command -v "$c" >/dev/null 2>&1 && fl_python_ok "$c"; then
+  local c pass
+  for pass in native any; do
+    for c in python3.14 python3.13 python3.12 python3; do
+      command -v "$c" >/dev/null 2>&1 && fl_python_ok "$c" || continue
+      if [ "$pass" = native ] && fl_apple_silicon && [ "$(fl_python_arch "$c")" != arm64 ]; then continue; fi
       echo "$c"
       return 0
-    fi
+    done
   done
   return 1
 }
