@@ -7,7 +7,7 @@ from typing import Any
 
 from app.core import prefs
 from app.engine import catalog as catalog_mod
-from app.engine import events, records
+from app.engine import events, query, records
 from app.engine.commands import CommandError, command, resolve_ids
 
 FOLDERS = {"capture": "Capture", "selects": "Selects", "output": "Output", "trash": "Trash"}
@@ -53,9 +53,9 @@ def _settings_file(root: Path, photo: Path) -> Path:
 
 
 def _session_rows(root: Path) -> list:
-    like = str(root.resolve()).rstrip("/") + "/%"
+    like = query.like_under(str(root.resolve()))
     return cat().rows("SELECT p.id, p.file_name, p.develop, p.rating, p.flag, p.label, p.meta, f.path FROM photos p JOIN folders f ON f.id=p.folder_id "
-                      "WHERE p.master_id IS NULL AND (f.path=? OR f.path LIKE ?)", (str(root.resolve()), like))
+                      "WHERE p.master_id IS NULL AND (f.path=? OR f.path LIKE ? ESCAPE '^')", (str(root.resolve()), like))
 
 
 def save(root: Path | None = None, force: bool = False) -> int:
