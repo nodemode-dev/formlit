@@ -514,6 +514,7 @@ def open_with(app: str, paths: list[Path]) -> bool:
 def run(pids: list[int], settings: dict, progress: Callable[..., Any] | None = None) -> dict:
     s = merged(settings)
     written: list[str] = []
+    sources: list[int] = []
     skipped: list[int] = []
     failed: list[dict] = []
     kw_filter = _export_keywords()
@@ -527,8 +528,9 @@ def run(pids: list[int], settings: dict, progress: Callable[..., Any] | None = N
                 skipped.append(pid)
             else:
                 written.append(str(p))
+                sources.append(pid)
         except Exception as exc:
             failed.append({"id": pid, "error": str(exc)})
         if progress is not None:
             progress(i + 1, len(pids), f"Exporting {i + 1} of {len(pids)}")
-    return {"paths": written, "skipped": skipped, "failed": failed, "folder": str(Path(written[0]).parent) if written else s["destination"]["folder"], "settings": s}
+    return {"paths": written, "sources": sources, "skipped": skipped, "failed": failed, "folder": str(Path(written[0]).parent) if written else s["destination"]["folder"], "settings": s}
