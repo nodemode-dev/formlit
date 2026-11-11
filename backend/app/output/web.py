@@ -147,7 +147,7 @@ def _ftp(up: dict) -> ftplib.FTP:
 def _mkdirs(f: ftplib.FTP, path: str) -> None:
     cur = ""
     for part in [p for p in path.split("/") if p]:
-        cur = f"{cur}/{part}"
+        cur = f"{cur}/{part}" if (cur or path.startswith("/")) else part
         try:
             f.mkd(cur)
         except ftplib.error_perm:
