@@ -39,7 +39,7 @@ let secondRef: Window | null = null;
 const secondCh = new BroadcastChannel(SECOND_CHANNEL);
 
 async function openSecondWindow(mode?: SecondMode): Promise<void> {
-  const url = `${window.location.pathname}?second=1${mode ? `&mode=${mode}` : ''}`;
+  const url = `${window.location.origin}${window.location.pathname}?second=1${mode ? `&mode=${mode}` : ''}`;
   if ('__TAURI_INTERNALS__' in window) {
     const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
     const existing = await WebviewWindow.getByLabel('second');

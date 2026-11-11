@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 const FRONTEND_PORT = 5390;
-const BACKEND_PORT = 8390;
+const BACKEND_PORT = Number(process.env.FORMLIT_PORT) || 8390;
 const engine = { target: `http://127.0.0.1:${BACKEND_PORT}`, changeOrigin: true, ws: true };
 
 const devFontPreloads = {

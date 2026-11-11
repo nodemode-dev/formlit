@@ -95,7 +95,7 @@ def argv(path: str, prompt: str | None, resume: str | None = None) -> list[str]:
     if resume:
         cmd += ["--resume", resume]
     if prompt:
-        cmd.append(prompt)
+        cmd += ["--", prompt]
     if os.name == "nt":
         return cmd
     return terminal.login_shell() + ["-c", "exec " + shlex.join(cmd)]

@@ -352,18 +352,28 @@ def _pil_linear(path: Path) -> tuple[np.ndarray, dict]:
     return out.reshape(lin.shape).astype(np.float32), {"raw": False, "asShotTemp": 6500.0, "asShotTint": 0.0, "relativeWb": True}
 
 
+TIFF_ORIENT = {2: lambda a: a[:, ::-1], 3: lambda a: a[::-1, ::-1], 4: lambda a: a[::-1], 5: lambda a: a.swapaxes(0, 1),
+               6: lambda a: np.rot90(a, -1), 7: lambda a: a[::-1, ::-1].swapaxes(0, 1), 8: lambda a: np.rot90(a, 1)}
+
+
 def _tiff16_linear(path: Path) -> tuple[np.ndarray, dict] | None:
     try:
         import tifffile
         with tifffile.TiffFile(str(path)) as tf:
             page = tf.pages[0]
             a = page.asarray()
+            if page.planarconfig == 2 and a.ndim == 3:
+                a = np.moveaxis(a, 0, -1)
             tag = page.tags.get(34675)
             icc = bytes(tag.value) if tag is not None else None
+            orient = page.tags.get(274)
+            orient = int(orient.value) if orient is not None else 1
     except Exception:
         return None
     if a.ndim != 3 or a.shape[2] < 3:
         return None
+    if orient in TIFF_ORIENT:
+        a = np.ascontiguousarray(TIFF_ORIENT[orient](a))
     info = {"raw": False, "asShotTemp": 6500.0, "asShotTint": 0.0, "relativeWb": True}
     wide = icc_linear(a[..., :3], icc) if a.dtype in (np.uint16, np.uint8, np.float32, np.float16, np.float64) and not is_srgb(icc) else None
     if wide is not None:
@@ -571,6 +581,8 @@ def dimensions(path: Path) -> tuple[int, int]:
         with Image.open(str(path)) as im:
             w, h = im.size
             o = im.getexif().get(0x0112, 1)
-        return (h, w) if o in (5, 6, 7, 8) else (w, h)
+            tags = getattr(im, "tag_v2", None)
+            oriented = tags is not None and (w, h) != (tags.get(256, w), tags.get(257, h))
+        return (h, w) if o in (5, 6, 7, 8) and not oriented else (w, h)
     except Exception:
         return 0, 0

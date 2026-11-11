@@ -117,7 +117,12 @@ def export_run(ids: Any = None, settings: dict | None = None, preset: str | None
             res["imported"] = imp.get("ids", [])
             if res["settings"]["destination"].get("stack"):
                 from app.engine.cmd_library import stack_group
-                for new, src in zip(res["imported"], pids):
+                by_path = {str(Path(p).resolve()): src for p, src in zip(res["paths"], res["sources"])}
+                for new in res["imported"]:
+                    made = cat().photo_path(int(new))
+                    src = by_path.get(str(made.resolve())) if made is not None else None
+                    if src is None:
+                        continue
                     try:
                         stack_group([int(new), int(src)])
                     except CommandError:

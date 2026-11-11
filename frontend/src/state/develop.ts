@@ -82,6 +82,7 @@ export class DevelopSession {
   pendingLabel = '';
   private commitTimer = 0;
   private loadSeq = 0;
+  private openSeq = 0;
   private readonly fns = new Set<Fn>();
   dirty = false;
   layer: number | null = null;
@@ -137,9 +138,11 @@ export class DevelopSession {
   }
 
   async open(id: number | null): Promise<void> {
+    const t = ++this.openSeq;
     await this.init();
-    if (id === this.id) return;
+    if (t !== this.openSeq || id === this.id) return;
     await this.flush();
+    if (t !== this.openSeq) return;
     this.id = id;
     this.info = null;
     this.layer = null;

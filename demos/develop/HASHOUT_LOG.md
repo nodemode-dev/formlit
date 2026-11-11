@@ -56,6 +56,10 @@ The app starts in Develop. Until the first render, `.is-booting` hides the "No p
 
 The nine photographs are demo 1's, repacked as `develop.js` with their EXIF; nothing is downloaded. The link row names the three demos in the status bar and links by relative path.
 
+## Building on Windows (v0.51.2 fix)
+
+`front` and `demo` in vite.config.mjs are written with forward slashes, because Vite's importer ids use them on Windows and the shim swap compared them with backslashed paths, so a Windows build bundled the real engine client. See demo/HASHOUT_LOG.md, "Building on Windows". Not run on Windows.
+
 ## Not done
 
 Healing, people and landscape parts, depth and edge range, point colour, brush Auto Mask and Edge Snap, mask tone curve, Transform keystone inside masks, true engine-identical mask maths.

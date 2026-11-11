@@ -54,7 +54,8 @@ PROMPTS = [
     {"name": "develop_strategy", "title": "Develop a photo", "description": "The order formlit's develop tools work best in, with the setting ids.", "arguments": []},
 ] + [{"name": k, "title": v["title"], "description": v["description"], "arguments": []} for k, v in WORKFLOWS.items()]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
-BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
+BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond", "demo.open"}
+PERSON_PREFS = {"outsideAgents", "claudeBin", "claudeFirstMessage", "claudeFolder", "editors"}
 WINDOW_ONLY = {"terminal", "claudecode", "chat", "extensions"}
 LIST_CACHE = {"ttlMs": 60_000, "cacheScope": "private"}
 SESSIONS: dict[str, str] = {}
@@ -280,7 +281,11 @@ def _run_command(args: dict) -> Any:
         raise CommandError(f"{cid} is only available in the formlit window, so a person runs it.", 403)
     if cid in BLOCKED and not ALLOW_DELETE:
         raise CommandError(f"{cid} is only available in the formlit window, so a person confirms it.", 403)
-    return dispatch(cid, _params(args))
+    params = _params(args)
+    values = params.get("values")
+    if cid == "prefs.set" and isinstance(values, dict) and PERSON_PREFS & set(values):
+        raise CommandError(f"prefs.set cannot change {', '.join(sorted(PERSON_PREFS & set(values)))}: a person changes these in formlit's Preferences.", 403)
+    return dispatch(cid, params)
 
 
 def _show(args: dict) -> dict:
@@ -632,4 +637,4 @@ async def mcp(request: Request) -> Response:
 
 @router.get("/api/mcp/status")
 def status() -> dict:
-    return {"endpoint": f"http://127.0.0.1:{config.BACKEND_PORT}/mcp", "tools": len(TOOLS), "commands": len(REGISTRY), "versions": VERSIONS, "deleteAllowed": ALLOW_DELETE}
+    return {"endpoint": config.engine_url() + "/mcp", "tools": len(TOOLS), "commands": len(REGISTRY), "versions": VERSIONS, "deleteAllowed": ALLOW_DELETE}

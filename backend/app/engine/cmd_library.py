@@ -188,7 +188,9 @@ def _eject(path: str) -> bool:
     p = Path(path).expanduser()
     while not os.path.ismount(p) and p.parent != p:
         p = p.parent
-    if p == Path(p.anchor):
+    if os.name != "nt" and p == Path(p.anchor):
+        return False
+    if os.name == "nt" and p.anchor.upper() == os.environ.get("SystemDrive", "C:").upper() + "\\":
         return False
     system = platform.system()
     if system == "Darwin":
@@ -433,30 +435,36 @@ def _trash(path: Path) -> None:
         pass
     trash = Path.home() / (".Trash" if platform.system() == "Darwin" else ".local/share/Trash/files")
     trash.mkdir(parents=True, exist_ok=True)
-    path.replace(rename.unique(trash / path.name))
+    shutil.move(str(path), str(rename.unique(trash / path.name)))
 
 
 @command("photo.delete", "Delete from Disk", {"ids": {"type": "array"}})
 def delete(ids: Any = None) -> dict:
     pids = _ids(ids)
     c = cat()
-    paths = []
+    gone, trashed, failed = [], [], []
     for pid in pids:
         r = c.row("SELECT master_id FROM photos WHERE id=?", (pid,))
-        if r and not r["master_id"]:
-            p = c.photo_path(pid)
-            if p is not None:
-                paths.append(p)
-    _remove(pids, False)
-    trashed = []
-    for p in paths:
-        if p.is_file():
-            _trash(p)
+        p = c.photo_path(pid) if r and not r["master_id"] else None
+        if p is not None and p.is_file():
+            try:
+                _trash(p)
+            except OSError as exc:
+                failed.append(f"{p.name}: {exc}")
+                continue
             side = metadata.sidecar_path(p)
             if side.is_file():
-                _trash(side)
+                try:
+                    _trash(side)
+                except OSError:
+                    pass
             trashed.append(str(p))
-    return {"ids": pids, "trashed": trashed}
+        gone.append(pid)
+    if gone:
+        _remove(gone, False)
+    if failed:
+        raise CommandError(f"{len(failed)} of {len(pids)} photos could not be moved to the Trash and stay in the catalog ({'; '.join(failed[:3])})")
+    return {"ids": gone, "trashed": trashed}
 
 
 @command("photo.setCaptureTime", "Edit Capture Time", {"ids": {"type": "array"}, "time": {"type": "string"}, "shiftSeconds": {"type": "number"}})
@@ -508,7 +516,7 @@ def rename_photos(ids: Any = None, template: str = "{name}", custom: str = "", s
         plan.append((pid, Path(d["path"]), Path(d["folderPath"]) / Path(name).name))
     if preview:
         return {"plan": [{"id": pid, "from": src.name, "to": dst.name} for pid, src, dst in plan]}
-    done = []
+    done, failed = [], []
     with c.change("Rename Photos") as ch:
         for pid, src, dst in plan:
             if src == dst:
@@ -516,16 +524,29 @@ def rename_photos(ids: Any = None, template: str = "{name}", custom: str = "", s
             if not src.is_file():
                 continue
             target = rename.unique(dst)
-            src.rename(target)
-            ch.moved(src, target)
             side = metadata.sidecar_path(src)
-            if side.is_file():
-                side.rename(metadata.sidecar_path(target))
+            has_side = side.is_file()
+            try:
+                src.rename(target)
+            except OSError as exc:
+                failed.append(f"{src.name}: {exc}")
+                continue
+            if has_side:
+                try:
+                    side.rename(metadata.sidecar_path(target))
+                except OSError as exc:
+                    target.rename(src)
+                    failed.append(f"{side.name}: {exc}")
+                    continue
+            ch.moved(src, target)
+            if has_side:
                 ch.moved(side, metadata.sidecar_path(target))
             ch.update("photos", pid, file_name=target.name)
             for vc in c.db.execute("SELECT id FROM photos WHERE master_id=?", (pid,)).fetchall():
                 ch.update("photos", int(vc["id"]), file_name=target.name)
             done.append({"id": pid, "name": target.name})
+    if failed:
+        raise CommandError(f"Renamed {len(done)}; {len(failed)} could not be renamed and keep their names ({'; '.join(failed[:3])})")
     return {"renamed": done}
 
 
@@ -1252,6 +1273,7 @@ def photo_move(ids: Any = None, folder: int = 0) -> dict:
             masters.append(mid)
     moved: list[int] = []
     skipped: list[int] = []
+    failed: list[str] = []
     with c.change("Move Photos", undoable=False) as ch:
         for mid in masters:
             m = c.row("SELECT p.file_name, f.path FROM photos p JOIN folders f ON f.id=p.folder_id WHERE p.id=?", (mid,))
@@ -1262,13 +1284,24 @@ def photo_move(ids: Any = None, folder: int = 0) -> dict:
                 skipped.append(mid)
                 continue
             target = rename.unique(dest / src.name)
-            shutil.move(str(src), str(target))
+            try:
+                shutil.move(str(src), str(target))
+            except OSError as exc:
+                failed.append(f"{src.name}: {exc}")
+                continue
             side = metadata.sidecar_path(src)
             if side.is_file():
-                shutil.move(str(side), str(metadata.sidecar_path(target)))
+                try:
+                    shutil.move(str(side), str(metadata.sidecar_path(target)))
+                except OSError as exc:
+                    shutil.move(str(target), str(src))
+                    failed.append(f"{side.name}: {exc}")
+                    continue
             for pid in [mid] + [int(v["id"]) for v in c.db.execute("SELECT id FROM photos WHERE master_id=?", (mid,)).fetchall()]:
                 ch.update("photos", pid, folder_id=int(folder), file_name=target.name)
             moved.append(mid)
+    if failed:
+        raise CommandError(f"Moved {len(moved)}; {len(failed)} could not be moved and stay where they were ({'; '.join(failed[:3])})")
     return {"moved": moved, "skipped": skipped, "folder": str(dest)}
 
 

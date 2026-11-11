@@ -10,6 +10,7 @@ _thread: threading.Thread | None = None
 _stop = threading.Event()
 _sizes: dict[str, int] = {}
 _ignored: set[str] = set()
+_seq: dict[str, int] = {}
 
 
 def settings() -> dict:
@@ -39,7 +40,9 @@ def _tick(s: dict) -> list[int]:
         except Exception:
             dev = None
     dest = s.get("destination") or str(watch.parent / f"{watch.name} Imported")
-    res = importer.import_files(ready, "move", dest, s.get("folderTemplate") or "", s.get("renameTemplate") or "", "", dev, None, s.get("keywords") or None, None, True, False)
+    res = importer.import_files(ready, "move", dest, s.get("folderTemplate") or "", s.get("renameTemplate") or "", "", dev, None, s.get("keywords") or None, None, True, False,
+                                start_seq=_seq.get(str(watch), 0) + 1)
+    _seq[str(watch)] = _seq.get(str(watch), 0) + len(res.get("ids") or [])
     for p in ready:
         _sizes.pop(p, None)
         if Path(p).exists():

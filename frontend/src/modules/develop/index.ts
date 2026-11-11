@@ -160,6 +160,7 @@ class DevelopModule {
     if (develop.id !== id) {
       this.view.setPhoto(p, false);
       try { await develop.open(id); } catch (err) { this.ctx.fail(err); }
+      if (library.active !== id) return;
     }
     this.view.setPhoto(p);
     this.ctx.shell.setSelection(p ? p.file : '');

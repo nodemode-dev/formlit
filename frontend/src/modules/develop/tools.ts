@@ -219,6 +219,7 @@ export class CropTool implements Tool {
     if (id === null) return;
     try {
       const r = await this.host.ctx.api.cmd<{ angle: number }>('develop.autoStraighten', { id });
+      if (develop.id !== id) return;
       this.angle = r.angle;
       this.angleSlider.set(this.angle);
       this.rect = shrinkToFit(this.rect, this.ow(), this.oh(), this.angle);
@@ -518,6 +519,7 @@ export class SpotTool implements Tool {
     try {
       await develop.flush();
       const r = await this.host.ctx.api.cmd<{ spots: Spot[] }>(kind === 'people' ? 'develop.removePeople' : 'develop.findDust', { id });
+      if (develop.id !== id) return;
       if (!r.spots.length) { this.host.ctx.shell.setHint(kind === 'people' ? 'No people found' : 'No dust spots found'); return; }
       const spots = this.spots();
       spots.push(...r.spots.map((s) => ({ ...s })));
@@ -555,10 +557,12 @@ export class SpotTool implements Tool {
 
   private fill(i: number, s: Spot, label: string): void {
     const done = this.host.ctx.shell.busy('Removing');
-    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[]; seed: number }>('develop.removeFill', { id: develop.id, spot: s, detect: !!s.detect, shadows: !!s.shadows, seed: s.seed ?? 0 })).then((r) => {
+    const id = develop.id;
+    void develop.flush().then(() => this.host.ctx.api.cmd<{ patch: string; variants: string[]; seed: number }>('develop.removeFill', { id, spot: s, detect: !!s.detect, shadows: !!s.shadows, seed: s.seed ?? 0 })).then((r) => {
+      if (develop.id !== id) return;
       const now = this.spots();
       if (now[i]) { now[i].patch = r.patch; now[i].variants = r.variants; now[i].source = null; if (r.seed) now[i].seed = r.seed; this.write(now, 'end', label); this.syncVariants(); }
-    }, (err) => { this.host.ctx.fail(err, 'Remove'); this.write(this.spots(), 'end', label); }).finally(done);
+    }, (err) => { this.host.ctx.fail(err, 'Remove'); if (develop.id === id) this.write(this.spots(), 'end', label); }).finally(done);
   }
 
   private syncOpts(): void {
