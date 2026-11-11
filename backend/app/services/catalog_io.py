@@ -197,6 +197,7 @@ def import_catalog(path: str, mode: str = "add", destination: str = "", replace:
     photo_map: dict[int, int] = {}
     added, updated, kw_map, col_map = [], [], {}, {}
     copied: list[tuple[int, int]] = []
+    new_folder: dict[int, Path] = {}
     with cur.change(f"Import from {p.stem}") as ch:
         stacks: dict[int, int] = {}
         for i, row in enumerate(rows):
@@ -205,6 +206,9 @@ def import_catalog(path: str, mode: str = "add", destination: str = "", replace:
                 srcfile = fpath / row["file_name"]
                 if srcfile.is_file():
                     fpath = _copy_file(srcfile, Path(destination).expanduser() / (fpath.name or "Photos")).parent
+                new_folder[int(row["id"])] = fpath
+            elif mode == "copy":
+                fpath = new_folder.get(int(row["master_id"]), fpath)
             existing = None
             if not row["master_id"]:
                 existing = cur.db.execute("SELECT p.id FROM photos p JOIN folders f ON f.id=p.folder_id WHERE f.path=? AND p.file_name=? AND p.master_id IS NULL",
