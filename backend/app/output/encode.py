@@ -157,14 +157,15 @@ def _tiff(arr: np.ndarray, icc: bytes, xmp: bytes | None, ppi: int, r: dict, com
     tags = []
     if xmp:
         tags.append((700, 1, len(xmp), xmp, False))
-    if meta.get("copyright"):
+    if meta.get("copyright") and str(meta["copyright"]).isascii():
         tags.append((33432, 2, 0, str(meta["copyright"]), False))
-    if meta.get("creator"):
+    if meta.get("creator") and str(meta["creator"]).isascii():
         tags.append((315, 2, 0, str(meta["creator"]), False))
+    caption = str(meta.get("caption") or "")
     buf = io.BytesIO()
     tifffile.imwrite(buf, arr, photometric="rgb", compression="zlib" if compression == "zip" else None, iccprofile=icc,
                      resolution=(float(ppi), float(ppi)), resolutionunit="INCH", software="formlit", metadata=None,
-                     description=str(meta.get("caption") or "") or None, extratags=tags)
+                     description=caption if caption and caption.isascii() else None, extratags=tags)
     return buf.getvalue()
 
 

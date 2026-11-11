@@ -104,9 +104,10 @@ def write_cfa_dng(src: Path, dst: Path, exif: dict | None = None, compress: bool
             tags.append((code, kind, 1, _urational(float(exif[key])), True))
     if exif.get("iso"):
         tags.append((34855, "H", 1, int(min(65535, float(exif["iso"]))), True))
-    if exif.get("lens"):
+    if exif.get("lens") and str(exif["lens"]).isascii():
         tags.append((42036, "s", 0, str(exif["lens"]), True))
-    tags.append((50827, "s", 0, src.name, True))
+    if src.name.isascii():
+        tags.append((50827, "s", 0, src.name, True))
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_suffix(".dng.tmp")
     tifffile.imwrite(str(tmp), data, photometric=32803, compression="zlib" if compress else None, predictor=2 if compress else None,
