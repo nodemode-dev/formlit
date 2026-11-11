@@ -406,7 +406,8 @@ def export_one(pid: int, s: dict, seq: int, kw_filter: dict | None) -> Path | No
     if rec.get("kind") == "video":
         if not s["video"].get("include", True):
             return None
-        dest = place(folder / f"{stem}{Path(rec['fileName']).suffix.lower()}", existing)
+        ext = ".mp4" if shutil.which("ffmpeg") and s["video"].get("format") != "original" else Path(rec["fileName"]).suffix.lower()
+        dest = place(folder / f"{stem}{ext}", existing)
         return None if dest is None else _video(rec, s, dest)
     if fmt == "original":
         src = Path(rec["path"])
