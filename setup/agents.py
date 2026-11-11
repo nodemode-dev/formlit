@@ -190,7 +190,7 @@ def install_claude(home: Path, dry: bool, said: list) -> None:
 def install_codex(home: Path, dry: bool, said: list) -> None:
     said.append("Codex:")
     cfg = Path(os.environ.get("CODEX_HOME", home / ".codex")) / "config.toml"
-    block = f'[mcp_servers.formlit]\ncommand = "{LAUNCH}"\nargs = ["mcp"]\nstartup_timeout_sec = 90\ntool_timeout_sec = 3600\n'
+    block = f'[mcp_servers.formlit]\ncommand = {json.dumps(LAUNCH)}\nargs = ["mcp"]\nstartup_timeout_sec = 90\ntool_timeout_sec = 3600\n'
     text = cfg.read_text(encoding="utf-8") if cfg.exists() else ""
     found = re.search(r"(?ms)^\[mcp_servers\.formlit\]\n.*?(?=^\[|\Z)", text)
     if found and found.group(0).strip() == block.strip():
