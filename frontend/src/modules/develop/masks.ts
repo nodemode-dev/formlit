@@ -100,6 +100,7 @@ export class MaskTool implements Tool {
     if (id === null) return;
     try {
       const r = await this.host.ctx.api.cmd<{ lab: [number, number, number] }>('develop.sampleColor', { id, x: p.nx, y: p.ny, settings: develop.settings });
+      if (develop.id !== id) return;
       const { masks, m } = this.current();
       if (!m) return;
       const pts = this.localPoints(m);
@@ -382,6 +383,7 @@ export class MaskTool implements Tool {
     try {
       await develop.flush();
       const r = await this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts, ...(person !== undefined ? { person } : {}) });
+      if (develop.id !== id) return;
       const masks = this.masks();
       if (separate) {
         for (const s of r.shapes) masks.push({ id: this.nextId(masks), name: String(s.label ?? s.part), visible: true, components: [{ shape: s, op: 'add' }], adjust: {} });
@@ -440,6 +442,7 @@ export class MaskTool implements Tool {
         shape = kind === 'depthRange' ? { ...shape, bitmap: (r.shape.bitmap as string) ?? 'depth' } : r.shape;
       } catch (err) { unghost(); this.sync(); this.host.ctx.fail(err, NAMES[kind]); return; } finally { done(); }
       unghost();
+      if (develop.id !== id) { this.sync(); return; }
     }
     const masks = this.masks();
     this.place(shape, op, masks);
@@ -636,6 +639,7 @@ export class MaskTool implements Tool {
       await develop.flush();
       const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', ...prompt });
       unghost();
+      if (develop.id !== id) { this.sync(); return; }
       const masks = this.masks();
       this.place(r.shape, this.pendingOp, masks);
       this.write(masks, 'end', 'Mask: Objects');
@@ -709,7 +713,7 @@ export class MaskTool implements Tool {
     const seq = ++this.seq;
     try {
       const r = await this.host.ctx.api.cmd<{ lab: [number, number, number] }>('develop.sampleColor', { id, x: p.nx, y: p.ny, settings: develop.settings });
-      if (seq !== this.seq) return;
+      if (seq !== this.seq || develop.id !== id) return;
       const { masks, c } = this.current();
       if (!c) return;
       const samples = p.e.shiftKey ? ((c.shape.samples as number[][]) ?? []).slice(0, 4) : [];
@@ -726,7 +730,7 @@ export class MaskTool implements Tool {
     const seq = ++this.seq;
     try {
       const r = await this.host.ctx.api.cmd<{ depth: number }>('develop.sampleDepth', { id, x: p.nx, y: p.ny, bitmap: typeof bitmap === 'string' ? bitmap : 'depth', settings: develop.settings });
-      if (seq !== this.seq) return;
+      if (seq !== this.seq || develop.id !== id) return;
       const { masks, c } = this.current();
       if (!c) return;
       const span = p.e.shiftKey ? [Math.min(Number(c.shape.lo ?? r.depth), r.depth), Math.max(Number(c.shape.hi ?? r.depth), r.depth)] : [r.depth, r.depth];
