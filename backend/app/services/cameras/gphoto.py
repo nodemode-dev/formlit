@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.services import tether
-from app.services.cameras import CameraError, Entry, short_id
+from app.services.cameras import CameraError, Entry, arrived, inside, safe_name, short_id
 
 Runner = Callable[[list[str], float], tuple[int, str, str]]
 FOLDER = re.compile(r"^There (?:is|are) (?:no|\d+) files? in folder '(.*)'[.:]?\s*$")
@@ -103,15 +103,21 @@ class GphotoCamera:
         return key, hit[0], hit[1]
 
     def fetch(self, file: str, dest: Path) -> Path:
-        key, number, entry = self._number(file)
+        name = safe_name(file.strip("/").rpartition("/")[2])
+        key, number, entry = self._number(file, refresh=True)
         dest.mkdir(parents=True, exist_ok=True)
-        self._call(["--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(dest / "%f.%C"), "--force-overwrite"], 900.0)
-        got = next((p for p in dest.iterdir() if p.name.lower() == entry.name.lower()), None)
-        if got is None:
-            raise CameraError(f"The camera sent a different file than {entry.name}; nothing was imported from it")
+        target = inside(dest / safe_name(entry.name), dest)
+        if target.exists() or target.name != name:
+            raise CameraError(f"Refused to overwrite or rename {name} while copying it from the camera")
+        self._call(["--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(target)], 900.0)
+        got = arrived(dest, name)
+        if entry.size and abs(got.stat().st_size - entry.size) >= 1024:
+            got.unlink()
+            raise CameraError(f"The camera sent a different file than {name}; nothing was imported from it")
         return got
 
     def delete(self, file: str) -> None:
+        safe_name(file.strip("/").rpartition("/")[2])
         key, number, _ = self._number(file, refresh=True)
         self._call(["--folder", key, "--no-recurse", "--delete-file", str(number)], 120.0)
         self._tree = (0.0, {})

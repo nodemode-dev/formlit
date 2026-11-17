@@ -46,6 +46,37 @@ _providers: list[Provider] | None = None
 _cache: tuple[float, dict[str, Device]] = (0.0, {})
 
 
+def safe_name(name: str) -> str:
+    text = str(name)
+    if not text.strip() or text in (".", "..") or ".." in text or any(ch in text for ch in "\\/:\x00"):
+        raise CameraError(f"Refused a file name from the camera: {text!r}")
+    return text
+
+
+def _unsafe(name: str) -> bool:
+    try:
+        safe_name(name)
+    except CameraError:
+        return True
+    return False
+
+
+def inside(path: Path, folder: Path) -> Path:
+    root = folder.resolve()
+    full = path.resolve()
+    if full.parent != root:
+        raise CameraError(f"Refused a file outside the import folder: {path}")
+    return full
+
+
+def arrived(folder: Path, name: str) -> Path:
+    raw = folder / safe_name(name)
+    target = inside(raw, folder)
+    if raw.is_symlink() or not target.is_file():
+        raise CameraError(f"{name} did not arrive from the camera")
+    return target
+
+
 def short_id(backend: str, key: str) -> str:
     return f"{backend}-{hashlib.blake2b(key.encode('utf-8'), digest_size=5).hexdigest()}"
 
@@ -180,7 +211,7 @@ def walk(paths: list[str], recursive: bool = True, limit: int = 200_000) -> list
             dirs, entries = dev.list_dir(here)
             for e in entries:
                 key = path_for(dev.id, _join(here, e.name))
-                if decode.supported(Path(e.name)) and not e.name.startswith(".") and key not in seen:
+                if decode.supported(Path(e.name)) and (not e.name.startswith(".") or _unsafe(e.name)) and key not in seen:
                     seen.add(key)
                     out.append((dev, _join(here, e.name), e))
             if recursive:

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.core import config
-from app.services.cameras import CameraError, Entry, short_id
+from app.services.cameras import CameraError, Entry, arrived, inside, safe_name, short_id
 
 Runner = Callable[[dict, float], dict]
 
@@ -18,6 +18,23 @@ function Out-Json($value) { [Console]::Out.Write((ConvertTo-Json -InputObject $v
 function Item-Name($item) {
   if (-not $item.IsFolder) { try { $n = $item.ExtendedProperty('System.FileName'); if ($n) { return [string]$n } } catch { } }
   return [string]$item.Name
+}
+function Safe-Name($name) {
+  $text = [string]$name
+  $leaf = [System.IO.Path]::GetFileName($text)
+  if ([string]::IsNullOrWhiteSpace($leaf) -or $leaf -ne $text -or $leaf -match '[\\/:]' -or $leaf.Contains('..')) { throw ('Refused a file name from the camera: ' + $text) }
+  return $leaf
+}
+function Checked-Name($item, $wanted) {
+  $name = Safe-Name (Item-Name $item)
+  if ($name -ne (Safe-Name $wanted)) { throw ('The camera named the file ' + $name + ', not ' + [string]$wanted) }
+  return $name
+}
+function Inside-Path($folder, $name) {
+  $root = [System.IO.Path]::GetFullPath([string]$folder).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+  $full = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($root, (Safe-Name $name)))
+  if (-not $full.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase) -or $full.Length -le $root.Length) { throw ('Refused a path outside the import folder: ' + $full) }
+  return $full
 }
 function Item-Size($item) { try { return [int64]$item.ExtendedProperty('System.Size') } catch { try { return [int64]$item.Size } catch { return [int64]0 } } }
 function Item-Time($item) { try { return [DateTimeOffset]::new([datetime]$item.ModifyDate).ToUnixTimeSeconds() } catch { return 0 } }
@@ -67,18 +84,22 @@ try {
     }
     'get' {
       $item = Resolve-Item (Find-Device $shell $req.device) $req.path
-      $name = Item-Name $item
+      $name = Checked-Name $item $req.name
+      $target = Inside-Path $req.dest $name
+      if (Test-Path -LiteralPath $target) { throw ('Refused to overwrite ' + $name) }
       $shell.NameSpace([string]$req.dest).CopyHere($item, 0x614)
-      Wait-File (Join-Path $req.dest $name) (Item-Size $item) ([int]$req.timeout)
-      Out-Json @{ path = (Join-Path $req.dest $name) }
+      Wait-File $target (Item-Size $item) ([int]$req.timeout)
+      Out-Json @{ copied = $name }
     }
     'delete' {
       $item = Resolve-Item (Find-Device $shell $req.device) $req.path
-      $name = Item-Name $item
+      $name = Checked-Name $item $req.name
+      $target = Inside-Path $req.dest $name
+      if (Test-Path -LiteralPath $target) { throw ('Refused to overwrite ' + $name) }
       $size = Item-Size $item
       $shell.NameSpace([string]$req.dest).MoveHere($item, 0x614)
-      Wait-File (Join-Path $req.dest $name) $size ([int]$req.timeout)
-      Remove-Item -LiteralPath (Join-Path $req.dest $name) -Force
+      Wait-File $target $size ([int]$req.timeout)
+      Remove-Item -LiteralPath $target -Force
       Out-Json @{ deleted = $name }
     }
     default { throw ('Unknown request ' + $req.op) }
@@ -147,14 +168,20 @@ class WpdCamera:
         return dirs, sorted(files, key=lambda e: e.name.lower())
 
     def fetch(self, file: str, dest: Path) -> Path:
+        name = safe_name(file.rsplit("/", 1)[-1])
         dest.mkdir(parents=True, exist_ok=True)
-        reply = self._ask("get", file, 900.0, dest=str(dest))
-        return Path(str(reply.get("path") or dest / file.rsplit("/", 1)[-1]))
+        if inside(dest / name, dest).exists():
+            raise CameraError(f"Refused to overwrite {name} while copying it from the camera")
+        self._ask("get", file, 900.0, dest=str(dest), name=name)
+        return arrived(dest, name)
 
     def delete(self, file: str) -> None:
+        name = safe_name(file.rsplit("/", 1)[-1])
         scratch = config.temp_dir() / "camera-delete" / self.id
         scratch.mkdir(parents=True, exist_ok=True)
-        self._ask("delete", file, 300.0, dest=str(scratch))
+        if inside(scratch / name, scratch).exists():
+            (scratch / name).unlink()
+        self._ask("delete", file, 300.0, dest=str(scratch), name=name)
 
     def thumbnail(self, file: str) -> bytes | None:
         return None

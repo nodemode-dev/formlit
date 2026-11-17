@@ -57,9 +57,13 @@ def _fetch(batch: list[tuple[Device, str, Entry]], staging: Path, offset: int, t
         slot = staging / f"{offset + i:06d}"
         slot.mkdir(parents=True, exist_ok=True)
         try:
-            got = dev.fetch(rel, slot)
-            if not got.is_file():
-                raise CameraError(f"{e.name} did not arrive from the camera")
+            name = cameras.safe_name(e.name)
+            if rel.rsplit("/", 1)[-1] != name or any(slot.iterdir()):
+                raise CameraError(f"Refused a file name from the camera: {e.name!r}")
+            dev.fetch(rel, slot)
+            got = cameras.arrived(slot, name)
+            if [p.name for p in slot.iterdir()] != [name]:
+                raise CameraError(f"The camera sent more than {name}; nothing was imported from it")
             if e.exact and e.size and got.stat().st_size != e.size:
                 raise CameraError(f"{e.name} came from the camera short ({got.stat().st_size} of {e.size} bytes)")
             if e.mtime:
@@ -70,16 +74,29 @@ def _fetch(batch: list[tuple[Device, str, Entry]], staging: Path, offset: int, t
     return staged, failed
 
 
+def imported_set(staged: list[tuple[Path, Device, str]], res: dict) -> set[str] | None:
+    done = res.get("imported")
+    ids = res.get("ids")
+    if not isinstance(done, list) or not isinstance(ids, list) or len(done) != len(ids) or len(set(done)) != len(done):
+        return None
+    known = {str(p) for p, _, _ in staged}
+    if not set(done) <= known or set(done) & (set(res.get("skipped") or []) | {f.get("path") for f in res.get("failed") or []}):
+        return None
+    return set(done)
+
+
 def _settle(staged: list[tuple[Path, Device, str]], res: dict, move: bool) -> tuple[list[str], list[dict], list[dict]]:
     back = {str(p): cameras.path_for(dev.id, rel) for p, dev, rel in staged}
     skipped = [back.get(s, s) for s in res["skipped"]]
     failed = [{**f, "path": back.get(f["path"], f["path"])} for f in res["failed"]]
     kept: list[dict] = []
     if move:
-        done = len(res["ids"]) + len(res["skipped"]) + len(res["failed"])
-        left = set(res["skipped"]) | {f["path"] for f in res["failed"]}
-        for p, dev, rel in staged[:done]:
-            if str(p) in left:
+        done = imported_set(staged, res)
+        if done is None:
+            return skipped, failed, [{"path": path, "error": "Kept on the camera: the import result could not be matched to the files copied"}
+                                     for path in back.values()]
+        for p, dev, rel in staged:
+            if str(p) not in done:
                 continue
             try:
                 dev.delete(rel)

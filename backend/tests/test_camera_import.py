@@ -277,7 +277,7 @@ def test_the_gphoto2_camera_browses_fetches_and_deletes_by_name(monkeypatch, tmp
     from app.services.cameras import gphoto
 
     folder = "/store_00020001/DCIM/100CANON"
-    fake = Gphoto2(folders={folder: "#1     IMG_0002.JPG               rd  8120 KB image/jpeg\n#2     IMG_0001.CR3               rd 45210 KB image/x-canon-cr3\n"})
+    fake = Gphoto2(folders={folder: "#1     IMG_0002.JPG               rd     1 KB image/jpeg\n#2     IMG_0001.CR3               rd     1 KB image/x-canon-cr3\n"})
     monkeypatch.setattr(tether, "binary", lambda: "/usr/bin/gphoto2")
     monkeypatch.setattr(tether, "digicam", lambda: None)
     cams = gphoto.devices(fake)
