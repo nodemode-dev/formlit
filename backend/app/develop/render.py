@@ -226,6 +226,8 @@ def render(img: np.ndarray, info: dict, dev: dict, max_long: int | None = None, 
             out = lensblur.visualize(out, eff, frame, w, h, photo_id)
         if overlay.get("spots") is not None:
             out = finish_mod.spots_overlay(out, float(overlay["spots"]))
+        if overlay.get("sharpen"):
+            out = finish_mod.sharpen_overlay(out, lin, planes, eff, info, ppl, str(overlay["sharpen"]))
     return out
 
 
@@ -269,6 +271,8 @@ def render_region(img: np.ndarray, info: dict, dev: dict, region: list[float], o
             out = lensblur.visualize(out, eff2, frame, w, h, photo_id)
         if overlay.get("spots") is not None:
             out = finish_mod.spots_overlay(out, float(overlay["spots"]))
+        if overlay.get("sharpen"):
+            out = finish_mod.sharpen_overlay(out, lin, planes, eff2, info, ppl, str(overlay["sharpen"]))
     crop = out[ry0 - py0: ry1 - py0, rx0 - px0: rx1 - px0]
     return crop, [rx0, ry0, rx1, ry1], [W, H]
 

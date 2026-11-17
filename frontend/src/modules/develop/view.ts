@@ -8,6 +8,7 @@ import { icon } from '../../ui/icons';
 export interface Geo { norm: number[]; w: number; h: number; ow: number; oh: number; rect: number[]; angle: number; flipH: boolean; flipV: boolean }
 export type Zoom = 'fit' | 'fill' | number;
 export type Compare = 'off' | 'before' | 'lr' | 'tb' | 'split' | 'ref';
+export type SharpenView = '' | 'amount' | 'radius' | 'detail' | 'mask';
 
 export interface Pt { sx: number; sy: number; u: number; v: number; nx: number; ny: number; e: PointerEvent }
 
@@ -25,6 +26,7 @@ export interface Tool {
 }
 
 const MAX_LONG = 2560;
+const SHARPEN_REGION_MS = 500;
 
 class Img {
   readonly el: HTMLImageElement;
@@ -65,6 +67,8 @@ export class DevelopView {
   split = 0.5;
   clipping = false;
   depth = false;
+  sharpenView: SharpenView = '';
+  private sharpenRegionAt = 0;
   hdr: '' | 'display' | 'sdr' | 'visualize' = '';
   hdrBins: number[] | null = null;
   hdrStops = 0;
@@ -128,6 +132,14 @@ export class DevelopView {
   }
 
   setDragging(on: boolean): void { this.dragging = on; }
+
+  setSharpenView(mode: SharpenView): void {
+    if (mode === this.sharpenView) return;
+    this.sharpenView = mode;
+    setClass(this.root, 'is-sharpen-view', mode !== '');
+    this.schedule();
+    this.scheduleRegion(0);
+  }
 
   setZoom(z: Zoom, at?: { x: number; y: number }): void {
     if (at) { this.cx = at.x; this.cy = at.y; }
@@ -271,7 +283,8 @@ export class DevelopView {
     if (this.proof) overlay.proof = this.proof;
     const t = this.tool?.overlay?.();
     if (t) Object.assign(overlay, t);
-    const hdr = this.hdr === 'display' && (this.dragging || 'region' in extra || t) ? '' : this.hdr;
+    if (this.sharpenView) overlay.sharpen = this.sharpenView;
+    const hdr = this.hdr === 'display' && (this.dragging || 'region' in extra || t || this.sharpenView) ? '' : this.hdr;
     return { settings: develop.settings, view: 'develop', crop: !this.tool?.uncropped, quality: this.dragging ? 80 : 90, overlay: Object.keys(overlay).length ? overlay : undefined, ...(hdr ? { hdr } : {}), ...extra };
   }
 
@@ -312,6 +325,10 @@ export class DevelopView {
           this.place();
           this.onRendered?.(this.base.el);
           if (!this.dragging) this.scheduleRegion(80);
+          else if (this.sharpenView && performance.now() - this.sharpenRegionAt > SHARPEN_REGION_MS) {
+            this.sharpenRegionAt = performance.now();
+            this.scheduleRegion(0);
+          }
         }
       }
       if (this.compare === 'ref') this.renderReference();

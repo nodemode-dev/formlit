@@ -1,0 +1,7 @@
+Lensfun lens database, unmodified copy of data/db/*.xml
+Source: https://github.com/lensfun/lensfun
+Commit: 52cf1a7b0e82e07e0ecaa3391ee5106a6dd1ee54
+Snapshot: 2026-11-04
+Licence: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0), see COPYING.CC_BY-SA_3.0 and https://creativecommons.org/licenses/by-sa/3.0/
+Credit: Lens data from the Lensfun database (lensfun.github.io) by the Lensfun contributors, CC BY-SA 3.0
+The files in db/ are byte-for-byte copies of the files at that commit. formlit reads them and builds its own index in memory; the index is not distributed.

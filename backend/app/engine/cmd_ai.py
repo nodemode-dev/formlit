@@ -1,5 +1,6 @@
 import copy
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,9 @@ from app.engine.records import loads
 from app.services import previews
 
 VIEW_DROP = ("crop", "masks", "vignette", "grain", "lensBlur")
+DENOISE_LABELS = {"learned": "Denoise (learned, SCUNet)", "classic": "Denoise (classic)"}
+_download_lock = threading.Lock()
+_download_tasks: dict[str, int] = {}
 
 
 def cat():
@@ -64,7 +68,14 @@ def ai_models() -> dict:
 def ai_download(model: str, wait: bool = False) -> dict:
     if model not in models.MODELS:
         raise CommandError(f"Unknown model {model}; see ai.models")
-    tid = tasks.start("model", f"Installing {models.MODELS[model]['name']}", lambda p: models.download(model, p))
+    with _download_lock:
+        running = _download_tasks.get(model)
+        t = tasks.get(running) if running is not None else None
+        if t is not None and t["state"] == "running":
+            tid = running
+        else:
+            tid = tasks.start("model", f"Installing {models.MODELS[model]['name']}", lambda p: models.download(model, p))
+            _download_tasks[model] = tid
     if wait:
         t = tasks.wait(tid, 3600)
         if t and t["state"] == "failed":
@@ -81,7 +92,7 @@ def _people(rgb8: np.ndarray) -> tuple[np.ndarray, list[dict], list[dict]]:
     if models.ready("instances"):
         return alpha, faces, people_mod.from_instances(alpha, nets.instances(rgb8))
     found = people_mod.persons(rgb8, alpha, faces, components=True)
-    if len(found) > 1 and models.ready("objects"):
+    if len(found) > 1 and models.usable("objects"):
         found = people_mod.refine(alpha, found, lambda prompts: nets.sam_prompts(rgb8, prompts))
     return alpha, faces, found
 
@@ -164,7 +175,7 @@ def ai_mask(kind: str, id: int | None = None, box: list[float] | None = None, po
     _need(need)
     rgb8 = view_rgb8(pid)
     if kind in ("subject", "background"):
-        a = nets.u2net(rgb8, "subject")
+        a = nets.subject(rgb8)
         if kind == "background":
             a = 1.0 - a
     elif kind == "people":
@@ -256,7 +267,7 @@ def compute_shape(pid: int, sh: dict, memo: dict) -> bool:
             return True
     kind = sh.get("kind")
     need = {"subject": "subject", "background": "subject", "sky": "sky", "people": "people", "object": "objects", "depthRange": "depth"}.get(kind or "")
-    if (need and not sh.get("part") and not models.ready(need)) or (sh.get("part") and sh.get("kind") == "people" and not models.ready("people")):
+    if (need and not sh.get("part") and not models.usable(need)) or (sh.get("part") and sh.get("kind") == "people" and not models.ready("people")):
         return False
     if "rgb8" not in memo:
         memo["rgb8"] = view_rgb8(pid)
@@ -275,7 +286,7 @@ def compute_shape(pid: int, sh: dict, memo: dict) -> bool:
         a = memo["persons"][i]["alpha"] if i < len(memo["persons"]) else np.zeros(rgb8.shape[:2], np.float32)
     elif kind in ("subject", "background"):
         if "subject" not in memo:
-            memo["subject"] = nets.u2net(rgb8, "subject")
+            memo["subject"] = nets.subject(rgb8)
         a = memo["subject"] if kind == "subject" else 1.0 - memo["subject"]
     elif kind == "people":
         a = nets.u2net(rgb8, "people")
@@ -400,19 +411,20 @@ def _settings_for(src: int, drop: tuple) -> dict:
 @command("ai.denoise", "Denoise", {"ids": {"type": "array"}, "amount": {"type": "number", "minimum": 0, "maximum": 100}, "wait": {"type": "boolean"}})
 def ai_denoise(ids: Any = None, amount: float = 50.0, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
+    kind = enhance.denoiser()
 
     def job(progress):
         made = []
         for pid in pids:
             img, info = previews.source(pid, None, full=True)
-            out = enhance.denoise(img, float(amount), progress)
+            out = enhance.denoise(img, float(amount), progress, kind)
             target = _out_path(pid, "Enhanced-NR")
             dng.write_linear_dng(target, out, {**info, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pid,)))
             dev = _settings_for(pid, ("detail",))
             dev.setdefault("detail", {})["sharpenAmount"] = 20
-            made.append(_derived(pid, target, "Denoise", dev, progress))
-        return {"ids": made}
-    return _maybe_wait(tasks.start("denoise", "Denoise", job), wait)
+            made.append(_derived(pid, target, DENOISE_LABELS[kind], dev, progress))
+        return {"ids": made, "denoiser": kind}
+    return {**_maybe_wait(tasks.start("denoise", "Denoise", job), wait), "denoiser": kind}
 
 
 @command("ai.superResolution", "Super Resolution", {"ids": {"type": "array"}, "wait": {"type": "boolean"}})
@@ -995,7 +1007,7 @@ def control_maps(id: int | None = None, kinds: list[str] | None = None, size: in
     kinds = [k for k in (kinds or list(control.KINDS)) if k in control.KINDS]
     rgb8 = view_rgb8(pid, long=int(size or 1024))
     depth = nets.depth(rgb8) if "depth" in kinds and models.ready("depth") else None
-    subject = nets.u2net(rgb8, "subject") if "subject" in kinds and models.ready("subject") else None
+    subject = nets.subject(rgb8) if "subject" in kinds and models.usable("subject") else None
     out = control.render(rgb8, kinds, depth, subject)
     out["missing"] = [k for k in kinds if k not in out]
     return out
@@ -1020,7 +1032,7 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
         cv2.line(full, (int(px), int(py)), (int(q[0]), int(q[1])), 255, int(max(1, r * 2)))
         cv2.circle(full, (int(px), int(py)), int(r), 255, -1)
     detect = bool(detect or spot.get("detect"))
-    if detect and models.ready("objects"):
+    if detect and models.usable("objects"):
         ys, xs = np.nonzero(full)
         grow = r * 1.2
         box = [max(0.0, (xs.min() - grow) / w), max(0.0, (ys.min() - grow) / h), min(1.0, (xs.max() + grow) / w), min(1.0, (ys.max() + grow) / h)]
@@ -1069,7 +1081,7 @@ def remove_fill(spot: dict, id: int | None = None, variants: int = 3, detect: bo
             if sample.sum() >= 255 * 64 * 16:
                 break
     elif area == "sameSurface":
-        if not models.ready("objects"):
+        if not models.usable("objects"):
             raise CommandError("Sample from the same surface needs the objects model (ai.download model objects)")
         from app.services import decode
         lin709 = np.maximum(sampled.reshape(-1, 3) @ decode.REC2020_TO_SRGB.T, 0.0).reshape(sampled.shape)

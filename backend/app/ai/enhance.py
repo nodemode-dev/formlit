@@ -35,9 +35,13 @@ def _from_srgb(x: np.ndarray) -> np.ndarray:
     return np.where(x <= 0.04045, x / 12.92, np.power((x + 0.055) / 1.055, 2.4)).astype(np.float32)
 
 
-def denoise(lin: np.ndarray, amount: float = 50.0, progress=None) -> np.ndarray:
+def denoiser() -> str:
     from app.ai import models
-    if models.ready("denoise"):
+    return "learned" if models.ready("denoise") else "classic"
+
+
+def denoise(lin: np.ndarray, amount: float = 50.0, progress=None, kind: str | None = None) -> np.ndarray:
+    if (kind or denoiser()) == "learned":
         peak = max(1e-6, float(np.percentile(lin, 99.98)))
         x = _to_srgb(lin / peak)
         clean = nets.scunet(x, progress)

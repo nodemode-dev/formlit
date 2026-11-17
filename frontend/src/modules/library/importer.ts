@@ -7,7 +7,11 @@ import { toast } from '../../ui/toast';
 import { patternOptions } from '../shared/templates';
 import { loadMetaPresets, type MetaPresets } from './metadata-presets';
 
-interface Root { name: string; path: string; kind: string }
+interface Root { name: string; path: string; kind: string; removable?: boolean; card?: boolean }
+
+function removableRoots(roots: Root[]): string[] {
+  return roots.filter((r) => r.removable ?? r.kind === 'volume').map((r) => r.path);
+}
 interface ScanFile { path: string; name: string; size: number; mtime: number; kind: string; duplicate: boolean; inCatalog: boolean }
 
 const PREFS_KEY = 'formlit_import';
@@ -197,10 +201,10 @@ class ImportDialog extends Dialog {
     this.open(this.go);
     const roots = await this.ctx.api.get<{ roots: Root[]; library: string }>('/api/files/roots');
     if (!this.prefs.destination) this.prefs.destination = roots.library;
-    this.volumes = roots.roots.filter((r) => r.kind === 'volume').map((r) => r.path);
+    this.volumes = removableRoots(roots.roots);
     patchList(this.roots, roots.roots, {
       key: (r) => r.path,
-      create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
+      create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'camera' ? 'tether' : r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
       update: () => undefined,
     });
     const presets = await this.ctx.api.cmd<{ presets: Array<{ id: string; name: string; group: string }> }>('preset.list').catch(() => ({ presets: [] }));
@@ -219,7 +223,10 @@ class ImportDialog extends Dialog {
     this.importPresets = (stored.importPresets as Record<string, ImportPreset> | undefined) ?? {};
     this.fillPresets();
     this.syncFields();
-    await this.browse(start || this.prefs.last || roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/');
+    const card = roots.roots.find((r) => r.card)?.path ?? '';
+    const fallback = roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/';
+    const first = start || (card && !this.prefs.last.startsWith(card) ? card : '') || this.prefs.last || fallback;
+    if (!(await this.browse(first, !start)) && first !== fallback) await this.browse(fallback);
   }
 
   private syncFields(): void {
@@ -233,17 +240,17 @@ class ImportDialog extends Dialog {
     }
   }
 
-  private async browse(path: string): Promise<void> {
+  private async browse(path: string, quiet = false): Promise<boolean> {
     const seq = ++this.seq;
     try {
-      const r = await this.ctx.api.get<{ path: string; parent: string | null; dirs: Array<{ name: string; path: string }> }>(`/api/files/list?path=${encodeURIComponent(path)}`);
-      if (seq !== this.seq) return;
+      const r = await this.ctx.api.get<{ path: string; parent: string | null; dirs: Array<{ name: string; path: string }>; crumbs?: Array<{ name: string; path: string }> }>(`/api/files/list?path=${encodeURIComponent(path)}`);
+      if (seq !== this.seq) return true;
       this.path = r.path;
       this.prefs.last = r.path;
       this.save();
       const parts = r.path.split(/[\\/]/).filter(Boolean);
       const sep = r.path.includes('\\') ? '\\' : '/';
-      const crumbs = parts.map((p, i) => ({ name: p, path: (r.path.startsWith(sep) ? sep : '') + parts.slice(0, i + 1).join(sep) + (i === 0 && /^[A-Z]:$/.test(p) ? sep : '') }));
+      const crumbs = r.crumbs ?? parts.map((p, i) => ({ name: p, path: (r.path.startsWith(sep) ? sep : '') + parts.slice(0, i + 1).join(sep) + (i === 0 && /^[A-Z]:$/.test(p) ? sep : '') }));
       this.crumbs.innerHTML = crumbs.map((c) => `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button>`).join(`<span>${icon('chevronRight', 10)}</span>`);
       const dirs = [...(r.parent ? [{ name: '..', path: r.parent }] : []), ...r.dirs];
       this.dirs.replaceChildren(...dirs.map((d) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(d.path)}">${icon(d.name === '..' ? 'chevronUp' : 'folder', 14)}<span>${escapeHtml(d.name)}</span></button>`)));
@@ -251,7 +258,11 @@ class ImportDialog extends Dialog {
       const best = rows.map((b) => b.dataset.path ?? '').filter((p) => p && r.path.startsWith(p)).sort((a, b) => b.length - a.length)[0];
       for (const b of rows) setClass(b, 'is-on', b.dataset.path === best);
       await this.scan();
-    } catch (err) { this.ctx.fail(err); }
+      return true;
+    } catch (err) {
+      if (!quiet) this.ctx.fail(err);
+      return false;
+    }
   }
 
   private async scan(): Promise<void> {
@@ -295,9 +306,10 @@ class ImportDialog extends Dialog {
 
   private sync(): void {
     for (const b of Array.from(this.body.querySelectorAll<HTMLElement>('[data-mode]'))) setClass(b, 'is-on', b.dataset.mode === this.prefs.mode);
-    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' ? 'Copy photos to a new location and add them' : this.prefs.mode === 'dng' ? 'Convert raw files to DNG in a new location and add them' : 'Move photos to a new location and add them');
+    const camera = this.path.startsWith('camera://');
+    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' && !camera ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' || this.prefs.mode === 'add' ? 'Copy photos to a new location and add them' : this.prefs.mode === 'dng' ? 'Convert raw files to DNG in a new location and add them' : 'Move photos to a new location and add them');
     setHidden(q(this.body, '.fl-imp-eject'), !this.onVolume());
-    this.dest.hidden = this.prefs.mode === 'add';
+    this.dest.hidden = this.prefs.mode === 'add' && !camera;
     for (const n of Array.from(this.grid.children) as HTMLElement[]) setClass(n, 'is-on', this.checked.has(n.dataset.key ?? ''));
     const n = this.checked.size;
     const bytes = this.files.filter((f) => this.checked.has(f.path)).reduce((a, f) => a + f.size, 0);

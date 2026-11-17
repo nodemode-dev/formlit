@@ -15,9 +15,11 @@ formlit is licensed under the Apache License 2.0 (see `LICENSE`). Copyright 2026
 | 25 photographs from Pexels, resized and re-encoded, in the offline demo (photographers and source pages in `demo/CREDITS.md`) | Pexels License | `demo/assets/media/` |
 | 9 photographs from Pexels and 6 selection bitmaps made from them, in the develop demo (photographers and source pages in `demos/develop/CREDITS.md`) | Pexels License | `demos/develop/assets/media/` |
 | 19 photographs from Pexels, the NASA Blue Marble Next Generation image (NASA Earth Observatory, reduced in size) and a 64 second excerpt of Piano Fantasia No. 1 by Peter Bille Larsen (CC0 1.0), in the share demo (sources and changes in `demos/share/CREDITS.md`) | Pexels License; NASA media usage guidelines; CC0 1.0 | `demos/share/assets/media/` |
+| Lensfun lens database, `data/db/*.xml` at commit 52cf1a7b (2026-11-04), byte-for-byte copies, with its licence file `COPYING.CC_BY-SA_3.0` and `SOURCE.txt` naming the commit (Lensfun contributors, lensfun.github.io) | CC BY-SA 3.0, unmodified | `shared/lensfun/` |
+| Canon EOS R5 dual-illuminant camera profile from RawTherapee (`rtdata/dcpprofiles/Canon EOS R5.dcp`, commit 352ba5a6; SHA-256 47dbb2573e1cb78de67ba63a42f47c109457920b7388fcde829a7b026c076b98), a test fixture only | public domain, as the file's own ProfileCopyright tag states | `backend/tests/fixtures/dcp/`; not in any bundle |
 The formlit mark is original.
 
-Material used only to test this build on the developer's machine is not included in the repository or any bundle: raw sample files from raw.pixls.us (CC0) and camera DCPs from RawTherapee (used to check DCP rendering, not distributed).
+Material used only to test this build on the developer's machine is not included in the repository or any bundle: raw sample files from raw.pixls.us (CC0) and RawTherapee's other camera DCPs (used to check DCP rendering, not distributed).
 
 ## Format and method references (no code copied)
 
@@ -57,7 +59,9 @@ formlit reads and writes DNG files (AI Denoise and import conversion write them,
 | ptyprocess (macOS, Linux), pywinpty (Windows) | ISC, MIT | pseudo-terminals for the terminal dock |
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
 | ffmpeg 7.1.5, ffprobe | LGPL-2.1-or-later for the downloaded build; an installed one keeps its own licence | not bundled; an installed ffmpeg is used as before, and when none is found the engine downloads the LGPL build (`--disable-gpl --disable-nonfree`; libopus and libvpx BSD-3-Clause) from the nodemode-dev/formcut-binaries release on first run, checks every file's SHA-256 against `backend/app/ffmpeg_record.py`, and runs it as an external program for video thumbnails, slideshow video and video export; its source is attached to that release |
-| gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode and reads its output, without linking to libgphoto2 |
+| gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode, and Import from a camera on macOS and Linux runs it as a separate process (`--auto-detect`, `--list-files`, `--get-file`, `--get-thumbnail`, `--delete-file`) and reads its output, without linking to libgphoto2 |
+| Windows Shell (Shell.Application) and Windows PowerShell | part of Windows | not bundled; Import from a camera on Windows runs a PowerShell script built into the engine that reaches Windows Portable Devices through the Shell; nothing is linked and no package is added |
+| Lensfun lens database (see Included in this repository) | CC BY-SA 3.0, unmodified | `shared/lensfun/`, copied into the frozen engine with `shared/`; credited in Lens Corrections ("Lens data from the Lensfun database, CC BY-SA 3.0") and here |
 | digiCamControl | MIT | not bundled; tethered capture on Windows runs the user's installed CameraControlCmd.exe |
 | imagecodecs | BSD-3-Clause; bundles libjxl (BSD-3-Clause), libavif (BSD-2-Clause), libultrahdr (Apache-2.0), aom and dav1d (BSD-2-Clause) and other permissively licensed codecs, each licence in its `licenses/` folder | JPEG XL import and export, HDR AVIF and JPEG XL export, Ultra HDR checks |
 
@@ -67,11 +71,13 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 
 | Model | License | Use |
 | --- | --- | --- |
-| U-2-Net (rembg release) | Apache-2.0 | Select Subject, Select Background |
+| BiRefNet general, Swin-T backbone (Zheng Peng et al.), the author's ONNX export BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx, https://github.com/ZhengPeng7/BiRefNet/releases/tag/v1 | MIT (repository licence, Copyright (c) 2024 ZhengPeng) | Select Subject, Select Background: the recommended model |
+| U-2-Net (rembg release) | Apache-2.0 | Select Subject, Select Background: the small and fast model |
+| SAM 2.1 base plus (Meta), ONNX export by onnx-community at revision bab18593, https://huggingface.co/onnx-community/sam2.1-hiera-base-plus-ONNX | Apache-2.0 (Meta's SAM 2 weights and code) | Select Objects: the recommended model |
 | Sky segmenter (xiongzhu666, Hugging Face copy) | MIT | Select Sky |
 | YuNet face detector, SFace recognizer (OpenCV Zoo) | MIT, Apache-2.0 | People view, Select People |
 | Depth Anything V2 Small (onnx-community export) | Apache-2.0 | Depth Range masks, Lens Blur |
-| SAM 2.1 tiny (ONNX) | Apache-2.0 | Select Objects |
+| SAM 2.1 tiny (ONNX) | Apache-2.0 | Select Objects: the small and fast model |
 | LaMa (Carve ONNX export) | Apache-2.0 | Generative Remove |
 | Real-ESRGAN x4plus | BSD-3-Clause | Super Resolution |
 | U-2-Net human segmentation (u2net_human_seg.onnx, rembg release v0.0.0), https://github.com/danielgatis/rembg/releases/tag/v0.0.0 | Apache-2.0, as `backend/app/ai/models.py` records | Select People |
@@ -80,7 +86,7 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 | Mask R-CNN v2 ResNet-50 FPN (torchvision), ONNX export in the ONNX Model Zoo, https://huggingface.co/onnxmodelzoo/maskrcnn_resnet50_fpn_v2_Opset17 | BSD-3-Clause weights, Apache-2.0 export, as `models.py` records | Selecting each person apart |
 | SigLIP base patch16-224 (Google), quantized ONNX export by Xenova, https://huggingface.co/Xenova/siglip-base-patch16-224 | Apache-2.0, as `models.py` records | Search by description |
 
-The lens profile database is downloaded when the person chooses Download Lens Profiles in Lens Corrections: the Lensfun project's XML files (data/db, lensfun.github.io), used unmodified under CC BY-SA 3.0 and credited in the panel. formlit reads the files and keeps a derived index beside them in the models folder; Lensfun's LGPL library code is not used. Unlike the models, the files track Lensfun's main branch and are not hash-pinned, because the database is updated as lenses are calibrated. The data is downloaded only on request, and no checksum is pinned or checked for it.
+The lens profile database ships with formlit (`shared/lensfun/`, above) and can be updated when the person or an agent runs `lens.database` with download: the Lensfun project's XML files (data/db, lensfun.github.io), used unmodified under CC BY-SA 3.0 and credited in the panel. formlit reads the files and builds its index in memory (the bundled copy) or beside the downloaded files in the models folder; Lensfun's LGPL library code is not used. Unlike the models, downloaded files track Lensfun's main branch and are not hash-pinned, because the database is updated as lenses are calibrated. A download is made only on request, no checksum is pinned or checked for it, and it is used instead of the bundled copy only when it is at least as new.
 
 ## Python packages frozen into the engine, beyond the tables above
 

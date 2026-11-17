@@ -2,6 +2,27 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## Unreleased
+
+- Added: in Develop, hold Alt (Option on a Mac) while dragging a Sharpening slider to see what it changes: Masking shows the edge mask (white is sharpened), Amount the sharpened result in greyscale, Radius and Detail the sharpening halos on grey. Letting go brings back the photo. A hint under the sliders says so.
+- Added: a Subject, Sky, Background, People, Objects, Depth Range or part mask whose AI model is not installed offers Install Now with the download size, then makes the mask. Cancel shows the same message as before.
+- Added: sharper selection models. Subject and Background can use BiRefNet (224 MB, MIT) and Objects can use SAM 2.1 base plus (328 MB, Apache-2.0). Both are recommended in Preferences and in Install Now; U2-Net and SAM 2.1 tiny stay as the small and fast choice, and masks use the best one installed. On an Apple silicon Mac a BiRefNet mask takes about 8 s and up to 6 GB of memory.
+- Added: the Enhance dialog offers to install the learned denoiser (77 MB) when it is missing; without it Denoise still uses the classic denoiser.
+- Added: Lens Corrections shows which Lensfun lens profiles are in use (bundled with formlit, or downloaded, with the date), and Update Lens Profiles downloads the newest ones.
+- Added: the new strings in all 25 languages.
+- Fixed: on Windows, a memory card or other removable drive counts as removable in Import, so Eject after import shows and works, and the Import dialog opens on a card (a drive or volume with a DCIM folder). A card reader that reports a fixed drive is still opened as a card when it has a DCIM folder and is not the system drive, but Eject is offered only for drives Windows reports as removable.
+- Not verified yet: Windows (the drive checks were run with the Windows call stubbed) and real model and lens profile downloads from the window.
+- Added: import straight from a camera connected by USB. A camera shows under Source beside the drives (on Windows through Windows Portable Devices, on macOS and Linux through gphoto2 when it is installed, and on Linux also a camera the desktop has mounted), its folders browse like any folder, and Copy, Move, Copy as DNG and Add bring in CR3, CR2, NEF, ARW, RAF, DNG, JPG, HEIC, MP4 and the other supported files with the usual templates and options. Add from a camera copies into the destination. Move removes from the camera only the files the import names as imported; duplicates, files that failed and anything not accounted for stay on it. A file name from the camera that could reach outside the import folder is refused and reported.
+- Added: lens profile corrections work without a download. The Lensfun lens database ships with formlit; downloading lens profiles still updates it and is used when it is newer.
+- Fixed: a Sigma Art lens on a Canon EOS R5 ("50mm F1.4 DG HSM | Art 014") gets the Sigma 50mm Art profile, not another Sigma's, and an RF 135mm F1.8 on an R5 Mark II gets the RF 135mm profile. A lens that cannot be matched with confidence gets no profile and Lens Corrections says so.
+- Fixed: Remove Chromatic Aberration says "Corrected by the lens profile" when the profile already corrects it, and AI Denoise says whether the learned or the classic denoiser ran.
+- Fixed: one download per AI model at a time, and a model file counts as installed only with its pinned checksum.
+- Fixed: from a camera, file numbers come only from what gphoto2 printed and are checked again before every copy and delete; thumbnails wait while that camera imports; {folder} keeps the camera's folder name.
+- Fixed: Copy as DNG in the Import dialog was refused with "mode must be one of add, copy, move".
+- Fixed: Canon RF lenses are matched to their Lensfun profiles from the lens name in CR3 files, and a lens Lensfun does not have (such as the RF 24-70mm F2.8 L IS USM Z or the RF 20mm F1.4 L VCM) is no longer given another lens's profile.
+- Fixed: a DNG camera profile whose name is stored as bytes imports with its name.
+- Checked here: the engine tests (camera import with a simulated camera and recorded gphoto2 and Windows replies, lens matching for 18 RF lenses, DNG camera profiles against a synthetic dual-illuminant profile and a real public-domain Canon EOS R5 profile), the window tests, the frontend build and audit, the engine boot probe and the script checks, on an Apple silicon Mac. Not verified yet: a real camera on Windows, macOS or Linux, and the desktop builds.
+
 ## v0.51.3 · 2026-11-11
 
 - Fixed: in Develop, going to another photo and quickly back kept the edits on the photo you came back to; before, the next edit could be saved to the photo you had left.

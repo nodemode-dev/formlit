@@ -1,18 +1,28 @@
 import type { Ctx } from '../../app';
 import { develop, getPath, type Profile } from '../../state/develop';
-import { el, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
+import { el, isMac, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
 import { Histogram } from '../../ui/histogram';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
 import { Slider } from '../../ui/slider';
+import { toast } from '../../ui/toast';
 import { whenDone } from '../shared/tasks';
 import { CurveEditor } from './curve';
 import { HdrSection } from './hdr';
-import type { DevelopView } from './view';
+import type { DevelopView, SharpenView } from './view';
 import { ColorWheel } from './wheel';
 
 const BANDS = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
 const MIRED_STEP = 0.75;
+interface LensDbSource { source: string | null; date: string }
+
+function lensDbText(s: LensDbSource | undefined): string {
+  if (s?.source === 'downloaded') return s.date ? `Lensfun lens profiles, downloaded ${s.date}` : 'Lensfun lens profiles, downloaded';
+  if (s?.source === 'bundled') return s.date ? `Lensfun lens profiles, bundled with formlit (${s.date})` : 'Lensfun lens profiles, bundled with formlit';
+  return 'No lens profile database yet.';
+}
+
+const SHARPEN_VIEWS: Record<string, SharpenView> = { 'detail.sharpenAmount': 'amount', 'detail.sharpenRadius': 'radius', 'detail.sharpenDetail': 'detail', 'detail.sharpenMasking': 'mask' };
 const RAW_ONLY_WB = new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
 
 function shotTemp(): number { return develop.info?.asShotTemp || 6500; }
@@ -50,11 +60,13 @@ export class SliderSet {
   make(cid: string, label?: string): HTMLElement {
     const spec = develop.specs.get(cid);
     if (!spec) return el('<div></div>');
+    const view = SHARPEN_VIEWS[cid];
     const s = new Slider({ ...spec, label: label ?? spec.label }, {
       input: (id, v, phase) => {
         this.view.setDragging(phase === 'drag');
         develop.set(id, v, phase);
       },
+      ...(view ? { hold: (on: boolean) => this.view.setSharpenView(on ? view : '') } : {}),
     });
     this.sliders.set(cid, s);
     return s.root;
@@ -166,6 +178,7 @@ export class DevelopPanels {
 
     const pDetail = this.panel('dev.detail', 'Detail', 'detail');
     pDetail.body.append(el('<div class="fl-sub">Sharpening</div>'), s('detail.sharpenAmount', 'Amount'), s('detail.sharpenRadius'), s('detail.sharpenDetail'), s('detail.sharpenMasking'),
+      el(`<p class="fl-muted fl-sharpen-hint">Hold ${isMac ? 'Option' : 'Alt'} while dragging a Sharpening slider to see what it changes; Masking shows the sharpened areas in white.</p>`),
       el('<div class="fl-sub">Noise Reduction</div>'), s('detail.nrLuminance', 'Luminance'), s('detail.nrDetail'), s('detail.nrContrast'), s('detail.nrColor', 'Color'), s('detail.nrColorDetail'), s('detail.nrColorSmoothness'),
       el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Zoom to 1:1 (Z) to judge sharpening and noise.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.aiDenoise">${icon('aiChip', 13)} Denoise...</button></div>`));
 
@@ -183,9 +196,8 @@ export class DevelopPanels {
     const pick = el('<div class="fl-lens-pick"><div class="fl-row"><span class="fl-row-label">Make</span><select class="cv-select fl-grow" data-lens="maker"></select></div><div class="fl-row"><span class="fl-row-label">Model</span><select class="cv-select fl-grow" data-lens="model"></select></div><div class="fl-muted fl-lens-attr"></div></div>');
     const makerSel = q<HTMLSelectElement>(pick, '[data-lens="maker"]');
     const modelSel = q<HTMLSelectElement>(pick, '[data-lens="model"]');
-    const dbRow = el('<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">No lens profile database yet.</span><button class="cv-btn fl-btn-sm" type="button">Download Lens Profiles</button></div>');
+    const dbRow = el('<div class="fl-lens-db"><span class="fl-muted fl-lens-db-note"></span><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button">Update Lens Profiles</button></div></div>');
     setHidden(pick, true);
-    setHidden(dbRow, true);
     const fillModels = async (maker: string, chosen: string | null): Promise<void> => {
       const r = await this.ctx.api.cmd<{ models: string[] }>('lens.models', { maker }).catch(() => ({ models: [] as string[] }));
       modelSel.replaceChildren(new Option('Choose a lens...', ''), ...r.models.map((m) => new Option(m, m)));
@@ -197,9 +209,20 @@ export class DevelopPanels {
       if (id === null || !modelSel.value) return;
       void develop.flush().then(() => this.ctx.api.cmd('develop.lensProfile', { ids: [id], enable: true, lens: modelSel.value })).then(() => develop.reload('photo'), (err) => this.ctx.fail(err));
     });
-    dbRow.querySelector('button')?.addEventListener('click', () => {
-      setText(q(dbRow, 'span'), 'Downloading...');
-      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task)).then(() => { lensFor = null; setHidden(dbRow, true); develop.reload('photo'); }, (err) => { setText(q(dbRow, 'span'), 'Download failed'); this.ctx.fail(err); });
+    const dbButton = q<HTMLButtonElement>(dbRow, 'button');
+    const showDb = (s: LensDbSource | undefined): void => {
+      setText(q(dbRow, 'span'), lensDbText(s));
+      q(dbRow, 'span').setAttribute('title', lensDbText(s));
+      setText(dbButton, s?.source ? 'Update Lens Profiles' : 'Download Lens Profiles');
+    };
+    dbButton.addEventListener('click', () => {
+      dbButton.disabled = true;
+      setText(q(dbRow, 'span'), 'Updating lens profiles...');
+      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task))
+        .then(() => this.ctx.api.cmd<LensDbSource>('lens.database'))
+        .then((s) => { showDb(s); lensFor = null; develop.reload('photo'); toast('Lens profiles updated'); },
+          (err) => { setText(q(dbRow, 'span'), 'The update failed; the current lens profiles are kept.'); this.ctx.fail(err); })
+        .finally(() => { dbButton.disabled = false; });
     });
     let lensFor: number | null = null;
     let makersLoaded = false;
@@ -209,11 +232,11 @@ export class DevelopPanels {
       if (lensBox.checked !== !!prof?.enabled) lensBox.checked = !!prof?.enabled;
       if (develop.id !== null && develop.id !== lensFor) {
         lensFor = develop.id;
-        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null; databaseSource?: LensDbSource }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+          showDb(r.databaseSource);
           const using = r.lens ? `${r.lens} (Lensfun)` : r.source === 'DNG opcodes' ? 'Built in (DNG opcodes)' : r.guess ? `${r.guess.model} (Lensfun)` : 'No profile found; choose the lens';
           setText(q(lensRow, '.fl-lens-note'), using);
           lensBox.disabled = !r.available && !prof?.enabled;
-          setHidden(dbRow, r.database || r.source === 'DNG opcodes');
           setHidden(pick, !r.database || r.source === 'DNG opcodes');
           setText(q(pick, '.fl-lens-attr'), r.database ? 'Lens data from the Lensfun database, CC BY-SA 3.0' : '');
           if (r.database && r.source !== 'DNG opcodes') {
@@ -237,14 +260,15 @@ export class DevelopPanels {
       if (id === null) return;
       const on = caBox.checked;
       setText(q(caRow, '.fl-ca-note'), on ? 'Measuring...' : '');
-      const done = (vals: { autoCaRed: number; autoCaBlue: number }) => {
+      const done = (vals: { autoCaRed: number; autoCaBlue: number; fromProfile?: boolean }) => {
         if (develop.id !== id) return;
-        const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}), removeCa: on, ...vals };
+        const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}), removeCa: on, autoCaRed: vals.autoCaRed, autoCaBlue: vals.autoCaBlue };
         develop.patch('optics', opt, 'end', on ? 'Remove Chromatic Aberration' : 'Keep Chromatic Aberration');
-        setText(q(caRow, '.fl-ca-note'), on && !vals.autoCaRed && !vals.autoCaBlue ? 'None found' : '');
+        const note = !on ? '' : vals.fromProfile ? 'Corrected by the lens profile' : !vals.autoCaRed && !vals.autoCaBlue ? 'None found' : '';
+        setText(q(caRow, '.fl-ca-note'), note);
       };
       if (!on) { done({ autoCaRed: 0, autoCaBlue: 0 }); return; }
-      void this.ctx.api.cmd<{ autoCaRed: number; autoCaBlue: number }>('develop.autoCa', { id }).then(done, (err) => { caBox.checked = false; setText(q(caRow, '.fl-ca-note'), ''); this.ctx.fail(err); });
+      void this.ctx.api.cmd<{ autoCaRed: number; autoCaBlue: number; fromProfile?: boolean }>('develop.autoCa', { id }).then(done, (err) => { caBox.checked = false; setText(q(caRow, '.fl-ca-note'), ''); this.ctx.fail(err); });
     });
     develop.listen((why) => {
       if (why === 'drag') return;

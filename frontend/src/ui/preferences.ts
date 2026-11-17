@@ -138,8 +138,9 @@ class Preferences extends Dialog {
         ['Version', caps.version], ['Catalog', caps.catalog], ['Data folder', caps.dataDir], ['Raw decoding', yes(caps.raw)], ['HEIC', yes(caps.heic)],
         ['AI models runtime', yes(caps.onnx)], ['PDF output', yes(caps.pdf)], ['Video (ffmpeg)', yes(caps.ffmpeg)], ['Render workers', String(caps.workers)],
       ].map(([k, v]) => `<div class="fl-meta-row"><span class="fl-meta-key">${k}</span><span class="fl-meta-val">${escapeHtml(String(v))}</span></div>`).join('');
-      const ms = await this.ctx.api.cmd<{ models: Array<{ id: string; name: string; license: string; sizeMB: number; ready: boolean; downloading: boolean }> }>('ai.models');
-      this.models.innerHTML = ms.models.map((m) => `<div class="fl-meta-row fl-model-row"><span class="fl-meta-key">${escapeHtml(m.name)}</span><span class="fl-meta-val">${m.sizeMB} MB · ${escapeHtml(m.license)} ${m.ready ? '<em class="fl-ok">Installed</em>' : `<button class="cv-btn fl-btn-sm" type="button" data-model="${m.id}"${m.downloading ? ' disabled' : ''}>${m.downloading ? 'Installing...' : 'Install'}</button>`}</span></div>`).join('');
+      const ms = await this.ctx.api.cmd<{ models: Array<{ id: string; name: string; license: string; sizeMB: number; ready: boolean; downloading: boolean; for?: string; recommended?: boolean }> }>('ai.models');
+      const role = (m: { for?: string; recommended?: boolean }): string => (m.for ? `<span class="fl-muted fl-model-role">${m.recommended ? 'Recommended' : 'Small and fast'}</span>` : '');
+      this.models.innerHTML = ms.models.map((m) => `<div class="fl-meta-row fl-model-row"><span class="fl-meta-key">${escapeHtml(m.name)}${role(m)}</span><span class="fl-meta-val">${m.sizeMB} MB · ${escapeHtml(m.license)} ${m.ready ? '<em class="fl-ok">Installed</em>' : `<button class="cv-btn fl-btn-sm" type="button" data-model="${m.id}"${m.downloading ? ' disabled' : ''}>${m.downloading ? 'Installing...' : 'Install'}</button>`}</span></div>`).join('');
     } catch { setText(q(this.body, '.fl-prefs-engine'), 'The engine is not reachable.'); }
   }
 }
