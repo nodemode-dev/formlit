@@ -273,7 +273,7 @@ def render_region(img: np.ndarray, info: dict, dev: dict, region: list[float], o
             out = finish_mod.spots_overlay(out, float(overlay["spots"]))
         if overlay.get("sharpen"):
             out = finish_mod.sharpen_overlay(out, lin, planes, eff2, info, ppl, str(overlay["sharpen"]))
-    crop =out[ry0 - py0: ry1 - py0, rx0 - px0: rx1 - px0]
+    crop = out[ry0 - py0: ry1 - py0, rx0 - px0: rx1 - px0]
     return crop, [rx0, ry0, rx1, ry1], [W, H]
 
 

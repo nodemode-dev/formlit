@@ -744,6 +744,7 @@ def mask_overlay(e: np.ndarray, alpha: np.ndarray, color=(1.0, 0.23, 0.23), opac
 
 SHARP_VIEWS = ("amount", "radius", "detail", "mask")
 SHARP_VIEW_GAIN = 4.0
+SHARP_SIG_MIN = 0.12
 LUMA_709 = np.array([0.2126, 0.7152, 0.0722], np.float32)
 
 
@@ -759,8 +760,11 @@ def sharpen_overlay(e: np.ndarray, lin: np.ndarray, planes: dict, dev: dict, inf
         full_long = float(max(_num(info.get("fullWidth"), 0.0), _num(info.get("fullHeight"), 0.0)) or ppl)
         scale = min(float(ppl) / max(full_long, 1.0), 4.0)
         det, msk = g("detail.sharpenDetail") / 100.0, g("detail.sharpenMasking") / 100.0
-        d, edge = pl.sharp_detail(planes if isinstance(planes, dict) else {}, lin, max(g("detail.sharpenRadius") * scale * 0.85, 0.12))
-        if mode == "mask":
+        sig = max(g("detail.sharpenRadius") * scale * 0.85, 0.0)
+        d, edge = pl.sharp_detail(planes if isinstance(planes, dict) else {}, lin, max(sig, SHARP_SIG_MIN))
+        if sig < SHARP_SIG_MIN:
+            v = np.zeros(edge.shape, np.float32) if mode == "mask" else np.full(edge.shape, 0.5, np.float32)
+        elif mode == "mask":
             thr = SHARP_MASK[0] + SHARP_MASK[1] * msk ** 2
             v = _smooth(0.5 * thr, 1.5 * thr, edge * np.float32(scale)) if msk > 0 else np.ones(edge.shape, np.float32)
         else:

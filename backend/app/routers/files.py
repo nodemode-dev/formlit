@@ -40,7 +40,7 @@ def _drive(letter: str, kind_of: Callable[[str], int] = _drive_type) -> dict:
     system = os.environ.get("SystemDrive", "C:").upper().rstrip("\\")
     kind = kind_of(root)
     card = f"{letter}:".upper() != system and kind in (DRIVE_REMOVABLE, DRIVE_FIXED) and _has_dcim(Path(root))
-    return {"name": f"{letter}:", "path": root, "kind": "drive", "removable": kind == DRIVE_REMOVABLE or card, "card": card}
+    return {"name": f"{letter}:", "path": root, "kind": "drive", "removable": kind == DRIVE_REMOVABLE, "card": card}
 
 
 def _volume(child: Path) -> dict:

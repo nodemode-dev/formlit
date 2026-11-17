@@ -60,6 +60,17 @@ def test_sharpen_radius_and_detail_views_are_mid_grey_away_from_edges(edge_photo
     assert out[8:88, 72:120, 0].std() > 0.05
 
 
+def test_below_the_smallest_sigma_the_views_match_a_pass_that_does_not_sharpen(edge_photo):
+    from app.develop import render
+
+    img, info = edge_photo
+    dev = {"detail": {**SHARP["detail"], "sharpenRadius": 0.5}}
+    small = lambda overlay, d=dev: render.render(img, info, d, size=(32, 24), space="srgb", overlay=overlay)
+    assert np.allclose(small(None), small(None, {"detail": {**dev["detail"], "sharpenAmount": 0}}), atol=1e-5)
+    assert np.allclose(small({"sharpen": "radius"}), 0.5) and np.allclose(small({"sharpen": "detail"}), 0.5)
+    assert np.allclose(small({"sharpen": "mask"}), 0.0)
+
+
 def test_unknown_sharpen_view_leaves_the_render_alone(edge_photo):
     assert np.allclose(rendered(edge_photo, {"sharpen": "nope"}), rendered(edge_photo, None))
 
@@ -118,7 +129,7 @@ def test_the_lens_prompt_preference_is_gone():
 @pytest.mark.parametrize("letter,kind,dcim,removable,card", [
     ("E", 2, False, True, False),
     ("E", 2, True, True, True),
-    ("F", 3, True, True, True),
+    ("F", 3, True, False, True),
     ("D", 3, False, False, False),
     ("C", 3, True, False, False),
     ("G", 4, True, False, False),

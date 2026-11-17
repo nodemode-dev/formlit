@@ -25,7 +25,6 @@ ATTRIBUTION = "Lens data from the Lensfun database (lensfun.github.io), CC BY-SA
 VERSIONS = {"ii", "iii", "iv", "z"}
 _lock = threading.Lock()
 _index: dict | None = None
-_MOUNTS: dict[str, set[str]] = {}
 
 
 def folder() -> Path:
@@ -77,18 +76,17 @@ def _use_download() -> bool:
 
 
 def _bundled_index() -> dict:
-    global _MOUNTS
-    _MOUNTS = {}
+    found: dict[str, set[str]] = {}
     cams: list[dict] = []
     lenses: list[dict] = []
     for path in sorted((bundled_folder() / "db").glob("*.xml")):
         try:
-            c, ln = _parse(path.read_bytes())
+            c, ln = _parse(path.read_bytes(), found)
         except (OSError, ET.ParseError):
             continue
         cams += c
         lenses += ln
-    mounts = {k: sorted(v) for k, v in _MOUNTS.items()}
+    mounts = {k: sorted(v) for k, v in found.items()}
     return {"cameras": cams, "lenses": lenses, "mounts": mounts, "attribution": ATTRIBUTION, "source": "bundled", "date": bundled_snapshot()}
 
 
@@ -114,13 +112,13 @@ def _aspect(text: str | None) -> float:
     return _float(text, 1.5)
 
 
-def _parse(xml: bytes) -> tuple[list[dict], list[dict]]:
+def _parse(xml: bytes, mounts: dict[str, set[str]]) -> tuple[list[dict], list[dict]]:
     root = ET.fromstring(xml)
     cams, lenses = [], []
     for m in root.iter("mount"):
         name = m.findtext("name")
         if name:
-            _MOUNTS.setdefault(name.strip(), set()).update(c.text.strip() for c in m.findall("compat") if c.text)
+            mounts.setdefault(name.strip(), set()).update(c.text.strip() for c in m.findall("compat") if c.text)
     for c in root.iter("camera"):
         model = next((m.text for m in c.findall("model") if not m.get("lang")), None)
         if model:
@@ -171,20 +169,19 @@ def download(progress=None) -> dict:
                     blobs[f"{name}.xml"] = r.content
     if not blobs:
         raise RuntimeError("The lens profile database could not be downloaded")
-    global _MOUNTS
-    _MOUNTS = {}
+    found: dict[str, set[str]] = {}
     cams: list[dict] = []
     lenses: list[dict] = []
     for name, data in sorted(blobs.items()):
         (folder() / name).write_bytes(data)
         try:
-            c, ln = _parse(data)
+            c, ln = _parse(data, found)
         except ET.ParseError:
             continue
         cams += c
         lenses += ln
     tmp = index_path().with_suffix(".tmp")
-    mounts = {k: sorted(v) for k, v in _MOUNTS.items()}
+    mounts = {k: sorted(v) for k, v in found.items()}
     tmp.write_text(json.dumps({"cameras": cams, "lenses": lenses, "mounts": mounts, "attribution": ATTRIBUTION, "downloaded": date.today().isoformat()}),
                    encoding="utf-8")
     tmp.replace(index_path())

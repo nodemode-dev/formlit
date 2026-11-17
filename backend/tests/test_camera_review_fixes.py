@@ -138,3 +138,27 @@ def test_a_scan_says_when_the_walk_was_cut_short(restore_providers, commands):
     cameras.set_providers([lambda: [cam]])
     res = commands("library.scan", {"paths": [cameras.path_for(cam.id, "")]})
     assert res["files"] == [] and res["truncated"] is True
+
+
+@pytest.mark.parametrize("text,busy", [
+    ("*** Error (-53: 'Could not claim the USB device') ***", True),
+    ("PTP Device Busy", True),
+    ("*** Error: file IMG_-53.CR3 not found", False),
+    ("The battery is low, the camera is busy charging", False),
+])
+def test_gphoto2_busy_hint_only_for_the_busy_errors(text, busy):
+    from app.services.cameras import gphoto
+
+    assert (gphoto._error(text, "") == gphoto.BUSY_HINT) is busy
+
+
+def test_lens_mounts_are_collected_per_index_not_shared():
+    from app.services import lensdb
+
+    xml = b"<lensdatabase><mount><name>Canon RF</name><compat>Canon EF</compat></mount></lensdatabase>"
+    a: dict = {}
+    b: dict = {}
+    lensdb._parse(xml, a)
+    assert a == {"Canon RF": {"Canon EF"}} and b == {}
+    first, second = lensdb._bundled_index()["mounts"], lensdb._bundled_index()["mounts"]
+    assert first == second and first
