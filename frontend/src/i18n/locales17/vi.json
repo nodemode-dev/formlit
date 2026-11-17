@@ -37,5 +37,15 @@
  "35": "Máy ảnh gửi một tệp khác với {0}; không nhập gì từ tệp đó",
  "36": "Máy ảnh gửi nhiều hơn {0}; không nhập gì từ tệp đó",
  "37": "Sao chép và Di chuyển cần một thư mục đích",
- "38": "Trình trợ giúp máy ảnh bị lỗi"
+ "38": "Trình trợ giúp máy ảnh bị lỗi",
+ "39": "Đã được hồ sơ ống kính hiệu chỉnh",
+ "40": "Bộ giảm nhiễu đã huấn luyện (SCUNet)",
+ "41": "Bộ giảm nhiễu cổ điển",
+ "42": "Giảm nhiễu (đã huấn luyện, SCUNet)",
+ "43": "Giảm nhiễu (cổ điển)",
+ "44": "Không đọc được toàn bộ danh sách {0} trên máy ảnh, nên không sao chép hay xóa gì trong đó theo số",
+ "45": "{0} không còn là tệp số {1} trong {2} trên máy ảnh, nên được giữ nguyên",
+ "46": "{0} trên máy ảnh không phải tệp đã nhập, nên không bị xóa",
+ "47": "Máy ảnh vẫn giữ {0}: tệp được sao chép, không được di chuyển",
+ "48": "Máy ảnh liệt kê {0} nhiều lần trong {1}, nên không sao chép hay xóa theo số"
 }

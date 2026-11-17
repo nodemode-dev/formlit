@@ -37,5 +37,15 @@
  "35": "Kamera {0} yerine başka bir dosya gönderdi; ondan hiçbir şey içe aktarılmadı",
  "36": "Kamera {0} dosyasından fazlasını gönderdi; ondan hiçbir şey içe aktarılmadı",
  "37": "Kopyala ve Taşı için bir hedef klasör gerekir",
- "38": "Kamera yardımcısı başarısız oldu"
+ "38": "Kamera yardımcısı başarısız oldu",
+ "39": "Lens profili tarafından düzeltildi",
+ "40": "Eğitilmiş gürültü giderici (SCUNet)",
+ "41": "Klasik gürültü giderici",
+ "42": "Gürültü Giderme (eğitilmiş, SCUNet)",
+ "43": "Gürültü Giderme (klasik)",
+ "44": "Kameradaki {0} listesi tam okunamadı; bu yüzden içinden hiçbir şey numarayla kopyalanmıyor veya silinmiyor",
+ "45": "{0} artık kameradaki {2} içinde {1} numaralı dosya değil; bu yüzden ona dokunulmadı",
+ "46": "Kameradaki {0} içe aktarılan dosya değil; bu yüzden silinmedi",
+ "47": "Kamera {0} dosyasını tuttu: dosya taşınmadı, kopyalandı",
+ "48": "Kamera {1} içinde {0} dosyasını birden çok kez listeliyor; bu yüzden numarayla kopyalanmıyor veya silinmiyor"
 }

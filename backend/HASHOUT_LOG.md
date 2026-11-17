@@ -1876,6 +1876,36 @@ Tests: `tests/test_gphoto_numbering.py`:
 
 `removable` is now only a drive Windows reports as DRIVE_REMOVABLE; a fixed drive with DCIM stays a `card` (the Import dialog opens on it) without an Eject offer, so an internal disk is never offered for ejecting. When the radius at the preview's scale is under 0.12 sigma, the finish does not sharpen at all, but the Radius and Detail views drew the band at 0.12 and Masking drew an edge mask; they now show flat mid grey and an all-black mask, matching the pass. `_parse` collected Lensfun mounts into a module global that `download` and `_bundled_index` reset outside the lock, so a download during a bundled index build could mix or lose mounts; each build now passes its own dict. `crop =out` in `render_region` gets its space. Tests: `tests/test_review_gaps.py` (the fixed-drive case expects a card and no Eject; below the smallest sigma the normal render equals Amount 0, Radius and Detail are 0.5 and Masking 0) and `tests/test_camera_review_fixes.py` (mounts kept per call; the busy hint only for the three busy errors).
 
+### app/services/lensdb.py · match, sigma_line, _line_conflict, _series, _same_lens, _core (from the Windows run of 0.51.2)
+- refers-to: app/services/lensdb.py :: SIGMA_LINES, TIE, CANON_SERIES, sigma_line, _core, _same_lens, _series, _line_conflict, match
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+The Windows run of the released 0.51.2 put another lens's profile on both test raws: the R5 with LensModel "50mm F1.4 DG HSM | Art 014" got "Sigma 105mm F1.4 DG HSM | Art 018", and the R5 Mark II with "RF135mm F1.8 L IS USM" got "Canon RF 14-35mm F4 L IS USM". With the merged matcher, the focal length and aperture already disqualified both. The RF 135 came out right, but the Sigma still matched "Sigma 50mm f/1.4 EX DG HSM", the older non-Art lens, because the name check ignored Sigma's product line. `match` now also refuses:
+- a Sigma candidate whose line (Art, Contemporary or Sports, written "Art", "| A", "[A]", "Contemporary", "| C" and so on) differs from the Exif's, including a candidate with no line against an Exif name with one;
+- a Sigma candidate whose three-digit version code (014, 018) differs from the Exif's, when both carry one;
+- a non-Sigma candidate when the Exif name is a Sigma "| line" name;
+- a Canon series mismatch (RF, RF-S, EF, EF-S, EF-M; an "RF135mm F2" was matched to the EF 135mm f/2L).
+
+When two different lenses score within `TIE` (0.05), nothing is matched. Two Lensfun entries count as one lens when they have the same focal range, line and words apart from the line letters ("Contemporary 017" and "Contemporary C 017"). An unmatched lens gets no profile: `develop.lensProfile` lists the photo in `noProfile`, and Lens Corrections says "No profile found; choose the lens". The R5's LensInfo "50mm f/0" means no aperture is recorded; formlit reads LensModel and FocalLength, never LensInfo, so f/0 is never taken as an aperture.
+
+Checked against the four CC0 kit raws (raw.pixls.us) through `metadata.read_exif`: the three R5 files match "Sigma 50mm f/1.4 DG HSM [A]" and the R5 Mark II file matches "Canon RF 135mm F1.8L IS USM". Their Exif strings, not the raws, are in `tests/test_lens_matching_regressions.py`, which covers:
+- both kit matches;
+- focal lengths 85 and 105, aperture F1.2 and an F2 RF 135, all matching nothing;
+- an EX-only database refusing the Art, and EX against Art picking right;
+- the version code telling Art 018 from Art 006 and refusing Art 021;
+- two different RF 50 F1.8 lenses tying and matching neither;
+- the two Lensfun entries of the Sigma 16 DN still matching;
+- an unmatched lens getting no profile and reported in `noProfile`;
+- the Art profile applying, and Auto CA then deferring to its TCA.
+
+### app/ai/enhance.py · denoiser; app/engine/cmd_ai.py · ai_denoise, DENOISE_LABELS
+- refers-to: app/ai/enhance.py :: denoiser, denoise (kind); app/engine/cmd_ai.py :: ai_denoise, DENOISE_LABELS
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+After an AI Denoise with no model installed, nothing said which denoiser had run, and the model still read not installed. `ai.denoise` now decides once, when it starts (`enhance.denoiser()`, learned when SCUNet is installed, otherwise classic), passes that to every photo, answers `denoiser` with the task and in its result, and names the step "Denoise (learned, SCUNet)" or "Denoise (classic)". The window's toast says which. Auto CA's 0/0 with `fromProfile` is by design when the lens profile carries TCA (it was the wrong 105mm profile on 0.51.2); the window now says "Corrected by the lens profile" instead of "None found", and no longer copies `fromProfile` into the optics settings. Tests: `tests/test_review_gaps.py::test_ai_denoise_says_which_denoiser_ran` and the Auto CA check above.
+
 ### app/services/cameras/wpd.py · powershell, _run, SCRIPT (output encoding, delete)
 - refers-to: app/services/cameras/wpd.py :: powershell, _run, SCRIPT ('delete' and the OutputEncoding line), WpdCamera.delete
 - kind: fix

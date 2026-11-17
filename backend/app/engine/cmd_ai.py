@@ -22,6 +22,7 @@ from app.engine.records import loads
 from app.services import previews
 
 VIEW_DROP = ("crop", "masks", "vignette", "grain", "lensBlur")
+DENOISE_LABELS = {"learned": "Denoise (learned, SCUNet)", "classic": "Denoise (classic)"}
 _download_lock = threading.Lock()
 _download_tasks: dict[str, int] = {}
 
@@ -410,19 +411,20 @@ def _settings_for(src: int, drop: tuple) -> dict:
 @command("ai.denoise", "Denoise", {"ids": {"type": "array"}, "amount": {"type": "number", "minimum": 0, "maximum": 100}, "wait": {"type": "boolean"}})
 def ai_denoise(ids: Any = None, amount: float = 50.0, wait: bool = False) -> dict:
     pids = resolve_ids(ids)
+    kind = enhance.denoiser()
 
     def job(progress):
         made = []
         for pid in pids:
             img, info = previews.source(pid, None, full=True)
-            out = enhance.denoise(img, float(amount), progress)
+            out = enhance.denoise(img, float(amount), progress, kind)
             target = _out_path(pid, "Enhanced-NR")
             dng.write_linear_dng(target, out, {**info, "source": target.name}, when=cat().scalar("SELECT capture_time FROM photos WHERE id=?", (pid,)))
             dev = _settings_for(pid, ("detail",))
             dev.setdefault("detail", {})["sharpenAmount"] = 20
-            made.append(_derived(pid, target, "Denoise", dev, progress))
-        return {"ids": made}
-    return _maybe_wait(tasks.start("denoise", "Denoise", job), wait)
+            made.append(_derived(pid, target, DENOISE_LABELS[kind], dev, progress))
+        return {"ids": made, "denoiser": kind}
+    return {**_maybe_wait(tasks.start("denoise", "Denoise", job), wait), "denoiser": kind}
 
 
 @command("ai.superResolution", "Super Resolution", {"ids": {"type": "array"}, "wait": {"type": "boolean"}})

@@ -37,5 +37,15 @@
  "35": "A fényképezőgép más fájlt küldött, mint {0}; semmi sem lett importálva belőle",
  "36": "A fényképezőgép többet küldött, mint {0}; semmi sem lett importálva belőle",
  "37": "A másoláshoz és áthelyezéshez célmappa kell",
- "38": "A fényképezőgép segédprogramja hibát jelzett"
+ "38": "A fényképezőgép segédprogramja hibát jelzett",
+ "39": "Az objektívprofil javítja",
+ "40": "Tanult zajszűrés (SCUNet)",
+ "41": "Klasszikus zajszűrés",
+ "42": "Zajszűrés (tanult, SCUNet)",
+ "43": "Zajszűrés (klasszikus)",
+ "44": "A fényképezőgép {0} listáját nem sikerült teljesen beolvasni, ezért belőle semmi sem lesz szám szerint másolva vagy törölve",
+ "45": "{0} már nem a(z) {1}. fájl ebben: {2}, ezért érintetlen maradt",
+ "46": "A fényképezőgépen lévő {0} nem az importált fájl, ezért nem lett törölve",
+ "47": "A fényképezőgép megtartotta: {0}; másolás történt, nem áthelyezés",
+ "48": "A fényképezőgép többször listázza ezt: {0} itt: {1}, ezért nem lesz szám szerint másolva vagy törölve"
 }

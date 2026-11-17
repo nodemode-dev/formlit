@@ -37,5 +37,15 @@
 "The camera sent a different file than {0}; nothing was imported from it",
 "The camera sent more than {0}; nothing was imported from it",
 "Copy and Move need a destination folder",
-"The camera helper failed"
+"The camera helper failed",
+"Corrected by the lens profile",
+"Learned denoiser (SCUNet)",
+"Classic denoiser",
+"Denoise (learned, SCUNet)",
+"Denoise (classic)",
+"The camera's list of {0} could not be read in full, so nothing in it is copied or deleted by number",
+"{0} is no longer file {1} in {2} on the camera, so it was left alone",
+"{0} on the camera is not the file that was imported, so it was not deleted",
+"The camera kept {0}: it was copied, not moved",
+"The camera lists {0} more than once in {1}, so it is not copied or deleted by number"
 ]

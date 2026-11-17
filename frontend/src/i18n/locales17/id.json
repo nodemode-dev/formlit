@@ -37,5 +37,15 @@
  "35": "Kamera mengirim file yang berbeda dari {0}; tidak ada yang diimpor darinya",
  "36": "Kamera mengirim lebih dari {0}; tidak ada yang diimpor darinya",
  "37": "Salin dan Pindahkan memerlukan folder tujuan",
- "38": "Pembantu kamera gagal"
+ "38": "Pembantu kamera gagal",
+ "39": "Dikoreksi oleh profil lensa",
+ "40": "Pengurang noise terlatih (SCUNet)",
+ "41": "Pengurang noise klasik",
+ "42": "Pengurangan noise (terlatih, SCUNet)",
+ "43": "Pengurangan noise (klasik)",
+ "44": "Daftar {0} di kamera tidak dapat dibaca utuh, jadi tidak ada yang disalin atau dihapus berdasarkan nomor",
+ "45": "{0} bukan lagi file {1} di {2} pada kamera, jadi dibiarkan",
+ "46": "{0} di kamera bukan file yang diimpor, jadi tidak dihapus",
+ "47": "Kamera menyimpan {0}: file disalin, bukan dipindahkan",
+ "48": "Kamera mencantumkan {0} lebih dari sekali di {1}, jadi tidak disalin atau dihapus berdasarkan nomor"
 }

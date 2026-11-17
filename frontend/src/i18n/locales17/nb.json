@@ -37,5 +37,15 @@
  "35": "Kameraet sendte en annen fil enn {0}; ingenting ble importert fra den",
  "36": "Kameraet sendte mer enn {0}; ingenting ble importert fra den",
  "37": "Kopier og Flytt trenger en målmappe",
- "38": "Kamerahjelperen mislyktes"
+ "38": "Kamerahjelperen mislyktes",
+ "39": "Korrigert av objektivprofilen",
+ "40": "Trent støyfjerner (SCUNet)",
+ "41": "Klassisk støyfjerner",
+ "42": "Fjern støy (trent, SCUNet)",
+ "43": "Fjern støy (klassisk)",
+ "44": "Kameraets liste over {0} kunne ikke leses helt, så ingenting i den kopieres eller slettes etter nummer",
+ "45": "{0} er ikke lenger fil {1} i {2} på kameraet, så den ble ikke rørt",
+ "46": "{0} på kameraet er ikke den importerte filen, så den ble ikke slettet",
+ "47": "Kameraet beholdt {0}: den ble kopiert, ikke flyttet",
+ "48": "Kameraet viser {0} mer enn én gang i {1}, så den kopieres eller slettes ikke etter nummer"
 }

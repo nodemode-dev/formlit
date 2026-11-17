@@ -260,14 +260,15 @@ export class DevelopPanels {
       if (id === null) return;
       const on = caBox.checked;
       setText(q(caRow, '.fl-ca-note'), on ? 'Measuring...' : '');
-      const done = (vals: { autoCaRed: number; autoCaBlue: number }) => {
+      const done = (vals: { autoCaRed: number; autoCaBlue: number; fromProfile?: boolean }) => {
         if (develop.id !== id) return;
-        const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}), removeCa: on, ...vals };
+        const opt = { ...((develop.settings.optics as Record<string, unknown> | undefined) ?? {}), removeCa: on, autoCaRed: vals.autoCaRed, autoCaBlue: vals.autoCaBlue };
         develop.patch('optics', opt, 'end', on ? 'Remove Chromatic Aberration' : 'Keep Chromatic Aberration');
-        setText(q(caRow, '.fl-ca-note'), on && !vals.autoCaRed && !vals.autoCaBlue ? 'None found' : '');
+        const note = !on ? '' : vals.fromProfile ? 'Corrected by the lens profile' : !vals.autoCaRed && !vals.autoCaBlue ? 'None found' : '';
+        setText(q(caRow, '.fl-ca-note'), note);
       };
       if (!on) { done({ autoCaRed: 0, autoCaBlue: 0 }); return; }
-      void this.ctx.api.cmd<{ autoCaRed: number; autoCaBlue: number }>('develop.autoCa', { id }).then(done, (err) => { caBox.checked = false; setText(q(caRow, '.fl-ca-note'), ''); this.ctx.fail(err); });
+      void this.ctx.api.cmd<{ autoCaRed: number; autoCaBlue: number; fromProfile?: boolean }>('develop.autoCa', { id }).then(done, (err) => { caBox.checked = false; setText(q(caRow, '.fl-ca-note'), ''); this.ctx.fail(err); });
     });
     develop.listen((why) => {
       if (why === 'drag') return;

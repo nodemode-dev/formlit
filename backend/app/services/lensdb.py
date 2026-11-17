@@ -23,6 +23,9 @@ FILES = ["6x6", "actioncams", "compact-canon", "compact-casio", "compact-fujifil
          "slr-samyang", "slr-schneider", "slr-sigma", "slr-soligor", "slr-sony", "slr-tamron", "slr-tokina", "slr-vivitar", "slr-zeiss", "slr-ussr"]
 ATTRIBUTION = "Lens data from the Lensfun database (lensfun.github.io), CC BY-SA 3.0"
 VERSIONS = {"ii", "iii", "iv", "z"}
+SIGMA_LINES = {"art": "art", "a": "art", "contemporary": "contemporary", "c": "contemporary", "sports": "sports", "s": "sports"}
+TIE = 0.05
+CANON_SERIES = {"rf", "rf-s", "ef", "ef-s", "ef-m"}
 _lock = threading.Lock()
 _index: dict | None = None
 
@@ -216,6 +219,36 @@ def _tokens(s: str) -> set[str]:
     return {t for t in re.split(r"[^a-z0-9.\-]+", s) if t and t not in ("mm", "lens", "f")}
 
 
+def sigma_line(name: str) -> tuple[str | None, str | None]:
+    words = [w for w in re.split(r"[\s|\[\]()]+", name.lower()) if w]
+    line = next((SIGMA_LINES[w] for w in words if w in SIGMA_LINES), None)
+    year = next((w for w in words if re.fullmatch(r"0\d\d", w)), None)
+    return line, year
+
+
+def _core(model: str) -> frozenset[str]:
+    return frozenset(t for t in _tokens(model) if t not in SIGMA_LINES)
+
+
+def _same_lens(a: dict, b: dict) -> bool:
+    return (a["fmin"], a["fmax"], sigma_line(a["model"])[0], _core(a["model"])) == (b["fmin"], b["fmax"], sigma_line(b["model"])[0], _core(b["model"]))
+
+
+def _series(name: str) -> str | None:
+    return next((t for t in _tokens(name) if t in CANON_SERIES), None)
+
+
+def _line_conflict(lens_name: str, ln: dict) -> bool:
+    want_series, have_series = _series(lens_name), _series(ln["model"])
+    if want_series and have_series and want_series != have_series:
+        return True
+    if ln["maker"].lower() != "sigma":
+        return sigma_line(lens_name)[0] is not None and "|" in lens_name
+    want_line, want_year = sigma_line(lens_name)
+    have_line, have_year = sigma_line(ln["model"])
+    return want_line != have_line or bool(want_year and have_year and want_year != have_year)
+
+
 def _max_aperture(name: str) -> float | None:
     m = re.search(r"mm\s*(?:f\s*/?|1:)\s*(\d+(?:\.\d+)?)", name.lower())
     return float(m.group(1)) if m else None
@@ -262,6 +295,7 @@ def match(lens_name: str, maker: str, model: str, focal: float | None) -> tuple[
     fr = _focal_range(lens_name)
     ap = _max_aperture(lens_name)
     best, score = None, 0.0
+    rival: dict | None = None
     for ln in index()["lenses"]:
         if mounts and not mounts & set(ln["mounts"]):
             continue
@@ -271,6 +305,8 @@ def match(lens_name: str, maker: str, model: str, focal: float | None) -> tuple[
             continue
         theirs = _max_aperture(ln["model"])
         if ap and theirs and abs(ap - theirs) > 0.15:
+            continue
+        if _line_conflict(lens_name, ln):
             continue
         have = _tokens(ln["model"]) | _tokens(ln["maker"])
         s = len(want & have) / max(1, len(want))
@@ -282,8 +318,15 @@ def match(lens_name: str, maker: str, model: str, focal: float | None) -> tuple[
             s += 0.25
         if cam and abs(ln["crop"] - cam["crop"]) < 0.05:
             s += 0.1
-        if s > score:
-            best, score = ln, s
+        if s > score + TIE:
+            best, score, rival = ln, s, None
+        elif s > score - TIE and best is not None and not _same_lens(ln, best):
+            if s > score:
+                rival, best, score = best, ln, s
+            else:
+                rival = ln
+    if rival is not None and not _same_lens(rival, best):
+        return None, score
     return best, score
 
 

@@ -37,5 +37,15 @@
  "35": "La cámara envió un archivo distinto de {0}; no se importó nada de él",
  "36": "La cámara envió más que {0}; no se importó nada de él",
  "37": "Copiar y Mover necesitan una carpeta de destino",
- "38": "El asistente de la cámara falló"
+ "38": "El asistente de la cámara falló",
+ "39": "Corregido por el perfil de objetivo",
+ "40": "Reductor de ruido aprendido (SCUNet)",
+ "41": "Reductor de ruido clásico",
+ "42": "Reducción de ruido (aprendida, SCUNet)",
+ "43": "Reducción de ruido (clásica)",
+ "44": "La lista de {0} de la cámara no se pudo leer completa, así que no se copia ni se borra nada de ella por número",
+ "45": "{0} ya no es el archivo {1} de {2} en la cámara, así que no se tocó",
+ "46": "{0} en la cámara no es el archivo importado, así que no se borró",
+ "47": "La cámara conservó {0}: se copió, no se movió",
+ "48": "La cámara muestra {0} más de una vez en {1}, así que no se copia ni se borra por número"
 }

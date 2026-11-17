@@ -1088,6 +1088,13 @@ A remembered or detected start folder that no longer lists (most often a `camera
 
 A second offer while the first was still open (two masks clicked quickly) replaced the stored resolver, so the first caller's promise never settled. `ask` now settles any pending one with null (Cancel) before it opens the new offer.
 
+### src/modules/shared/ai.ts · photo.enhance denoise toast; src/modules/develop/panels.ts · Remove Chromatic Aberration note
+- refers-to: src/modules/shared/ai.ts :: photo.enhance; src/modules/develop/panels.ts :: the caRow done handler
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+From the Windows run of 0.51.2. The Denoise toast now names the denoiser the engine chose ("Denoising 1 photo · Classic denoiser" or "· Learned denoiser (SCUNet)"), from `ai.denoise`'s `denoiser`. When Auto CA answers `fromProfile` (the lens profile already corrects TCA), the note says "Corrected by the lens profile" instead of "None found", and only `autoCaRed` and `autoCaBlue` are written to the optics settings (the spread had copied `fromProfile` in too). keys17 grows to 49 strings for these, the two history labels and the five camera refusals from the gphoto2 numbering fix, all in 25 languages.
+
 ### src/modules/develop/panels.ts · formatting
 - refers-to: src/modules/develop/panels.ts :: RAW_ONLY_WB, lensDbText
 - kind: fix

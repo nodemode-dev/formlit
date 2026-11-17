@@ -37,5 +37,15 @@
  "35": "De camera stuurde een ander bestand dan {0}; er is niets van geïmporteerd",
  "36": "De camera stuurde meer dan {0}; er is niets van geïmporteerd",
  "37": "Kopiëren en Verplaatsen hebben een doelmap nodig",
- "38": "Het camerahulpprogramma is mislukt"
+ "38": "Het camerahulpprogramma is mislukt",
+ "39": "Gecorrigeerd door het lensprofiel",
+ "40": "Getrainde ruisverwijdering (SCUNet)",
+ "41": "Klassieke ruisverwijdering",
+ "42": "Ruis verwijderen (getraind, SCUNet)",
+ "43": "Ruis verwijderen (klassiek)",
+ "44": "De lijst van {0} op de camera kon niet volledig worden gelezen, dus er wordt niets op nummer uit gekopieerd of verwijderd",
+ "45": "{0} is niet meer bestand {1} in {2} op de camera en is niet aangeraakt",
+ "46": "{0} op de camera is niet het geïmporteerde bestand en is niet verwijderd",
+ "47": "De camera heeft {0} gehouden: het is gekopieerd, niet verplaatst",
+ "48": "De camera toont {0} meer dan eens in {1}, dus het wordt niet op nummer gekopieerd of verwijderd"
 }

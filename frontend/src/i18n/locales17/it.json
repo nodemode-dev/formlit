@@ -37,5 +37,15 @@
  "35": "La fotocamera ha inviato un file diverso da {0}; non è stato importato nulla",
  "36": "La fotocamera ha inviato più di {0}; non è stato importato nulla",
  "37": "Copia e Sposta richiedono una cartella di destinazione",
- "38": "L’assistente della fotocamera non è riuscito"
+ "38": "L’assistente della fotocamera non è riuscito",
+ "39": "Corretto dal profilo obiettivo",
+ "40": "Riduzione del rumore appresa (SCUNet)",
+ "41": "Riduzione del rumore classica",
+ "42": "Riduzione del rumore (appresa, SCUNet)",
+ "43": "Riduzione del rumore (classica)",
+ "44": "Non è stato possibile leggere per intero l’elenco di {0} della fotocamera, quindi nulla viene copiato o eliminato per numero",
+ "45": "{0} non è più il file {1} in {2} sulla fotocamera, quindi non è stato toccato",
+ "46": "{0} sulla fotocamera non è il file importato, quindi non è stato eliminato",
+ "47": "La fotocamera ha tenuto {0}: è stato copiato, non spostato",
+ "48": "La fotocamera elenca {0} più volte in {1}, quindi non viene copiato né eliminato per numero"
 }

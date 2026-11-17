@@ -37,5 +37,15 @@
  "35": "Kamera lähetti eri tiedoston kuin {0}; siitä ei tuotu mitään",
  "36": "Kamera lähetti enemmän kuin {0}; siitä ei tuotu mitään",
  "37": "Kopiointi ja siirto tarvitsevat kohdekansion",
- "38": "Kameran apuohjelma epäonnistui"
+ "38": "Kameran apuohjelma epäonnistui",
+ "39": "Objektiiviprofiili korjaa tämän",
+ "40": "Opetettu kohinanpoisto (SCUNet)",
+ "41": "Perinteinen kohinanpoisto",
+ "42": "Kohinanpoisto (opetettu, SCUNet)",
+ "43": "Kohinanpoisto (perinteinen)",
+ "44": "Kameran kansion {0} luetteloa ei voitu lukea kokonaan, joten siitä ei kopioida eikä poisteta mitään numeron perusteella",
+ "45": "{0} ei ole enää tiedosto {1} kansiossa {2} kamerassa, joten siihen ei koskettu",
+ "46": "{0} kamerassa ei ole tuotu tiedosto, joten sitä ei poistettu",
+ "47": "Kamera säilytti tiedoston {0}: se kopioitiin, ei siirretty",
+ "48": "Kamera näyttää tiedoston {0} useammin kuin kerran kansiossa {1}, joten sitä ei kopioida eikä poisteta numeron perusteella"
 }

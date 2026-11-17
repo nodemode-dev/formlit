@@ -37,5 +37,15 @@
  "35": "L’appareil photo a envoyé un autre fichier que {0}; rien n’en a été importé",
  "36": "L’appareil photo a envoyé plus que {0}; rien n’en a été importé",
  "37": "Copier et Déplacer exigent un dossier de destination",
- "38": "L’assistant de l’appareil photo a échoué"
+ "38": "L’assistant de l’appareil photo a échoué",
+ "39": "Corrigé par le profil d’objectif",
+ "40": "Réduction du bruit apprise (SCUNet)",
+ "41": "Réduction du bruit classique",
+ "42": "Réduction du bruit (apprise, SCUNet)",
+ "43": "Réduction du bruit (classique)",
+ "44": "La liste de {0} de l’appareil photo n’a pas pu être lue en entier; rien n’y est copié ni supprimé par numéro",
+ "45": "{0} n’est plus le fichier {1} de {2} sur l’appareil photo; il n’a pas été touché",
+ "46": "{0} sur l’appareil photo n’est pas le fichier importé; il n’a pas été supprimé",
+ "47": "L’appareil photo a gardé {0} : il a été copié, pas déplacé",
+ "48": "L’appareil photo liste {0} plusieurs fois dans {1}; il n’est ni copié ni supprimé par numéro"
 }

@@ -184,3 +184,13 @@ def test_the_boot_volume_link_is_not_removable(tmp_path):
 def test_roots_route_answers_with_the_removable_flag(client):
     roots = client.get("/api/files/roots").json()["roots"]
     assert all("removable" in r for r in roots if r["kind"] in ("volume", "drive"))
+
+
+def test_ai_denoise_says_which_denoiser_ran(commands, photo, monkeypatch):
+    from app.ai import enhance, models
+
+    assert not models.ready("denoise")
+    res = commands("ai.denoise", {"ids": [photo["id"]], "amount": 30, "wait": True})
+    assert res["denoiser"] == "classic" and len(res["ids"]) == 1
+    monkeypatch.setattr(models, "ready", lambda m: m == "denoise")
+    assert enhance.denoiser() == "learned"
