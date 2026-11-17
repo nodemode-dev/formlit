@@ -25,7 +25,7 @@ MODELS: dict[str, dict] = {
     "depth": {"name": "Depth Anything V2 Small", "license": "Apache-2.0", "size": 99,
               "files": {"depth-anything-v2-small/model.onnx": ("https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/413ce838e669ab7dfc01a6a396bf3d4397286d7f/onnx/model.onnx",
                                                                "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c")}},
-    "objectsHq": {"name": "SAM 2.1 base plus (objects)", "license": "Apache-2.0", "size": 328,
+    "objectsHq": {"name": "SAM 2.1 base plus (objects)", "license": "Apache-2.0", "size": 328, "cpuOnly": True,
                   "files": {
                       "sam2.1-hiera-base-plus/vision_encoder.onnx": (SAM_BASE + "vision_encoder.onnx", "6fd992cf796e6ad5a29f3b92a127f2ce33f7f320d63c8b3f02bf3775f5f692f4"),
                       "sam2.1-hiera-base-plus/vision_encoder.onnx_data": (SAM_BASE + "vision_encoder.onnx_data", "f8a5f1b14d02eb7ed3b3576ad6774b8ebcfef6cc20674d5f316d6144c60a08a5"),
@@ -182,14 +182,14 @@ def providers() -> list[str]:
     return [p for p in PROVIDERS if p in have] or ["CPUExecutionProvider"]
 
 
-def session(key: str, file: str):
+def session(key: str, file: str, model: str | None = None):
     with _lock:
         s = _sessions.get(key)
         if s is None:
             import onnxruntime as ort
             opts = ort.SessionOptions()
             opts.enable_cpu_mem_arena = False
-            cpu_only = MODELS.get(key, {}).get("cpuOnly")
+            cpu_only = MODELS.get(model or key, {}).get("cpuOnly")
             s = ort.InferenceSession(str(path(file)), opts, providers=["CPUExecutionProvider"] if cpu_only else providers())
             _sessions[key] = s
             while len(_sessions) > 3:

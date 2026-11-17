@@ -57,8 +57,8 @@ def subject(rgb8: np.ndarray) -> np.ndarray:
 def _sam() -> tuple:
     model = models.require("objects")
     folder = models.SAM_DIRS[model]
-    return (models.session(f"sam-enc-{model}", f"{folder}/vision_encoder.onnx"),
-            models.session(f"sam-dec-{model}", f"{folder}/prompt_encoder_mask_decoder.onnx"))
+    return (models.session(f"sam-enc-{model}", f"{folder}/vision_encoder.onnx", model),
+            models.session(f"sam-dec-{model}", f"{folder}/prompt_encoder_mask_decoder.onnx", model))
 
 
 def sky(rgb8: np.ndarray) -> np.ndarray:

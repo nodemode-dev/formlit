@@ -45,7 +45,7 @@ def installed(monkeypatch):
     have: set[str] = set()
     opened: list[str] = []
 
-    def session(key, file):
+    def session(key, file, model=None):
         opened.append(file)
         return FakeSession(file, fake_model)
 
@@ -72,7 +72,7 @@ def test_every_choice_is_pinned_like_the_other_models():
     assert models.MODELS["subjectHq"]["files"][models.BIREFNET_FILE][0].startswith("https://github.com/ZhengPeng7/BiRefNet/releases/download/")
 
 
-def test_birefnet_runs_on_the_cpu_provider_only(monkeypatch):
+def test_the_recommended_models_run_on_the_cpu_provider_only(monkeypatch):
     import onnxruntime as ort
 
     from app.ai import models
@@ -80,16 +80,19 @@ def test_birefnet_runs_on_the_cpu_provider_only(monkeypatch):
     seen = {}
 
     def fake(path, opts, providers):
-        seen[str(path).rsplit("/", 1)[-1]] = providers
+        seen[str(path).split("Models", 1)[-1]] = providers
         return object()
 
     monkeypatch.setattr(ort, "InferenceSession", fake)
     monkeypatch.setattr(models, "providers", lambda: ["CoreMLExecutionProvider", "CPUExecutionProvider"])
     monkeypatch.setattr(models, "_sessions", {})
     models.session("subjectHq", models.BIREFNET_FILE)
-    models.session("sam-enc-objectsHq", "sam2.1-hiera-base-plus/vision_encoder.onnx")
-    assert seen[models.BIREFNET_FILE.rsplit("/", 1)[-1]] == ["CPUExecutionProvider"]
-    assert seen["vision_encoder.onnx"] == ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+    models.session("sam-enc-objectsHq", "sam2.1-hiera-base-plus/vision_encoder.onnx", "objectsHq")
+    models.session("sam-enc-objects", "sam2.1-hiera-tiny/vision_encoder.onnx", "objects")
+    by_file = {k.rsplit("/", 2)[-2] + "/" + k.rsplit("/", 1)[-1]: v for k, v in seen.items()}
+    assert by_file[models.BIREFNET_FILE] == ["CPUExecutionProvider"]
+    assert by_file["sam2.1-hiera-base-plus/vision_encoder.onnx"] == ["CPUExecutionProvider"]
+    assert by_file["sam2.1-hiera-tiny/vision_encoder.onnx"] == ["CoreMLExecutionProvider", "CPUExecutionProvider"]
 
 
 @pytest.mark.parametrize("have,subject,objects", [
