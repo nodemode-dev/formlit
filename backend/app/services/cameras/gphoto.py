@@ -55,7 +55,7 @@ def parse_listing(text: str) -> dict[str, list[tuple[int, Entry]]]:
         row = FILE.match(line.strip())
         if row and current is not None:
             stamp = float(row.group(5)) if row.group(5) else 0.0
-            tree[current].append((int(row.group(1)), Entry(row.group(2), int(row.group(3)) * 1024, stamp, exact=False)))
+            tree[current].append((len(tree[current]) + 1, Entry(row.group(2), int(row.group(3)) * 1024, stamp, exact=False)))
     for folder in list(tree):
         parts = [p for p in folder.split("/") if p]
         for i in range(len(parts)):

@@ -3,6 +3,7 @@ import os
 import platform
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
@@ -12,6 +13,8 @@ from app.services import decode
 
 PREFIX = "camera://"
 CACHE_SECONDS = 5.0
+WALK_DEPTH = 6
+WALK_SECONDS = 120.0
 
 
 class CameraError(RuntimeError):
@@ -44,6 +47,8 @@ Provider = Callable[[], list[Device]]
 _lock = threading.Lock()
 _providers: list[Provider] | None = None
 _cache: tuple[float, dict[str, Device]] = (0.0, {})
+_known: dict[str, Device] = {}
+_importing: dict[str, int] = {}
 
 
 def safe_name(name: str) -> str:
@@ -96,7 +101,30 @@ def set_providers(providers: list[Provider] | None) -> list[Provider] | None:
         old = _providers
         _providers = providers
         _cache = (0.0, {})
+        _known.clear()
     return old
+
+
+@contextmanager
+def importing(dev_ids: set[str]):
+    with _lock:
+        for d in dev_ids:
+            _importing[d] = _importing.get(d, 0) + 1
+    try:
+        yield
+    finally:
+        with _lock:
+            for d in dev_ids:
+                left = _importing.get(d, 0) - 1
+                if left > 0:
+                    _importing[d] = left
+                else:
+                    _importing.pop(d, None)
+
+
+def busy(dev_id: str) -> bool:
+    with _lock:
+        return dev_id in _importing
 
 
 def devices(refresh: bool = False) -> dict[str, Device]:
@@ -114,6 +142,7 @@ def devices(refresh: bool = False) -> dict[str, Device]:
         except (CameraError, OSError):
             continue
     with _lock:
+        fresh = {k: _known.setdefault(k, v) for k, v in fresh.items()}
         _cache = (time.monotonic(), fresh)
     return dict(fresh)
 
@@ -189,36 +218,55 @@ def listing(path: str) -> dict:
             "files": files, "crumbs": crumbs(path), "camera": True}
 
 
-def walk(paths: list[str], recursive: bool = True, limit: int = 200_000) -> list[tuple[Device, str, Entry]]:
+def walk(paths: list[str], recursive: bool = True, limit: int = 200_000, depth: int = WALK_DEPTH, seconds: float = WALK_SECONDS,
+         report: dict | None = None) -> list[tuple[Device, str, Entry]]:
     out: list[tuple[Device, str, Entry]] = []
     seen: set[str] = set()
+    listed: dict[tuple[str, str], tuple[list[str], list[Entry]]] = {}
+    deadline = time.monotonic() + seconds
+
+    def list_dir(dev: Device, folder: str) -> tuple[list[str], list[Entry]]:
+        key = (dev.id, folder)
+        if key not in listed:
+            listed[key] = dev.list_dir(folder)
+        return listed[key]
+
+    def add(dev: Device, rel: str, entry: Entry) -> None:
+        key = path_for(dev.id, rel)
+        if key not in seen:
+            seen.add(key)
+            out.append((dev, rel, entry))
+
     for raw in paths:
         dev_id, rel = parse(raw)
         dev = device(dev_id)
         folder, _, name = rel.rpartition("/")
         if name and decode.supported(Path(name)):
-            entry = next((e for e in dev.list_dir(folder)[1] if e.name == name), None)
+            entry = next((e for e in list_dir(dev, folder)[1] if e.name == name), None)
             if entry is None:
                 raise CameraError(f"{name} is no longer on the camera")
-            key = path_for(dev.id, rel)
-            if key not in seen:
-                seen.add(key)
-                out.append((dev, rel, entry))
+            add(dev, rel, entry)
             continue
-        pending = [rel]
+        pending = [(rel, 0)]
         while pending and len(out) < limit:
-            here = pending.pop(0)
-            dirs, entries = dev.list_dir(here)
+            if time.monotonic() > deadline:
+                if report is not None:
+                    report["truncated"] = True
+                break
+            here, level = pending.pop(0)
+            dirs, entries = list_dir(dev, here)
             for e in entries:
-                key = path_for(dev.id, _join(here, e.name))
-                if decode.supported(Path(e.name)) and (not e.name.startswith(".") or _unsafe(e.name)) and key not in seen:
-                    seen.add(key)
-                    out.append((dev, _join(here, e.name), e))
-            if recursive:
-                pending.extend(_join(here, d) for d in dirs if not d.startswith("."))
+                if decode.supported(Path(e.name)) and (not e.name.startswith(".") or _unsafe(e.name)):
+                    add(dev, _join(here, e.name), e)
+            if recursive and level < depth:
+                pending.extend((_join(here, d), level + 1) for d in dirs if not d.startswith("."))
+            elif recursive and dirs and report is not None:
+                report["truncated"] = True
     return out[:limit]
 
 
 def thumbnail(path: str) -> bytes | None:
     dev_id, rel = parse(path)
+    if busy(dev_id):
+        return None
     return device(dev_id).thumbnail(rel)

@@ -229,7 +229,7 @@ There are 3 files in folder '/store_00020001/DCIM/100CANON':
 #2     IMG_0002.JPG               rd  8120 KB 8192x5464 image/jpeg 1731840010
 #3     A very long file name number three.CR3rd 30000 KB image/x-canon-cr3
 There is 1 file in folder '/store_00020001/DCIM/101CANON':
-#1     MVI_0004.MP4               rd 512000 KB video/mp4 1731840100
+#4     MVI_0004.MP4              rd 512000 KB video/mp4 1731840100
 There is no file in folder '/store_00020001/MISC'.
 """
 
@@ -273,6 +273,20 @@ def test_gphoto2_listings_become_folders_and_files():
     assert [(n, e.name, e.size) for n, e in files] == [(1, "IMG_0001.CR3", 45210 * 1024), (2, "IMG_0002.JPG", 8120 * 1024),
                                                        (3, "A very long file name number three.CR3", 30000 * 1024)]
     assert files[0][1].mtime == 1731840000.0 and files[2][1].mtime == 0.0 and not files[0][1].exact
+
+
+def test_gphoto2_file_numbers_count_within_each_folder():
+    """gphoto2's recursive --list-files numbers files on across folders (actions.c print_file_action keeps a static
+    counter), but --folder F --no-recurse --get-file N takes the Nth file of F (foreach.c get_path_for_id)."""
+    from app.services.cameras import gphoto
+
+    tree = gphoto.parse_listing(GPHOTO_LIST)
+    assert [(n, e.name) for n, e in tree["/store_00020001/DCIM/101CANON"]] == [(1, "MVI_0004.MP4")]
+    fake = Gphoto2()
+    cam = gphoto.GphotoCamera("/usr/bin/gphoto2", "Canon EOS R5", "usb:001,007", fake)
+    cam.thumbnail("store_00020001/DCIM/101CANON/MVI_0004.MP4")
+    call = next(c for c in fake.calls if "--get-thumbnail" in c)
+    assert call[call.index("--folder") + 1] == "/store_00020001/DCIM/101CANON" and call[call.index("--get-thumbnail") + 1] == "1"
 
 
 def test_the_gphoto2_camera_browses_fetches_and_deletes_by_name(monkeypatch, tmp_path):

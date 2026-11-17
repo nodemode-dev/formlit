@@ -22,7 +22,8 @@ def _same(entry: Entry, size: int) -> bool:
 
 def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
     cat = catalog_mod.get()
-    found = cameras.walk(paths, recursive, limit)
+    report: dict = {}
+    found = cameras.walk(paths, recursive, limit, report=report)
     sizes: dict[str, list[int]] = {}
     for r in cat.rows("SELECT file_name, file_size FROM photos"):
         sizes.setdefault(str(r["file_name"]).lower(), []).append(int(r["file_size"] or 0))
@@ -31,7 +32,7 @@ def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
         dup = any(_same(e, s) for s in sizes.get(e.name.lower(), []))
         out.append({"path": cameras.path_for(dev.id, rel), "name": e.name, "size": e.size, "mtime": e.mtime, "kind": decode.kind_of(Path(e.name)),
                     "duplicate": dup, "inCatalog": False})
-    return {"files": out, "count": len(out), "duplicates": sum(1 for f in out if f["duplicate"]), "truncated": len(found) >= limit}
+    return {"files": out, "count": len(out), "duplicates": sum(1 for f in out if f["duplicate"]), "truncated": len(found) >= limit or bool(report.get("truncated"))}
 
 
 def _batches(found: list[tuple[Device, str, Entry]]) -> list[list[tuple[Device, str, Entry]]]:
@@ -46,6 +47,16 @@ def _batches(found: list[tuple[Device, str, Entry]]) -> list[list[tuple[Device, 
     return out
 
 
+def _folder_name(rel: str) -> str:
+    parts = [p for p in rel.split("/") if p]
+    if len(parts) < 2:
+        return "camera"
+    try:
+        return cameras.safe_name(parts[-2])
+    except CameraError:
+        return "camera"
+
+
 def _fetch(batch: list[tuple[Device, str, Entry]], staging: Path, offset: int, total: int, progress) -> tuple[list[tuple[Path, Device, str]], list[dict]]:
     staged: list[tuple[Path, Device, str]] = []
     failed: list[dict] = []
@@ -54,9 +65,9 @@ def _fetch(batch: list[tuple[Device, str, Entry]], staging: Path, offset: int, t
             if progress.cancelled:
                 break
             progress(offset + i, total, f"Copying {e.name} from {dev.name}")
-        slot = staging / f"{offset + i:06d}"
-        slot.mkdir(parents=True, exist_ok=True)
         try:
+            slot = staging / f"{offset + i:06d}" / _folder_name(rel)
+            slot.mkdir(parents=True, exist_ok=True)
             name = cameras.safe_name(e.name)
             if rel.rsplit("/", 1)[-1] != name or any(slot.iterdir()):
                 raise CameraError(f"Refused a file name from the camera: {e.name!r}")
@@ -106,32 +117,40 @@ def _settle(staged: list[tuple[Path, Device, str]], res: dict, move: bool) -> tu
 
 
 def import_paths(paths: list[str], mode: str, destination: str, recursive: bool, progress, **options: Any) -> dict:
-    found = cameras.walk(paths, recursive)
+    report: dict = {}
+    found = cameras.walk(paths, recursive, report=report)
     target = destination or str(config.library_dir())
     wanted = "dng" if mode == "dng" else "copy"
     staging = config.temp_dir() / "camera" / str(time.time_ns())
-    result: dict = {"ids": [], "skipped": [], "failed": [], "notDeleted": [], "count": 0}
+    result: dict = {"ids": [], "skipped": [], "failed": [], "notDeleted": [], "count": 0, "truncated": bool(report.get("truncated"))}
     total = len(found)
-    offset = 0
     try:
-        for batch in _batches(found):
-            staged, fetch_failed = _fetch(batch, staging, offset, total, progress)
-            result["failed"].extend(fetch_failed)
-            if staged:
-                res = importer.import_files([str(p) for p, _, _ in staged], wanted, target, recursive=False, progress=None,
-                                            start_seq=1 + len(result["ids"]), **options)
-                skipped, failed, kept = _settle(staged, res, mode == "move")
-                result["ids"].extend(res["ids"])
-                result["skipped"].extend(skipped)
-                result["failed"].extend(failed)
-                result["notDeleted"].extend(kept)
-            shutil.rmtree(staging, ignore_errors=True)
-            offset += len(batch)
-            if progress is not None and progress.cancelled:
-                break
+        with cameras.importing({dev.id for dev, _, _ in found}):
+            _run_batches(found, staging, target, wanted, mode == "move", progress, result, options)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     if progress is not None:
         progress(total, total, f"Imported {len(result['ids'])} photos from the camera")
     result["count"] = len(result["ids"])
     return result
+
+
+def _run_batches(found: list[tuple[Device, str, Entry]], staging: Path, target: str, wanted: str, move: bool, progress, result: dict,
+                 options: dict) -> None:
+    total = len(found)
+    offset = 0
+    for batch in _batches(found):
+        staged, fetch_failed = _fetch(batch, staging, offset, total, progress)
+        result["failed"].extend(fetch_failed)
+        if staged:
+            res = importer.import_files([str(p) for p, _, _ in staged], wanted, target, recursive=False, progress=None,
+                                        start_seq=1 + len(result["ids"]), **options)
+            skipped, failed, kept = _settle(staged, res, move)
+            result["ids"].extend(res["ids"])
+            result["skipped"].extend(skipped)
+            result["failed"].extend(failed)
+            result["notDeleted"].extend(kept)
+        shutil.rmtree(staging, ignore_errors=True)
+        offset += len(batch)
+        if progress is not None and progress.cancelled:
+            break
