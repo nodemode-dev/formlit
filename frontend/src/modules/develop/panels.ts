@@ -21,8 +21,9 @@ function lensDbText(s: LensDbSource | undefined): string {
   if (s?.source === 'bundled') return s.date ? `Lensfun lens profiles, bundled with formlit (${s.date})` : 'Lensfun lens profiles, bundled with formlit';
   return 'No lens profile database yet.';
 }
+
 const SHARPEN_VIEWS: Record<string, SharpenView> = { 'detail.sharpenAmount': 'amount', 'detail.sharpenRadius': 'radius', 'detail.sharpenDetail': 'detail', 'detail.sharpenMasking': 'mask' };
-const RAW_ONLY_WB =new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
+const RAW_ONLY_WB = new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
 
 function shotTemp(): number { return develop.info?.asShotTemp || 6500; }
 

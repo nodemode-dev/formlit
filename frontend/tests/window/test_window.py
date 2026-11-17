@@ -362,3 +362,37 @@ def test_every_new_string_has_a_translation_in_each_catalog():
         tr = json.loads((LOCALES17 / f"{lang}.json").read_text(encoding="utf-8"))
         assert sorted(tr) == sorted(str(i) for i in range(len(keys))), lang
         assert all(tr[str(i)].strip() and tr[str(i)] != k for i, k in enumerate(keys)), lang
+
+
+def test_an_unplugged_camera_start_folder_falls_back_without_an_error(engine):
+    """A remembered or detected camera:// folder that no longer lists opens the default root instead of an empty dialog."""
+    from urllib.parse import unquote
+
+    from playwright.sync_api import sync_playwright
+
+    roots = {"roots": [{"name": "Pictures", "path": "/fallback/Pictures", "kind": "pictures"},
+                       {"name": "Canon EOS R5", "path": "camera://gp-gone/", "kind": "camera", "removable": False, "card": True}], "library": "/fallback/Pictures"}
+    asked = []
+
+    def listing(route):
+        path = unquote(route.request.url.split("path=", 1)[1])
+        asked.append(path)
+        if path.startswith("camera://"):
+            route.fulfill(status=404, content_type="application/json", body=json.dumps({"ok": False, "error": "The camera is no longer connected."}))
+        else:
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"path": path, "parent": None, "dirs": [], "files": []}))
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page.route("**/api/files/roots", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(roots)))
+        page.route("**/api/files/list?*", listing)
+        page.route("**/api/commands/library.scan", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "library.scan", "result": {"files": [], "duplicates": 0}, "revision": 0})))
+        page.goto(engine + "/", wait_until="load", timeout=120_000)
+        page.wait_for_load_state("networkidle", timeout=120_000)
+        page.keyboard.press("ControlOrMeta+Shift+I")
+        page.wait_for_function("() => document.querySelector('.fl-imp-row.is-on')?.dataset.path === '/fallback/Pictures'", timeout=15_000)
+        toasts = page.locator(".cv-toast", has_text="no longer connected").count()
+        browser.close()
+    assert asked[:2] == ["camera://gp-gone/", "/fallback/Pictures"]
+    assert toasts == 0

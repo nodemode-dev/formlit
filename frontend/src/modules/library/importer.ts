@@ -224,7 +224,9 @@ class ImportDialog extends Dialog {
     this.fillPresets();
     this.syncFields();
     const card = roots.roots.find((r) => r.card)?.path ?? '';
-    await this.browse(start || (card && !this.prefs.last.startsWith(card) ? card : '') || this.prefs.last ||roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/');
+    const fallback = roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/';
+    const first = start || (card && !this.prefs.last.startsWith(card) ? card : '') || this.prefs.last || fallback;
+    if (!(await this.browse(first, !start)) && first !== fallback) await this.browse(fallback);
   }
 
   private syncFields(): void {
@@ -238,11 +240,11 @@ class ImportDialog extends Dialog {
     }
   }
 
-  private async browse(path: string): Promise<void> {
+  private async browse(path: string, quiet = false): Promise<boolean> {
     const seq = ++this.seq;
     try {
       const r = await this.ctx.api.get<{ path: string; parent: string | null; dirs: Array<{ name: string; path: string }>; crumbs?: Array<{ name: string; path: string }> }>(`/api/files/list?path=${encodeURIComponent(path)}`);
-      if (seq !== this.seq) return;
+      if (seq !== this.seq) return true;
       this.path = r.path;
       this.prefs.last = r.path;
       this.save();
@@ -256,7 +258,11 @@ class ImportDialog extends Dialog {
       const best = rows.map((b) => b.dataset.path ?? '').filter((p) => p && r.path.startsWith(p)).sort((a, b) => b.length - a.length)[0];
       for (const b of rows) setClass(b, 'is-on', b.dataset.path === best);
       await this.scan();
-    } catch (err) { this.ctx.fail(err); }
+      return true;
+    } catch (err) {
+      if (!quiet) this.ctx.fail(err);
+      return false;
+    }
   }
 
   private async scan(): Promise<void> {

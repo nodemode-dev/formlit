@@ -37,6 +37,9 @@ class ModelChoice extends Dialog {
     this.onClose = () => this.finish(null);
   }
   ask(title: string, text: string, best: ModelCard, small: ModelCard | null): Promise<string | null> {
+    const pending = this.resolve;
+    this.resolve = null;
+    pending?.(null);
     this.setTitle(title);
     setText(this.text, text);
     this.picks = [best.model, small?.model ?? ''];

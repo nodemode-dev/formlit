@@ -1065,6 +1065,36 @@ The dialog counted only roots of kind `volume` as removable, so on Windows, wher
 
 The engine lists a connected camera as a root of kind `camera` with a `camera://` path, and the dialog already browses, scans, shows thumbnails and imports any path the engine gives it, so three small changes are enough: a camera row uses the tether icon; breadcrumbs come from the listing's `crumbs` when it sends them, because splitting a `camera://` path on slashes gives a `camera:` crumb; and with a camera as the source, Add shows the destination and the Copy hint, because Add from a camera copies (the engine has no files on a drive to add in place). No new strings: the hint reuses "Copy photos to a new location and add them". Kept additive beside the drive-detection work on the `fix/review-gaps` branch: the root icon line and the start of `sync` are the only lines both touch. Not checked in a throttled browser here.
 
+## Review fixes on fix/review-gaps (unreleased) {#review-fixes}
+
+### src/modules/develop/view.ts · SHARPEN_REGION_MS, sharpenRegionAt, run
+- refers-to: src/modules/develop/view.ts :: SHARPEN_REGION_MS, DevelopView.sharpenRegionAt, run
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+With a sharpening view on, every base render during a drag asked for a new 1:1 region render too, so a zoomed drag sent two full-resolution renders per frame. The region is now re-rendered at most every 500 ms while dragging (the base render still follows every frame), and once more when the drag ends, as before. Not covered by a window test: the test photos are too small for the view to need a region.
+
+### src/modules/library/importer.ts · show, browse (quiet, the fallback)
+- refers-to: src/modules/library/importer.ts :: ImportDialog.show, browse
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+A remembered or detected start folder that no longer lists (most often a `camera://` path after the camera was unplugged) left the dialog empty with an error toast. `browse` now answers whether it listed, and `show` tries the first choice quietly (unless the caller named the folder) and then opens the Pictures root, or the first root. The line that chose the start folder is split into `fallback` and `first`. Test: `tests/window/test_window.py::test_an_unplugged_camera_start_folder_falls_back_without_an_error`.
+
+### src/modules/shared/model-install.ts · ModelChoice.ask
+- refers-to: src/modules/shared/model-install.ts :: ModelChoice.ask
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+A second offer while the first was still open (two masks clicked quickly) replaced the stored resolver, so the first caller's promise never settled. `ask` now settles any pending one with null (Cancel) before it opens the new offer.
+
+### src/modules/develop/panels.ts · formatting
+- refers-to: src/modules/develop/panels.ts :: RAW_ONLY_WB, lensDbText
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+A missing space after `=` on `RAW_ONLY_WB` and a missing blank line after `lensDbText`; no behaviour change.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

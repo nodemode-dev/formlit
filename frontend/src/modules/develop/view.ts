@@ -26,6 +26,7 @@ export interface Tool {
 }
 
 const MAX_LONG = 2560;
+const SHARPEN_REGION_MS = 500;
 
 class Img {
   readonly el: HTMLImageElement;
@@ -67,6 +68,7 @@ export class DevelopView {
   clipping = false;
   depth = false;
   sharpenView: SharpenView = '';
+  private sharpenRegionAt = 0;
   hdr: '' | 'display' | 'sdr' | 'visualize' = '';
   hdrBins: number[] | null = null;
   hdrStops = 0;
@@ -322,7 +324,11 @@ export class DevelopView {
           setClass(this.base.el, 'is-loaded', true);
           this.place();
           this.onRendered?.(this.base.el);
-          if (!this.dragging || this.sharpenView) this.scheduleRegion(80);
+          if (!this.dragging) this.scheduleRegion(80);
+          else if (this.sharpenView && performance.now() - this.sharpenRegionAt > SHARPEN_REGION_MS) {
+            this.sharpenRegionAt = performance.now();
+            this.scheduleRegion(0);
+          }
         }
       }
       if (this.compare === 'ref') this.renderReference();
