@@ -75,15 +75,22 @@ def test_render_route_takes_the_sharpen_view(client, photo):
     assert np.abs(a[..., 0] - a[..., 2]).max() <= 3
 
 
-@pytest.mark.parametrize("kind,model", [("subject", "subject"), ("sky", "sky"), ("object", "objects")])
-def test_missing_ai_model_answers_with_what_to_install(client, photo, kind, model):
+def card(model):
     from app.ai import models
 
-    assert not models.ready(model)
+    spec = models.MODELS[model]
+    return {"model": model, "name": spec["name"], "sizeMB": spec["size"], "license": spec["license"]}
+
+
+@pytest.mark.parametrize("kind,choices", [("subject", ["subjectHq", "subject"]), ("background", ["subjectHq", "subject"]), ("sky", ["sky"]), ("object", ["objectsHq", "objects"])])
+def test_missing_ai_model_answers_with_what_to_install(client, photo, kind, choices):
+    from app.ai import models
+
+    assert not any(models.ready(m) for m in choices)
     r = client.post("/api/commands/develop.aiMask", json={"id": photo["id"], "kind": kind})
     assert r.status_code == 409
     body = r.json()
-    assert body["missingModel"] == {"model": model, "name": models.MODELS[model]["name"], "sizeMB": models.MODELS[model]["size"], "license": models.MODELS[model]["license"]}
+    assert body["missingModel"] == {**card(choices[0]), "choices": [card(m) for m in choices]}
     assert "not installed yet" in body["error"]
 
 

@@ -21,7 +21,8 @@ def _norm01(a: np.ndarray) -> np.ndarray:
 
 def u2net(rgb8: np.ndarray, model: str = "subject") -> np.ndarray:
     file = "u2net.onnx" if model == "subject" else "u2net_human_seg.onnx"
-    models.require(model)
+    if not models.ready(model):
+        raise models.ModelMissing(model)
     s = models.session(model, file)
     h, w = rgb8.shape[:2]
     im = _resize(rgb8, 320, 320, cv2.INTER_LANCZOS4).astype(np.float32)
@@ -30,6 +31,34 @@ def u2net(rgb8: np.ndarray, model: str = "subject") -> np.ndarray:
     with _run_lock:
         pred = s.run(None, {s.get_inputs()[0].name: x})[0][0, 0]
     return np.clip(_resize(_norm01(pred.astype(np.float32)), w, h, cv2.INTER_LINEAR), 0.0, 1.0)
+
+
+BIREFNET_SIDE = 1024
+
+
+def birefnet(rgb8: np.ndarray) -> np.ndarray:
+    if not models.ready("subjectHq"):
+        raise models.ModelMissing("subjectHq")
+    s = models.session("subjectHq", models.BIREFNET_FILE)
+    h, w = rgb8.shape[:2]
+    x = _resize(rgb8, BIREFNET_SIDE, BIREFNET_SIDE, cv2.INTER_AREA).astype(np.float32) / 255.0
+    x = ((x - MEAN) / STD).transpose(2, 0, 1)[None].astype(np.float32)
+    with _run_lock:
+        pred = s.run(None, {s.get_inputs()[0].name: x})[-1]
+    p = np.asarray(pred, np.float32).reshape(pred.shape[-2], pred.shape[-1])
+    p = 1.0 / (1.0 + np.exp(-np.clip(p, -40.0, 40.0)))
+    return np.clip(_resize(p, w, h, cv2.INTER_LINEAR), 0.0, 1.0).astype(np.float32)
+
+
+def subject(rgb8: np.ndarray) -> np.ndarray:
+    return birefnet(rgb8) if models.require("subject") == "subjectHq" else u2net(rgb8, "subject")
+
+
+def _sam() -> tuple:
+    model = models.require("objects")
+    folder = models.SAM_DIRS[model]
+    return (models.session(f"sam-enc-{model}", f"{folder}/vision_encoder.onnx"),
+            models.session(f"sam-dec-{model}", f"{folder}/prompt_encoder_mask_decoder.onnx"))
 
 
 def sky(rgb8: np.ndarray) -> np.ndarray:
@@ -68,9 +97,7 @@ def depth(rgb8: np.ndarray) -> np.ndarray:
 
 
 def sam_box(rgb8: np.ndarray, box: list[float] | None, points: list[list[float]] | None = None) -> np.ndarray:
-    models.require("objects")
-    enc = models.session("sam-enc", "sam2.1-hiera-tiny/vision_encoder.onnx")
-    dec = models.session("sam-dec", "sam2.1-hiera-tiny/prompt_encoder_mask_decoder.onnx")
+    enc, dec = _sam()
     h, w = rgb8.shape[:2]
     im = _resize(rgb8, 1024, 1024, cv2.INTER_LINEAR).astype(np.float32) / 255.0
     im = ((im - MEAN) / STD).transpose(2, 0, 1)[None].astype(np.float32)
@@ -123,9 +150,7 @@ def _iou(a, b) -> float:
 
 
 def sam_prompts(rgb8: np.ndarray, prompts: list[tuple[list[list[float]], list[int], list[float] | None]]) -> list[np.ndarray]:
-    models.require("objects")
-    enc = models.session("sam-enc", "sam2.1-hiera-tiny/vision_encoder.onnx")
-    dec = models.session("sam-dec", "sam2.1-hiera-tiny/prompt_encoder_mask_decoder.onnx")
+    enc, dec = _sam()
     h, w = rgb8.shape[:2]
     im = _resize(rgb8, 1024, 1024, cv2.INTER_LINEAR).astype(np.float32) / 255.0
     im = ((im - MEAN) / STD).transpose(2, 0, 1)[None].astype(np.float32)

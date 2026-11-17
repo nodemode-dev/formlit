@@ -67,11 +67,13 @@ Each model is fetched from a pinned revision and checked against its SHA-256 bef
 
 | Model | License | Use |
 | --- | --- | --- |
-| U-2-Net (rembg release) | Apache-2.0 | Select Subject, Select Background |
+| BiRefNet general, Swin-T backbone (Zheng Peng et al.), the author's ONNX export BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx, https://github.com/ZhengPeng7/BiRefNet/releases/tag/v1 | MIT (repository licence, Copyright (c) 2024 ZhengPeng) | Select Subject, Select Background: the recommended model |
+| U-2-Net (rembg release) | Apache-2.0 | Select Subject, Select Background: the small and fast model |
+| SAM 2.1 base plus (Meta), ONNX export by onnx-community at revision bab18593, https://huggingface.co/onnx-community/sam2.1-hiera-base-plus-ONNX | Apache-2.0 (Meta's SAM 2 weights and code) | Select Objects: the recommended model |
 | Sky segmenter (xiongzhu666, Hugging Face copy) | MIT | Select Sky |
 | YuNet face detector, SFace recognizer (OpenCV Zoo) | MIT, Apache-2.0 | People view, Select People |
 | Depth Anything V2 Small (onnx-community export) | Apache-2.0 | Depth Range masks, Lens Blur |
-| SAM 2.1 tiny (ONNX) | Apache-2.0 | Select Objects |
+| SAM 2.1 tiny (ONNX) | Apache-2.0 | Select Objects: the small and fast model |
 | LaMa (Carve ONNX export) | Apache-2.0 | Generative Remove |
 | Real-ESRGAN x4plus | BSD-3-Clause | Super Resolution |
 | U-2-Net human segmentation (u2net_human_seg.onnx, rembg release v0.0.0), https://github.com/danielgatis/rembg/releases/tag/v0.0.0 | Apache-2.0, as `backend/app/ai/models.py` records | Select People |

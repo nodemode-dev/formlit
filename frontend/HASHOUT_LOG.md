@@ -1021,6 +1021,13 @@ Holding Alt (Option on a Mac) while dragging a Sharpening slider shows what it c
 
 The Subject, Sky, Background, People, Objects, Depth Range and part masks used to fail with "is not installed yet ... Install it in Preferences". `withModel` runs the command, and when the engine answers with `missingModel` it asks "Install Now (176 MB)" in the confirm dialog; Install Now runs `ai.download` (the Preferences download, SHA-256 checked), waits for its task, checks `ai.models` says it is ready and runs the command again, so the mask is made without a second click. Cancel throws the original error, which shows the same toast as before. Up to three installs in a row are offered, because People needs the people model and then the faces model. The busy indicator names the model while it downloads; the masks' existing photo checks (`develop.id !== id`) still drop a result for a photo that is no longer open. Test: `tests/window/test_window.py::test_missing_ai_model_offers_install_with_its_size` (Sky shows Install Now (176 MB), Cancel gives the old toast and downloads nothing, Install Now on Subject sends `ai.download` for `subject`; the download is routed to fail, so the run-again path after a real download is not covered here).
 
+### src/modules/shared/model-install.ts · ModelChoice, describeOffer; src/ui/preferences.ts · model roles
+- refers-to: src/modules/shared/model-install.ts :: ModelChoice, describeOffer, offerModel; src/ui/preferences.ts :: the AI Models rows (fl-model-role); src/styles/lit-library.css :: .fl-model-role
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+When the engine's `missingModel` lists two choices (Subject, Background, Objects), the offer is a three-button dialog: Install Now (the recommended model and its size, the default button), Small and Fast (the small model and its size) and Cancel. A family with one model (Sky, People, Depth) keeps the one-button wording and hides Small and Fast. Whatever is installed, the mask then runs on the best installed model. Preferences marks the four rows Recommended or Small and fast under the model name. Test: `tests/window/test_window.py::test_missing_ai_model_offers_install_with_its_size` (Subject shows Install Now (224 MB) and BiRefNet, Small and Fast sends `subject`; Objects shows Small and Fast (155 MB) and Install Now (328 MB) sends `objectsHq`).
+
 ### src/modules/shared/merge-dialog.ts · EnhanceDialog install row; src/modules/shared/ai.ts · photo.enhance
 - refers-to: src/modules/shared/merge-dialog.ts :: EnhanceDialog (fl-enh-model, install, syncModel, ask, values.install); src/modules/shared/ai.ts :: photo.enhance
 - kind: feature

@@ -6,7 +6,13 @@ from typing import Any, Callable
 
 from app.core import config
 
+BIREFNET_FILE = "birefnet/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx"
+SAM_BASE = "https://huggingface.co/onnx-community/sam2.1-hiera-base-plus-ONNX/resolve/bab18593f44e652f04cf18b60b3690f60e8996b0/onnx/"
+
 MODELS: dict[str, dict] = {
+    "subjectHq": {"name": "BiRefNet (subject and background)", "license": "MIT", "size": 224, "cpuOnly": True,
+                  "files": {BIREFNET_FILE: ("https://github.com/ZhengPeng7/BiRefNet/releases/download/v1/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
+                                            "5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333")}},
     "subject": {"name": "U2-Net (subject and background)", "license": "Apache-2.0", "size": 176,
                 "files": {"u2net.onnx": ("https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
                                          "8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491")}},
@@ -19,6 +25,13 @@ MODELS: dict[str, dict] = {
     "depth": {"name": "Depth Anything V2 Small", "license": "Apache-2.0", "size": 99,
               "files": {"depth-anything-v2-small/model.onnx": ("https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/413ce838e669ab7dfc01a6a396bf3d4397286d7f/onnx/model.onnx",
                                                                "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c")}},
+    "objectsHq": {"name": "SAM 2.1 base plus (objects)", "license": "Apache-2.0", "size": 328,
+                  "files": {
+                      "sam2.1-hiera-base-plus/vision_encoder.onnx": (SAM_BASE + "vision_encoder.onnx", "6fd992cf796e6ad5a29f3b92a127f2ce33f7f320d63c8b3f02bf3775f5f692f4"),
+                      "sam2.1-hiera-base-plus/vision_encoder.onnx_data": (SAM_BASE + "vision_encoder.onnx_data", "f8a5f1b14d02eb7ed3b3576ad6774b8ebcfef6cc20674d5f316d6144c60a08a5"),
+                      "sam2.1-hiera-base-plus/prompt_encoder_mask_decoder.onnx": (SAM_BASE + "prompt_encoder_mask_decoder.onnx", "f39eeec20243ed1c8f2cd013812e77813d937ddbc800fa4bc703761adc7e63cd"),
+                      "sam2.1-hiera-base-plus/prompt_encoder_mask_decoder.onnx_data": (SAM_BASE + "prompt_encoder_mask_decoder.onnx_data", "445cd3f72a218815db10e336f4f1c46a6eb2713a0160a85af5365134607f32a7"),
+                  }},
     "objects": {"name": "SAM 2.1 tiny (objects)", "license": "Apache-2.0", "size": 155,
                 "files": {
                     "sam2.1-hiera-tiny/vision_encoder.onnx": ("https://huggingface.co/onnx-community/sam2.1-hiera-tiny-ONNX/resolve/814a066640debee5a91e70aa401fb8e17e030503/onnx/vision_encoder.onnx",
@@ -67,6 +80,10 @@ MODELS: dict[str, dict] = {
                }},
 }
 
+CHOICES: dict[str, tuple[str, ...]] = {"subject": ("subjectHq", "subject"), "objects": ("objectsHq", "objects")}
+FAMILY = {m: f for f, ms in CHOICES.items() for m in ms}
+SAM_DIRS = {"objectsHq": "sam2.1-hiera-base-plus", "objects": "sam2.1-hiera-tiny"}
+
 _lock = threading.RLock()
 _sessions: dict[str, Any] = {}
 _downloading: set[str] = set()
@@ -75,9 +92,13 @@ PROVIDERS = ("CoreMLExecutionProvider", "DmlExecutionProvider", "CUDAExecutionPr
 
 class ModelMissing(Exception):
     def __init__(self, model: str):
+        model = CHOICES.get(model, (model,))[0]
         spec = MODELS[model]
-        super().__init__(f"{spec['name']} is not installed yet ({spec['size']} MB, {spec['license']}). Install it in Preferences, or call run_command with {{\"command\": \"ai.download\", \"params\": {{\"model\": \"{model}\", \"wait\": true}}}} once; if that fails, do the edit without this mask (the colour mixer or a gradient mask) rather than retrying.")
+        choices = CHOICES.get(FAMILY.get(model, ""), (model,))
+        small = "".join(f" The smaller {MODELS[c]['name']} ({MODELS[c]['size']} MB, model \"{c}\") also works." for c in choices[1:])
+        super().__init__(f"{spec['name']} is not installed yet ({spec['size']} MB, {spec['license']}).{small} Install it in Preferences, or call run_command with {{\"command\": \"ai.download\", \"params\": {{\"model\": \"{model}\", \"wait\": true}}}} once; if that fails, do the edit without this mask (the colour mixer or a gradient mask) rather than retrying.")
         self.model = model
+        self.choices = list(choices)
 
 
 def path(name: str) -> Path:
@@ -91,13 +112,30 @@ def ready(model: str) -> bool:
     return all(path(n).is_file() and path(n).stat().st_size > 1024 for n in spec["files"])
 
 
-def require(model: str) -> None:
-    if not ready(model):
+def best(model: str) -> str | None:
+    return next((m for m in CHOICES.get(FAMILY.get(model, model), (model,)) if ready(m)), None)
+
+
+def usable(model: str) -> bool:
+    return best(model) is not None
+
+
+def require(model: str) -> str:
+    found = best(model)
+    if found is None:
         raise ModelMissing(model)
+    return found
+
+
+def _role(model: str) -> dict:
+    family = FAMILY.get(model)
+    if family is None:
+        return {}
+    return {"for": family, "recommended": CHOICES[family][0] == model}
 
 
 def catalogue() -> list[dict]:
-    return [{"id": k, "name": v["name"], "license": v["license"], "sizeMB": v["size"], "ready": ready(k), "downloading": k in _downloading} for k, v in MODELS.items()]
+    return [{"id": k, "name": v["name"], "license": v["license"], "sizeMB": v["size"], "ready": ready(k), "downloading": k in _downloading, **_role(k)} for k, v in MODELS.items()]
 
 
 def download(model: str, progress: Callable | None = None) -> dict:
@@ -151,7 +189,8 @@ def session(key: str, file: str):
             import onnxruntime as ort
             opts = ort.SessionOptions()
             opts.enable_cpu_mem_arena = False
-            s = ort.InferenceSession(str(path(file)), opts, providers=providers())
+            cpu_only = MODELS.get(key, {}).get("cpuOnly")
+            s = ort.InferenceSession(str(path(file)), opts, providers=["CPUExecutionProvider"] if cpu_only else providers())
             _sessions[key] = s
             while len(_sessions) > 3:
                 _sessions.pop(next(iter(_sessions)))

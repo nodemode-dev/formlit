@@ -234,7 +234,7 @@ def test_alt_drag_on_sharpening_shows_its_view_and_release_restores(engine, tmp_
 
 
 def test_missing_ai_model_offers_install_with_its_size(engine, tmp_path):
-    """Review gap: Subject, Sky and Objects failed with 'not installed yet, Install it in Preferences'; the mask now offers Install Now."""
+    """Review gap: Subject, Sky and Objects failed with 'not installed yet, Install it in Preferences'; the mask now offers Install Now, the recommended model first and the small one beside it."""
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
@@ -254,10 +254,21 @@ def test_missing_ai_model_offers_install_with_its_size(engine, tmp_path):
         page.route("**/api/commands/ai.download", lambda route: route.fulfill(status=500, content_type="application/json", body=json.dumps({"ok": False, "error": "offline in the test"})))
         page.locator("[data-new='subject']").first.click()
         dialog.wait_for(timeout=30_000)
-        dialog.get_by_role("button", name="Install Now (176 MB)").click()
+        text = dialog.inner_text()
+        assert "Install Now (224 MB)" in text and "BiRefNet" in text
+        dialog.get_by_role("button", name="Small and Fast (176 MB)").click()
         page.locator(".cv-toast", has_text="offline in the test").first.wait_for(timeout=10_000)
+        page.locator("[data-new='object']").first.click()
+        page.wait_for_timeout(300)
+        page.mouse.click(720, 450)
+        dialog.wait_for(timeout=30_000)
+        assert "Small and Fast (155 MB)" in dialog.inner_text()
+        dialog.get_by_role("button", name="Install Now (328 MB)").click()
+        deadline = time.monotonic() + 10
+        while len(downloads) < 2 and time.monotonic() < deadline:
+            page.wait_for_timeout(50)
         browser.close()
-    assert downloads == [{"model": "subject"}]
+    assert downloads == [{"model": "subject"}, {"model": "objectsHq"}]
 
 
 def test_raw_without_lens_profiles_offers_the_download_once(engine, tmp_path):

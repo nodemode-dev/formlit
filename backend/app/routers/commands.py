@@ -16,8 +16,10 @@ def _missing(exc: BaseException) -> dict:
     cause = exc if isinstance(exc, models.ModelMissing) else exc.__cause__
     if not isinstance(cause, models.ModelMissing):
         return {}
-    spec = models.MODELS[cause.model]
-    return {"missingModel": {"model": cause.model, "name": spec["name"], "sizeMB": spec["size"], "license": spec["license"]}}
+    def card(m: str) -> dict:
+        spec = models.MODELS[m]
+        return {"model": m, "name": spec["name"], "sizeMB": spec["size"], "license": spec["license"]}
+    return {"missingModel": {**card(cause.model), "choices": [card(m) for m in cause.choices]}}
 
 
 def _run(cid: str, params: dict | None) -> tuple[int, dict]:
