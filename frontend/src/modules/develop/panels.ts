@@ -1,19 +1,22 @@
 import type { Ctx } from '../../app';
 import { develop, getPath, type Profile } from '../../state/develop';
-import { el, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
+import { el, isMac, q, setClass, setHidden, setText, setValue } from '../../ui/dom';
 import { Histogram } from '../../ui/histogram';
 import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
 import { Slider } from '../../ui/slider';
-import { whenDone } from '../shared/tasks';
+import { toast } from '../../ui/toast';
+import { actionToast, whenDone } from '../shared/tasks';
 import { CurveEditor } from './curve';
 import { HdrSection } from './hdr';
-import type { DevelopView } from './view';
+import type { DevelopView, SharpenView } from './view';
 import { ColorWheel } from './wheel';
 
 const BANDS = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
 const MIRED_STEP = 0.75;
-const RAW_ONLY_WB = new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
+const LENS_ASK_MS = 20000;
+const SHARPEN_VIEWS: Record<string, SharpenView> = { 'detail.sharpenAmount': 'amount', 'detail.sharpenRadius': 'radius', 'detail.sharpenDetail': 'detail', 'detail.sharpenMasking': 'mask' };
+const RAW_ONLY_WB =new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
 
 function shotTemp(): number { return develop.info?.asShotTemp || 6500; }
 
@@ -50,11 +53,13 @@ export class SliderSet {
   make(cid: string, label?: string): HTMLElement {
     const spec = develop.specs.get(cid);
     if (!spec) return el('<div></div>');
+    const view = SHARPEN_VIEWS[cid];
     const s = new Slider({ ...spec, label: label ?? spec.label }, {
       input: (id, v, phase) => {
         this.view.setDragging(phase === 'drag');
         develop.set(id, v, phase);
       },
+      ...(view ? { hold: (on: boolean) => this.view.setSharpenView(on ? view : '') } : {}),
     });
     this.sliders.set(cid, s);
     return s.root;
@@ -166,6 +171,7 @@ export class DevelopPanels {
 
     const pDetail = this.panel('dev.detail', 'Detail', 'detail');
     pDetail.body.append(el('<div class="fl-sub">Sharpening</div>'), s('detail.sharpenAmount', 'Amount'), s('detail.sharpenRadius'), s('detail.sharpenDetail'), s('detail.sharpenMasking'),
+      el(`<p class="fl-muted fl-sharpen-hint">Hold ${isMac ? 'Option' : 'Alt'} while dragging a Sharpening slider to see what it changes; Masking shows the sharpened areas in white.</p>`),
       el('<div class="fl-sub">Noise Reduction</div>'), s('detail.nrLuminance', 'Luminance'), s('detail.nrDetail'), s('detail.nrContrast'), s('detail.nrColor', 'Color'), s('detail.nrColorDetail'), s('detail.nrColorSmoothness'),
       el(`<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">Zoom to 1:1 (Z) to judge sharpening and noise.</span><button class="cv-btn fl-btn-sm" type="button" data-cmd="develop.aiDenoise">${icon('aiChip', 13)} Denoise...</button></div>`));
 
@@ -197,10 +203,20 @@ export class DevelopPanels {
       if (id === null || !modelSel.value) return;
       void develop.flush().then(() => this.ctx.api.cmd('develop.lensProfile', { ids: [id], enable: true, lens: modelSel.value })).then(() => develop.reload('photo'), (err) => this.ctx.fail(err));
     });
-    dbRow.querySelector('button')?.addEventListener('click', () => {
+    const downloadDb = (): void => {
       setText(q(dbRow, 'span'), 'Downloading...');
-      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task)).then(() => { lensFor = null; setHidden(dbRow, true); develop.reload('photo'); }, (err) => { setText(q(dbRow, 'span'), 'Download failed'); this.ctx.fail(err); });
-    });
+      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task)).then(() => { lensFor = null; setHidden(dbRow, true); develop.reload('photo'); toast('Lens profiles downloaded'); }, (err) => { setText(q(dbRow, 'span'), 'Download failed'); this.ctx.fail(err); });
+    };
+    dbRow.querySelector('button')?.addEventListener('click', downloadDb);
+    let lensAsked = false;
+    const askLensDb = (mb: number): void => {
+      if (lensAsked) return;
+      lensAsked = true;
+      actionToast(`Download lens profiles for automatic lens correction (${mb} MB)`, [
+        ['Download', downloadDb],
+        ['Not Now', () => void this.ctx.api.cmd('prefs.set', { values: { askLensProfiles: false } }).catch((err) => this.ctx.fail(err))],
+      ], LENS_ASK_MS);
+    };
     let lensFor: number | null = null;
     let makersLoaded = false;
     develop.listen((why) => {
@@ -209,7 +225,8 @@ export class DevelopPanels {
       if (lensBox.checked !== !!prof?.enabled) lensBox.checked = !!prof?.enabled;
       if (develop.id !== null && develop.id !== lensFor) {
         lensFor = develop.id;
-        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null; askDownload?: boolean; downloadMB?: number }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+          if (r.askDownload) askLensDb(r.downloadMB ?? 0);
           const using = r.lens ? `${r.lens} (Lensfun)` : r.source === 'DNG opcodes' ? 'Built in (DNG opcodes)' : r.guess ? `${r.guess.model} (Lensfun)` : 'No profile found; choose the lens';
           setText(q(lensRow, '.fl-lens-note'), using);
           lensBox.disabled = !r.available && !prof?.enabled;

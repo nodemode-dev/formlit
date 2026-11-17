@@ -37,6 +37,7 @@ export function trackBackground(t: SliderSpec['track']): string {
 export interface SliderEvents {
   input: (id: string, value: number, phase: 'drag' | 'end') => void;
   reset?: (id: string) => void;
+  hold?: (on: boolean) => void;
 }
 
 export class Slider {
@@ -45,6 +46,7 @@ export class Slider {
   private readonly num: HTMLInputElement;
   private value: number;
   private dragging = false;
+  private holding = false;
 
   constructor(readonly spec: SliderSpec, private readonly on: SliderEvents) {
     this.value = spec.default;
@@ -103,11 +105,27 @@ export class Slider {
     if (changed || phase === 'end') this.on.input(this.spec.id, nv, phase);
   }
 
+  private setHold(on: boolean): void {
+    if (!this.on.hold || on === this.holding) return;
+    this.holding = on;
+    this.on.hold(on);
+  }
+
   private wire(): void {
     let startX = 0, startV = 0, width = 1, moved = false;
+    const altKey = (e: KeyboardEvent) => {
+      if (!this.dragging || e.key !== 'Alt') return;
+      e.preventDefault();
+      this.setHold(e.type === 'keydown');
+    };
+    if (this.on.hold) {
+      window.addEventListener('keydown', altKey, true);
+      window.addEventListener('keyup', altKey, true);
+    }
     this.track.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
+      this.setHold(e.altKey);
       this.track.focus({ preventScroll: true });
       const r = this.track.getBoundingClientRect();
       width = Math.max(1, r.width);
@@ -122,6 +140,7 @@ export class Slider {
     });
     this.track.addEventListener('pointermove', (e) => {
       if (!this.dragging) return;
+      this.setHold(e.altKey);
       const fine = e.shiftKey ? 0.2 : 1;
       const v = startV + ((e.clientX - startX) / width) * (this.spec.max - this.spec.min) * fine;
       moved = true;
@@ -131,6 +150,7 @@ export class Slider {
       if (!this.dragging) return;
       this.dragging = false;
       setClass(this.root, 'is-dragging', false);
+      this.setHold(false);
       if (moved) this.emit(this.value, 'end');
     };
     this.track.addEventListener('pointerup', end);

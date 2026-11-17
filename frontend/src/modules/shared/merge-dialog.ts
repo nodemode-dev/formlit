@@ -1,6 +1,7 @@
 import type { Ctx } from '../../app';
 import { Dialog } from '../../ui/dialogs';
 import { el, q, setClass, setHidden, setText } from '../../ui/dom';
+import { installModel } from './model-install';
 
 type Kind = 'hdr' | 'pano' | 'hdrpano' | 'focus' | 'astro';
 
@@ -144,8 +145,11 @@ class EnhanceDialog extends Dialog {
 <label class="fl-opt"><span>Amount</span><input class="cv-slider" type="range" min="0" max="100" value="50" data-k="amount"><em data-out="amount">50</em></label>
 <label class="fl-check"><input type="checkbox" data-k="rawDetails"> Raw Details (sharper demosaic, raw photos)</label>
 <label class="fl-check"><input type="checkbox" data-k="sr"> Super Resolution (twice the width and height)</label>
+<div class="fl-row fl-enh-model" hidden><span class="fl-muted fl-grow"></span><button class="cv-btn fl-btn-sm" type="button" data-install>Install Now</button></div>
 <p class="cv-note">Each enhancement makes a new DNG next to the original and stacks the two. Your edits carry over. Denoise uses the learned SCUNet denoiser once it is installed (Preferences, AI models), otherwise a classic one.</p></div>`);
   private readonly ok: HTMLButtonElement;
+  private installing: Promise<void> | null = null;
+  private learned: { ready: boolean; sizeMB: number } = { ready: true, sizeMB: 0 };
   private id = 0;
   private raw = false;
   private seq = 0;
@@ -166,9 +170,47 @@ class EnhanceDialog extends Dialog {
       this.sync();
       if (i.dataset.k !== 'sr') this.soon(i.type === 'range' ? 500 : 100);
     });
+    q(this.opts, '[data-install]').addEventListener('click', () => this.install());
   }
 
-  ask(id: number, raw: boolean, count: number): Promise<Record<string, unknown> | null> {
+  private install(): void {
+    if (this.installing) return;
+    const row = q(this.opts, '.fl-enh-model');
+    const btn = q<HTMLButtonElement>(row, 'button');
+    btn.disabled = true;
+    setText(btn, 'Installing...');
+    setText(q(row, 'span'), `Downloading the learned denoiser (${this.learned.sizeMB} MB)...`);
+    this.installing = installModel(this.ctx, 'denoise').then((ok) => {
+      this.learned = { ...this.learned, ready: ok };
+      setText(q(row, 'span'), ok ? 'Learned denoiser installed.' : 'The download did not finish; the classic denoiser is used.');
+      setText(btn, ok ? 'Installed' : 'Install Now');
+      btn.disabled = ok;
+      this.soon(0);
+    }, (err: unknown) => {
+      setText(q(row, 'span'), 'The download failed; the classic denoiser is used.');
+      setText(btn, 'Install Now');
+      btn.disabled = false;
+      this.ctx.fail(err);
+    }).finally(() => { this.installing = null; });
+  }
+
+  private syncModel(): void {
+    const row = q(this.opts, '.fl-enh-model');
+    setHidden(row, this.learned.ready);
+    if (this.learned.ready) return;
+    setText(q(row, 'span'), `Uses the classic denoiser. The learned denoiser (${this.learned.sizeMB} MB) keeps more detail.`);
+    const btn = q<HTMLButtonElement>(row, 'button');
+    setText(btn, `Install Now (${this.learned.sizeMB} MB)`);
+    btn.disabled = false;
+  }
+
+  async ask(id: number, raw: boolean, count: number): Promise<Record<string, unknown> | null> {
+    const list = await this.ctx.api.cmd<{ models: Array<{ id: string; ready: boolean; sizeMB: number; downloading?: boolean }> }>('ai.models').catch(() => ({ models: [] }));
+    const m = list.models.find((x) => x.id === 'denoise');
+    if (!this.installing) {
+      this.learned = { ready: !m || m.ready || !!m.downloading, sizeMB: m?.sizeMB ?? 0 };
+      this.syncModel();
+    }
     this.id = id;
     this.raw = raw;
     this.setTitle(count > 1 ? `Enhance ${count} Photos` : 'Enhance');
@@ -183,7 +225,7 @@ class EnhanceDialog extends Dialog {
 
   private values(): Record<string, unknown> {
     const v = (k: string) => q<HTMLInputElement>(this.opts, `[data-k="${k}"]`);
-    return { denoise: v('denoise').checked, amount: Number(v('amount').value), rawDetails: v('rawDetails').checked, sr: v('sr').checked };
+    return { denoise: v('denoise').checked, amount: Number(v('amount').value), rawDetails: v('rawDetails').checked, sr: v('sr').checked, install: this.installing };
   }
 
   private sync(): void {

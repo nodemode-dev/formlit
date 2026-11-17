@@ -61,6 +61,7 @@ export function registerAiCommands(ctx: Ctx): void {
       if (!first) return;
       const v = await askEnhance(ctx, first.id, ids.some((id) => library.photo(id)?.kind === 'raw'), ids.length);
       if (!v) return;
+      if (v.denoise && v.install instanceof Promise) await v.install;
       if (v.denoise) await run(ctx, 'ai.denoise', { ids, amount: v.amount }, `Denoising ${ids.length} photo${ids.length === 1 ? '' : 's'}`);
       if (v.rawDetails) await run(ctx, 'ai.rawDetails', { ids }, `Raw Details for ${ids.length} photo${ids.length === 1 ? '' : 's'}`);
       if (v.sr) await run(ctx, 'ai.superResolution', { ids }, 'Super Resolution started');

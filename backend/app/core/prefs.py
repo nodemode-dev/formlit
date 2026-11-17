@@ -12,6 +12,7 @@ DEFAULTS: dict = {
     "claudeFolder": "",
     "claudeBin": "",
     "claudeFirstMessage": "",
+    "askLensProfiles": True,
 }
 CHOICES: dict[str, tuple] = {"outsideAgents": ("ask", "allowed", "blocked")}
 _lock = threading.Lock()

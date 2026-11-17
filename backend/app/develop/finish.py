@@ -742,6 +742,39 @@ def mask_overlay(e: np.ndarray, alpha: np.ndarray, color=(1.0, 0.23, 0.23), opac
     return (e + (col - e) * k).astype(np.float32)
 
 
+SHARP_VIEWS = ("amount", "radius", "detail", "mask")
+SHARP_VIEW_GAIN = 4.0
+LUMA_709 = np.array([0.2126, 0.7152, 0.0722], np.float32)
+
+
+def sharpen_overlay(e: np.ndarray, lin: np.ndarray, planes: dict, dev: dict, info: dict, ppl: float, mode: str) -> np.ndarray:
+    if mode not in SHARP_VIEWS:
+        return e
+    h, w = e.shape[:2]
+    if mode == "amount":
+        v = np.ascontiguousarray(e[..., :3]) @ LUMA_709
+    else:
+        info = info or {}
+        g = lambda cid: S.get(dev or {}, cid)
+        full_long = float(max(_num(info.get("fullWidth"), 0.0), _num(info.get("fullHeight"), 0.0)) or ppl)
+        scale = min(float(ppl) / max(full_long, 1.0), 4.0)
+        det, msk = g("detail.sharpenDetail") / 100.0, g("detail.sharpenMasking") / 100.0
+        d, edge = pl.sharp_detail(planes if isinstance(planes, dict) else {}, lin, max(g("detail.sharpenRadius") * scale * 0.85, 0.12))
+        if mode == "mask":
+            thr = SHARP_MASK[0] + SHARP_MASK[1] * msk ** 2
+            v = _smooth(0.5 * thr, 1.5 * thr, edge * np.float32(scale)) if msk > 0 else np.ones(edge.shape, np.float32)
+        else:
+            core = SHARP_CORE[0] * (1.0 - det) + SHARP_CORE[1]
+            tcl = SHARP_CLAMP[0] + SHARP_CLAMP[1] * det
+            dd = d * (d * d / (d * d + core * core)) if mode == "detail" else d
+            dd = dd / np.sqrt(1.0 + (dd / tcl) ** 2)
+            v = 0.5 + SHARP_VIEW_GAIN * dd
+    v = np.clip(np.asarray(v, np.float32), 0.0, 1.0)
+    if v.shape[:2] != (h, w):
+        v = cv2.resize(v, (w, h), interpolation=cv2.INTER_AREA)
+    return np.repeat(v[..., None], 3, axis=-1).astype(np.float32)
+
+
 def spots_overlay(e: np.ndarray, level: float) -> np.ndarray:
     y = np.ascontiguousarray(e[..., :3] @ np.array([0.2126, 0.7152, 0.0722], np.float32))
     detail = np.abs(y - cv2.GaussianBlur(y, (0, 0), 2.0)) + np.abs(cv2.Laplacian(cv2.GaussianBlur(y, (0, 0), 0.8), cv2.CV_32F))

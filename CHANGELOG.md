@@ -2,6 +2,15 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## Unreleased
+
+- Added: in Develop, hold Alt (Option on a Mac) while dragging a Sharpening slider to see what it changes: Masking shows the edge mask (white is sharpened), Amount the sharpened result in greyscale, Radius and Detail the sharpening halos on grey. Letting go brings back the photo. A hint under the sliders says so.
+- Added: a Subject, Sky, Background, People, Objects, Depth Range or part mask whose AI model is not installed offers Install Now with the download size, then makes the mask. Cancel shows the same message as before.
+- Added: the Enhance dialog offers to install the learned denoiser (77 MB) when it is missing; without it Denoise still uses the classic denoiser.
+- Added: opening a raw photo without lens profiles offers to download them (3 MB) once per session; Not Now is remembered.
+- Fixed: on Windows, a memory card or other removable drive counts as removable in Import, so Eject after import shows and works, and the Import dialog opens on a card (a drive or volume with a DCIM folder). Card readers that report a fixed drive count when the drive has a DCIM folder and is not the system drive.
+- Not verified yet: Windows (the drive checks were run with the Windows call stubbed), real model and lens profile downloads from the window, and the new strings in languages other than English.
+
 ## v0.51.3 · 2026-11-11
 
 - Fixed: in Develop, going to another photo and quickly back kept the edits on the photo you came back to; before, the next edit could be saved to the photo you had left.

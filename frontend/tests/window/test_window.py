@@ -180,3 +180,137 @@ def test_develop_returning_to_the_open_photo_cancels_the_pending_switch(engine, 
         browser.close()
     assert len(updates) > before, "the second edit was never saved"
     assert updates[-1] == [first], f"the edit after returning to photo {first} went to {updates[-1]} (opened: {opened})"
+
+
+def open_develop(engine, page, tmp_path, name):
+    from PIL import Image
+
+    path = tmp_path / f"{name}.jpg"
+    Image.new("RGB", (96, 64), (90, 140, 200)).save(path, "JPEG")
+    command(engine, "library.import", {"paths": [str(path)], "mode": "add", "wait": True})
+    page.goto(engine + "/", wait_until="load", timeout=120_000)
+    page.wait_for_load_state("networkidle", timeout=120_000)
+    page.keyboard.press("d")
+    page.wait_for_function("() => document.querySelectorAll('.fl-sl-track').length > 0", timeout=30_000)
+    page.wait_for_load_state("networkidle", timeout=60_000)
+
+
+def renders_of(page):
+    seen = []
+    page.on("request", lambda r: seen.append(json.loads(r.post_data or "{}")) if r.url.endswith("/render") and r.method == "POST" else None)
+    return seen
+
+
+def test_alt_drag_on_sharpening_shows_its_view_and_release_restores(engine, tmp_path):
+    """Review gap: holding Alt (Option) while dragging Masking showed nothing; it now shows the edge mask, Amount the sharpened luminance."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1400})
+        open_develop(engine, page, tmp_path, "alt_sharpen")
+        assert "while dragging a Sharpening slider" in page.locator(".fl-sharpen-hint").inner_text()
+        seen = renders_of(page)
+        for cid, mode in (("detail.sharpenMasking", "mask"), ("detail.sharpenAmount", "amount")):
+            track = page.locator(f".fl-sl[data-id='{cid}'] .fl-sl-track").first
+            track.scroll_into_view_if_needed()
+            box = track.bounding_box()
+            y = box["y"] + box["height"] / 2
+            page.keyboard.down("Alt")
+            page.mouse.move(box["x"] + box["width"] * 0.3, y)
+            page.mouse.down()
+            page.mouse.move(box["x"] + box["width"] * 0.6, y, steps=4)
+            page.locator(".is-sharpen-view").first.wait_for(state="attached", timeout=10_000)
+            page.wait_for_timeout(400)
+            during = [b for b in seen if (b.get("overlay") or {}).get("sharpen") == mode]
+            page.mouse.up()
+            page.keyboard.up("Alt")
+            page.wait_for_load_state("networkidle", timeout=60_000)
+            page.wait_for_timeout(300)
+            assert during, f"no render asked for the {mode} view: {seen[-3:]}"
+            assert "sharpen" not in (seen[-1].get("overlay") or {}), f"the last render after release still had an overlay: {seen[-1]}"
+            assert page.locator(".is-sharpen-view").count() == 0
+        browser.close()
+
+
+def test_missing_ai_model_offers_install_with_its_size(engine, tmp_path):
+    """Review gap: Subject, Sky and Objects failed with 'not installed yet, Install it in Preferences'; the mask now offers Install Now."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        downloads = []
+        page.on("request", lambda r: downloads.append(json.loads(r.post_data)) if r.url.endswith("/api/commands/ai.download") else None)
+        open_develop(engine, page, tmp_path, "missing_model")
+        page.keyboard.press("Shift+W")
+        page.locator("[data-new='sky']").first.click()
+        dialog = page.locator(".cv-scrim:not([hidden]) .cv-dialog")
+        dialog.wait_for(timeout=30_000)
+        assert "Install Now (176 MB)" in dialog.inner_text()
+        dialog.get_by_role("button", name="Cancel").click()
+        page.locator(".cv-toast", has_text="not installed yet").first.wait_for(timeout=10_000)
+        assert not downloads
+        page.route("**/api/commands/ai.download", lambda route: route.fulfill(status=500, content_type="application/json", body=json.dumps({"ok": False, "error": "offline in the test"})))
+        page.locator("[data-new='subject']").first.click()
+        dialog.wait_for(timeout=30_000)
+        dialog.get_by_role("button", name="Install Now (176 MB)").click()
+        page.locator(".cv-toast", has_text="offline in the test").first.wait_for(timeout=10_000)
+        browser.close()
+    assert downloads == [{"model": "subject"}]
+
+
+def test_raw_without_lens_profiles_offers_the_download_once(engine, tmp_path):
+    """Review gap: Lensfun data waited behind a button in Lens Corrections; a raw now asks once, and Not Now is remembered."""
+    from playwright.sync_api import sync_playwright
+
+    def info(route):
+        body = {"available": False, "kinds": [], "enabled": False, "source": None, "database": False, "lens": None, "maker": None, "guess": None, "askDownload": True, "downloadMB": 3}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "develop.lensProfileInfo", "result": body, "revision": 0}))
+
+    sets = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page.route("**/api/commands/develop.lensProfileInfo", info)
+        page.on("request", lambda r: sets.append(json.loads(r.post_data)) if r.url.endswith("/api/commands/prefs.set") else None)
+        open_develop(engine, page, tmp_path, "lens_prompt")
+        note = page.locator(".fl-toast-act", has_text="Download lens profiles for automatic lens correction (3 MB)")
+        note.wait_for(timeout=15_000)
+        note.get_by_role("button", name="Not Now").click()
+        page.wait_for_load_state("networkidle", timeout=30_000)
+        page.locator(".fl-fs-head [data-cmd='photo.next']").first.click()
+        page.wait_for_timeout(1000)
+        shown = page.locator(".fl-toast-act", has_text="Download lens profiles").count()
+        browser.close()
+    assert {"values": {"askLensProfiles": False}} in sets
+    assert shown == 0
+
+
+def test_windows_card_drive_is_removable_for_import_and_eject(engine):
+    """Review gap: the import dialog counted only kind 'volume' as removable, so a Windows card (kind 'drive') never offered Eject."""
+    from playwright.sync_api import sync_playwright
+
+    roots = {"roots": [{"name": "Home", "path": "C:\\Users\\me", "kind": "home"}, {"name": "C:", "path": "C:\\", "kind": "drive", "removable": False, "card": False},
+                       {"name": "E:", "path": "E:\\", "kind": "drive", "removable": True, "card": True}], "library": "C:\\Users\\me\\Pictures"}
+
+    def listing(route):
+        path = route.request.url.split("path=", 1)[1]
+        from urllib.parse import unquote
+        route.fulfill(status=200, content_type="application/json", body=json.dumps({"path": unquote(path), "parent": None, "dirs": [], "files": []}))
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page.route("**/api/files/roots", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(roots)))
+        page.route("**/api/files/list?*", listing)
+        page.route("**/api/commands/library.scan", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "library.scan", "result": {"files": [], "duplicates": 0}, "revision": 0})))
+        page.goto(engine + "/", wait_until="load", timeout=120_000)
+        page.wait_for_load_state("networkidle", timeout=120_000)
+        page.keyboard.press("ControlOrMeta+Shift+I")
+        eject = page.locator(".fl-imp-eject")
+        eject.wait_for(state="attached", timeout=15_000)
+        page.wait_for_function("() => document.querySelector('.fl-imp-row.is-on')?.dataset.path === 'E:\\\\'", timeout=15_000)
+        visible = eject.is_visible()
+        browser.close()
+    assert visible, "Eject after import stayed hidden on a removable Windows drive"

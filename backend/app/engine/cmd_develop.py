@@ -244,6 +244,10 @@ def lens_profile_info(id: int) -> dict:
         lens, score = _lens_guess(int(id))
         if lens is not None:
             out.update(available=True, source="Lensfun", guess={"maker": lens["maker"], "model": lens["model"], "score": round(score, 2)})
+    from app.core import prefs
+    raw = (cat().scalar("SELECT kind FROM photos WHERE id=?", (int(id),)) or "") == "raw"
+    out["askDownload"] = bool(raw and not found and not lensdb.available() and prefs.load().get("askLensProfiles") is True)
+    out["downloadMB"] = lensdb.DOWNLOAD_MB
     return out
 
 

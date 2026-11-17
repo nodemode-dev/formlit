@@ -11,12 +11,23 @@ router = APIRouter(prefix="/api", tags=["commands"])
 log = logging.getLogger("formlit.commands")
 
 
+def _missing(exc: BaseException) -> dict:
+    from app.ai import models
+    cause = exc if isinstance(exc, models.ModelMissing) else exc.__cause__
+    if not isinstance(cause, models.ModelMissing):
+        return {}
+    spec = models.MODELS[cause.model]
+    return {"missingModel": {"model": cause.model, "name": spec["name"], "sizeMB": spec["size"], "license": spec["license"]}}
+
+
 def _run(cid: str, params: dict | None) -> tuple[int, dict]:
     try:
         result = dispatch(cid, params or {})
     except CommandError as exc:
-        return exc.status, {"ok": False, "command": cid, "error": str(exc)}
+        return exc.status, {"ok": False, "command": cid, "error": str(exc), **_missing(exc)}
     except Exception as exc:
+        if _missing(exc):
+            return 409, {"ok": False, "command": cid, "error": str(exc), **_missing(exc)}
         log.exception("command %s failed", cid)
         return 500, {"ok": False, "command": cid, "error": f"{type(exc).__name__}: {exc}"}
     return 200, {"ok": True, "command": cid, "result": result, "revision": catalog_mod.get().revision}

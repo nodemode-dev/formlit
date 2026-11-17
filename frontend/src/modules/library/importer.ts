@@ -7,7 +7,11 @@ import { toast } from '../../ui/toast';
 import { patternOptions } from '../shared/templates';
 import { loadMetaPresets, type MetaPresets } from './metadata-presets';
 
-interface Root { name: string; path: string; kind: string }
+interface Root { name: string; path: string; kind: string; removable?: boolean; card?: boolean }
+
+function removableRoots(roots: Root[]): string[] {
+  return roots.filter((r) => r.removable ?? r.kind === 'volume').map((r) => r.path);
+}
 interface ScanFile { path: string; name: string; size: number; mtime: number; kind: string; duplicate: boolean; inCatalog: boolean }
 
 const PREFS_KEY = 'formlit_import';
@@ -197,7 +201,7 @@ class ImportDialog extends Dialog {
     this.open(this.go);
     const roots = await this.ctx.api.get<{ roots: Root[]; library: string }>('/api/files/roots');
     if (!this.prefs.destination) this.prefs.destination = roots.library;
-    this.volumes = roots.roots.filter((r) => r.kind === 'volume').map((r) => r.path);
+    this.volumes = removableRoots(roots.roots);
     patchList(this.roots, roots.roots, {
       key: (r) => r.path,
       create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
@@ -219,7 +223,8 @@ class ImportDialog extends Dialog {
     this.importPresets = (stored.importPresets as Record<string, ImportPreset> | undefined) ?? {};
     this.fillPresets();
     this.syncFields();
-    await this.browse(start || this.prefs.last || roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/');
+    const card = roots.roots.find((r) => r.card)?.path ?? '';
+    await this.browse(start || (card && !this.prefs.last.startsWith(card) ? card : '') || this.prefs.last ||roots.roots.find((r) => r.kind === 'pictures')?.path || roots.roots[0]?.path || '/');
   }
 
   private syncFields(): void {

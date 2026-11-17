@@ -3,6 +3,7 @@ import { promptName } from '../../ui/dialogs';
 import { el, escapeHtml, patchList, q, setClass, setHidden, setText } from '../../ui/dom';
 import { icon } from '../../ui/icons';
 import { Slider } from '../../ui/slider';
+import { withModel } from '../shared/model-install';
 import { CurveEditor } from './curve';
 import type { ToolHost } from './tools';
 import type { DevelopView, Pt, Tool } from './view';
@@ -325,7 +326,7 @@ export class MaskTool implements Tool {
     const done = this.host.ctx.shell.busy('Finding people');
     try {
       await develop.flush();
-      const r = await this.host.ctx.api.cmd<{ all: Shape; persons: Array<{ index: number; thumb: string; coverage: number; shape: Shape }> }>('develop.aiPeople', { id });
+      const r = await withModel(this.host.ctx, 'The People mask', () => this.host.ctx.api.cmd<{ all: Shape; persons: Array<{ index: number; thumb: string; coverage: number; shape: Shape }> }>('develop.aiPeople', { id }));
       this.people = { id, ...r };
       return true;
     } catch (err) { this.host.ctx.fail(err, 'People'); return false; } finally { done(); }
@@ -382,7 +383,7 @@ export class MaskTool implements Tool {
     const done = this.host.ctx.shell.busy(this.partGroup === 'people' ? 'Finding people parts' : 'Finding landscape parts');
     try {
       await develop.flush();
-      const r = await this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts, ...(person !== undefined ? { person } : {}) });
+      const r = await withModel(this.host.ctx, 'This mask', () => this.host.ctx.api.cmd<{ shapes: Shape[] }>('develop.aiParts', { id, group: this.partGroup, parts, ...(person !== undefined ? { person } : {}) }));
       if (develop.id !== id) return;
       const masks = this.masks();
       if (separate) {
@@ -438,7 +439,7 @@ export class MaskTool implements Tool {
       const unghost = this.ghostStart(shape, op);
       try {
         await develop.flush();
-        const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: kind === 'depthRange' ? 'depth' : kind });
+        const r = await withModel(this.host.ctx, `The ${NAMES[kind]} mask`, () => this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: kind === 'depthRange' ? 'depth' : kind }));
         shape = kind === 'depthRange' ? { ...shape, bitmap: (r.shape.bitmap as string) ?? 'depth' } : r.shape;
       } catch (err) { unghost(); this.sync(); this.host.ctx.fail(err, NAMES[kind]); return; } finally { done(); }
       unghost();
@@ -637,7 +638,7 @@ export class MaskTool implements Tool {
     const unghost = this.ghostStart({ kind: 'object' }, this.pendingOp);
     try {
       await develop.flush();
-      const r = await this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', ...prompt });
+      const r = await withModel(this.host.ctx, 'The Objects mask', () => this.host.ctx.api.cmd<{ shape: Shape }>('develop.aiMask', { id, kind: 'object', ...prompt }));
       unghost();
       if (develop.id !== id) { this.sync(); return; }
       const masks = this.masks();
