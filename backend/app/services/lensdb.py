@@ -5,6 +5,7 @@ import re
 import tarfile
 import threading
 import xml.etree.ElementTree as ET
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -17,11 +18,12 @@ RAW = "https://raw.githubusercontent.com/lensfun/lensfun/master/data/db/{name}.x
 FILES = ["6x6", "actioncams", "compact-canon", "compact-casio", "compact-fujifilm", "compact-kodak", "compact-konica-minolta", "compact-leica",
          "compact-nikon", "compact-olympus", "compact-panasonic", "compact-pentax", "compact-ricoh", "compact-samsung", "compact-sigma", "compact-sony",
          "contax", "generic", "mil-canon", "mil-fujifilm", "mil-hasselblad", "mil-leica", "mil-nikon", "mil-olympus", "mil-panasonic", "mil-pentax",
-         "mil-samsung", "mil-samyang", "mil-sigma", "mil-sony", "mil-tamron", "mil-tokina", "mil-zeiss", "misc", "rf-leica", "slr-canon",
+         "mil-samsung", "mil-samyang", "mil-sigma", "mil-sony", "mil-tamron", "mil-tokina", "mil-zeiss", "misc", "om-system", "rf-leica", "slr-canon",
          "slr-hasselblad", "slr-konica-minolta", "slr-leica", "slr-nikon", "slr-olympus", "slr-panasonic", "slr-pentax", "slr-ricoh", "slr-samsung",
-         "slr-samyang", "slr-schneider", "slr-sigma", "slr-sony", "slr-tamron", "slr-tokina", "slr-vivitar", "slr-zeiss", "slr-ussr"]
+         "slr-samyang", "slr-schneider", "slr-sigma", "slr-soligor", "slr-sony", "slr-tamron", "slr-tokina", "slr-vivitar", "slr-zeiss", "slr-ussr"]
 DOWNLOAD_MB = 3
 ATTRIBUTION = "Lens data from the Lensfun database (lensfun.github.io), CC BY-SA 3.0"
+VERSIONS = {"ii", "iii", "iv", "z"}
 _lock = threading.Lock()
 _index: dict | None = None
 _MOUNTS: dict[str, set[str]] = {}
@@ -37,8 +39,64 @@ def index_path() -> Path:
     return folder() / "index.json"
 
 
+def bundled_folder() -> Path:
+    return config.shared_dir() / "lensfun"
+
+
+def bundled_snapshot() -> str:
+    try:
+        lines = (bundled_folder() / "SOURCE.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    return next((ln.split(":", 1)[1].strip() for ln in lines if ln.lower().startswith("snapshot:")), "")
+
+
+def bundled() -> bool:
+    return any((bundled_folder() / "db").glob("*.xml"))
+
+
 def available() -> bool:
-    return index_path().is_file()
+    return index_path().is_file() or bundled()
+
+
+def _downloaded_date() -> str:
+    try:
+        stamp = json.loads(index_path().read_text(encoding="utf-8")).get("downloaded")
+    except (OSError, ValueError):
+        return ""
+    if stamp:
+        return str(stamp)
+    return datetime.fromtimestamp(index_path().stat().st_mtime, timezone.utc).date().isoformat()
+
+
+def _use_download() -> bool:
+    if not index_path().is_file():
+        return False
+    if not bundled():
+        return True
+    return _downloaded_date() >= bundled_snapshot()
+
+
+def _bundled_index() -> dict:
+    global _MOUNTS
+    _MOUNTS = {}
+    cams: list[dict] = []
+    lenses: list[dict] = []
+    for path in sorted((bundled_folder() / "db").glob("*.xml")):
+        try:
+            c, ln = _parse(path.read_bytes())
+        except (OSError, ET.ParseError):
+            continue
+        cams += c
+        lenses += ln
+    mounts = {k: sorted(v) for k, v in _MOUNTS.items()}
+    return {"cameras": cams, "lenses": lenses, "mounts": mounts, "attribution": ATTRIBUTION, "source": "bundled", "date": bundled_snapshot()}
+
+
+def source() -> dict:
+    if _use_download():
+        return {"source": "downloaded", "date": _downloaded_date()}
+    return {"source": "bundled", "date": bundled_snapshot()} if bundled() else {"source": None, "date": ""}
 
 
 def _float(v: str | None, default: float = 0.0) -> float:
@@ -82,9 +140,10 @@ def _parse(xml: bytes) -> tuple[list[dict], list[dict]]:
         if not (dist or tca or vig):
             continue
         fv = ln.find("focal")
+        named = _focal_range(model) or (0.0, 0.0)
         lenses.append({"maker": (ln.findtext("maker") or "").strip(), "model": model.strip(), "mounts": [m.text.strip() for m in ln.findall("mount") if m.text],
                        "crop": _float(ln.findtext("cropfactor"), 1.0), "aspect": _aspect(ln.findtext("aspect-ratio")),
-                       "fmin": _float(fv.get("min") or fv.get("value")) if fv is not None else 0.0, "fmax": _float(fv.get("max") or fv.get("value")) if fv is not None else 0.0,
+                       "fmin": _float(fv.get("min") or fv.get("value")) if fv is not None else named[0], "fmax": _float(fv.get("max") or fv.get("value")) if fv is not None else named[1],
                        "dist": dist, "tca": tca, "vig": vig})
     return cams, lenses
 
@@ -113,6 +172,8 @@ def download(progress=None) -> dict:
                     blobs[f"{name}.xml"] = r.content
     if not blobs:
         raise RuntimeError("The lens profile database could not be downloaded")
+    global _MOUNTS
+    _MOUNTS = {}
     cams: list[dict] = []
     lenses: list[dict] = []
     for name, data in sorted(blobs.items()):
@@ -125,7 +186,8 @@ def download(progress=None) -> dict:
         lenses += ln
     tmp = index_path().with_suffix(".tmp")
     mounts = {k: sorted(v) for k, v in _MOUNTS.items()}
-    tmp.write_text(json.dumps({"cameras": cams, "lenses": lenses, "mounts": mounts, "attribution": ATTRIBUTION}), encoding="utf-8")
+    tmp.write_text(json.dumps({"cameras": cams, "lenses": lenses, "mounts": mounts, "attribution": ATTRIBUTION, "downloaded": date.today().isoformat()}),
+                   encoding="utf-8")
     tmp.replace(index_path())
     global _index
     with _lock:
@@ -137,13 +199,30 @@ def index() -> dict:
     global _index
     with _lock:
         if _index is None:
-            _index = json.loads(index_path().read_text(encoding="utf-8")) if available() else {"cameras": [], "lenses": []}
+            if _use_download():
+                _index = json.loads(index_path().read_text(encoding="utf-8"))
+            elif bundled():
+                _index = _bundled_index()
+            else:
+                _index = {"cameras": [], "lenses": []}
         return _index
 
 
+def reload() -> None:
+    global _index
+    with _lock:
+        _index = None
+
+
 def _tokens(s: str) -> set[str]:
-    s = s.lower().replace("f/", " ").replace("mm", " mm ")
-    return {t for t in re.split(r"[^a-z0-9.\-]+", s) if t and t not in ("mm", "lens")}
+    s = s.lower().replace("f/", " f ").replace("mm", " mm ")
+    s = re.sub(r"(?<=[a-z])(?=\d)|(?<=\d)(?=[a-z])", " ", s)
+    return {t for t in re.split(r"[^a-z0-9.\-]+", s) if t and t not in ("mm", "lens", "f")}
+
+
+def _max_aperture(name: str) -> float | None:
+    m = re.search(r"mm\s*(?:f\s*/?|1:)\s*(\d+(?:\.\d+)?)", name.lower())
+    return float(m.group(1)) if m else None
 
 
 def _focal_range(name: str) -> tuple[float, float] | None:
@@ -185,6 +264,7 @@ def match(lens_name: str, maker: str, model: str, focal: float | None) -> tuple[
     mounts = {cam["mount"], *index().get("mounts", {}).get(cam["mount"], [])} if cam else set()
     want = _tokens(lens_name)
     fr = _focal_range(lens_name)
+    ap = _max_aperture(lens_name)
     best, score = None, 0.0
     for ln in index()["lenses"]:
         if mounts and not mounts & set(ln["mounts"]):
@@ -193,8 +273,13 @@ def match(lens_name: str, maker: str, model: str, focal: float | None) -> tuple[
             continue
         if fr and ln["fmin"] and (abs(ln["fmin"] - fr[0]) > 0.6 or abs((ln["fmax"] or ln["fmin"]) - fr[1]) > 0.6):
             continue
+        theirs = _max_aperture(ln["model"])
+        if ap and theirs and abs(ap - theirs) > 0.15:
+            continue
         have = _tokens(ln["model"]) | _tokens(ln["maker"])
         s = len(want & have) / max(1, len(want))
+        if s < 0.5 or (want & VERSIONS) != (have & VERSIONS):
+            continue
         if mounts and mounts & set(ln["mounts"]):
             s += 0.5
         if cam and ln["maker"].lower() == cam["maker"].lower():

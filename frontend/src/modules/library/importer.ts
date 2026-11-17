@@ -204,7 +204,7 @@ class ImportDialog extends Dialog {
     this.volumes = removableRoots(roots.roots);
     patchList(this.roots, roots.roots, {
       key: (r) => r.path,
-      create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
+      create: (r) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(r.path)}">${icon(r.kind === 'camera' ? 'tether' : r.kind === 'volume' || r.kind === 'drive' ? 'download' : 'folder', 14)}<span>${escapeHtml(r.name)}</span></button>`),
       update: () => undefined,
     });
     const presets = await this.ctx.api.cmd<{ presets: Array<{ id: string; name: string; group: string }> }>('preset.list').catch(() => ({ presets: [] }));
@@ -241,14 +241,14 @@ class ImportDialog extends Dialog {
   private async browse(path: string): Promise<void> {
     const seq = ++this.seq;
     try {
-      const r = await this.ctx.api.get<{ path: string; parent: string | null; dirs: Array<{ name: string; path: string }> }>(`/api/files/list?path=${encodeURIComponent(path)}`);
+      const r = await this.ctx.api.get<{ path: string; parent: string | null; dirs: Array<{ name: string; path: string }>; crumbs?: Array<{ name: string; path: string }> }>(`/api/files/list?path=${encodeURIComponent(path)}`);
       if (seq !== this.seq) return;
       this.path = r.path;
       this.prefs.last = r.path;
       this.save();
       const parts = r.path.split(/[\\/]/).filter(Boolean);
       const sep = r.path.includes('\\') ? '\\' : '/';
-      const crumbs = parts.map((p, i) => ({ name: p, path: (r.path.startsWith(sep) ? sep : '') + parts.slice(0, i + 1).join(sep) + (i === 0 && /^[A-Z]:$/.test(p) ? sep : '') }));
+      const crumbs = r.crumbs ?? parts.map((p, i) => ({ name: p, path: (r.path.startsWith(sep) ? sep : '') + parts.slice(0, i + 1).join(sep) + (i === 0 && /^[A-Z]:$/.test(p) ? sep : '') }));
       this.crumbs.innerHTML = crumbs.map((c) => `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button>`).join(`<span>${icon('chevronRight', 10)}</span>`);
       const dirs = [...(r.parent ? [{ name: '..', path: r.parent }] : []), ...r.dirs];
       this.dirs.replaceChildren(...dirs.map((d) => el(`<button class="fl-imp-row" type="button" data-path="${escapeHtml(d.path)}">${icon(d.name === '..' ? 'chevronUp' : 'folder', 14)}<span>${escapeHtml(d.name)}</span></button>`)));
@@ -300,9 +300,10 @@ class ImportDialog extends Dialog {
 
   private sync(): void {
     for (const b of Array.from(this.body.querySelectorAll<HTMLElement>('[data-mode]'))) setClass(b, 'is-on', b.dataset.mode === this.prefs.mode);
-    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' ? 'Copy photos to a new location and add them' : this.prefs.mode === 'dng' ? 'Convert raw files to DNG in a new location and add them' : 'Move photos to a new location and add them');
+    const camera = this.path.startsWith('camera://');
+    setText(q(this.body, '.fl-imp-modehint'), this.prefs.mode === 'add' && !camera ? 'Add photos to the catalog without moving them' : this.prefs.mode === 'copy' || this.prefs.mode === 'add' ? 'Copy photos to a new location and add them' : this.prefs.mode === 'dng' ? 'Convert raw files to DNG in a new location and add them' : 'Move photos to a new location and add them');
     setHidden(q(this.body, '.fl-imp-eject'), !this.onVolume());
-    this.dest.hidden = this.prefs.mode === 'add';
+    this.dest.hidden = this.prefs.mode === 'add' && !camera;
     for (const n of Array.from(this.grid.children) as HTMLElement[]) setClass(n, 'is-on', this.checked.has(n.dataset.key ?? ''));
     const n = this.checked.size;
     const bytes = this.files.filter((f) => this.checked.has(f.path)).reduce((a, f) => a + f.size, 0);

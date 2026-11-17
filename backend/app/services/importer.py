@@ -137,6 +137,7 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
     if mode in ("copy", "move", "dng") and dest_root is None:
         raise ValueError("Copy and Move need a destination folder")
     added: list[int] = []
+    imported: list[str] = []
     skipped: list[str] = []
     failed: list[dict] = []
     stamp = now_iso()
@@ -214,6 +215,7 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
             hashes.add(h)
             known.add((str(final.parent), final.name))
             added.append(pid)
+            imported.append(str(src))
             previews.make_embedded(pid, final)
         except Exception as exc:
             failed.append({"path": str(src), "error": str(exc)})
@@ -224,4 +226,4 @@ def import_files(paths: list[str], mode: str = "add", destination: str = "", fol
         previews.warm(added)
     if progress is not None:
         progress(total, total, f"Imported {len(added)} photos")
-    return {"ids": added, "skipped": skipped, "failed": failed, "count": len(added)}
+    return {"ids": added, "skipped": skipped, "failed": failed, "count": len(added), "imported": imported}

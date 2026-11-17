@@ -10,6 +10,7 @@ TAGS = {50936: "name", 50937: "hsmDims", 50938: "hsm1", 50939: "hsm2", 50940: "t
         50708: "camera", 50721: "cm1", 50722: "cm2", 50964: "fm1", 50965: "fm2"}
 LIGHT_K = {1: 5500.0, 2: 4150.0, 3: 2850.0, 4: 5500.0, 9: 5500.0, 10: 6500.0, 11: 7500.0, 12: 6400.0, 13: 5000.0, 14: 4150.0, 15: 3450.0,
            16: 2925.0, 17: 2850.0, 18: 5500.0, 19: 6500.0, 20: 5500.0, 21: 6500.0, 22: 7500.0, 23: 5000.0, 24: 3200.0}
+TEXT = {"name", "copyright", "camera"}
 SENSOR_EV = 0.35
 MID_GREY = 0.18
 
@@ -31,7 +32,7 @@ def read(path: Path) -> dict:
         total = size * count
         start = e + 8 if total <= 4 else struct.unpack(end + "I", data[e + 8:e + 12])[0]
         raw = data[start:start + total]
-        if typ == 2:
+        if typ == 2 or (typ in (1, 7) and TAGS[tag] in TEXT):
             out[TAGS[tag]] = raw.split(b"\x00")[0].decode("utf-8", "replace")
             continue
         vals = struct.unpack(end + fmt * count, raw) if typ not in (5, 10) else struct.unpack(end + fmt * count, raw)

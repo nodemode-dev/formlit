@@ -121,10 +121,23 @@ def get_photo(id: int | None = None) -> dict:
 
 @command("library.scan", "Scan for Photos", {"paths": {"type": "array"}, "recursive": {"type": "boolean"}}, mutates=False)
 def scan(paths: list[str], recursive: bool = True, limit: int = 5000) -> dict:
-    return importer.scan(paths, recursive, max(1, min(int(limit), 200_000)))
+    from app.services.cameras import CameraError, transfer
+    local, camera = transfer.split(paths)
+    cap = max(1, min(int(limit), 200_000))
+    if not camera:
+        return importer.scan(local, recursive, cap)
+    try:
+        found = transfer.scan(camera, recursive, cap)
+    except CameraError as exc:
+        raise CommandError(str(exc), 404) from exc
+    if not local:
+        return found
+    rest = importer.scan(local, recursive, cap)
+    files = rest["files"] + found["files"]
+    return {"files": files, "count": len(files), "duplicates": rest["duplicates"] + found["duplicates"], "truncated": rest["truncated"] or found["truncated"]}
 
 
-@command("library.import", "Import Photos", {"paths": {"type": "array"}, "mode": {"type": "string", "enum": ["add", "copy", "move"]}, "destination": {"type": "string"}})
+@command("library.import", "Import Photos", {"paths": {"type": "array"}, "mode": {"type": "string", "enum": ["add", "copy", "move", "dng"]}, "destination": {"type": "string"}})
 def do_import(paths: list[str], mode: str = "add", destination: str = "", folderTemplate: str = "{date:%Y}/{date:%Y-%m-%d}", renameTemplate: str = "",
               custom: str = "", develop: Any = None, metadata: dict | None = None, keywords: list[str] | None = None, collection: int | None = None,
               skipDuplicates: bool = True, recursive: bool = True, wait: bool = False, buildPreviews: str = "", backup: str = "",
@@ -138,9 +151,18 @@ def do_import(paths: list[str], mode: str = "add", destination: str = "", folder
     if mode not in ("add", "copy", "move", "dng"):
         raise CommandError("mode is add, copy, dng (Copy as DNG) or move")
 
+    from app.services.cameras import transfer
+    local, camera = transfer.split(paths)
+
     def job(progress):
-        res = importer.import_files(paths, mode, destination, folderTemplate, renameTemplate, custom, dev, metadata, keywords, collection,
-                                    skipDuplicates, recursive, progress, backup=backup)
+        res = importer.import_files(local, mode, destination, folderTemplate, renameTemplate, custom, dev, metadata, keywords, collection,
+                                    skipDuplicates, recursive, progress, backup=backup) if local or not camera else {"ids": [], "skipped": [], "failed": [], "count": 0}
+        if camera:
+            got = transfer.import_paths(camera, mode, destination, recursive, progress, folder_template=folderTemplate, rename_template=renameTemplate,
+                                        custom=custom, develop=dev, meta_preset=metadata, keywords=keywords, collection=collection,
+                                        skip_duplicates=skipDuplicates, backup=backup)
+            res = {**res, "ids": res["ids"] + got["ids"], "skipped": res["skipped"] + got["skipped"], "failed": res["failed"] + got["failed"],
+                   "count": res["count"] + got["count"], "notDeleted": got["notDeleted"]}
         if dev and res["ids"]:
             from app.engine.cmd_ai import bitmap_refs, ensure_masks
             if bitmap_refs(dev):

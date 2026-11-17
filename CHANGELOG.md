@@ -10,7 +10,13 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 - Added: the Enhance dialog offers to install the learned denoiser (77 MB) when it is missing; without it Denoise still uses the classic denoiser.
 - Added: opening a raw photo without lens profiles offers to download them (3 MB) once per session; Not Now is remembered.
 - Fixed: on Windows, a memory card or other removable drive counts as removable in Import, so Eject after import shows and works, and the Import dialog opens on a card (a drive or volume with a DCIM folder). Card readers that report a fixed drive count when the drive has a DCIM folder and is not the system drive.
-- Not verified yet: Windows (the drive checks were run with the Windows call stubbed), real model and lens profile downloads from the window, and the new strings in languages other than English.
+- Not verified yet: Windows (the drive checks were run with the Windows call stubbed) and real model and lens profile downloads from the window.
+- Added: import straight from a camera connected by USB. A camera shows under Source beside the drives (on Windows through Windows Portable Devices, on macOS and Linux through gphoto2 when it is installed, and on Linux also a camera the desktop has mounted), its folders browse like any folder, and Copy, Move, Copy as DNG and Add bring in CR3, CR2, NEF, ARW, RAF, DNG, JPG, HEIC, MP4 and the other supported files with the usual templates and options. Add from a camera copies into the destination. Move removes from the camera only the files the import names as imported; duplicates, files that failed and anything not accounted for stay on it. A file name from the camera that could reach outside the import folder is refused and reported.
+- Added: lens profile corrections work without a download. The Lensfun lens database ships with formlit; downloading lens profiles still updates it and is used when it is newer.
+- Fixed: Copy as DNG in the Import dialog was refused with "mode must be one of add, copy, move".
+- Fixed: Canon RF lenses are matched to their Lensfun profiles from the lens name in CR3 files, and a lens Lensfun does not have (such as the RF 24-70mm F2.8 L IS USM Z or the RF 20mm F1.4 L VCM) is no longer given another lens's profile.
+- Fixed: a DNG camera profile whose name is stored as bytes imports with its name.
+- Checked here: the engine tests (camera import with a simulated camera and recorded gphoto2 and Windows replies, lens matching for 18 RF lenses, DNG camera profiles against a synthetic dual-illuminant profile and a real public-domain Canon EOS R5 profile), the window tests, the frontend build and audit, the engine boot probe and the script checks, on an Apple silicon Mac. Not verified yet: a real camera on Windows, macOS or Linux, and the desktop builds.
 
 ## v0.51.3 · 2026-11-11
 

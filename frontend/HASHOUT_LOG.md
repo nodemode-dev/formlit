@@ -1049,6 +1049,15 @@ When `develop.lensProfileInfo` answers `askDownload` (a raw, no embedded profile
 
 The dialog counted only roots of kind `volume` as removable, so on Windows, where every drive is kind `drive`, Eject after import never showed and the import never ejected. `removableRoots` takes the engine's `removable` flag and falls back to kind `volume` for an engine without it. When a root is a card (a DCIM folder at its root) the dialog opens on it, unless the last folder is already inside it; that is also new on macOS and Linux. Test: `tests/window/test_window.py::test_windows_card_drive_is_removable_for_import_and_eject` (Windows-shaped roots routed in; Eject after import shows and the card row is selected; it failed before with Eject hidden).
 
+## Unreleased: import from a camera {#camera-import}
+
+### src/modules/library/importer.ts · show, browse, sync
+- refers-to: src/modules/library/importer.ts :: ImportDialog.show (root icon), browse (crumbs), sync (mode hint, destination)
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+The engine lists a connected camera as a root of kind `camera` with a `camera://` path, and the dialog already browses, scans, shows thumbnails and imports any path the engine gives it, so three small changes are enough: a camera row uses the tether icon; breadcrumbs come from the listing's `crumbs` when it sends them, because splitting a `camera://` path on slashes gives a `camera:` crumb; and with a camera as the source, Add shows the destination and the Copy hint, because Add from a camera copies (the engine has no files on a drive to add in place). No new strings: the hint reuses "Copy photos to a new location and add them". Kept additive beside the drive-detection work on the `fix/review-gaps` branch: the root icon line and the start of `sync` are the only lines both touch. Not checked in a throttled browser here.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
