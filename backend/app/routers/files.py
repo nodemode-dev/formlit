@@ -72,7 +72,7 @@ def _roots() -> list[dict]:
                     if child.is_dir() and not child.name.startswith("."):
                         out.append(_volume(child))
         out.append({"name": "Computer", "path": "/", "kind": "root"})
-    return out + cameras.roots()
+    return out + [{**c, "removable": False, "card": True} for c in cameras.roots()]
 
 
 @router.get("/roots")

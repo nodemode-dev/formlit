@@ -271,31 +271,33 @@ def test_missing_ai_model_offers_install_with_its_size(engine, tmp_path):
     assert downloads == [{"model": "subject"}, {"model": "objectsHq"}]
 
 
-def test_raw_without_lens_profiles_offers_the_download_once(engine, tmp_path):
-    """Review gap: Lensfun data waited behind a button in Lens Corrections; a raw now asks once, and Not Now is remembered."""
+def test_lens_corrections_show_the_bundled_profiles_and_update_them(engine, tmp_path):
+    """Lens profiles ship with formlit; Lens Corrections names the database in use and Update Lens Profiles runs the download as an updater."""
     from playwright.sync_api import sync_playwright
 
-    def info(route):
-        body = {"available": False, "kinds": [], "enabled": False, "source": None, "database": False, "lens": None, "maker": None, "guess": None, "askDownload": True, "downloadMB": 3}
-        route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "develop.lensProfileInfo", "result": body, "revision": 0}))
+    asked = []
 
-    sets = []
+    def database(route):
+        body = json.loads(route.request.post_data or "{}")
+        asked.append(body)
+        result = {"task": 987654} if body.get("download") else {"available": True, "lenses": 1, "source": "downloaded", "date": "2026-11-17"}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "lens.database", "result": result, "revision": 0}))
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
-        page.route("**/api/commands/develop.lensProfileInfo", info)
-        page.on("request", lambda r: sets.append(json.loads(r.post_data)) if r.url.endswith("/api/commands/prefs.set") else None)
-        open_develop(engine, page, tmp_path, "lens_prompt")
-        note = page.locator(".fl-toast-act", has_text="Download lens profiles for automatic lens correction (3 MB)")
-        note.wait_for(timeout=15_000)
-        note.get_by_role("button", name="Not Now").click()
-        page.wait_for_load_state("networkidle", timeout=30_000)
-        page.locator(".fl-fs-head [data-cmd='photo.next']").first.click()
-        page.wait_for_timeout(1000)
-        shown = page.locator(".fl-toast-act", has_text="Download lens profiles").count()
+        page = browser.new_page(viewport={"width": 1440, "height": 1400})
+        open_develop(engine, page, tmp_path, "lens_update")
+        row = page.locator(".fl-lens-db")
+        row.scroll_into_view_if_needed()
+        page.wait_for_function("() => /bundled with formlit \\(\\d{4}-\\d\\d-\\d\\d\\)/.test(document.querySelector('.fl-lens-db')?.textContent || '')", timeout=15_000)
+        assert row.is_visible()
+        page.route("**/api/commands/lens.database", database)
+        row.get_by_role("button", name="Update Lens Profiles").click()
+        page.wait_for_function("() => /Updating lens profiles/.test(document.querySelector('.fl-lens-db')?.textContent || '')", timeout=10_000)
+        prompts = page.locator(".fl-toast-act", has_text="lens profiles").count()
         browser.close()
-    assert {"values": {"askLensProfiles": False}} in sets
-    assert shown == 0
+    assert {"download": True} in asked
+    assert prompts == 0
 
 
 def test_windows_card_drive_is_removable_for_import_and_eject(engine):
@@ -325,3 +327,38 @@ def test_windows_card_drive_is_removable_for_import_and_eject(engine):
         visible = eject.is_visible()
         browser.close()
     assert visible, "Eject after import stayed hidden on a removable Windows drive"
+
+
+LOCALES17 = REPO / "frontend" / "src" / "i18n" / "locales17"
+
+
+@pytest.mark.parametrize("lang", ["de", "ja", "ru"])
+def test_the_new_develop_strings_show_translated(engine, tmp_path, lang):
+    """The Sharpening hint and the lens profile row read in the chosen language (keys17, locales17)."""
+    from playwright.sync_api import sync_playwright
+
+    keys = json.loads((LOCALES17.parent / "keys17.json").read_text(encoding="utf-8"))
+    tr = json.loads((LOCALES17 / f"{lang}.json").read_text(encoding="utf-8"))
+    hints = {tr[str(keys.index(f"Hold {k} while dragging a Sharpening slider to see what it changes; Masking shows the sharpened areas in white."))] for k in ("Alt", "Option")}
+    update = tr[str(keys.index("Update Lens Profiles"))]
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page.add_init_script(f"localStorage.setItem('formlit_lang', '{lang}')")
+        open_develop(engine, page, tmp_path, f"lang_{lang}")
+        page.wait_for_timeout(500)
+        shown_hint = page.locator(".fl-sharpen-hint").inner_text()
+        shown_update = page.locator(".fl-lens-db button").inner_text()
+        browser.close()
+    assert shown_hint in hints
+    assert shown_update == update
+
+
+def test_every_new_string_has_a_translation_in_each_catalog():
+    keys = json.loads((LOCALES17.parent / "keys17.json").read_text(encoding="utf-8"))
+    langs = sorted(p.stem for p in LOCALES17.glob("*.json"))
+    assert len(langs) == 25
+    for lang in langs:
+        tr = json.loads((LOCALES17 / f"{lang}.json").read_text(encoding="utf-8"))
+        assert sorted(tr) == sorted(str(i) for i in range(len(keys))), lang
+        assert all(tr[str(i)].strip() and tr[str(i)] != k for i, k in enumerate(keys)), lang

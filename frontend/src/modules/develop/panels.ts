@@ -6,7 +6,7 @@ import { icon } from '../../ui/icons';
 import { Panel } from '../../ui/panel';
 import { Slider } from '../../ui/slider';
 import { toast } from '../../ui/toast';
-import { actionToast, whenDone } from '../shared/tasks';
+import { whenDone } from '../shared/tasks';
 import { CurveEditor } from './curve';
 import { HdrSection } from './hdr';
 import type { DevelopView, SharpenView } from './view';
@@ -14,7 +14,13 @@ import { ColorWheel } from './wheel';
 
 const BANDS = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
 const MIRED_STEP = 0.75;
-const LENS_ASK_MS = 20000;
+interface LensDbSource { source: string | null; date: string }
+
+function lensDbText(s: LensDbSource | undefined): string {
+  if (s?.source === 'downloaded') return s.date ? `Lensfun lens profiles, downloaded ${s.date}` : 'Lensfun lens profiles, downloaded';
+  if (s?.source === 'bundled') return s.date ? `Lensfun lens profiles, bundled with formlit (${s.date})` : 'Lensfun lens profiles, bundled with formlit';
+  return 'No lens profile database yet.';
+}
 const SHARPEN_VIEWS: Record<string, SharpenView> = { 'detail.sharpenAmount': 'amount', 'detail.sharpenRadius': 'radius', 'detail.sharpenDetail': 'detail', 'detail.sharpenMasking': 'mask' };
 const RAW_ONLY_WB =new Set(['daylight', 'cloudy', 'shade', 'tungsten', 'fluorescent', 'flash']);
 
@@ -189,9 +195,8 @@ export class DevelopPanels {
     const pick = el('<div class="fl-lens-pick"><div class="fl-row"><span class="fl-row-label">Make</span><select class="cv-select fl-grow" data-lens="maker"></select></div><div class="fl-row"><span class="fl-row-label">Model</span><select class="cv-select fl-grow" data-lens="model"></select></div><div class="fl-muted fl-lens-attr"></div></div>');
     const makerSel = q<HTMLSelectElement>(pick, '[data-lens="maker"]');
     const modelSel = q<HTMLSelectElement>(pick, '[data-lens="model"]');
-    const dbRow = el('<div class="fl-row fl-row-end"><span class="fl-muted fl-grow">No lens profile database yet.</span><button class="cv-btn fl-btn-sm" type="button">Download Lens Profiles</button></div>');
+    const dbRow = el('<div class="fl-lens-db"><span class="fl-muted fl-lens-db-note"></span><div class="fl-row fl-row-end"><button class="cv-btn fl-btn-sm" type="button">Update Lens Profiles</button></div></div>');
     setHidden(pick, true);
-    setHidden(dbRow, true);
     const fillModels = async (maker: string, chosen: string | null): Promise<void> => {
       const r = await this.ctx.api.cmd<{ models: string[] }>('lens.models', { maker }).catch(() => ({ models: [] as string[] }));
       modelSel.replaceChildren(new Option('Choose a lens...', ''), ...r.models.map((m) => new Option(m, m)));
@@ -203,20 +208,21 @@ export class DevelopPanels {
       if (id === null || !modelSel.value) return;
       void develop.flush().then(() => this.ctx.api.cmd('develop.lensProfile', { ids: [id], enable: true, lens: modelSel.value })).then(() => develop.reload('photo'), (err) => this.ctx.fail(err));
     });
-    const downloadDb = (): void => {
-      setText(q(dbRow, 'span'), 'Downloading...');
-      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task)).then(() => { lensFor = null; setHidden(dbRow, true); develop.reload('photo'); toast('Lens profiles downloaded'); }, (err) => { setText(q(dbRow, 'span'), 'Download failed'); this.ctx.fail(err); });
+    const dbButton = q<HTMLButtonElement>(dbRow, 'button');
+    const showDb = (s: LensDbSource | undefined): void => {
+      setText(q(dbRow, 'span'), lensDbText(s));
+      q(dbRow, 'span').setAttribute('title', lensDbText(s));
+      setText(dbButton, s?.source ? 'Update Lens Profiles' : 'Download Lens Profiles');
     };
-    dbRow.querySelector('button')?.addEventListener('click', downloadDb);
-    let lensAsked = false;
-    const askLensDb = (mb: number): void => {
-      if (lensAsked) return;
-      lensAsked = true;
-      actionToast(`Download lens profiles for automatic lens correction (${mb} MB)`, [
-        ['Download', downloadDb],
-        ['Not Now', () => void this.ctx.api.cmd('prefs.set', { values: { askLensProfiles: false } }).catch((err) => this.ctx.fail(err))],
-      ], LENS_ASK_MS);
-    };
+    dbButton.addEventListener('click', () => {
+      dbButton.disabled = true;
+      setText(q(dbRow, 'span'), 'Updating lens profiles...');
+      void this.ctx.api.cmd<{ task: number }>('lens.database', { download: true }).then((r) => whenDone(r.task))
+        .then(() => this.ctx.api.cmd<LensDbSource>('lens.database'))
+        .then((s) => { showDb(s); lensFor = null; develop.reload('photo'); toast('Lens profiles updated'); },
+          (err) => { setText(q(dbRow, 'span'), 'The update failed; the current lens profiles are kept.'); this.ctx.fail(err); })
+        .finally(() => { dbButton.disabled = false; });
+    });
     let lensFor: number | null = null;
     let makersLoaded = false;
     develop.listen((why) => {
@@ -225,12 +231,11 @@ export class DevelopPanels {
       if (lensBox.checked !== !!prof?.enabled) lensBox.checked = !!prof?.enabled;
       if (develop.id !== null && develop.id !== lensFor) {
         lensFor = develop.id;
-        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null; askDownload?: boolean; downloadMB?: number }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
-          if (r.askDownload) askLensDb(r.downloadMB ?? 0);
+        void this.ctx.api.cmd<{ available: boolean; source: string | null; database: boolean; lens: string | null; maker: string | null; guess: { maker: string; model: string } | null; databaseSource?: LensDbSource }>('develop.lensProfileInfo', { id: develop.id }).then(async (r) => {
+          showDb(r.databaseSource);
           const using = r.lens ? `${r.lens} (Lensfun)` : r.source === 'DNG opcodes' ? 'Built in (DNG opcodes)' : r.guess ? `${r.guess.model} (Lensfun)` : 'No profile found; choose the lens';
           setText(q(lensRow, '.fl-lens-note'), using);
           lensBox.disabled = !r.available && !prof?.enabled;
-          setHidden(dbRow, r.database || r.source === 'DNG opcodes');
           setHidden(pick, !r.database || r.source === 'DNG opcodes');
           setText(q(pick, '.fl-lens-attr'), r.database ? 'Lens data from the Lensfun database, CC BY-SA 3.0' : '');
           if (r.database && r.source !== 'DNG opcodes') {

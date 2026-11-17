@@ -5,6 +5,7 @@
 .fl-grow { flex: 1; min-width: 0; }
 .fl-sub-inline { flex: 1; color: var(--text-muted); font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; }
 .fl-btn-sm { height: 24px; padding: 0 8px; font-size: var(--fs-11); border-radius: 6px; }
+.fl-lens-db-note { display: block; min-height: 1.4em; overflow: hidden; font-size: var(--fs-11); line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
 .fl-sharpen-hint { margin: 4px 0 8px; font-size: var(--fs-11); line-height: 1.4; }
 .fl-point-swatches { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; margin: 6px 0; }
 .fl-point-sw { width: 26px; height: 26px; padding: 0; border: 2px solid var(--line-2); border-radius: 6px; cursor: pointer; }

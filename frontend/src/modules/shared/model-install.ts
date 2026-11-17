@@ -29,7 +29,7 @@ class ModelChoice extends Dialog {
   private picks: [string, string] = ['', ''];
   private resolve: ((v: string | null) => void) | null = null;
   constructor() {
-    super('Install', 460);
+    super('Install', 600);
     this.body.appendChild(this.text);
     this.button('Cancel', 'ghost', () => this.finish(null));
     this.small = this.button('Small and Fast', 'ghost', () => this.finish(this.picks[1]));
@@ -61,7 +61,7 @@ function describeOffer(m: MissingModel, what: string): { title: string; text: st
   const best = choices[0];
   const small = choices.length > 1 ? choices[choices.length - 1] : null;
   const text = small
-    ? `${what} works best with ${best.name} (${best.sizeMB} MB). ${small.name} (${small.sizeMB} MB) is smaller and faster but less precise. Each downloads once and is checked against its published SHA-256.`
+    ? `${what} works best with ${best.name}, a ${best.sizeMB} MB download. ${small.name}, a ${small.sizeMB} MB download, is smaller and faster but less precise. Each downloads once and is checked against its published SHA-256.`
     : `${what} needs ${best.name} on this computer (${best.sizeMB} MB, downloaded once and checked against its published SHA-256). Install it now and continue?`;
   return { title: `Install ${best.name}?`, text, best, small };
 }

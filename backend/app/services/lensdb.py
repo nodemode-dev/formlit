@@ -21,7 +21,6 @@ FILES = ["6x6", "actioncams", "compact-canon", "compact-casio", "compact-fujifil
          "mil-samsung", "mil-samyang", "mil-sigma", "mil-sony", "mil-tamron", "mil-tokina", "mil-zeiss", "misc", "om-system", "rf-leica", "slr-canon",
          "slr-hasselblad", "slr-konica-minolta", "slr-leica", "slr-nikon", "slr-olympus", "slr-panasonic", "slr-pentax", "slr-ricoh", "slr-samsung",
          "slr-samyang", "slr-schneider", "slr-sigma", "slr-soligor", "slr-sony", "slr-tamron", "slr-tokina", "slr-vivitar", "slr-zeiss", "slr-ussr"]
-DOWNLOAD_MB = 3
 ATTRIBUTION = "Lens data from the Lensfun database (lensfun.github.io), CC BY-SA 3.0"
 VERSIONS = {"ii", "iii", "iv", "z"}
 _lock = threading.Lock()

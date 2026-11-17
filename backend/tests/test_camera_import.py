@@ -89,7 +89,7 @@ def test_a_connected_camera_is_a_source_beside_the_drives(client, camera):
 
     roots = client.get("/api/files/roots").json()["roots"]
     mine = [r for r in roots if r["kind"] == "camera"]
-    assert mine == [{"name": "Canon EOS R5", "path": cameras.path_for(camera.id, ""), "kind": "camera"}]
+    assert mine == [{"name": "Canon EOS R5", "path": cameras.path_for(camera.id, ""), "kind": "camera", "removable": False, "card": True}]
 
 
 def test_the_camera_browses_like_a_folder(client, camera):

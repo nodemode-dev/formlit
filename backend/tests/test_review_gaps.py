@@ -100,37 +100,19 @@ def test_other_command_errors_carry_no_model(client):
     assert "missingModel" not in r.json()
 
 
-def set_kind(pid, kind):
-    from app.engine import catalog as catalog_mod
-
-    cat = catalog_mod.get()
-    with cat.lock:
-        cat.db.execute("UPDATE photos SET kind=? WHERE id=?", (kind, pid))
-
-
-def test_lens_profiles_are_offered_once_for_a_raw_without_the_database(client, commands, photo):
-    from app.core import prefs
+def test_lens_profile_info_names_the_database_in_use(commands, photo):
     from app.services import lensdb
 
-    assert not lensdb.available()
-    assert commands("develop.lensProfileInfo", {"id": photo["id"]})["askDownload"] is False
-    set_kind(photo["id"], "raw")
-    try:
-        info = commands("develop.lensProfileInfo", {"id": photo["id"]})
-        assert info["askDownload"] is True and info["downloadMB"] == lensdb.DOWNLOAD_MB
-        commands("prefs.set", {"values": {"askLensProfiles": False}})
-        assert commands("develop.lensProfileInfo", {"id": photo["id"]})["askDownload"] is False
-        assert prefs.load()["askLensProfiles"] is False
-    finally:
-        prefs.update({"askLensProfiles": True})
-        set_kind(photo["id"], "jpeg")
+    info = commands("develop.lensProfileInfo", {"id": photo["id"]})
+    assert info["database"] is True
+    assert info["databaseSource"] == {"source": "bundled", "date": lensdb.bundled_snapshot()}
+    assert "askDownload" not in info
 
 
-def test_lens_prompt_preference_must_be_a_boolean(commands):
-    from app.engine.commands import CommandError
+def test_the_lens_prompt_preference_is_gone():
+    from app.core import prefs
 
-    with pytest.raises(CommandError):
-        commands("prefs.set", {"values": {"askLensProfiles": "no"}})
+    assert "askLensProfiles" not in prefs.DEFAULTS
 
 
 @pytest.mark.parametrize("letter,kind,dcim,removable,card", [
