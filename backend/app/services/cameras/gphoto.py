@@ -43,19 +43,40 @@ def _run(argv: list[str], timeout: float) -> tuple[int, str, str]:
     return r.returncode, r.stdout, r.stderr
 
 
-def parse_listing(text: str) -> dict[str, list[tuple[int, Entry]]]:
-    tree: dict[str, list[tuple[int, Entry]]] = {}
+class Listing(dict):
+    def __init__(self) -> None:
+        super().__init__()
+        self.untrusted: set[str] = set()
+
+
+def parse_listing(text: str, rebase: bool = True) -> Listing:
+    tree = Listing()
+    expected: dict[str, int] = {}
     current: str | None = None
     for line in text.splitlines():
         head = FOLDER.match(line.strip())
         if head:
             current = head.group(1).rstrip("/") or "/"
             tree.setdefault(current, [])
+            count = re.search(r"There (?:is|are) (no|\d+) files?", line)
+            expected[current] = 0 if count is None or count.group(1) == "no" else int(count.group(1))
+            continue
+        if current is None or not line.strip():
             continue
         row = FILE.match(line.strip())
-        if row and current is not None:
-            stamp = float(row.group(5)) if row.group(5) else 0.0
-            tree[current].append((len(tree[current]) + 1, Entry(row.group(2), int(row.group(3)) * 1024, stamp, exact=False)))
+        if row is None:
+            if line.lstrip().startswith("#"):
+                tree.untrusted.add(current)
+            continue
+        stamp = float(row.group(5)) if row.group(5) else 0.0
+        tree[current].append((int(row.group(1)), Entry(row.group(2), int(row.group(3)) * 1024, stamp, exact=False)))
+    for folder, rows in tree.items():
+        numbers = [n for n, _ in rows]
+        if len(rows) != expected.get(folder, len(rows)) or numbers != sorted(set(numbers)):
+            tree.untrusted.add(folder)
+        if rebase and rows:
+            first = rows[0][0]
+            tree[folder] = [(n - first + 1, e) for n, e in rows]
     for folder in list(tree):
         parts = [p for p in folder.split("/") if p]
         for i in range(len(parts)):
@@ -65,7 +86,7 @@ def parse_listing(text: str) -> dict[str, list[tuple[int, Entry]]]:
 
 def _error(stderr: str, stdout: str) -> str:
     text = (stderr or stdout).strip()
-    if "Could not claim" in text or "-53" in text or "busy" in text.lower():
+    if "Could not claim the USB device" in text or "(-53:" in text or "Device Busy" in text:
         return BUSY_HINT
     line = next((ln.strip(" *") for ln in text.splitlines() if "Error" in ln or "error" in ln), "")
     return line or text.splitlines()[-1] if text else "gphoto2 failed"
@@ -81,7 +102,7 @@ class GphotoCamera:
         self.id = short_id("gp", f"{model}|{port}")
         self._run = run
         self._lock = threading.Lock()
-        self._tree: tuple[float, dict[str, list[tuple[int, Entry]]]] = (0.0, {})
+        self._tree: tuple[float, Listing] = (0.0, Listing())
 
     def _call(self, args: list[str], timeout: float = 120.0) -> str:
         with self._lock:
@@ -90,7 +111,7 @@ class GphotoCamera:
             raise CameraError(_error(err, out))
         return out
 
-    def tree(self, refresh: bool = False) -> dict[str, list[tuple[int, Entry]]]:
+    def tree(self, refresh: bool = False) -> Listing:
         stamp, found = self._tree
         if refresh or not found or time.monotonic() - stamp > TREE_SECONDS:
             found = parse_listing(self._call(["--list-files"], 300.0))
@@ -110,13 +131,28 @@ class GphotoCamera:
         folder, _, name = file.strip("/").rpartition("/")
         key = folder_key(folder)
         if refresh:
-            listed = parse_listing(self._call(["--folder", key, "--no-recurse", "--list-files"], 120.0)).get(key, [])
+            tree = parse_listing(self._call(["--folder", key, "--no-recurse", "--list-files"], 120.0), rebase=False)
         else:
-            listed = self.tree().get(key, [])
-        hit = next(((n, e) for n, e in listed if e.name == name), None)
-        if hit is None:
+            tree = self.tree()
+        if key in tree.untrusted:
+            raise CameraError(f"The camera's list of {key} could not be read in full, so nothing in it is copied or deleted by number")
+        hits = [(n, e) for n, e in tree.get(key, []) if e.name == name]
+        if not hits:
             raise CameraError(f"{name} is no longer on the camera")
-        return key, hit[0], hit[1]
+        if len(hits) > 1:
+            raise CameraError(f"The camera lists {name} more than once in {key}, so it is not copied or deleted by number")
+        return key, hits[0][0], hits[0][1]
+
+    def _confirm_locked(self, key: str, number: int, name: str, size: int | None) -> None:
+        code, out, err = self._run([self.binary, "--port", self.port, "--folder", key, "--no-recurse", "--list-files"], 120.0)
+        if code != 0:
+            raise CameraError(_error(err, out))
+        tree = parse_listing(out, rebase=False)
+        if key in tree.untrusted:
+            raise CameraError(f"The camera's list of {key} could not be read in full, so nothing in it is copied or deleted by number")
+        at = next((e for n, e in tree.get(key, []) if n == number), None)
+        if at is None or at.name != name or (size is not None and abs(at.size - size) >= 1024):
+            raise CameraError(f"{name} is no longer file {number} in {key} on the camera, so it was left alone")
 
     def fetch(self, file: str, dest: Path) -> Path:
         name = safe_name(file.strip("/").rpartition("/")[2])
@@ -126,7 +162,18 @@ class GphotoCamera:
         part = _plain_path(inside(dest / PART, dest))
         if target.exists() or part.exists() or target.name != name:
             raise CameraError(f"Refused to overwrite or rename {name} while copying it from the camera")
-        self._call(["--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(part)], 900.0)
+        with self._lock:
+            self._confirm_locked(key, number, name, entry.size)
+            code, out, err = self._run([self.binary, "--port", self.port, "--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(part)], 900.0)
+            if code == 0:
+                try:
+                    self._confirm_locked(key, number, name, entry.size)
+                except CameraError:
+                    if part.is_file() and not part.is_symlink():
+                        part.unlink()
+                    raise
+        if code != 0:
+            raise CameraError(_error(err, out))
         got = arrived(dest, PART)
         if entry.size and abs(got.stat().st_size - entry.size) >= 1024:
             got.unlink()
@@ -134,14 +181,25 @@ class GphotoCamera:
         got.rename(target)
         return arrived(dest, name)
 
-    def delete(self, file: str) -> None:
-        safe_name(file.strip("/").rpartition("/")[2])
-        key, number, _ = self._number(file, refresh=True)
-        self._call(["--folder", key, "--no-recurse", "--delete-file", str(number)], 120.0)
-        self._tree = (0.0, {})
+    def delete(self, file: str, expected: Entry | None = None) -> None:
+        name = safe_name(file.strip("/").rpartition("/")[2])
+        key, number, entry = self._number(file, refresh=True)
+        size = expected.size if expected is not None else entry.size
+        if expected is not None and abs(entry.size - expected.size) >= 1024:
+            raise CameraError(f"{name} on the camera is not the file that was imported, so it was not deleted")
+        with self._lock:
+            self._confirm_locked(key, number, name, size)
+            code, out, err = self._run([self.binary, "--port", self.port, "--folder", key, "--no-recurse", "--delete-file", str(number)], 120.0)
+        self._tree = (0.0, Listing())
+        if code != 0:
+            raise CameraError(_error(err, out))
 
     def thumbnail(self, file: str) -> bytes | None:
-        key, number, _ = self._number(file)
+        folder_key(file.strip("/").rpartition("/")[0])
+        try:
+            key, number, _ = self._number(file)
+        except CameraError:
+            return None
         with tempfile.TemporaryDirectory(prefix="formlit-thumb-") as tmp:
             try:
                 target = _plain_path(Path(tmp) / "thumb.jpg")

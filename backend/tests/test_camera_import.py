@@ -59,7 +59,7 @@ class FakeCamera:
         target.write_bytes(self.files[file])
         return target
 
-    def delete(self, file):
+    def delete(self, file, expected=None):
         self.deleted.append(file)
         self.files.pop(file)
 
@@ -256,7 +256,9 @@ class Gphoto2:
             return 0, f"Saving file as {out}\n", ""
         if "--folder" in argv and "--list-files" in argv:
             folder = argv[argv.index("--folder") + 1]
-            return 0, f"There are 2 files in folder '{folder}':\n" + self.folders.get(folder, ""), ""
+            rows = self.folders.get(folder, "")
+            count = len([ln for ln in rows.splitlines() if ln.startswith("#")])
+            return 0, f"There {'is' if count == 1 else 'are'} {count} file{'' if count == 1 else 's'} in folder '{folder}':\n" + rows, ""
         if "--list-files" in argv:
             return 0, self.listing, ""
         if "--delete-file" in argv:

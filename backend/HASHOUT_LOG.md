@@ -1839,11 +1839,35 @@ The same model could download twice at once (Preferences and an Install Now, or 
 
 One camera, one object. `devices()` rebuilt the camera objects on every refresh (every 5 s), each with its own `_lock`, so thumbnails asked for during a Move import ran gphoto2 next to the import's own gphoto2 and failed with "Could not claim the USB device". The first object made for an id is now kept (`_known`, filled under the module lock with `setdefault`, so two refreshes at once still agree) and every later refresh hands it back; `set_providers` clears it. A camera import also marks its devices busy (`importing`, counted so two imports on one camera nest), and `thumbnail` answers nothing for a busy camera, so the grid shows no thumbnail for those cells rather than a second process on the USB device.
 
-gphoto2 numbers. The tree came from one recursive `--list-files`, whose `#N` keeps counting across folders: `print_file_action` in gphoto2/actions.c keeps `static int x` and prints `x+1` for every file in the process (gphoto2 master 70e83ed). `--folder F --no-recurse --get-thumbnail N` takes the Nth file of F alone (`get_path_for_id` in gphoto2/foreach.c, the no-recursion branch lists F and indexes into it). So a thumbnail in a second folder asked for the wrong file. `parse_listing` now numbers each folder's files 1, 2, 3 in listing order, which is what the no-recurse calls index; `fetch` and `delete` keep reading a fresh single-folder listing. The test fixture's second folder now prints `#4`, as real gphoto2 does.
+gphoto2 numbers. The tree came from one recursive `--list-files`, whose `#N` keeps counting across folders: `print_file_action` in gphoto2/actions.c keeps `static int x` and prints `x+1` for every file in the process (gphoto2 master 70e83ed). `--folder F --no-recurse --get-thumbnail N` takes the Nth file of F alone (`get_path_for_id` in gphoto2/foreach.c, the no-recursion branch lists F and indexes into it). So a thumbnail in a second folder asked for the wrong file. That commit numbered each folder's files by counting parsed rows; the entry below replaces it, because counting rows turns one unparsed line into a wrong file. The test fixture's second folder now prints `#4`, as real gphoto2 does.
 
 The `{folder}` token. Each file was staged in `staging/000123/`, so a folder template with `{folder}` named the destination 000123. The slot is now `staging/000123/<camera folder>/` (the camera's own folder name, for example 100CANON, or `camera` when it is unsafe or the file sits at the root).
 
 Listing and budgets. `walk` listed a file's folder once per selected file; on Windows each listing is a PowerShell process. Listings are now kept for the length of the walk, so five files from 100CANON list it once. A walk from a device root (a phone's storage) stops at `WALK_DEPTH` 6 folders down and after `WALK_SECONDS` 120 s; when either cuts it short, `library.scan` says `truncated` and the import result carries `truncated`. Tests: `tests/test_camera_review_fixes.py` (a refresh returns the same object and lock; thumbnails answer nothing during the camera's import and work after; `{folder}` gives 100CANON and 101CANON; five selected files list their folder once; a nine-deep tree stops at depth 6 and an expired budget stops at once, both reported; the scan route reports it) and `tests/test_camera_import.py::test_gphoto2_file_numbers_count_within_each_folder` (failed before: the thumbnail asked for file 4 of 101CANON).
+
+### app/services/cameras/gphoto.py · Listing, parse_listing, _number, _confirm_locked, fetch, delete, thumbnail, _error; transfer.py · _settle expected
+- refers-to: app/services/cameras/gphoto.py :: Listing, parse_listing (rebase, untrusted), GphotoCamera._number, _confirm_locked, fetch, delete, thumbnail, _error; app/services/cameras/transfer.py :: _settle (entries), _run_batches; app/services/cameras/__init__.py :: Device.delete (expected); wpd.py :: WpdCamera.delete (expected)
+- kind: fix (security: wrong-file copy or delete)
+- logged: unreleased · 2026-11-17
+
+gphoto2 copies and deletes by number, so a number that points at another file copies the wrong photo or, in a Move, deletes a photo that was never imported. Numbers now come only from what gphoto2 printed, and are checked before they are used.
+
+- A single-folder listing (`--folder F --no-recurse --list-files`) is used as printed: `#5` is file 5, gaps included. These are the numbers `--get-file` and `--delete-file` index (foreach.c `get_path_for_id`, no-recursion branch).
+- The recursive tree (for browsing and thumbnails) is rebased per folder by subtracting the folder's first printed number, since `print_file_action`'s static counter runs on across folders. Rows are never counted.
+- A folder is untrusted when a line inside it starts with `#` but does not parse, when it has a different number of rows than its header says ("There are 3 files"), or when its numbers do not rise. Nothing in an untrusted folder is copied or deleted by number; the import reports those files as failed, and their thumbnails are left blank.
+- `fetch` finds the number in a fresh single-folder listing, then, holding the camera's lock, lists the folder again, checks that number N is still that name and size, downloads N to formlit's own temporary name, and lists once more. If N changed during the download, the downloaded file is removed and the photo is reported as failed. The size of what arrived is then checked against the listing as before.
+- `delete` takes the entry the import walked (`expected`, passed by `transfer._settle`). It refuses when the camera's file of that name no longer has that size. Holding the lock, it lists the folder again and runs `--delete-file N` only if N is still exactly that name and size.
+- Thumbnails rely on the cached tree, refusing untrusted folders, without an extra listing per thumbnail: one gphoto2 call per thumbnail is already the cost of the grid, and a wrong thumbnail changes nothing on the card.
+- `_error` reports the busy hint only for "Could not claim the USB device", "(-53:" and "Device Busy", not for any text holding "-53" or "busy".
+
+Tests: `tests/test_gphoto_numbering.py`:
+- a garbled line in the middle refuses copy and delete in that folder and blanks its thumbnails;
+- a header that disagrees with the rows is refused;
+- printed numbers from 5 with a gap are used as printed;
+- a recursive listing whose numbers run on across folders, with a gap, is rebased, and one whose numbers fall is untrusted;
+- delete refuses when number 1 changed between the listings, or when the size is not the imported one;
+- a copy whose number changed during the download is dropped and leaves nothing;
+- the happy path copies and deletes by the checked number, with five single-folder listings in all.
 
 ### app/services/cameras/wpd.py · powershell, _run, SCRIPT (output encoding, delete)
 - refers-to: app/services/cameras/wpd.py :: powershell, _run, SCRIPT ('delete' and the OutputEncoding line), WpdCamera.delete

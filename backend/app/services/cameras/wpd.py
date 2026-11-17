@@ -182,7 +182,7 @@ class WpdCamera:
         self._ask("get", file, 900.0, dest=str(dest), name=name)
         return arrived(dest, name)
 
-    def delete(self, file: str) -> None:
+    def delete(self, file: str, expected: Entry | None = None) -> None:
         name = safe_name(file.rsplit("/", 1)[-1])
         scratch = config.temp_dir() / "camera-delete" / self.id
         scratch.mkdir(parents=True, exist_ok=True)

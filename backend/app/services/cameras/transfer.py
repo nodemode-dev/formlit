@@ -96,7 +96,7 @@ def imported_set(staged: list[tuple[Path, Device, str]], res: dict) -> set[str] 
     return set(done)
 
 
-def _settle(staged: list[tuple[Path, Device, str]], res: dict, move: bool) -> tuple[list[str], list[dict], list[dict]]:
+def _settle(staged: list[tuple[Path, Device, str]], res: dict, move: bool, entries: dict[tuple[str, str], Entry] | None = None) -> tuple[list[str], list[dict], list[dict]]:
     back = {str(p): cameras.path_for(dev.id, rel) for p, dev, rel in staged}
     skipped = [back.get(s, s) for s in res["skipped"]]
     failed = [{**f, "path": back.get(f["path"], f["path"])} for f in res["failed"]]
@@ -110,7 +110,11 @@ def _settle(staged: list[tuple[Path, Device, str]], res: dict, move: bool) -> tu
             if str(p) not in done:
                 continue
             try:
-                dev.delete(rel)
+                expected = (entries or {}).get((dev.id, rel))
+                if expected is None:
+                    dev.delete(rel)
+                else:
+                    dev.delete(rel, expected)
             except (CameraError, OSError) as exc:
                 kept.append({"path": cameras.path_for(dev.id, rel), "error": str(exc)})
     return skipped, failed, kept
@@ -145,7 +149,7 @@ def _run_batches(found: list[tuple[Device, str, Entry]], staging: Path, target: 
         if staged:
             res = importer.import_files([str(p) for p, _, _ in staged], wanted, target, recursive=False, progress=None,
                                         start_seq=1 + len(result["ids"]), **options)
-            skipped, failed, kept = _settle(staged, res, move)
+            skipped, failed, kept = _settle(staged, res, move, {(dev.id, rel): e for dev, rel, e in batch})
             result["ids"].extend(res["ids"])
             result["skipped"].extend(skipped)
             result["failed"].extend(failed)
