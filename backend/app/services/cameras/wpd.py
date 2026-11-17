@@ -1,5 +1,6 @@
 import base64
 import json
+import ntpath
 import os
 import subprocess
 import threading
@@ -13,7 +14,7 @@ Runner = Callable[[dict, float], dict]
 
 SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 function Out-Json($value) { [Console]::Out.Write((ConvertTo-Json -InputObject $value -Depth 6 -Compress)) }
 function Item-Name($item) {
   if (-not $item.IsFolder) { try { $n = $item.ExtendedProperty('System.FileName'); if ($n) { return [string]$n } } catch { } }
@@ -100,6 +101,8 @@ try {
       $shell.NameSpace([string]$req.dest).MoveHere($item, 0x614)
       Wait-File $target $size ([int]$req.timeout)
       Remove-Item -LiteralPath $target -Force
+      $parent = Resolve-Item (Find-Device $shell $req.device) $req.folder
+      foreach ($i in $parent.GetFolder.Items()) { if ((Item-Name $i) -eq $name) { throw ('The camera kept ' + $name + ': it was copied, not moved') } }
       Out-Json @{ deleted = $name }
     }
     default { throw ('Unknown request ' + $req.op) }
@@ -115,9 +118,13 @@ def _encoded() -> str:
     return base64.b64encode(SCRIPT.encode("utf-16-le")).decode("ascii")
 
 
+def powershell() -> str:
+    return ntpath.join(os.environ.get("SystemRoot") or r"C:\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
+
 def _run(request: dict, timeout: float) -> dict:
     env = dict(os.environ, FORMLIT_WPD_REQUEST=json.dumps(request))
-    argv = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", _encoded()]
+    argv = [powershell(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", _encoded()]
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         r = subprocess.run(argv, capture_output=True, timeout=timeout + 30, env=env, creationflags=flags)
@@ -125,7 +132,7 @@ def _run(request: dict, timeout: float) -> dict:
         raise CameraError(f"The camera did not answer within {int(timeout)} s") from exc
     except OSError as exc:
         raise CameraError(f"Windows PowerShell could not be started: {exc}") from exc
-    return decode_reply(r.stdout.decode("utf-8", "replace"), r.returncode)
+    return decode_reply(r.stdout.decode("utf-8-sig", "replace"), r.returncode)
 
 
 def decode_reply(text: str, code: int) -> dict:
@@ -181,7 +188,7 @@ class WpdCamera:
         scratch.mkdir(parents=True, exist_ok=True)
         if inside(scratch / name, scratch).exists():
             (scratch / name).unlink()
-        self._ask("delete", file, 300.0, dest=str(scratch), name=name)
+        self._ask("delete", file, 300.0, dest=str(scratch), name=name, folder=file.strip("/").rpartition("/")[0])
 
     def thumbnail(self, file: str) -> bytes | None:
         return None

@@ -97,6 +97,40 @@ def test_a_deep_device_root_stops_at_the_depth_and_time_budget(restore_providers
     assert cameras.walk([cameras.path_for(cam.id, "")], seconds=-1.0, report=report) == [] and report == {"truncated": True}
 
 
+def test_wpd_runs_windows_powershell_by_full_path_and_reads_a_bom(monkeypatch):
+    import subprocess
+
+    from app.services.cameras import wpd
+
+    seen = {}
+
+    class Done:
+        returncode = 0
+        stdout = '\ufeff{"dirs": ["DCIM"], "files": []}'.encode("utf-8")
+        stderr = b""
+
+    def run(argv, **kw):
+        seen["argv"] = argv
+        return Done()
+
+    monkeypatch.setenv("SystemRoot", r"D:\Win")
+    monkeypatch.setattr(subprocess, "run", run)
+    assert wpd._run({"op": "list", "device": "x", "path": ""}, 5.0) == {"dirs": ["DCIM"], "files": []}
+    assert seen["argv"][0] == r"D:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+    assert "UTF8Encoding $false" in wpd.SCRIPT and "[System.Text.Encoding]::UTF8" not in wpd.SCRIPT
+
+
+def test_wpd_delete_checks_the_camera_no_longer_has_the_file():
+    from app.services.cameras import wpd
+
+    requests = []
+    cam = wpd.WpdCamera("Canon EOS R5", r"\\?\usb#vid", lambda req, t: requests.append(req) or {"deleted": "IMG_0001.CR3"})
+    cam.delete("DCIM/100CANON/IMG_0001.CR3")
+    assert requests[-1]["op"] == "delete" and requests[-1]["folder"] == "DCIM/100CANON" and requests[-1]["name"] == "IMG_0001.CR3"
+    block = wpd.SCRIPT.split("'delete' {", 1)[1].split("default {", 1)[0]
+    assert block.index("Remove-Item") < block.index("Resolve-Item (Find-Device $shell $req.device) $req.folder") < block.index("it was copied, not moved")
+
+
 def test_a_scan_says_when_the_walk_was_cut_short(restore_providers, commands):
     cameras = restore_providers
     deep = "/".join(f"d{i}" for i in range(9))
