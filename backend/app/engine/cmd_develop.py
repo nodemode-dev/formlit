@@ -176,7 +176,8 @@ def sample_depth(x: float, y: float, bitmap: str = "depth", id: int | None = Non
 def lens_database(download: bool = False, wait: bool = False) -> dict:
     from app.engine import tasks
     from app.services import lensdb
-    status = {"available": lensdb.available(), "lenses": len(lensdb.index()["lenses"]) if lensdb.available() else 0, "attribution": lensdb.ATTRIBUTION}
+    status = {"available": lensdb.available(), "lenses": len(lensdb.index()["lenses"]) if lensdb.available() else 0, "attribution": lensdb.ATTRIBUTION,
+              **lensdb.source()}
     if not download:
         return status
     tid = tasks.start("lensdb", "Downloading lens profiles", lambda progress: lensdb.download(progress))
@@ -239,7 +240,7 @@ def lens_profile_info(id: int) -> dict:
     dev, _ = current(int(id))
     prof = (dev.get("optics") or {}).get("profile") or {}
     out = {"available": bool(found), "kinds": sorted(found) if found else [], "enabled": bool(prof.get("enabled")), "source": "DNG opcodes" if found else None,
-           "database": lensdb.available(), "lens": (prof.get("lensfun") or {}).get("lens"), "maker": (prof.get("lensfun") or {}).get("maker"), "guess": None}
+           "database": lensdb.available(), "databaseSource": lensdb.source(), "lens": (prof.get("lensfun") or {}).get("lens"), "maker": (prof.get("lensfun") or {}).get("maker"), "guess": None}
     if not found and lensdb.available():
         lens, score = _lens_guess(int(id))
         if lens is not None:
