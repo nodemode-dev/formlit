@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from app.core import config
-from app.services import decode
+from app.services import cameras, decode
 from app.services.rename import safe, unique
 
 router = APIRouter(prefix="/api/files", tags=["files"])
@@ -38,7 +38,7 @@ def _roots() -> list[dict]:
                     if child.is_dir() and not child.name.startswith("."):
                         out.append({"name": child.name, "path": str(child), "kind": "volume"})
         out.append({"name": "Computer", "path": "/", "kind": "root"})
-    return out
+    return out + cameras.roots()
 
 
 @router.get("/roots")
@@ -48,6 +48,11 @@ def roots() -> dict:
 
 @router.get("/list")
 def listing(path: str, hidden: bool = False) -> Any:
+    if cameras.is_camera(path):
+        try:
+            return cameras.listing(path)
+        except cameras.CameraError as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
     p = Path(path).expanduser()
     if not p.is_dir():
         return JSONResponse({"ok": False, "error": f"Not a folder: {path}"}, status_code=404)
@@ -73,11 +78,31 @@ def listing(path: str, hidden: bool = False) -> Any:
 
 @router.get("/thumb")
 def thumb(path: str, long: int = 320) -> Any:
+    if cameras.is_camera(path):
+        return _camera_thumb(path, long)
     p = Path(path).expanduser()
     if not p.is_file() or not decode.supported(p):
         return JSONResponse({"ok": False, "error": "Not a supported image"}, status_code=404)
     im = decode.embedded_preview(p, max(64, min(long, 1024)))
     if im is None:
+        return JSONResponse({"ok": False, "error": "No preview"}, status_code=404)
+    buf = io.BytesIO()
+    im.convert("RGB").save(buf, "JPEG", quality=80)
+    return Response(buf.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "private, max-age=600"})
+
+
+def _camera_thumb(path: str, long: int) -> Any:
+    from PIL import Image, UnidentifiedImageError
+    try:
+        data = cameras.thumbnail(path)
+    except cameras.CameraError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
+    if not data:
+        return JSONResponse({"ok": False, "error": "No preview"}, status_code=404)
+    try:
+        im = Image.open(io.BytesIO(data))
+        im.thumbnail((max(64, min(long, 1024)),) * 2)
+    except (UnidentifiedImageError, OSError):
         return JSONResponse({"ok": False, "error": "No preview"}, status_code=404)
     buf = io.BytesIO()
     im.convert("RGB").save(buf, "JPEG", quality=80)
