@@ -2,6 +2,15 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## Unreleased
+
+- Added: import straight from a camera connected by USB. A camera shows under Source beside the drives (on Windows through Windows Portable Devices, on macOS and Linux through gphoto2 when it is installed, and on Linux also a camera the desktop has mounted), its folders browse like any folder, and Copy, Move, Copy as DNG and Add bring in CR3, CR2, NEF, ARW, RAF, DNG, JPG, HEIC, MP4 and the other supported files with the usual templates and options. Add from a camera copies into the destination. Move removes from the camera only the files that were imported; duplicates and files that failed stay on it.
+- Added: lens profile corrections work without a download. The Lensfun lens database ships with formlit; downloading lens profiles still updates it and is used when it is newer.
+- Fixed: Copy as DNG in the Import dialog was refused with "mode must be one of add, copy, move".
+- Fixed: Canon RF lenses are matched to their Lensfun profiles from the lens name in CR3 files, and a lens Lensfun does not have (such as the RF 24-70mm F2.8 L IS USM Z or the RF 20mm F1.4 L VCM) is no longer given another lens's profile.
+- Fixed: a DNG camera profile whose name is stored as bytes imports with its name.
+- Checked here: the engine tests (camera import with a simulated camera and recorded gphoto2 and Windows replies, lens matching for 18 RF lenses, DNG camera profiles against a synthetic dual-illuminant profile and a real public-domain Canon EOS R5 profile), the window tests, the frontend build and audit, the engine boot probe and the script checks, on an Apple silicon Mac. Not verified yet: a real camera on Windows, macOS or Linux, and the desktop builds.
+
 ## v0.51.3 · 2026-11-11
 
 - Fixed: in Develop, going to another photo and quickly back kept the edits on the photo you came back to; before, the next edit could be saved to the photo you had left.

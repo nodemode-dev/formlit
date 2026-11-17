@@ -1003,6 +1003,15 @@ The dev engine honours `FORMLIT_PORT` (documented in the wiki's Getting Started,
 
 `DevelopModule.open` called `develop.open(id)` only when `develop.id !== id`. Going A to B to A while B's open was still waiting on `flush()` (an edit on A being saved) found `develop.id` still A, skipped the call, and B's open finished last: the session ended on B while the library and the view showed A, and the next edit was saved to B. Now `develop.open` is called on every open; `DevelopSession.open` takes a new `openSeq` token before its same-photo check, so a return to the open photo returns at once and the older open drops out after its wait. `view.setPhoto(p, false)` still runs only when the photo changes. Test: `tests/window/test_window.py::test_develop_returning_to_the_open_photo_cancels_the_pending_switch` (holds `develop.update` with a Playwright route, switches next then previous, releases it, and checks the next edit goes to the first photo; it failed on 0.51.2 with the edit sent to the second photo).
 
+## Unreleased: import from a camera {#camera-import}
+
+### src/modules/library/importer.ts · show, browse, sync
+- refers-to: src/modules/library/importer.ts :: ImportDialog.show (root icon), browse (crumbs), sync (mode hint, destination)
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+The engine lists a connected camera as a root of kind `camera` with a `camera://` path, and the dialog already browses, scans, shows thumbnails and imports any path the engine gives it, so three small changes are enough: a camera row uses the tether icon; breadcrumbs come from the listing's `crumbs` when it sends them, because splitting a `camera://` path on slashes gives a `camera:` crumb; and with a camera as the source, Add shows the destination and the Copy hint, because Add from a camera copies (the engine has no files on a drive to add in place). No new strings: the hint reuses "Copy photos to a new location and add them". Kept additive beside the drive-detection work on the `fix/review-gaps` branch: the root icon line and the start of `sync` are the only lines both touch. Not checked in a throttled browser here.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

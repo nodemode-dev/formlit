@@ -1697,6 +1697,64 @@ The entry above removed the Trash copy on any failure of `copy2` or `unlink`, Fi
 
 `fl_python_ok` capped Python at 3.13 by the shell's `uname -m`, not by the interpreter. On Apple silicon an x86_64 Python (uv's build can come first on PATH) passed as 3.14 and the install failed on rawpy, which has no x86_64 macOS wheel for 3.14; a Rosetta shell capped a native arm64 Python at 3.13. Now the cap follows the interpreter's own `platform.machine()` (3.13 for an x86_64 Python on a Mac), and on Apple silicon (`uname -m` arm64, or `sysctl -n hw.optional.arm64` 1 under Rosetta) `fl_python` takes a native arm64 Python first and an x86_64 one only when no native one is supported. Tests: `tests/test_setup_python_pick.py` (the fake Pythons report their own `platform.machine()`; four new cases).
 
+## Unreleased: import from a camera, bundled lens profiles, DCP checks {#camera-import-profiles}
+
+### app/services/cameras · Device, devices, path_for, parse, listing, walk, roots, gvfs_mounts
+- refers-to: app/services/cameras/__init__.py
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+A camera on USB in PTP or MTP mode has no drive letter on Windows and no mount point on macOS, so the importer could only see a card in a reader. A camera is now an import source reached through one small interface (`Device`: `list_dir`, `fetch`, `delete`, `thumbnail`) with one provider per platform: WPD through the Windows Shell on Windows, gphoto2 on macOS and Linux. A camera's files have virtual paths, `camera://<id>/<folder>/<name>`, that `/api/files/roots`, `/api/files/list`, `/api/files/thumb`, `library.scan` and `library.import` accept beside ordinary paths, so the window's Import dialog, the CLI and agents use the same commands with no new tool. The id is a short hash of the backend and its device key (gphoto2 model and port, or the Shell item path), so it changes when a camera is plugged into another port; the dialog lists sources afresh on each open. `parse` refuses `.` and `..` parts so a camera path cannot name a file outside the camera. The device list is cached for 5 seconds because the Import dialog asks for roots and lists folders in quick succession and each answer starts a process. On Linux a camera the desktop has mounted through GVFS (`$XDG_RUNTIME_DIR/gvfs/mtp:host=...` or `gphoto2:host=...`) is a plain folder, so it is listed as a camera source with its real path and needs nothing else; while GVFS holds a camera, gphoto2 cannot claim it, and that error says to unmount it. macOS ImageCaptureCore was not used: it needs pyobjc, which formlit does not depend on, and an asynchronous delegate run loop the engine does not have; gphoto2 is already the tethering dependency. Tests: `tests/test_camera_import.py` (a fake camera through every route and command).
+
+### app/services/cameras/transfer.py · scan, import_paths, _batches, _fetch, _settle
+- refers-to: app/services/cameras/transfer.py
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+Camera files are copied into a staging folder under the temp folder and then imported by `importer.import_files` exactly as files from a card, so the folder and rename templates, `{seq}`, metadata presets, keywords, the collection, duplicate skipping, Copy as DNG and the backup copy all behave as they do for a drive. The modes map as: Copy and Move import with copy; Copy as DNG imports with dng; Add has no files on a drive to add in place, so it copies into the destination, or into the library folder when none is given. Move deletes from the camera only after the catalog has the photo: a file skipped as a duplicate, a file that failed, and every file after a cancel stay on the camera. Which staged files were processed comes from the import's own order (it walks the given files in order and breaks on cancel), so the first `ids + skipped + failed` files are the processed ones. Staging is done in batches of at most 4 GB so a large card does not need its whole size free twice; each batch is one undo step, and `start_seq` carries the sequence on so `{seq}` keeps counting. Skipped and failed paths are reported as camera paths. A file that arrives short of the size the camera reported is refused; gphoto2 reports sizes in KB, so its entries are marked inexact and only the scan's duplicate check uses them, within 1 KB. The staging folder is removed after each batch and again on any exit. Tests: `tests/test_camera_import.py` (copy, move with a duplicate and a broken file, add, dng, staging cleanup, batches).
+
+### app/services/cameras/gphoto.py · parse_listing, GphotoCamera
+- refers-to: app/services/cameras/gphoto.py
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+gphoto2 is GPL, so it is run only as a separate process, the user's installed command found by `tether.binary()`, never linked. One recursive `--list-files` gives the whole tree (folders without files are printed too) and is cached for 15 seconds; a fetch uses `--folder F --no-recurse --get-file N` with `--filename <dest>/%f.%C`, so the camera's own name is kept, and the file is accepted only if a file of the expected name arrived (a file number that pointed at another file is refused). Before a delete the folder is listed again, because deleting renumbers the files after it. The number field, name, `rd` permissions, KB size, optional dimensions, MIME type and optional time are parsed as gphoto2's `print_file_action` prints them, with the name directly against the permissions when it is 27 characters or longer. A "Could not claim the USB device" error names the programs that hold the camera. Not run against a real camera or a real gphoto2 here; the tests replay recorded output.
+
+### app/services/cameras/wpd.py · SCRIPT, WpdCamera, decode_reply
+- refers-to: app/services/cameras/wpd.py
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+WPD is reached through `Shell.Application` from Windows PowerShell rather than through comtypes: the Shell is part of Windows and walks portable devices with the same folder model as Explorer, so no package is added and no type library has to be generated at run time. The script is held in the module and passed with `-EncodedCommand` (so it needs no file in the frozen bundle and no quoting), and its request is passed in the `FORMLIT_WPD_REQUEST` environment variable as JSON. Devices are the items of "This PC" that are not file system items and whose path holds a `\\?\` device path, which leaves out drives and card readers (those have letters and are already sources). File names come from `System.FileName` because the Shell's `Name` drops the extension when Explorer hides extensions. `CopyHere` returns before the copy ends on a portable device, so the script waits until the file has the size the device reported (or a stable size when it reported none) and can be opened exclusively. Delete moves the item into a scratch folder with `MoveHere` and removes the local copy, because the Shell's delete verb asks for confirmation on portable devices. A single-item list can arrive as a scalar, so lists are normalised. The camera gives no thumbnail through this route, so camera thumbnails on Windows are blank. Not run on Windows, and the script was not parsed by PowerShell here.
+
+### app/engine/cmd_library.py · scan, do_import (camera paths; dng in the schema)
+- refers-to: app/engine/cmd_library.py :: scan, do_import
+- kind: fix, feature
+- logged: unreleased · 2026-11-17
+
+`library.import` declared its mode as one of add, copy and move, while the function and the Import dialog also use dng (Copy as DNG); the dispatcher checks the enum, so Copy as DNG was refused with "mode must be one of add, copy, move" from the window, the CLI and agents. dng is now in the enum. Camera paths are split off and imported through `transfer.import_paths`, after the drive paths; `notDeleted` lists camera files that Move imported but could not delete. Tests: `tests/test_camera_import.py::test_copy_as_dng_is_accepted_for_files_on_a_drive` (failed on the code above with that message).
+
+### app/routers/files.py · _roots, listing, thumb, _camera_thumb
+- refers-to: app/routers/files.py
+- kind: feature
+- logged: unreleased · 2026-11-17
+
+Cameras are appended to the roots with kind `camera`. A camera listing answers the same shape as a folder plus `crumbs`, because a `camera://` path split on slashes does not give usable breadcrumbs. A camera thumbnail is the camera's own thumbnail (gphoto2 `--get-thumbnail`), scaled to the requested size; when there is none the route answers 404 as it does for a file with no preview.
+
+### app/services/lensdb.py · bundled, available, source, index, _parse, _tokens, _max_aperture, match, FILES
+- refers-to: app/services/lensdb.py
+- kind: feature, fix
+- logged: unreleased · 2026-11-17
+
+Lens corrections needed a download before they did anything, so a first run offline had none. The Lensfun XML now ships unmodified in `shared/lensfun/db` (CC BY-SA 3.0 allows redistribution with credit, the licence and no changes, and the law here allows CC BY-SA only unmodified), and `shared/` is already copied into the frozen engine. The index is built from those files in memory on first use (about a second); the download stays as the updater, and a downloaded index is used only when its `downloaded` date is not older than the bundle's snapshot date from `SOURCE.txt` (an index from before this change has no date, so its file time stands in). The fallback file list named neither `om-system` nor `slr-soligor`, which Lensfun has added. Three matching faults showed with the RF lenses: most Lensfun lens entries have no `<focal>` element, so the focal filter was skipped for them and a lens Lensfun lacks (RF 20mm F1.4, RF 100-300mm F2.8) was matched to a different one (EF 20mm f/2.8, EF 100-300mm) on the mount and maker bonuses alone; the range now comes from the model name when the element is missing. A different maximum aperture is refused (RF 24-105mm F2.8 Z is not the F4L), and the version marks II, III, IV and Z must agree (RF 24-70mm F2.8 L IS USM Z is not the first RF 24-70mm). Tokens split letters from digits ("RF24-105mm" against "RF 24-105mm") and drop a bare "f" so "F4" and "f/4L" compare; a candidate sharing fewer than half of the Exif tokens is not a match. Over every Lensfun lens matched by its own name, exact matches stay 1370 while wrong matches fall from 99 to 49. Tests: `tests/test_lens_profiles_bundled.py`.
+
+### app/develop/dcp.py · read, TEXT
+- refers-to: app/develop/dcp.py :: read
+- kind: fix
+- logged: unreleased · 2026-11-17
+
+The DNG specification allows ProfileName, ProfileCopyright and UniqueCameraModel as BYTE (UTF-8) as well as ASCII; a profile written with BYTE came back as a tuple of numbers, and `import_dcp` named it with that tuple's text. Those three tags are now decoded as text for BYTE and UNDEFINED too. The rest of the DCP path was checked against a synthetic dual-illuminant profile written to the DNG 1.6 layout in both byte orders (inverse-CCT weighting, forward and colour matrices, HueSatMap with two tables, LookTable with sRGB value encoding, the baseline exposure offset and the tone curve, the numba table kernel against the numpy reference) and against RawTherapee's public-domain Canon EOS R5 profile; no other fault showed. Not handled: DNG 1.6 third illuminants and illuminant 255 with IlluminantData (the first table is then used at every temperature). RawTherapee's profiles carry a linear tone curve, so with one chosen the photo is as flat as that tool's profile intends. Tests: `tests/test_camera_profiles_dcp.py`.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
