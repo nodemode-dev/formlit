@@ -249,8 +249,11 @@ class Gphoto2:
             folder = argv[argv.index("--folder") + 1]
             number = int(argv[argv.index("--get-file") + 1])
             name = [ln.split()[1] for ln in self.folders.get(folder, "").splitlines() if ln.startswith(f"#{number} ")][0]
-            (pattern.parent / name).write_bytes(b"raw")
-            return 0, f"Saving file as {pattern.parent / name}\n", ""
+            stem, _, ext = name.rpartition(".")
+            out = Path(str(pattern).replace("%f", stem).replace("%C", ext).replace("%n", str(number)).replace("%:", name))
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"raw")
+            return 0, f"Saving file as {out}\n", ""
         if "--folder" in argv and "--list-files" in argv:
             folder = argv[argv.index("--folder") + 1]
             return 0, f"There are 2 files in folder '{folder}':\n" + self.folders.get(folder, ""), ""

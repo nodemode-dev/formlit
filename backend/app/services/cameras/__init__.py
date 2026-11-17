@@ -48,7 +48,7 @@ _cache: tuple[float, dict[str, Device]] = (0.0, {})
 
 def safe_name(name: str) -> str:
     text = str(name)
-    if not text.strip() or text in (".", "..") or ".." in text or any(ch in text for ch in "\\/:\x00"):
+    if not text.strip() or text in (".", "..") or ".." in text or any(ch in text for ch in "\\/:%\x00"):
         raise CameraError(f"Refused a file name from the camera: {text!r}")
     return text
 

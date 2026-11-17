@@ -22,7 +22,7 @@ function Item-Name($item) {
 function Safe-Name($name) {
   $text = [string]$name
   $leaf = [System.IO.Path]::GetFileName($text)
-  if ([string]::IsNullOrWhiteSpace($leaf) -or $leaf -ne $text -or $leaf -match '[\\/:]' -or $leaf.Contains('..')) { throw ('Refused a file name from the camera: ' + $text) }
+  if ([string]::IsNullOrWhiteSpace($leaf) -or $leaf -ne $text -or $leaf -match '[\\/:%]' -or $leaf.Contains('..')) { throw ('Refused a file name from the camera: ' + $text) }
   return $leaf
 }
 function Checked-Name($item, $wanted) {

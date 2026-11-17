@@ -123,8 +123,53 @@ def test_gphoto2_writes_to_a_name_formlit_chose(tmp_path):
     cam = gphoto.GphotoCamera("/usr/bin/gphoto2", "Canon EOS R5", "usb:001,007", runner)
     got = cam.fetch("store_00020001/DCIM/100CANON/IMG_0001.CR3", tmp_path)
     call = next(c for c in runner.calls if "--get-file" in c)
-    assert call[call.index("--filename") + 1] == str((tmp_path / "IMG_0001.CR3").resolve()) and "%f" not in " ".join(call)
-    assert got == (tmp_path / "IMG_0001.CR3").resolve()
+    assert call[call.index("--filename") + 1] == str((tmp_path / "download.part").resolve())
+    assert got == (tmp_path / "IMG_0001.CR3").resolve() and sorted(p.name for p in tmp_path.iterdir()) == ["IMG_0001.CR3"]
+
+
+@pytest.mark.parametrize("name", ["IMG_%n.CR3", "%:.CR3", "%f.%C", "100%.JPG"])
+def test_a_name_with_a_percent_sign_is_refused_before_gphoto2_runs(tmp_path, name):
+    from app.services.cameras import CameraError, gphoto, safe_name
+
+    with pytest.raises(CameraError):
+        safe_name(name)
+    folder = "/store_00020001/DCIM/100CANON"
+    runner = Gphoto2(folders={folder: f"#1     {name}               rd     1 KB image/x-canon-cr3\n"})
+    cam = gphoto.GphotoCamera("/usr/bin/gphoto2", "Canon EOS R5", "usb:001,007", runner)
+    with pytest.raises(CameraError):
+        cam.fetch(f"store_00020001/DCIM/100CANON/{name}", tmp_path / "slot")
+    assert runner.calls == [] and not (tmp_path / "slot").exists()
+
+
+@pytest.mark.parametrize("folder", ["store/DCIM/%n", "store/%:/100CANON", "store/../DCIM", "store/a\\b", "store/c:d"])
+def test_hostile_folder_keys_never_reach_gphoto2(tmp_path, folder):
+    from app.services.cameras import CameraError, gphoto
+
+    runner = Gphoto2()
+    cam = gphoto.GphotoCamera("/usr/bin/gphoto2", "Canon EOS R5", "usb:001,007", runner)
+    for call in (lambda: cam.fetch(f"{folder}/IMG_0001.CR3", tmp_path / "slot"), lambda: cam.delete(f"{folder}/IMG_0001.CR3"),
+                 lambda: cam.thumbnail(f"{folder}/IMG_0001.CR3")):
+        with pytest.raises(CameraError):
+            call()
+    assert runner.calls == []
+
+
+def test_no_gphoto2_filename_argument_carries_a_percent_sign(tmp_path):
+    from app.services.cameras import gphoto
+
+    folder = "/store_00020001/DCIM/100CANON"
+    runner = Gphoto2(folders={folder: "#1     IMG_0001.CR3               rd     1 KB image/x-canon-cr3\n"})
+    cam = gphoto.GphotoCamera("/usr/bin/gphoto2", "Canon EOS R5", "usb:001,007", runner)
+    cam.fetch("store_00020001/DCIM/100CANON/IMG_0001.CR3", tmp_path / "a")
+    cam.thumbnail("store_00020001/DCIM/100CANON/IMG_0001.CR3")
+    named = [c[c.index("--filename") + 1] for c in runner.calls if "--filename" in c]
+    assert len(named) == 2 and not any("%" in n for n in named)
+    from app.services.cameras import CameraError
+
+    pct = tmp_path / "100%"
+    with pytest.raises(CameraError):
+        cam.fetch("store_00020001/DCIM/100CANON/IMG_0001.CR3", pct)
+    assert len([c for c in runner.calls if "--get-file" in c]) == 1
 
 
 class Recorder:

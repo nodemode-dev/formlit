@@ -17,6 +17,22 @@ BUSY_HINT = ("Another program is using the camera. On a Mac, quit Image Capture 
              "stop tethered capture in formlit")
 
 
+PART = "download.part"
+
+
+def _plain_path(path: Path) -> Path:
+    if "%" in str(path):
+        raise CameraError(f"Refused a download folder whose path has a % in it: {path}")
+    return path
+
+
+def folder_key(folder: str) -> str:
+    parts = [p for p in folder.strip("/").split("/") if p]
+    if any(p in (".", "..") or any(ch in p for ch in "%\\:\x00\n\r") for p in parts):
+        raise CameraError(f"Refused a folder name from the camera: {folder!r}")
+    return "/" + "/".join(parts)
+
+
 def _run(argv: list[str], timeout: float) -> tuple[int, str, str]:
     try:
         r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
@@ -92,7 +108,7 @@ class GphotoCamera:
 
     def _number(self, file: str, refresh: bool = False) -> tuple[str, int, Entry]:
         folder, _, name = file.strip("/").rpartition("/")
-        key = "/" + folder if folder else "/"
+        key = folder_key(folder)
         if refresh:
             listed = parse_listing(self._call(["--folder", key, "--no-recurse", "--list-files"], 120.0)).get(key, [])
         else:
@@ -107,14 +123,16 @@ class GphotoCamera:
         key, number, entry = self._number(file, refresh=True)
         dest.mkdir(parents=True, exist_ok=True)
         target = inside(dest / safe_name(entry.name), dest)
-        if target.exists() or target.name != name:
+        part = _plain_path(inside(dest / PART, dest))
+        if target.exists() or part.exists() or target.name != name:
             raise CameraError(f"Refused to overwrite or rename {name} while copying it from the camera")
-        self._call(["--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(target)], 900.0)
-        got = arrived(dest, name)
+        self._call(["--folder", key, "--no-recurse", "--get-file", str(number), "--filename", str(part)], 900.0)
+        got = arrived(dest, PART)
         if entry.size and abs(got.stat().st_size - entry.size) >= 1024:
             got.unlink()
             raise CameraError(f"The camera sent a different file than {name}; nothing was imported from it")
-        return got
+        got.rename(target)
+        return arrived(dest, name)
 
     def delete(self, file: str) -> None:
         safe_name(file.strip("/").rpartition("/")[2])
@@ -125,7 +143,10 @@ class GphotoCamera:
     def thumbnail(self, file: str) -> bytes | None:
         key, number, _ = self._number(file)
         with tempfile.TemporaryDirectory(prefix="formlit-thumb-") as tmp:
-            target = Path(tmp) / "thumb.jpg"
+            try:
+                target = _plain_path(Path(tmp) / "thumb.jpg")
+            except CameraError:
+                return None
             try:
                 self._call(["--folder", key, "--no-recurse", "--get-thumbnail", str(number), "--filename", str(target), "--force-overwrite"], 60.0)
             except CameraError:
