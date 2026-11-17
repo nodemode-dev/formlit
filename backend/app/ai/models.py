@@ -1,6 +1,7 @@
 import hashlib
 import json
 import threading
+import uuid
 from pathlib import Path
 from typing import Any, Callable
 
@@ -87,6 +88,7 @@ SAM_DIRS = {"objectsHq": "sam2.1-hiera-base-plus", "objects": "sam2.1-hiera-tiny
 _lock = threading.RLock()
 _sessions: dict[str, Any] = {}
 _downloading: set[str] = set()
+_download_locks: dict[str, threading.Lock] = {}
 PROVIDERS = ("CoreMLExecutionProvider", "DmlExecutionProvider", "CUDAExecutionProvider", "CPUExecutionProvider")
 
 
@@ -105,11 +107,26 @@ def path(name: str) -> Path:
     return config.models_dir() / name
 
 
+def _sidecar(name: str) -> Path:
+    target = path(name)
+    return target.with_suffix(target.suffix + ".json")
+
+
+def _file_ok(name: str, sha: str) -> bool:
+    target = path(name)
+    try:
+        if not target.is_file() or target.stat().st_size <= 1024:
+            return False
+        return json.loads(_sidecar(name).read_text()).get("sha256") == sha
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def ready(model: str) -> bool:
     spec = MODELS.get(model)
     if not spec:
         return False
-    return all(path(n).is_file() and path(n).stat().st_size > 1024 for n in spec["files"])
+    return all(_file_ok(n, sha) for n, (_, sha) in spec["files"].items())
 
 
 def best(model: str) -> str | None:
@@ -138,42 +155,58 @@ def catalogue() -> list[dict]:
     return [{"id": k, "name": v["name"], "license": v["license"], "sizeMB": v["size"], "ready": ready(k), "downloading": k in _downloading, **_role(k)} for k, v in MODELS.items()]
 
 
+def _model_lock(model: str) -> threading.Lock:
+    with _lock:
+        return _download_locks.setdefault(model, threading.Lock())
+
+
 def download(model: str, progress: Callable | None = None) -> dict:
-    import httpx
+    with _model_lock(model):
+        _downloading.add(model)
+        try:
+            _fetch(model, progress)
+        finally:
+            _downloading.discard(model)
+    return {"model": model, "ready": ready(model)}
+
+
+def _fetch(model: str, progress: Callable | None) -> None:
     spec = MODELS[model]
     files = list(spec["files"].items())
-    _downloading.add(model)
+    for i, (name, (url, sha)) in enumerate(files):
+        if _file_ok(name, sha):
+            continue
+        step = (lambda got, total, i=i: progress(i * 1000 + int(1000 * got / total), len(files) * 1000, f"Downloading {spec['name']}")) if progress is not None else None
+        _fetch_file(name, url, sha, spec["license"], step, progress)
+
+
+def _fetch_file(name: str, url: str, sha: str, license_: str, step: Callable | None, progress: Callable | None) -> None:
+    import httpx
+    target = path(name)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(f"{target.suffix}.{uuid.uuid4().hex}.download")
+    digest = hashlib.sha256()
     try:
-        for i, (name, (url, sha)) in enumerate(files):
-            target = path(name)
-            if target.is_file() and target.stat().st_size > 1024:
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            tmp = target.with_suffix(target.suffix + ".download")
-            digest = hashlib.sha256()
-            try:
-                with httpx.stream("GET", url, follow_redirects=True, timeout=120) as r:
-                    r.raise_for_status()
-                    total = int(r.headers.get("content-length", 0))
-                    got = 0
-                    with tmp.open("wb") as out:
-                        for chunk in r.iter_bytes(1 << 20):
-                            if progress is not None and getattr(progress, "cancelled", False):
-                                raise InterruptedError("Cancelled")
-                            out.write(chunk)
-                            digest.update(chunk)
-                            got += len(chunk)
-                            if progress is not None and total:
-                                progress(i * 1000 + int(1000 * got / total), len(files) * 1000, f"Downloading {spec['name']}")
-                if digest.hexdigest() != sha:
-                    raise ValueError(f"Checksum mismatch for {name}: the download was discarded")
-                tmp.replace(target)
-                target.with_suffix(target.suffix + ".json").write_text(json.dumps({"url": url, "sha256": sha, "license": spec["license"]}))
-            finally:
-                tmp.unlink(missing_ok=True)
+        with httpx.stream("GET", url, follow_redirects=True, timeout=120) as r:
+            r.raise_for_status()
+            total = int(r.headers.get("content-length", 0))
+            got = 0
+            with tmp.open("wb") as out:
+                for chunk in r.iter_bytes(1 << 20):
+                    if progress is not None and getattr(progress, "cancelled", False):
+                        raise InterruptedError("Cancelled")
+                    out.write(chunk)
+                    digest.update(chunk)
+                    got += len(chunk)
+                    if step is not None and total:
+                        step(got, total)
+        if digest.hexdigest() != sha:
+            raise ValueError(f"Checksum mismatch for {name}: the download was discarded")
+        _sidecar(name).unlink(missing_ok=True)
+        tmp.replace(target)
+        _sidecar(name).write_text(json.dumps({"url": url, "sha256": sha, "license": license_}))
     finally:
-        _downloading.discard(model)
-    return {"model": model, "ready": ready(model)}
+        tmp.unlink(missing_ok=True)
 
 
 def providers() -> list[str]:

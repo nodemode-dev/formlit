@@ -1,5 +1,6 @@
 import copy
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,8 @@ from app.engine.records import loads
 from app.services import previews
 
 VIEW_DROP = ("crop", "masks", "vignette", "grain", "lensBlur")
+_download_lock = threading.Lock()
+_download_tasks: dict[str, int] = {}
 
 
 def cat():
@@ -64,7 +67,14 @@ def ai_models() -> dict:
 def ai_download(model: str, wait: bool = False) -> dict:
     if model not in models.MODELS:
         raise CommandError(f"Unknown model {model}; see ai.models")
-    tid = tasks.start("model", f"Installing {models.MODELS[model]['name']}", lambda p: models.download(model, p))
+    with _download_lock:
+        running = _download_tasks.get(model)
+        t = tasks.get(running) if running is not None else None
+        if t is not None and t["state"] == "running":
+            tid = running
+        else:
+            tid = tasks.start("model", f"Installing {models.MODELS[model]['name']}", lambda p: models.download(model, p))
+            _download_tasks[model] = tid
     if wait:
         t = tasks.wait(tid, 3600)
         if t and t["state"] == "failed":
