@@ -106,8 +106,8 @@ fn main() {
                 let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
                 let mut port: Option<u16> = None;
                 let mut key: Option<String> = None;
-                let started = std::time::Instant::now();
-                while let Some(event) = next_event(&mut rx, key.is_none().then(|| started + KEY_WAIT)).await {
+                let mut address_at: Option<std::time::Instant> = None;
+                while let Some(event) = next_event(&mut rx, address_at.map(|at| at + KEY_WAIT)).await {
                     let line = match event {
                         CommandEvent::Stdout(bytes) => {
                             let text = String::from_utf8_lossy(&bytes).into_owned();
@@ -120,11 +120,16 @@ fn main() {
                         CommandEvent::Terminated(_) => break,
                         _ => continue,
                     };
-                    if let Some(captures) = pattern.captures(&line) {
-                        port = captures[1].parse().ok();
-                        if port.is_some() {
-                            break;
+                    if port.is_none() {
+                        if let Some(captures) = pattern.captures(&line) {
+                            port = captures[1].parse().ok();
+                            if port.is_some() {
+                                address_at = Some(std::time::Instant::now());
+                            }
                         }
+                    }
+                    if port.is_some() && key.is_some() {
+                        break;
                     }
                 }
                 if key.is_none() {
