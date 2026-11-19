@@ -98,7 +98,7 @@ def test_inapp_tokens_live_in_a_private_file_and_die_on_revoke():
 
     token, path = claude_code.issue()
     assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
-    assert json.loads(open(path, encoding="utf-8").read())["mcpServers"]["formlit"]["headers"]["x-formlit-inapp"] == token
+    assert json.loads(open(path, encoding="utf-8").read())["mcpServers"]["formlit_tab"]["headers"]["x-formlit-inapp"] == token
     assert not any(token in part for part in claude_code.argv("/usr/bin/claude", "hi", None, path))
     assert claude_code.is_inapp(token)
     claude_code.revoke(token)

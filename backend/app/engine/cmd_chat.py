@@ -74,7 +74,7 @@ def _usage_of(u: dict) -> tuple[int, int]:
 
 def _argv(path: str, text: str, session: str | None, mcp_file: str) -> list[str]:
     cmd = [path, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-           "--mcp-config", mcp_file, "--allowedTools", "mcp__formlit", "--append-system-prompt", NOTE]
+           "--mcp-config", mcp_file, "--allowedTools", "mcp__formlit_tab", "--append-system-prompt", NOTE]
     if session:
         cmd += ["--resume", session]
     cmd += ["--", text]

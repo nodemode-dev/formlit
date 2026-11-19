@@ -570,10 +570,10 @@ def _asked(name: str, args: dict) -> dict:
     return {"tool": name, "command": cid, "what": what, "label": SPECS[name][0]["description"].split(".")[0][:80]}
 
 
-async def call_tool(name: str, args: dict, client: str = "", channel: str = "http") -> dict:
+async def call_tool(name: str, args: dict, client: str = "", channel: str = "http", gone=None) -> dict:
     tool, fn = SPECS[name]
     try:
-        await agents.require(client, channel, _asked(name, args))
+        await agents.require(client, channel, _asked(name, args), gone)
     except CommandError as exc:
         return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
     events.publish("agent.activity", tool=name, label=tool["description"].split(".")[0][:80])
@@ -636,7 +636,7 @@ async def mcp(request: Request) -> Response:
             out = _err(req_id, -32602, "tools/call needs a tool name and an arguments object")
         else:
             client, channel = _caller(request, params)
-            out = _ok(req_id, await call_tool(name, args, client, channel), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
+            out = _ok(req_id, await call_tool(name, args, client, channel, request.is_disconnected), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
     else:
         out = _err(req_id, -32601, f"Method not found: {method}")
     return Response(content=json.dumps(out, default=str), media_type="application/json", headers=headers)

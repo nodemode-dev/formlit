@@ -2064,6 +2064,20 @@ Twelve tests, each written after the behaviour was seen on the engine run from s
 
 Write routes walked by `test_every_write_route_needs_the_window_key`: 8 before and 8 after (no route was added; the two new commands go through `POST /api/commands/{id}`). Whole backend suite: 368 passed and 1 failed before (`test_selection_models.py::test_the_recommended_models_run_on_the_cpu_provider_only`, not touched here), 380 passed and the same 1 failed after.
 
+### app/engine/claude_code.py · issue, argv; app/engine/cmd_chat.py · _argv
+- refers-to: app/engine/claude_code.py :: issue, argv; app/engine/cmd_chat.py :: _argv; app/engine/agent_programs.py :: TAB_SERVER; tests/test_window_key.py; tests/test_dock_module.py
+- kind: rationale
+- logged: unreleased · 2026-11-19
+
+The MCP entry the engine writes for its own Claude Code tabs and for Chat is now named `formlit_tab` (it was `formlit`), the name Codex and Cursor tabs already had, so it cannot be mistaken for the `formlit` entry an outside agent uses after `./formlit agents install` or the plugin; a person who has both sees both. `--allowedTools` follows as `mcp__formlit_tab` in the tab's and Chat's command lines; the two must change together, because Claude Code names tools by the entry. `setup/claude_launch.py` (`./formlit claude` in the person's own terminal) is not a tab and keeps `formlit`. Seen with a stand-in `claude` on the engine run from source: the tab's 0600 config file holds one entry named `formlit_tab`, a call with its token runs unasked under Ask and is refused under Blocked, and after the tab closes the file is gone and the same token is an outside caller that has to be allowed like any other. Not seen: the real Claude Code with the new name.
+
+### app/engine/agents.py · require (gone); app/routers/mcp.py · call_tool, mcp
+- refers-to: app/engine/agents.py :: require; app/routers/mcp.py :: call_tool, mcp; tests/test_dock_module.py
+- kind: fix
+- logged: unreleased · 2026-11-19
+
+A caller that hung up while its question was showing left the question in the window until the time limit (120 s): the waiting loop only looked at the setting and the answers, and nothing told it the connection was gone, so the reason `closed` was never reached. `require` takes an optional `gone` (an awaitable test) and asks it at every poll; `mcp` passes the request's `is_disconnected`. A caller that is gone ends the wait at the next poll, the call is refused with the usual sentence (nobody reads it), and `agents.withdrawn` goes out with reason `closed`, so the dock's dialog closes unanswered and the setting stays as it was. Seen on the engine run from source: a socket closed one second into the wait, `pending` was empty at the next look and the stream carried `{"type":"agents.withdrawn","request":"r1","reason":"closed"}`; before the change the same dialog stayed until the limit.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

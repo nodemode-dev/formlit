@@ -49,7 +49,7 @@ def changed(choice: str | None = None, request: str | None = None) -> None:
     events.publish("agents.changed", outsideAgents=setting(), choice=choice, request=request)
 
 
-async def require(client: str, channel: str, asked: dict | None = None) -> None:
+async def require(client: str, channel: str, asked: dict | None = None, gone=None) -> None:
     client = (client or "").strip()[:80] or "an outside agent"
     note(client, channel)
     state = setting()
@@ -71,6 +71,8 @@ async def require(client: str, channel: str, asked: dict | None = None) -> None:
         deadline = time.monotonic() + WAIT_SECONDS
         while time.monotonic() < deadline:
             await asyncio.sleep(POLL_SECONDS)
+            if gone is not None and await gone():
+                raise CommandError(WAITING, 403)
             state = setting()
             if state == "allowed":
                 reason = "answered"
