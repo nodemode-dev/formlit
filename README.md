@@ -96,6 +96,8 @@ The window, the terminal and the MCP server call the same registry of 289 engine
 ./formlit mcp                                       # MCP server on stdio for Claude Code, Codex and Cursor
 ```
 
+The command line counts as an outside agent: with Agent access on Ask me (the default, in Preferences, AI agents), formlit's window asks you to Allow the first command you run with `./formlit cli <id>` or the first tool call, and Blocked refuses it. Only the window can change formlit's settings or that choice.
+
 `.mcp.json`, `.codex/config.toml` and `.cursor/mcp.json` are already wired in this repo. See [`AGENTS.md`](AGENTS.md).
 
 ## Extensions
