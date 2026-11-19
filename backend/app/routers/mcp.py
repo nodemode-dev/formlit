@@ -563,10 +563,17 @@ def _result(value: Any) -> dict:
     return {"content": [{"type": "text", "text": text}], "structuredContent": data}
 
 
+def _asked(name: str, args: dict) -> dict:
+    cid = str(args.get("command") or args.get("id") or "")[:80] if name == "run_command" else ""
+    spec = REGISTRY.get(cid)
+    what = f"run the command {spec.label if spec else cid}" if cid else f"use the tool {name}"
+    return {"tool": name, "command": cid, "what": what, "label": SPECS[name][0]["description"].split(".")[0][:80]}
+
+
 async def call_tool(name: str, args: dict, client: str = "", channel: str = "http") -> dict:
     tool, fn = SPECS[name]
     try:
-        await agents.require(client, channel)
+        await agents.require(client, channel, _asked(name, args))
     except CommandError as exc:
         return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
     events.publish("agent.activity", tool=name, label=tool["description"].split(".")[0][:80])
