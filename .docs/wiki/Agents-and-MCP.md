@@ -7,7 +7,7 @@ formlit speaks the Model Context Protocol so Claude, Codex and Cursor can work o
 1. Add the formlit plugin from the Form marketplace: in the Claude app open Customize, Plugins, or run `/plugin` in Claude Code. Claude's tools then appear under the name formlit.
 2. Open formlit. On a Mac the plugin opens it for you when it is closed; elsewhere Claude asks you to open it.
 3. Ask Claude for what you want: cull a shoot, develop a look, export for a client.
-4. The first time, formlit asks in its own window, for example "Claude Code wants to use formlit", with Allow, Not now and Block. Allow lets every agent on this computer in until you change it, Not now refuses only the request that was waiting, and Block turns outside agents off.
+4. The first time, formlit asks in its own window, for example "Allow an agent calling itself Claude Code to use formlit?", and says what was asked for, with Deny, Allow once and Always allow all outside agents. Deny refuses only that request, Allow once lets that one request through and the next one asks again, and Always allow lets every agent on this computer in until you change it. To turn outside agents off, choose Blocked under Preferences, AI agents (the dock's menu opens it).
 
 Change the answer any time in Preferences (File menu), AI agents: Agent access is Ask me, Allowed or Blocked, and Seen lists the agents that have called since formlit started. Claude waits up to two minutes for your answer, then tells you it is still waiting.
 

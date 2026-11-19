@@ -26,14 +26,12 @@ const SHELL = `<div class="fl-app">
 <aside class="fl-col fl-right" aria-label="Right panels"><div class="fl-col-pages"><div class="fl-col-page fl-ext-page" aria-label="Extensions" hidden></div></div><div class="fl-col-foots"></div></aside>
 </div>
 <div class="fl-filmstrip"><div class="fl-strip-rsz" role="separator" aria-orientation="horizontal" aria-label="Resize the filmstrip"></div></div>
-<section class="fl-dock" aria-label="Terminal" hidden></section>
 <footer class="cv-status fl-status">
 <span class="fl-st-count"></span><span class="fl-st-sel"></span><span class="fl-st-busy">${icon('loading', 12)}<span class="fl-st-busy-label"></span></span><span class="fl-st-gpu"></span><span class="fl-st-hint"></span>
 </footer>
 </div>`;
 
 const WIDTH_KEY = 'formlit_cols';
-const DOCK_KEY = 'formlit_dock_h';
 const LAYOUT_KEY = 'formlit_layout';
 const STRIP_KEY = 'formlit_filmstrip_h';
 const MODULES_KEY = 'formlit_modules_hidden';
@@ -48,7 +46,7 @@ export class Shell {
   readonly modulesBar: HTMLElement;
   readonly filmstrip: HTMLElement;
   readonly center: HTMLElement;
-  readonly dock: HTMLElement;
+  readonly status: HTMLElement;
   private readonly leftPages: HTMLElement;
   private readonly rightPages: HTMLElement;
   private readonly leftFoots: HTMLElement;
@@ -71,7 +69,7 @@ export class Shell {
     this.modulesBar = q(host, '.fl-modules');
     this.filmstrip = q(host, '.fl-filmstrip');
     this.center = q(host, '.fl-center');
-    this.dock = q(host, '.fl-dock');
+    this.status = q(host, '.fl-status');
     this.stage = q(host, '.fl-stage');
     this.toolbar = q(host, '.fl-toolbar');
     this.leftPages = q(host, '.fl-left .fl-col-pages');
@@ -87,7 +85,6 @@ export class Shell {
     } catch { /* first run */ }
     this.resizer(q(host, '.fl-rsz-left'), '--fl-left-w', 1);
     this.resizer(q(host, '.fl-rsz-right'), '--fl-right-w', -1);
-    this.dockResizer();
     this.stripResizer();
   }
 
@@ -126,40 +123,6 @@ export class Shell {
     try { localStorage.setItem(MODULES_KEY, JSON.stringify([...hidden])); } catch { /* kept for this session */ }
     const tab = this.tabs.get(id);
     if (tab) setHidden(tab, !on);
-  }
-
-  dockOpen(): boolean { return this.app.classList.contains('is-dock-open'); }
-
-  setDock(open: boolean): void {
-    setHidden(this.dock, !open);
-    setClass(this.app, 'is-dock-open', open);
-  }
-
-  private dockResizer(): void {
-    try {
-      const h = Number(localStorage.getItem(DOCK_KEY));
-      if (h) setStyleVar(this.app, '--fl-dock-open-h', `${h}px`);
-    } catch { return; }
-    this.dock.addEventListener('pointerdown', (e) => {
-      const handle = e.target as HTMLElement;
-      if (e.button !== 0 || !handle.classList.contains('fl-dock-rsz')) return;
-      const start = e.clientY;
-      const from = this.dock.getBoundingClientRect().height;
-      handle.setPointerCapture(e.pointerId);
-      setClass(handle, 'is-dragging', true);
-      const move = (ev: PointerEvent) => {
-        const h = Math.round(Math.max(140, Math.min(window.innerHeight * 0.7, from - (ev.clientY - start))));
-        setStyleVar(this.app, '--fl-dock-open-h', `${h}px`);
-      };
-      const up = () => {
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', up);
-        setClass(handle, 'is-dragging', false);
-        try { localStorage.setItem(DOCK_KEY, String(Math.round(this.dock.getBoundingClientRect().height))); } catch { return; }
-      };
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', up);
-    });
   }
 
   addModuleTab(id: string, label: string, iconName: string, title: string): void {
@@ -229,7 +192,7 @@ export class Shell {
   layout(): ShellLayout {
     const px = (prop: string): number | null => { const v = this.app.style.getPropertyValue(prop); return v ? Math.round(parseFloat(v)) : null; };
     return {
-      left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: px('--fl-dock-open-h'), stripH: px('--fl-filmstrip-h'),
+      left: px('--fl-left-w'), right: px('--fl-right-w'), dockH: null, stripH: px('--fl-filmstrip-h'),
       leftHidden: this.app.classList.contains('is-left-hidden'), rightHidden: this.app.classList.contains('is-right-hidden'),
       filmstripHidden: this.app.classList.contains('is-filmstrip-hidden'), toolbarHidden: this.center.classList.contains('is-toolbar-hidden'),
       stripCollapsed: this.app.classList.contains('is-filmstrip-collapsed'), stripTop: this.app.classList.contains('is-filmstrip-top'),
@@ -243,9 +206,6 @@ export class Shell {
     };
     width('--fl-left-w', l.left);
     width('--fl-right-w', l.right);
-    if (l.dockH !== undefined) {
-      if (l.dockH === null) this.app.style.removeProperty('--fl-dock-open-h'); else setStyleVar(this.app, '--fl-dock-open-h', `${Math.round(Math.max(140, l.dockH))}px`);
-    }
     if (l.stripH !== undefined) {
       if (l.stripH === null) this.app.style.removeProperty('--fl-filmstrip-h'); else setStyleVar(this.app, '--fl-filmstrip-h', `${Math.round(Math.max(72, Math.min(320, l.stripH)))}px`);
       try { if (l.stripH) localStorage.setItem(STRIP_KEY, String(Math.round(l.stripH))); else localStorage.removeItem(STRIP_KEY); } catch { /* kept for this session */ }
@@ -260,7 +220,6 @@ export class Shell {
     try {
       const cur = this.layout();
       localStorage.setItem(WIDTH_KEY, JSON.stringify({ ...(cur.left ? { left: cur.left } : {}), ...(cur.right ? { right: cur.right } : {}) }));
-      if (cur.dockH) localStorage.setItem(DOCK_KEY, String(cur.dockH)); else localStorage.removeItem(DOCK_KEY);
     } catch { return; }
   }
 

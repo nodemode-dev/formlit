@@ -83,6 +83,32 @@
   }
 })();
   </script>
+  <script>
+(function () {
+  var r = document.documentElement, open = 0, h = 280, w = 440, side = 'bottom';
+  try {
+    var raw = localStorage.getItem('formlit.dock');
+    if (raw) {
+      var s = JSON.parse(raw);
+      open = s.open === true ? 1 : 0;
+      if (typeof s.h === 'number') h = s.h;
+      if (typeof s.w === 'number') w = s.w;
+      if (s.side === 'right') side = 'right';
+    } else {
+      var old = Number(localStorage.getItem('formlit_dock_h'));
+      if (old > 0) h = old;
+    }
+  } catch (e) { open = 0; }
+  h = Math.round(Math.max(140, Math.min(window.innerHeight * 0.7, h)));
+  w = Math.round(Math.max(320, Math.min(window.innerWidth * 0.4, w)));
+  r.setAttribute('data-ft-dock', open ? 'open' : 'closed');
+  r.setAttribute('data-ft-dock-side', side);
+  r.setAttribute('data-ft-dock-h', String(h));
+  r.setAttribute('data-ft-dock-w', String(w));
+  r.style.setProperty('--ft-dock-size', h + 'px');
+  r.style.setProperty('--ft-dock-wsize', w + 'px');
+})();
+  </script>
   <link rel="stylesheet" href="/src/styles/fonts.css">
   <link rel="stylesheet" href="/src/styles/tokens.css">
   <link rel="stylesheet" href="/src/styles/lit-tokens.css">
@@ -94,6 +120,8 @@
   <link rel="stylesheet" href="/src/styles/lit-develop.css">
   <link rel="stylesheet" href="/src/styles/lit-modules.css">
   <link rel="stylesheet" href="/src/styles/lit-control.css">
+  <link rel="stylesheet" href="/src/styles/dock-tokens.css">
+  <link rel="stylesheet" href="/src/dock/dock.css">
   <link rel="stylesheet" href="/src/styles/lit-dock.css">
   <link rel="stylesheet" href="/src/styles/lit-extensions.css">
   <link rel="stylesheet" href="/src/styles/light-mode.css">

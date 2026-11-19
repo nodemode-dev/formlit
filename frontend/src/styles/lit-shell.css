@@ -12,7 +12,7 @@ html, body { height: 100%; }
 .fl-app.is-filmstrip-top > .fl-titlebar { grid-row: 1; }
 .fl-app.is-filmstrip-top > .fl-filmstrip { grid-row: 2; border-top: 0; border-bottom: 1px solid var(--line-0); }
 .fl-app.is-filmstrip-top > .fl-main { grid-row: 3; }
-.fl-app.is-filmstrip-top > .fl-dock { grid-row: 4; }
+.fl-app.is-filmstrip-top > .ft-dock { grid-row: 4; }
 .fl-app.is-filmstrip-top > .fl-status { grid-row: 5; }
 .fl-app.is-filmstrip-top .fl-strip-rsz { top: auto; bottom: -3px; }
 .fl-app.is-filmstrip-top.is-filmstrip-collapsed .fl-fs-collapse .icon { transform: none; }
