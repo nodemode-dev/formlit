@@ -47,7 +47,7 @@ def test_the_window_runs_commands_with_the_key(client):
     assert r.status_code == 200 and r.json()["ok"]
 
 
-@pytest.mark.parametrize("cid,params", [("agents.respond", {"choice": "allow"}), ("terminal.open", {}), ("claudecode.status", {}), ("chat.reset", {}), ("prefs.set", {"values": {"claudeBin": "/x"}})])
+@pytest.mark.parametrize("cid,params", [("agents.respond", {"choice": "allow"}), ("terminal.open", {}), ("claudecode.status", {}), ("chat.reset", {}), ("prefs.set", {"values": {"claudeBin": "/x"}}), ("editIn.addApp", {"name": "x", "path": "/bin/true"}), ("photo.editIn", {"ids": [1]})])
 def test_dispatch_refuses_window_only_commands_outside_the_window(commands, cid, params):
     from app.engine.commands import CommandError
 

@@ -141,6 +141,17 @@ def test_wrong_inapp_token_does_not_skip_the_ask(client, token):
     assert kind(call(client, CHANGING_TOOL, {INAPP_HEADER: token})) == "WAITING"
 
 
+@pytest.mark.parametrize("cid,params", [("editIn.addApp", {"name": "x", "path": "/bin/true"}), ("photo.editIn", {"ids": [1], "mode": "original"})])
+def test_an_agent_cannot_register_or_launch_an_editor(client, cid, params):
+    set_policy("allowed")
+    reply = call(client, ("run_command", {"command": cid, "params": params}))
+    set_policy("ask")
+    assert reply["result"]["isError"] and "Only the formlit window" in text_of(reply)
+    from app.core import prefs
+
+    assert not prefs.load().get("editors")
+
+
 def test_an_agent_cannot_answer_its_own_prompt(client):
     set_policy("allowed")
     reply = call(client, ("run_command", {"command": "agents.respond", "params": {"choice": "allow"}}))
