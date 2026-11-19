@@ -9,7 +9,6 @@
 :root[data-ft-dock-side="right"] .fl-app > .fl-status { grid-area: 5 / 1 / 6 / -1; }
 :root[data-ft-dock-side="right"] .fl-app.is-filmstrip-top > .fl-filmstrip { grid-area: 2 / 1; }
 :root[data-ft-dock-side="right"] .fl-app.is-filmstrip-top > .fl-main { grid-area: 3 / 1; }
-.fl-app > .ft-dock.has-own-chat .ft-dock-ask { display: flex; }
 .fl-dock-spacer { flex: 1; }
 .fl-chat { position: absolute; inset: 0; display: grid; grid-template-rows: 30px minmax(0, 1fr); }
 .fl-chat[hidden] { display: none; }

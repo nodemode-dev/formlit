@@ -95,18 +95,16 @@ export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
 
   const chatPane = (host: HTMLElement): DockOwnChat => {
     const pane = new ChatPane(api);
-    const askLine = (): HTMLInputElement | null => dock().root.querySelector<HTMLInputElement>('input.ft-dock-ask-input');
     pane.onFail = (err) => ctx.fail(err);
     pane.onHandoff = (session) => void dock().claude(undefined, session);
     setHidden(pane.root, false);
     host.appendChild(pane.root);
-    void pane.load();
     return {
-      send: (text) => {
-        if (pane.isBusy()) { const line = askLine(); if (line && !line.value) line.value = text; return; }
-        void pane.send(text, windowContext(ctx), selectionNote());
-      },
-      focus: () => askLine()?.focus({ preventScroll: true }),
+      send: (text) => pane.send(text, windowContext(ctx), selectionNote()),
+      busy: () => pane.isBusy(),
+      shown: () => pane.shown(),
+      hidden: () => pane.hidden(),
+      closed: () => pane.closed(),
     };
   };
 
@@ -138,7 +136,7 @@ export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
         key: DOCK_KEY,
         legacy: {
           keys: [DOCK_OLD_HEIGHT_KEY],
-          read: (store) => { const h = Number(store.getItem(DOCK_OLD_HEIGHT_KEY)); return h > 0 ? { h } : null; },
+          read: (store) => { const h = Number(store.getItem(DOCK_OLD_HEIGHT_KEY)); return h > 0 ? { h, seen: true } : null; },
         },
       },
       sizes: { minHeight: 140, maxHeightShare: 0.7, defaultHeight: 280, minWidth: 320, maxWidthShare: 0.4, defaultWidth: 440 },
@@ -182,7 +180,7 @@ export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
       }
       return out;
     },
-    chat: { pane: chatPane },
+    chat: { pane: chatPane, ask: 'line' },
     consent: {
       subscribe: (add, withdraw) => {
         const gone = (id: string): void => { if (open.delete(id)) withdraw(id); };
