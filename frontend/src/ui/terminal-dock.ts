@@ -2,6 +2,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import type { Api } from '../io/api';
+import { socketTicket } from '../io/window-key';
 import { ChatPane } from './chat-pane';
 import { escapeHtml, isMac, q, setDisabled, setHidden, setText, el } from './dom';
 import { icon } from './icons';
@@ -195,8 +196,13 @@ export class TerminalDock {
   }
 
   private connect(t: Tab): void {
+    void socketTicket().then((ticket) => this.attach(t, ticket));
+  }
+
+  private attach(t: Tab, ticket: string): void {
+    if (this.tabs.get(t.id) !== t) return;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${proto}//${location.host}/api/terminal/${encodeURIComponent(t.id)}`);
+    const socket = new WebSocket(`${proto}//${location.host}/api/terminal/${encodeURIComponent(t.id)}?ticket=${encodeURIComponent(ticket)}`);
     t.socket = socket;
     socket.addEventListener('open', () => this.sendSize(t));
     socket.addEventListener('message', (msg) => {

@@ -33,6 +33,34 @@ def call(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
         sys.exit(3)
 
 
+def rpc(rid: int, method: str, params: dict, sid: str | None = None) -> tuple[str | None, dict]:
+    headers = {"Content-Type": "application/json", "x-formlit-agent": "formlit cli"}
+    if sid:
+        headers["mcp-session-id"] = sid
+    data = json.dumps({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}).encode()
+    req = urllib.request.Request(BASE + "/mcp", data=data, method="POST", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=7200) as r:
+            return r.headers.get("mcp-session-id"), json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as exc:
+        return None, {"error": {"message": f"{exc.code} {exc.reason}"}}
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"formlit: the engine is not answering at {BASE} ({exc}). Start it with ./formlit backend or ./formlit boot.", file=sys.stderr)
+        sys.exit(3)
+
+
+def run_command(cid: str, params: dict) -> tuple[bool, object]:
+    sid, _ = rpc(1, "initialize", {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "formlit cli", "version": "1"}})
+    _, reply = rpc(2, "tools/call", {"name": "run_command", "arguments": {"command": cid, "params": params}}, sid)
+    if "error" in reply:
+        return False, {"ok": False, "error": str((reply.get("error") or {}).get("message") or "failed")}
+    res = reply.get("result") or {}
+    if res.get("isError"):
+        return False, {"ok": False, "command": cid, "error": " ".join(p.get("text", "") for p in res.get("content") or [] if p.get("type") == "text")}
+    data = res.get("structuredContent")
+    return True, data.get("result", data) if isinstance(data, dict) and set(data) == {"result"} else data
+
+
 def parse(args: list[str]) -> dict:
     if "--json" in args:
         i = args.index("--json")
@@ -68,9 +96,9 @@ def main(argv: list[str]) -> int:
     if not argv:
         print(__doc__)
         return 2
-    status, body = call("POST", f"/api/commands/{argv[0]}", parse(argv[1:]))
-    print(json.dumps(body.get("result", body) if body.get("ok") else body, indent=2, default=str))
-    return 0 if status == 200 and body.get("ok") else 1
+    ok, body = run_command(argv[0], parse(argv[1:]))
+    print(json.dumps(body, indent=2, default=str))
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

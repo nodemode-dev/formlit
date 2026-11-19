@@ -1,6 +1,5 @@
 import asyncio
 import itertools
-import secrets
 import threading
 import time
 
@@ -15,7 +14,6 @@ BLOCKED = "Outside agents are turned off in formlit's Preferences, AI agents, so
 LATER = "The person chose Not now when formlit asked to let outside agents in, so this call was refused. Do not retry in a loop; ask whether they want you to try again."
 WAITING = "Still waiting for the person to allow outside agents in formlit's window. Ask them to open formlit and choose Allow, then try once more; do not retry in a loop."
 
-INAPP_TOKEN = secrets.token_urlsafe(24)
 INAPP_CLIENT = "Claude Code in formlit"
 
 _seen: dict[str, dict] = {}

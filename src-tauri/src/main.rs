@@ -73,18 +73,26 @@ fn main() {
                 .sidecar("formlit-engine")
                 .expect("sidecar binary is bundled")
                 .env("FORMLIT_PORT", ENGINE_PORT)
+                .env("FORMLIT_WINDOW_KEY_STDOUT", "1")
                 .spawn()
                 .expect("the formlit engine failed to spawn");
             app.state::<Backend>().0.lock().unwrap().replace(child);
 
             tauri::async_runtime::spawn(async move {
                 let pattern = regex::Regex::new(r"http://127\.0\.0\.1:(\d+)").unwrap();
+                let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
                 let mut port: Option<u16> = None;
+                let mut key: Option<String> = None;
                 while let Some(event) = rx.recv().await {
                     let line = match event {
-                        CommandEvent::Stdout(bytes) | CommandEvent::Stderr(bytes) => {
-                            String::from_utf8_lossy(&bytes).into_owned()
+                        CommandEvent::Stdout(bytes) => {
+                            let text = String::from_utf8_lossy(&bytes).into_owned();
+                            if key.is_none() {
+                                key = key_pattern.captures(&text).map(|found| found[1].to_string());
+                            }
+                            text
                         }
+                        CommandEvent::Stderr(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
                         CommandEvent::Terminated(_) => break,
                         _ => continue,
                     };
@@ -113,14 +121,21 @@ fn main() {
                                 )
                             })
                             .unwrap_or(FALLBACK_LOGICAL);
-                        let built = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
+                        let builder = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
                             .title("FormLit")
                             .visible(reveal::BUILD_VISIBLE)
                             .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)
                             .min_inner_size(MIN_LOGICAL.0, MIN_LOGICAL.1)
-                            .center()
-                            .build();
+                            .center();
+                        let origin = format!("http://127.0.0.1:{found}");
+                        let builder = match &key {
+                            Some(value) => builder.initialization_script(format!(
+                                "if (window.location.origin === {origin:?}) {{ window.__FORMLIT_WINDOW_KEY = {value:?}; }}"
+                            )),
+                            None => builder,
+                        };
+                        let built = builder.build();
                         match built {
                             Ok(window) => reveal::conceal(&window),
                             Err(_) => close_splash(&handle),

@@ -54,7 +54,12 @@ def set_policy(mode):
 
 
 def inapp_token():
-    return importlib.import_module("app.engine.agents").INAPP_TOKEN
+    return importlib.import_module("app.engine.claude_code").issue()[0]
+
+
+def window_headers():
+    key = importlib.import_module("app.core.window_key")
+    return {key.HEADER: key.KEY}
 
 
 _SANDBOX = Path(tempfile.mkdtemp(prefix=f"{APP_ID}-tests-"))
@@ -93,8 +98,15 @@ def app():
 def client(app):
     from fastapi.testclient import TestClient
 
-    with TestClient(app, base_url=own_origin()) as c:
+    with TestClient(app, base_url=own_origin(), headers=window_headers()) as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def bare(client, app):
+    from fastapi.testclient import TestClient
+
+    return TestClient(app, base_url=own_origin())
 
 
 @pytest.fixture(scope="session")

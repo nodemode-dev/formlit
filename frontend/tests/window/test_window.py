@@ -43,6 +43,14 @@ new PerformanceObserver((list) => {
 """
 
 
+WINDOW = {"key": ""}
+
+
+def keyed(page):
+    page.add_init_script(f"window.__FORMLIT_WINDOW_KEY = {json.dumps(WINDOW['key'])};")
+    return page
+
+
 def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -74,6 +82,8 @@ def engine():
         proc.kill()
         out = proc.communicate(timeout=5)[0].decode("utf-8", "replace")
         raise RuntimeError(f"engine did not answer {HEALTH_PATH}:\n{out[-4000:]}")
+    with urllib.request.urlopen(urllib.request.Request(base + "/api/window/key", data=b"", method="POST"), timeout=10) as r:
+        WINDOW["key"] = json.loads(r.read().decode("utf-8"))["key"]
     yield base
     proc.terminate()
     try:
@@ -94,7 +104,7 @@ def test_window_loads_throttled_without_shift_errors_or_refusals(engine, path):
     errors, failed = [], []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
         page.add_init_script(CLS_PROBE)
         cdp = page.context.new_cdp_session(page)
         cdp.send("Emulation.setCPUThrottlingRate", {"rate": CPU_SLOWDOWN})
@@ -119,7 +129,7 @@ def test_window_loads_throttled_without_shift_errors_or_refusals(engine, path):
 
 
 def command(base, cid, params):
-    req = urllib.request.Request(f"{base}/api/commands/{cid}", data=json.dumps(params).encode(), headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(f"{base}/api/commands/{cid}", data=json.dumps(params).encode(), headers={"Content-Type": "application/json", "X-Formlit-Window-Key": WINDOW["key"]}, method="POST")
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode("utf-8"))["result"]
 
@@ -138,7 +148,7 @@ def test_develop_returning_to_the_open_photo_cancels_the_pending_switch(engine, 
     held, opened, updates = [], [], []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
 
         def seen(r):
             if r.url.endswith("/api/commands/develop.get"):
@@ -207,7 +217,7 @@ def test_alt_drag_on_sharpening_shows_its_view_and_release_restores(engine, tmp_
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 1400})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 1400}))
         open_develop(engine, page, tmp_path, "alt_sharpen")
         assert "while dragging a Sharpening slider" in page.locator(".fl-sharpen-hint").inner_text()
         seen = renders_of(page)
@@ -239,7 +249,7 @@ def test_missing_ai_model_offers_install_with_its_size(engine, tmp_path):
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
         downloads = []
         page.on("request", lambda r: downloads.append(json.loads(r.post_data)) if r.url.endswith("/api/commands/ai.download") else None)
         open_develop(engine, page, tmp_path, "missing_model")
@@ -285,7 +295,7 @@ def test_lens_corrections_show_the_bundled_profiles_and_update_them(engine, tmp_
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 1400})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 1400}))
         open_develop(engine, page, tmp_path, "lens_update")
         row = page.locator(".fl-lens-db")
         row.scroll_into_view_if_needed()
@@ -314,7 +324,7 @@ def test_windows_card_drive_is_removable_for_import_and_eject(engine):
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
         page.route("**/api/files/roots", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(roots)))
         page.route("**/api/files/list?*", listing)
         page.route("**/api/commands/library.scan", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "library.scan", "result": {"files": [], "duplicates": 0}, "revision": 0})))
@@ -343,7 +353,7 @@ def test_the_new_develop_strings_show_translated(engine, tmp_path, lang):
     update = tr[str(keys.index("Update Lens Profiles"))]
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
         page.add_init_script(f"localStorage.setItem('formlit_lang', '{lang}')")
         open_develop(engine, page, tmp_path, f"lang_{lang}")
         page.wait_for_timeout(500)
@@ -384,7 +394,7 @@ def test_an_unplugged_camera_start_folder_falls_back_without_an_error(engine):
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page = keyed(browser.new_page(viewport={"width": 1440, "height": 900}))
         page.route("**/api/files/roots", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(roots)))
         page.route("**/api/files/list?*", listing)
         page.route("**/api/commands/library.scan", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "command": "library.scan", "result": {"files": [], "duplicates": 0}, "revision": 0})))

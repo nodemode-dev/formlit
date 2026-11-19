@@ -57,6 +57,8 @@ formlit reads and writes DNG files (AI Denoise and import conversion write them,
 | onnxruntime | MIT | local AI models |
 | @xterm/xterm, @xterm/addon-fit | MIT | the terminal dock |
 | ptyprocess (macOS, Linux), pywinpty (Windows) | ISC, MIT | pseudo-terminals for the terminal dock |
+| keyring 25.7.0, jaraco.classes, jaraco.context, jaraco.functools, more-itertools, jeepney (Linux) | MIT | engine, keeps the key that seals the agent access setting in the system keychain |
+| SecretStorage (Linux), pywin32-ctypes (Windows) | BSD-3-Clause | engine, keychain access for keyring |
 | numba, llvmlite | BSD-2-Clause | the compiled develop kernel; llvmlite carries LLVM under Apache-2.0 with LLVM exceptions |
 | ffmpeg 7.1.5, ffprobe | LGPL-2.1-or-later for the downloaded build; an installed one keeps its own licence | not bundled; an installed ffmpeg is used as before, and when none is found the engine downloads the LGPL build (`--disable-gpl --disable-nonfree`; libopus and libvpx BSD-3-Clause) from the nodemode-dev/formcut-binaries release on first run, checks every file's SHA-256 against `backend/app/ffmpeg_record.py`, and runs it as an external program for video thumbnails, slideshow video and video export; its source is attached to that release |
 | gphoto2 | GPL-2.0-or-later | not bundled; tethered capture runs the user's installed gphoto2 command in its shell mode, and Import from a camera on macOS and Linux runs it as a separate process (`--auto-detect`, `--list-files`, `--get-file`, `--get-thumbnail`, `--delete-file`) and reads its output, without linking to libgphoto2 |

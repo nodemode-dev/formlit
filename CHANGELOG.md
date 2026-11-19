@@ -4,6 +4,10 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 
 ## Unreleased
 
+- Fixed: only the formlit window can change things through the engine. Outside agents and `./formlit cli` go through MCP and the AI agents setting, and only the window can answer the access prompt, change that setting, choose the Claude Code program or use the terminal dock.
+- Fixed: Claude Code in the dock and the Chat tab get their own access token per tab or reply, kept in a private file and ended when the tab closes, never on a command line.
+- Fixed: agent access changed outside the app is noticed and treated as Ask until it is confirmed in the window (where the system keychain is available).
+- Not verified yet: the desktop shell change (not compiled here) and a real system keychain.
 - Added: in Develop, hold Alt (Option on a Mac) while dragging a Sharpening slider to see what it changes: Masking shows the edge mask (white is sharpened), Amount the sharpened result in greyscale, Radius and Detail the sharpening halos on grey. Letting go brings back the photo. A hint under the sliders says so.
 - Added: a Subject, Sky, Background, People, Objects, Depth Range or part mask whose AI model is not installed offers Install Now with the download size, then makes the mask. Cancel shows the same message as before.
 - Added: sharper selection models. Subject and Background can use BiRefNet (224 MB, MIT) and Objects can use SAM 2.1 base plus (328 MB, Apache-2.0). Both are recommended in Preferences and in Install Now; U2-Net and SAM 2.1 tiny stay as the small and fast choice, and masks use the best one installed. On an Apple silicon Mac a BiRefNet mask takes about 8 s and up to 6 GB of memory.

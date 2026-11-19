@@ -1,5 +1,7 @@
+import hmac
 import json
 import os
+import secrets
 import shlex
 import shutil
 import subprocess
@@ -7,8 +9,10 @@ import time
 from pathlib import Path
 
 from app.core import config
-from app.engine import agents, terminal
+from app.engine import terminal
 from app.engine.commands import CommandError, command
+
+TOKENS: dict[str, Path] = {}
 
 KEEP_ENV = {"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CONFIG_DIR"}
 CANDIDATES = (".claude/local/claude", ".local/bin/claude", ".npm-global/bin/claude", ".bun/bin/claude", ".volta/bin/claude")
@@ -76,8 +80,32 @@ def info(fresh: bool = False) -> dict:
     return _cache["value"]
 
 
-def mcp_config() -> str:
-    return json.dumps({"mcpServers": {"formlit": {"type": "http", "url": config.engine_url() + "/mcp", "headers": {"x-formlit-inapp": agents.INAPP_TOKEN}}}})
+def issue() -> tuple[str, str]:
+    token = secrets.token_urlsafe(32)
+    folder = config.data_dir() / "AgentTokens"
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = folder / f"mcp-{secrets.token_hex(8)}.json"
+    body = json.dumps({"mcpServers": {"formlit": {"type": "http", "url": config.engine_url() + "/mcp", "headers": {"x-formlit-inapp": token}}}})
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(body)
+    TOKENS[token] = path
+    return token, str(path)
+
+
+def revoke(token: str) -> None:
+    path = TOKENS.pop(token, None)
+    if path is not None:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+
+def is_inapp(value) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    return any(hmac.compare_digest(value.encode("utf-8"), t.encode("utf-8")) for t in list(TOKENS))
 
 
 def workdir() -> Path:
@@ -90,8 +118,8 @@ def workdir() -> Path:
     return folder
 
 
-def argv(path: str, prompt: str | None, resume: str | None = None) -> list[str]:
-    cmd = [path, "--mcp-config", mcp_config(), "--allowedTools", "mcp__formlit", "--append-system-prompt", NOTE]
+def argv(path: str, prompt: str | None, resume: str | None, mcp_file: str) -> list[str]:
+    cmd = [path, "--mcp-config", mcp_file, "--allowedTools", "mcp__formlit", "--append-system-prompt", NOTE]
     if resume:
         cmd += ["--resume", resume]
     if prompt:
@@ -124,5 +152,11 @@ def open_(prompt: str | None = None, cols: int | None = None, rows: int | None =
     if not found["installed"]:
         raise CommandError(INSTALL, 400)
     prompt = prompt or _pref("claudeFirstMessage") or None
-    session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code (from Chat)" if resume else "Claude Code", argv(found["path"], prompt, resume), child_env(), "claude")
+    token, mcp_file = issue()
+    try:
+        session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code (from Chat)" if resume else "Claude Code", argv(found["path"], prompt, resume, mcp_file), child_env(), "claude")
+    except BaseException:
+        revoke(token)
+        raise
+    session.on_close.append(lambda: revoke(token))
     return session.describe()

@@ -1,11 +1,12 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
 
+from app.core import window_key
 from app.engine import catalog as catalog_mod
-from app.engine.commands import REGISTRY, CommandError, catalogue, dispatch
+from app.engine.commands import FROM_WINDOW, REGISTRY, CommandError, catalogue, dispatch
 
 router = APIRouter(prefix="/api", tags=["commands"])
 log = logging.getLogger("formlit.commands")
@@ -52,17 +53,27 @@ def describe(cid: str) -> Any:
 
 
 @router.post("/commands/{cid}")
-def run(cid: str, params: dict | None = Body(default=None)) -> Any:
-    status, body = _run(cid, params)
+def run(cid: str, request: Request, params: dict | None = Body(default=None)) -> Any:
+    window_key.require(request)
+    mark = FROM_WINDOW.set(True)
+    try:
+        status, body = _run(cid, params)
+    finally:
+        FROM_WINDOW.reset(mark)
     return body if status == 200 else JSONResponse(body, status_code=status)
 
 
 @router.post("/batch")
-def batch(steps: list[dict] = Body(...), stopOnError: bool = True) -> dict:
+def batch(request: Request, steps: list[dict] = Body(...), stopOnError: bool = True) -> dict:
+    window_key.require(request)
     results = []
-    for step in steps:
-        status, body = _run(str(step.get("id") or step.get("command") or ""), step.get("params") or {})
-        results.append(body)
-        if status != 200 and stopOnError:
-            break
+    mark = FROM_WINDOW.set(True)
+    try:
+        for step in steps:
+            status, body = _run(str(step.get("id") or step.get("command") or ""), step.get("params") or {})
+            results.append(body)
+            if status != 200 and stopOnError:
+                break
+    finally:
+        FROM_WINDOW.reset(mark)
     return {"ok": all(r["ok"] for r in results), "results": results, "revision": catalog_mod.get().revision}

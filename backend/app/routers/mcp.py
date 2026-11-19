@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, Response
 
 from app import __version__
 from app.core import config
-from app.engine import agents
+from app.engine import agents, claude_code
 from app.engine import catalog as catalog_mod
 from app.engine import events
 from app.engine.commands import REGISTRY, CommandError, catalogue, dispatch
@@ -532,7 +532,7 @@ def _open_session(client: str) -> str:
 
 
 def _caller(request: Request, params: dict) -> tuple[str, str]:
-    if request.headers.get("x-formlit-inapp", "") == agents.INAPP_TOKEN:
+    if claude_code.is_inapp(request.headers.get("x-formlit-inapp", "")):
         return agents.INAPP_CLIENT, "inapp"
     header = request.headers.get("x-formlit-agent", "").strip()
     if header:

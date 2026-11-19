@@ -17,3 +17,4 @@ pikepdf==10.0.2
 ptyprocess==0.7.0; sys_platform != "win32"
 pywinpty==3.0.5; sys_platform == "win32"
 onnxruntime==1.30.0
+keyring==25.7.0

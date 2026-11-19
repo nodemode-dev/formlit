@@ -1102,6 +1102,15 @@ From the Windows run of 0.51.2. The Denoise toast now names the denoiser the eng
 
 A missing space after `=` on `RAW_ONLY_WB` and a missing blank line after `lensDbText`; no behaviour change.
 
+## The window key (unreleased, after v0.51.3) {#window-key}
+
+### src/io/window-key.ts (new); src/main.ts; src/io/api.ts · post, upload, blob; src/modules/develop/view.ts · the four render fetches; src/ui/terminal-dock.ts · connect, attach
+- refers-to: src/io/window-key.ts :: loadWindowKey, keyHeaders, socketTicket; src/main.ts; src/io/api.ts :: Api.post, Api.upload, Api.blob; src/modules/develop/view.ts :: the POST /render fetches; src/ui/terminal-dock.ts :: TerminalDock.connect, TerminalDock.attach
+- kind: explainer
+- logged: unreleased · 2026-11-19
+
+The engine now refuses every write without `X-Formlit-Window-Key` (backend log, #window-key). `main.ts` waits for `loadWindowKey()` beside `initLanguage()` before mounting, so no request goes out without it. The key comes from `window.__FORMLIT_WINDOW_KEY` (set by the desktop shell's initialization script only on the engine's own origin; read once and deleted), else from `POST /api/window/key` (development, once per engine launch), else from `sessionStorage` (a reload of the same tab, and the second window, which `window.open` gives a copy of the opener's session storage). It is kept in a module variable and also remembered in `sessionStorage` so the second window, which loads `library` state and runs commands, has it. Every write goes through `Api.post`, `Api.upload` or `Api.blob` with `keyHeaders()`; the four raw `fetch` calls to `/api/photos/{id}/render` in the Develop view send it too. GETs, the `EventSource` and image URLs need no key. A terminal tab asks `POST /api/window/ticket` for a one-time ticket and opens its WebSocket with `?ticket=`; `attach` drops the answer if the tab closed meanwhile. Nothing is drawn differently. Verified in headless Chrome against the Vite dev server and an engine: the page took the key (200), sent it on all 46 POSTs with none refused, set a rating with the 5 key (`photo.rate` 200), and after a reload used the remembered key (the bootstrap answered 409, which the console logs as a failed resource).
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

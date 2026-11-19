@@ -102,7 +102,8 @@ def test_foreign_host_websocket_closes_4403(client):
 
 
 def test_local_websocket_passes_the_guard_and_reaches_the_route(client):
-    with client.websocket_connect(WS_PATH, headers={"host": LOOPBACK_HOST, "origin": f"http://127.0.0.1:{ENGINE_PORT}"}) as ws:
+    ticket = client.post("/api/window/ticket").json()["ticket"]
+    with client.websocket_connect(f"{WS_PATH}?ticket={ticket}", headers={"host": LOOPBACK_HOST, "origin": f"http://127.0.0.1:{ENGINE_PORT}"}) as ws:
         closing = ws.receive()
     assert closing["type"] == "websocket.close"
     assert closing["code"] == 4404

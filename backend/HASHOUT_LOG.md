@@ -1913,6 +1913,46 @@ After an AI Denoise with no model installed, nothing said which denoiser had run
 
 Three Windows details. `[System.Text.Encoding]::UTF8` is the BOM-writing encoder, so a reply could start with U+FEFF and `json.loads` called it unreadable; the script now sets `New-Object System.Text.UTF8Encoding $false` and Python decodes with `utf-8-sig` in case another layer adds one. PowerShell runs as `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, so a `powershell.exe` earlier on PATH (or in the current folder) is never the one started. Delete moves the item into a scratch folder with the Shell's MoveHere, whose flags include FOF_NOERRORUI; a device that refuses the move can leave the Shell copying instead, and delete reported success with the photo still on the card. After the move the script now lists the item's folder (`folder`, sent by Python) and throws "The camera kept <name>: it was copied, not moved" if the name is still there, so the photo lands in the import's `notDeleted`. Not run on Windows. Tests: `tests/test_camera_review_fixes.py` (the full path from SystemRoot and a reply with a BOM read; the delete request carries the folder and the script checks it after the move).
 
+## The window key (unreleased, after v0.51.3) {#window-key}
+
+### app/core/window_key.py (new); app/main.py; app/routers/system.py; app/routers/commands.py; app/engine/commands.py · dispatch; app/routers/terminal_socket.py; formlit_engine.py
+- refers-to: app/core/window_key.py :: KEY, OPEN, WindowKeyGuard, claim, ticket, spend, require; app/main.py :: app.add_middleware(WindowKeyGuard); app/routers/system.py :: claim_window_key, window_ticket, window_state; app/routers/commands.py :: run, batch; app/engine/commands.py :: FROM_WINDOW, WINDOW_GROUPS, WINDOW_IDS, WINDOW_PREFS, window_only, dispatch; app/routers/terminal_socket.py :: attach; formlit_engine.py :: main
+- kind: explainer
+- logged: unreleased · 2026-11-19
+
+The engine makes a per-launch key (`secrets.token_urlsafe(32)`), kept in memory only and compared with `hmac.compare_digest`. `WindowKeyGuard` is the one place it is checked: every request whose method is not GET, HEAD or OPTIONS needs header `X-Formlit-Window-Key` unless its path is in `OPEN`, which holds `/mcp` (outside agents, the stdio bridge and the command line come in there and pass `agents.require`) and `/api/window/key` (the development bootstrap). Anything else answers 403 `{"detail": "Only the formlit window can do this"}`. The guard is added before CORS and `LocalGuard`, so it runs after them; the Host and Origin checks stay as they were.
+
+The window gets the key two ways. The desktop shell starts the sidecar with `FORMLIT_WINDOW_KEY_STDOUT=1`; `formlit_engine.py` then prints `formlit-window-key: <key>` (flushed) before `uvicorn.run`, and the bootstrap answers 404. From source (variable unset) `POST /api/window/key` gives the key once per launch and 409 afterwards, and records the second try in `STATE["secondClaim"]` (`GET /api/window/state`).
+
+`/api/commands/{cid}` and `/api/batch` also call `window_key.require` themselves and run `dispatch` with the context variable `FROM_WINDOW` set. `dispatch` refuses (403) the window-only commands for every caller that did not set it, so a route added later cannot reach them by accident: the `terminal`, `claudecode` and `chat` groups, `agents.respond`, and `prefs.set` when it names `outsideAgents`, `claudeBin`, `claudeFirstMessage`, `claudeFolder` or `editors`. `extensions` stays out of that list because the MCP tools `extensions_list` and `extension_command` call `extensions.agentList` and `extensions.run` in-process; `mcp.WINDOW_ONLY` still keeps the whole group out of `run_command`. Threads started by a window command do not inherit `FROM_WINDOW`; none of them dispatch a window-only command.
+
+The terminal socket takes a one-time ticket (`?ticket=`), minted by `POST /api/window/ticket` with the key, valid 30 s and spent on first use, and checked before the socket is accepted, so a client without one never sees scrollback or reaches input. `/api/events` stays open: its events carry no token or approval id (consent is answered by choice, not by id).
+
+### app/engine/claude_code.py · issue, revoke, is_inapp, argv, open_; app/engine/cmd_chat.py · _argv, _run; app/engine/terminal.py · Session.on_close, close; app/engine/agents.py; app/routers/mcp.py · _caller
+- refers-to: app/engine/claude_code.py :: TOKENS, issue, revoke, is_inapp, argv, open_; app/engine/cmd_chat.py :: _argv, _run; app/engine/terminal.py :: Session.on_close, close; app/engine/agents.py :: INAPP_TOKEN (removed); app/routers/mcp.py :: _caller
+- kind: fix
+- logged: unreleased · 2026-11-19
+
+The in-app token was one value for the whole engine run (`agents.INAPP_TOKEN`), passed to `claude` inside the `--mcp-config` JSON on its command line. Now each Claude Code tab and each Chat run gets its own token from `issue()`, written into an MCP config file made with `O_EXCL` and mode 0600 under `<data>/AgentTokens/` (folder 0700), and `--mcp-config` names that file. A tab's token is revoked and its file removed when the tab closes (`Session.on_close`, run by `terminal.close`, which `close_all` calls at shutdown); a Chat run's when the run ends. Restart keeps the tab's token, because it re-runs the same argv. Plain terminal tabs never get a token: `base_env` exports only the MCP address. `_caller` compares with `is_inapp` (constant time against every live token).
+
+### app/core/seal.py (new); app/core/prefs.py · _stored, load, update
+- refers-to: app/core/seal.py :: SERVICE, SEALED, effective, sign, reset; app/core/prefs.py :: _stored, load, update
+- kind: explainer
+- logged: unreleased · 2026-11-19
+
+`preferences.json` carries `seal`, HMAC-SHA256 over the canonical JSON of `outsideAgents` and `claudeBin`, with a random 32-byte key kept by `keyring` (service `formlit`, account `settings-seal`, made on first use). `prefs.update` signs only when the patch names a sealed field; the window-only `prefs.set` and `agents.respond` are the only callers that do. `prefs.load` reports `seal` (`ok`, `unsealed`, `broken` or `unavailable`) and `sealBroken`. When the seal is missing or wrong while either field is looser than the default (`outsideAgents` allowed, or a `claudeBin`), the engine acts as `ask` with no custom program until the window writes them again; that includes the first launch after this change for a person who had allowed agents. `keyring` is imported inside a try in `_load`, so a missing package, no backend (the Linux sandbox has only the fail backend) or a locked keychain gives `unavailable` and the stored values stand.
+
+### setup/cli.py · rpc, run_command, main
+- refers-to: ../setup/cli.py :: rpc, run_command, main
+- kind: fix
+- logged: unreleased · 2026-11-19
+
+`./formlit cli <id>` ran commands through `POST /api/commands/{id}`; it now calls the MCP `run_command` tool (header `x-formlit-agent: formlit cli`), so it follows the AI agents setting like any outside agent and cannot reach the window-only commands or change the setting. `list` and `describe` still read `GET /api/commands`.
+
+### Verified (unreleased · 2026-11-19)
+
+A sweep of `app.openapi()` write operations with no key: before, 6 operations and 0 refused (all 289 commands reachable through `/api/commands/{cid}`); after, 8 operations, 6 refused, open only `POST /api/window/key` and `POST /mcp`. A live engine: every command and batch call 403 with no key and with a wrong key, 200 with it; bootstrap 200 then 409, 404 in stdout mode, where the key line was the first output line and the address came after it; the terminal socket refused with no ticket, a made-up one and a spent one, and echoed typed input with a fresh one; MCP and the command line refused under ask (after the 120 s wait), ran under allowed while `prefs.set outsideAgents` and `agents.respond` stayed refused, and refused under blocked. With a stand-in keyring a hand edit of `claudeBin` read as `ask` with `sealBroken`; with the fail backend and with `keyring` unimportable the engine started and reported `unavailable`. Tests: `tests/test_window_key.py`.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

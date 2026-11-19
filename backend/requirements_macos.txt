@@ -22,3 +22,4 @@ ptyprocess
 onnxruntime==1.23.2; platform_machine == "x86_64"
 onnxruntime; platform_machine != "x86_64"
 cryptography==48.0.1; platform_machine == "x86_64"
+keyring==25.7.0
