@@ -57,6 +57,29 @@ fn check_for_updates(handle: tauri::AppHandle) {
     });
 }
 
+const KEY_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+async fn next_event(
+    rx: &mut tauri::async_runtime::Receiver<CommandEvent>,
+    key_deadline: Option<std::time::Instant>,
+) -> Option<CommandEvent> {
+    let Some(deadline) = key_deadline else {
+        return rx.recv().await;
+    };
+    loop {
+        if let Ok(event) = rx.try_recv() {
+            return Some(event);
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        let _ = tauri::async_runtime::spawn_blocking(|| {
+            std::thread::sleep(std::time::Duration::from_millis(20))
+        })
+        .await;
+    }
+}
+
 fn main() {
     reveal::mark_launch();
     let app = tauri::Builder::default()
@@ -83,7 +106,8 @@ fn main() {
                 let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
                 let mut port: Option<u16> = None;
                 let mut key: Option<String> = None;
-                while let Some(event) = rx.recv().await {
+                let started = std::time::Instant::now();
+                while let Some(event) = next_event(&mut rx, key.is_none().then(|| started + KEY_WAIT)).await {
                     let line = match event {
                         CommandEvent::Stdout(bytes) => {
                             let text = String::from_utf8_lossy(&bytes).into_owned();
@@ -102,6 +126,9 @@ fn main() {
                             break;
                         }
                     }
+                }
+                if key.is_none() {
+                    port = None;
                 }
                 match port {
                     Some(found) => {
