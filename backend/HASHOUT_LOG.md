@@ -2055,6 +2055,15 @@ Run on the same engine: without `control` a shell tab's output and the text fram
 
 Left as it is, for the port: `terminal.close` and `terminal.restart` answer 404 for an id the engine does not know (the contract asks for a 2xx on close), and `cols` and `rows` have a lower limit only.
 
+### tests/test_dock_contract.py (new)
+- refers-to: tests/test_dock_contract.py; app/engine/agents.py :: require, respond; app/engine/agent_programs.py; app/routers/terminal_socket.py :: attach
+- kind: test
+- logged: unreleased · 2026-11-19
+
+Twelve tests, each written after the behaviour was seen on the engine run from source (the three entries above): the question's fields in the event and in `pending`; once runs one call and the next asks again; once needs its request and an ended request answers 409; an answer with a request leaves the other waiting call alone; `agents.withdrawn` on an answer and on expiry; the status of the three programs with stand-in scripts on PATH, and missing programs with their install lines; a Codex and a Cursor tab's token (in the environment, not in the arguments, let through under Ask, refused under Blocked, ended by close, absent from a shell tab; the Cursor file's mode and placeholder); the two commands refused without the window key and through `run_command`; the typed `hello` and `exit` frames with `control=binary` and the unchanged text notice without it. The stand-in tests are skipped on Windows (shell scripts). The file has its own helpers and its own reset fixture instead of importing another test file's.
+
+Write routes walked by `test_every_write_route_needs_the_window_key`: 8 before and 8 after (no route was added; the two new commands go through `POST /api/commands/{id}`). Whole backend suite: 368 passed and 1 failed before (`test_selection_models.py::test_the_recommended_models_run_on_the_cpu_provider_only`, not touched here), 380 passed and the same 1 failed after.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
