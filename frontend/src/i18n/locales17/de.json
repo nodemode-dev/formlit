@@ -47,5 +47,6 @@
  "45": "{0} ist nicht mehr Datei {1} in {2} auf der Kamera und wurde nicht angerührt",
  "46": "{0} auf der Kamera ist nicht die importierte Datei und wurde nicht gelöscht",
  "47": "Die Kamera hat {0} behalten: Die Datei wurde kopiert, nicht verschoben",
- "48": "Die Kamera führt {0} mehrmals in {1}, daher wird die Datei nicht per Nummer kopiert oder gelöscht"
+ "48": "Die Kamera führt {0} mehrmals in {1}, daher wird die Datei nicht per Nummer kopiert oder gelöscht",
+ "49": "Der gespeicherte Agentenzugriff wurde außerhalb von formlit geändert und steht deshalb wieder auf „Nachfragen“."
 }

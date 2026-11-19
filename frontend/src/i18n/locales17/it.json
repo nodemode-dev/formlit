@@ -47,5 +47,6 @@
  "45": "{0} non è più il file {1} in {2} sulla fotocamera, quindi non è stato toccato",
  "46": "{0} sulla fotocamera non è il file importato, quindi non è stato eliminato",
  "47": "La fotocamera ha tenuto {0}: è stato copiato, non spostato",
- "48": "La fotocamera elenca {0} più volte in {1}, quindi non viene copiato né eliminato per numero"
+ "48": "La fotocamera elenca {0} più volte in {1}, quindi non viene copiato né eliminato per numero",
+ "49": "L’accesso degli agenti salvato è stato modificato al di fuori di formlit, quindi è tornato su “Chiedimi”."
 }

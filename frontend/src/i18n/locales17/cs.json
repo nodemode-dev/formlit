@@ -47,5 +47,6 @@
  "45": "{0} už není soubor {1} v {2} ve fotoaparátu, proto zůstal nedotčen",
  "46": "{0} ve fotoaparátu není importovaný soubor, proto nebyl smazán",
  "47": "Fotoaparát si ponechal {0}: soubor se zkopíroval, nepřesunul",
- "48": "Fotoaparát uvádí {0} v {1} víckrát, proto se nekopíruje ani nemaže podle čísla"
+ "48": "Fotoaparát uvádí {0} v {1} víckrát, proto se nekopíruje ani nemaže podle čísla",
+ "49": "Uložený přístup agentů byl změněn mimo formlit, proto je opět nastaven na „Zeptat se mě“."
 }

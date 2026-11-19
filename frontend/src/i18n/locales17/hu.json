@@ -47,5 +47,6 @@
  "45": "{0} már nem a(z) {1}. fájl ebben: {2}, ezért érintetlen maradt",
  "46": "A fényképezőgépen lévő {0} nem az importált fájl, ezért nem lett törölve",
  "47": "A fényképezőgép megtartotta: {0}; másolás történt, nem áthelyezés",
- "48": "A fényképezőgép többször listázza ezt: {0} itt: {1}, ezért nem lesz szám szerint másolva vagy törölve"
+ "48": "A fényképezőgép többször listázza ezt: {0} itt: {1}, ezért nem lesz szám szerint másolva vagy törölve",
+ "49": "A mentett ügynökhozzáférés a formlit-on kívül módosult, ezért visszaállt a „Kérdezzen meg” beállításra."
 }

@@ -47,5 +47,6 @@
  "45": "{0} ei ole enää tiedosto {1} kansiossa {2} kamerassa, joten siihen ei koskettu",
  "46": "{0} kamerassa ei ole tuotu tiedosto, joten sitä ei poistettu",
  "47": "Kamera säilytti tiedoston {0}: se kopioitiin, ei siirretty",
- "48": "Kamera näyttää tiedoston {0} useammin kuin kerran kansiossa {1}, joten sitä ei kopioida eikä poisteta numeron perusteella"
+ "48": "Kamera näyttää tiedoston {0} useammin kuin kerran kansiossa {1}, joten sitä ei kopioida eikä poisteta numeron perusteella",
+ "49": "Tallennettu agenttien käyttöoikeus muutettiin formlitin ulkopuolella, joten se on palautettu asetukseen \"Kysy minulta\"."
 }

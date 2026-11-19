@@ -47,5 +47,6 @@
  "45": "{0} não é mais o arquivo {1} em {2} na câmera, então ele não foi alterado",
  "46": "{0} na câmera não é o arquivo importado, então não foi excluído",
  "47": "A câmera manteve {0}: ele foi copiado, não movido",
- "48": "A câmera lista {0} mais de uma vez em {1}, então ele não é copiado nem excluído por número"
+ "48": "A câmera lista {0} mais de uma vez em {1}, então ele não é copiado nem excluído por número",
+ "49": "O acesso de agentes salvo foi alterado fora do formlit, então voltou para “Perguntar”."
 }

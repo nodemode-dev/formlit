@@ -47,5 +47,6 @@
  "45": "{0} ya no es el archivo {1} de {2} en la cámara, así que no se ha tocado",
  "46": "{0} en la cámara no es el archivo importado, así que no se ha borrado",
  "47": "La cámara conservó {0}: se copió, no se movió",
- "48": "La cámara muestra {0} más de una vez en {1}, así que no se copia ni se borra por número"
+ "48": "La cámara muestra {0} más de una vez en {1}, así que no se copia ni se borra por número",
+ "49": "El acceso de agentes guardado se cambió fuera de formlit, así que ha vuelto a “Preguntarme”."
 }
