@@ -12,7 +12,10 @@ from app.core import config
 from app.engine import terminal
 from app.engine.commands import CommandError, command
 
-TOKENS: dict[str, Path] = {}
+TOKENS: dict[str, Path | None] = {}
+INAPP_HEADER = "x-formlit-inapp"
+INAPP_VAR = "FORMLIT_INAPP_TOKEN"
+INSTALL_LINE = "irm https://claude.ai/install.ps1 | iex" if os.name == "nt" else "curl -fsSL https://claude.ai/install.sh | bash"
 
 KEEP_ENV = {"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CONFIG_DIR"}
 CANDIDATES = (".claude/local/claude", ".local/bin/claude", ".npm-global/bin/claude", ".bun/bin/claude", ".volta/bin/claude")
@@ -91,6 +94,12 @@ def issue() -> tuple[str, str]:
         f.write(body)
     TOKENS[token] = path
     return token, str(path)
+
+
+def issue_env() -> str:
+    token = secrets.token_urlsafe(32)
+    TOKENS[token] = None
+    return token
 
 
 def revoke(token: str) -> None:
