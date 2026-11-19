@@ -217,12 +217,15 @@
   "dock": {
     "present": true,
     "positions": [
-      "bottom"
+      "bottom",
+      "right"
     ],
     "tabs": [
       "chat",
       "terminal",
-      "claude-code"
+      "claude-code",
+      "codex",
+      "cursor"
     ]
   },
   "extensions": {

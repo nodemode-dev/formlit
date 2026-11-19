@@ -28,7 +28,8 @@ LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
 APP = "formlit"
 MANIFEST = ROOT / "agents" / "manifest.json"
 SKILLS = ROOT / ".claude" / "skills"
-DOCK = {"present": True, "positions": ["bottom"], "tabs": ["chat", "terminal", "claude-code"]}
+DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
+DOCK_MODULE = ROOT / "frontend" / "src" / "dock"
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
@@ -142,8 +143,25 @@ def _files(folder: Path) -> dict:
     return {str(p.relative_to(folder)): p.read_bytes() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
+def dock_module_drift() -> list[str]:
+    import hashlib
+    held = DOCK_MODULE / "MANIFEST.json"
+    if not held.is_file():
+        return [str(held.relative_to(ROOT))]
+    want = json.loads(held.read_text(encoding="utf-8"))["files"]
+    have = {p.name for p in DOCK_MODULE.iterdir() if p.is_file()} - {"MANIFEST.json"}
+    bad = sorted(set(want) ^ have) + sorted(n for n in set(want) & have if hashlib.sha256((DOCK_MODULE / n).read_bytes()).hexdigest() != want[n])
+    for name in sorted(have):
+        if name.endswith(".ts") and any(not (m.startswith("./") or m.startswith("@xterm/")) for m in re.findall(r"""(?:from|import)\s*\(?\s*['"]([^'"]+)['"]""", (DOCK_MODULE / name).read_text(encoding="utf-8"))):
+            bad.append(name)
+    return [str((DOCK_MODULE / n).relative_to(ROOT)) for n in dict.fromkeys(bad)]
+
+
 def sync(check: bool) -> int:
-    drift = []
+    drift = dock_module_drift()
+    if drift and not check:
+        print("agents: the shared dock folder does not match its MANIFEST.json and is never written here: " + ", ".join(drift))
+        return 1
     for ref, want in ((SKILL / "references" / "tools.md", tools_reference()), (SKILL / "references" / "presets.md", presets_reference()),
                       (SKILL / "references" / "templates.md", templates_reference()), (MANIFEST, manifest_reference())):
         if not ref.exists() or ref.read_text(encoding="utf-8") != want:
