@@ -38,7 +38,7 @@ def test_the_shared_dock_folder_is_the_one_its_manifest_describes():
     sync = sync_script()
     assert sync.dock_module_drift() == []
     held = json.loads((sync.DOCK_MODULE / "MANIFEST.json").read_text(encoding="utf-8"))
-    assert held["module"] == "dock" and held["version"] == "2.0.1"
+    assert held["module"] == "dock" and held["version"] == "2.1.0"
 
 
 def test_a_changed_or_foreign_file_in_the_dock_folder_is_named(tmp_path, monkeypatch):
