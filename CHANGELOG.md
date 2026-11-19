@@ -2,18 +2,27 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
-## Unreleased
+## v0.52.0 · 2026-11-19
 
+- Changed: the terminal panel is the one the whole Form family now shares. It can sit at the bottom of the window or at the right, it remembers whether it is open, which side it is on and its size, and the first time it is opened a short guide shows what it is for.
+- Added: Codex and Cursor can run in a tab of the terminal panel beside Claude Code, each connected to formlit's tools the same way.
+- Fixed: keys typed in the terminal panel no longer reach formlit's shortcuts. Ctrl+Z (Cmd+Z on a Mac) typed in a terminal or in the ask line no longer undoes a photo edit.
+- Changed: when another AI program asks to use formlit, the question names the program and says what it asked for, and offers Deny, Allow once and Always allow. Allow once lets that one request run and asks again the next time. Block is no longer a button on the question: choose Blocked in Preferences, AI agents.
+- Fixed: the question closes by itself when the program that asked has gone away or the request has ended, and a question that is still waiting comes back after a reload.
+- Fixed: the status bar shows while the terminal panel is closed. Before, it stayed hidden until the panel had been opened.
+- Changed: in Chat, a message sent while Claude is still answering, or one the engine refuses, stays in the ask line instead of being lost, and coming back to Chat from another tab shows the newest message if you were following the conversation.
+- Changed: a workspace remembers whether the terminal panel is open but no longer its height; the panel keeps the size you last gave it.
+- Known: the terminal panel's new sentences (the guide, the menu, the new question) show in English in every language for now; the sentences formlit already had are still translated.
 - Fixed: only the formlit window can change things through the engine. Outside agents and `./formlit cli` go through MCP and the AI agents setting, and only the window can answer the access prompt, change that setting, choose the Claude Code program or use the terminal dock.
 - Fixed: Claude Code in the dock and the Chat tab get their own access token per tab or reply, kept in a private file and ended when the tab closes, never on a command line.
 - Fixed: only the formlit window can add an external editor or start one (Edit In); outside agents and `./formlit cli` are refused whatever the AI agents setting says.
 - Fixed: agent access changed outside the app is noticed and treated as Ask until it is confirmed in the window (where the system keychain is available).
 - Added: Preferences says once, under AI agents, when the saved agent permission was changed outside formlit and has been reset to "Ask me".
 - Added: AMOLED Black, a true-black theme for OLED screens, with panels told apart by their borders.
-- Fixed: a reload of the development window uses the window key the tab already has instead of asking the engine for a new one.
+- Fixed: a reload of the development window keeps the permission the tab already has instead of asking the engine for a new one.
 - Fixed: the desktop app gives the engine as long to start as before; once the engine has announced its address, the app waits at most 10 seconds for its key before showing "engine failed to start".
 - Added: `agents/manifest.json` lists the MCP tools, which are read-only, which wait for the person's Allow, the skills, the dock and the extensions host API; `./formlit agents sync` writes it and `--check` keeps it true.
-- Not verified yet: the desktop shell change (not compiled here) and a real system keychain.
+- Checked here, on Linux: the engine tests, the type check, the agents sync check, and the terminal panel, the question and Chat in a headless browser against the engine, with stand-in programs in place of Claude Code, Codex and Cursor. Not verified yet: the desktop shell changes (not compiled here; the release build is their first compile), a real system keychain, Windows and macOS, and the real Claude Code, Codex and Cursor.
 - Changed: ffmpeg is downloaded from nodemode-dev/formai-binaries, with nodemode-dev/formcut-binaries as the fallback; every file is still checked against its recorded SHA-256.
 - Added: in Develop, hold Alt (Option on a Mac) while dragging a Sharpening slider to see what it changes: Masking shows the edge mask (white is sharpened), Amount the sharpened result in greyscale, Radius and Detail the sharpening halos on grey. Letting go brings back the photo. A hint under the sliders says so.
 - Added: a Subject, Sky, Background, People, Objects, Depth Range or part mask whose AI model is not installed offers Install Now with the download size, then makes the mask. Cancel shows the same message as before.
