@@ -122,7 +122,7 @@ class Preferences extends Dialog {
       q<HTMLInputElement>(this.autoXmp, 'input').checked = !!p.autoWriteXmp;
       q<HTMLInputElement>(this.intoFiles, 'input').checked = p.xmpIntoFiles !== false;
       setValue(this.access, typeof p.outsideAgents === 'string' ? p.outsideAgents : 'ask');
-      setText(this.sealNote, p.sealBroken === true ? 'The saved agent permission was changed outside formlit, so it is back to Ask.' : '');
+      setText(this.sealNote, p.sealBroken === true ? 'The saved agent permission was changed outside formlit, so it is back to "Ask me".' : '');
       const id = (p.identity ?? {}) as Record<string, unknown>;
       for (const [k, input] of Object.entries(this.identity)) if (document.activeElement !== input) setValue(input, String(id[k] ?? ''));
       for (const [k, input] of Object.entries(this.claude)) if (document.activeElement !== input) setValue(input, String(p[k] ?? ''));
