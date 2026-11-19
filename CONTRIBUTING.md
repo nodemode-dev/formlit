@@ -55,7 +55,8 @@ emoji in any tracked text.
   maintainer bumps it when releasing.
 - Every action is a command registered in the engine and reached the same way by the
   interface, the command line and the MCP server. After changing the MCP tools, run
-  `./formlit agents sync` so the skill's tool reference follows.
+  `./formlit agents sync` so the skill's tool reference, its `.agents/skills` mirror
+  and `agents/manifest.json` follow (`agents sync --check` exits 1 when any has drifted).
 - Rendering happens in the engine only, and the numba kernel and its numpy reference
   must agree.
 - Every new dependency, binary, model, font or data file gets a row in `NOTICE.md`

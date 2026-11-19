@@ -6,7 +6,13 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 
 - Fixed: only the formlit window can change things through the engine. Outside agents and `./formlit cli` go through MCP and the AI agents setting, and only the window can answer the access prompt, change that setting, choose the Claude Code program or use the terminal dock.
 - Fixed: Claude Code in the dock and the Chat tab get their own access token per tab or reply, kept in a private file and ended when the tab closes, never on a command line.
+- Fixed: only the formlit window can add an external editor or start one (Edit In); outside agents and `./formlit cli` are refused whatever the AI agents setting says.
 - Fixed: agent access changed outside the app is noticed and treated as Ask until it is confirmed in the window (where the system keychain is available).
+- Added: Preferences says once, under AI agents, when the saved agent permission was changed outside formlit and has been reset to "Ask me".
+- Added: AMOLED Black, a true-black theme for OLED screens, with panels told apart by their borders.
+- Fixed: a reload of the development window uses the window key the tab already has instead of asking the engine for a new one.
+- Fixed: the desktop app gives the engine as long to start as before; once the engine has announced its address, the app waits at most 10 seconds for its key before showing "engine failed to start".
+- Added: `agents/manifest.json` lists the MCP tools, which are read-only, which wait for the person's Allow, the skills, the dock and the extensions host API; `./formlit agents sync` writes it and `--check` keeps it true.
 - Not verified yet: the desktop shell change (not compiled here) and a real system keychain.
 - Changed: ffmpeg is downloaded from nodemode-dev/formai-binaries, with nodemode-dev/formcut-binaries as the fallback; every file is still checked against its recorded SHA-256.
 - Added: in Develop, hold Alt (Option on a Mac) while dragging a Sharpening slider to see what it changes: Masking shows the edge mask (white is sharpened), Amount the sharpened result in greyscale, Radius and Detail the sharpening halos on grey. Letting go brings back the photo. A hint under the sliders says so.
@@ -14,7 +20,7 @@ All notable changes to formlit. Versions are `v*.*.*`; each release lists what i
 - Added: sharper selection models. Subject and Background can use BiRefNet (224 MB, MIT) and Objects can use SAM 2.1 base plus (328 MB, Apache-2.0). Both are recommended in Preferences and in Install Now; U2-Net and SAM 2.1 tiny stay as the small and fast choice, and masks use the best one installed. On an Apple silicon Mac a BiRefNet mask takes about 8 s and up to 6 GB of memory.
 - Added: the Enhance dialog offers to install the learned denoiser (77 MB) when it is missing; without it Denoise still uses the classic denoiser.
 - Added: Lens Corrections shows which Lensfun lens profiles are in use (bundled with formlit, or downloaded, with the date), and Update Lens Profiles downloads the newest ones.
-- Added: the new strings in all 25 languages.
+- Added: the new strings in every language besides English.
 - Fixed: on Windows, a memory card or other removable drive counts as removable in Import, so Eject after import shows and works, and the Import dialog opens on a card (a drive or volume with a DCIM folder). A card reader that reports a fixed drive is still opened as a card when it has a DCIM folder and is not the system drive, but Eject is offered only for drives Windows reports as removable.
 - Not verified yet: Windows (the drive checks were run with the Windows call stubbed) and real model and lens profile downloads from the window.
 - Added: import straight from a camera connected by USB. A camera shows under Source beside the drives (on Windows through Windows Portable Devices, on macOS and Linux through gphoto2 when it is installed, and on Linux also a camera the desktop has mounted), its folders browse like any folder, and Copy, Move, Copy as DNG and Add bring in CR3, CR2, NEF, ARW, RAF, DNG, JPG, HEIC, MP4 and the other supported files with the usual templates and options. Add from a camera copies into the destination. Move removes from the camera only the files the import names as imported; duplicates, files that failed and anything not accounted for stay on it. A file name from the camera that could reach outside the import folder is refused and reported.

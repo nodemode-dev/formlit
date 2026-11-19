@@ -30,4 +30,4 @@ The AI icons: `agent` (a small robot head) marks Claude Code and the Ask line, `
 
 ## Icons and themes
 
-Icons are inline `currentColor` SVG in `src/ui/icons.ts` and `icons-lit.ts`; there is no icon library. `src/ui/themes.ts` carries the 14 appearance profiles with the accent and its intensity.
+Icons are inline `currentColor` SVG in `src/ui/icons.ts` and `icons-lit.ts`; there is no icon library. `src/ui/themes.ts` carries the appearance profiles (including AMOLED Black, a true-black one for OLED screens) with the accent and its intensity.

@@ -8,7 +8,7 @@ SERVICE = {
     "label": "Journal Folder (example)",
     "version": "1.0.0",
     "author": "formlit",
-    "url": "https://github.com/nodemode-ai/formlit/blob/main/docs/plugins/journal_folder.py",
+    "url": "https://github.com/nodemode-dev/formlit/blob/main/docs/plugins/journal_folder.py",
     "description": "Example plug-in: copies published photos into a folder, keeps an index.json of titles and keywords, and stores comments beside it.",
     "help": "Copy this file into the Plugins folder, then press Reload in the Plug-in Manager.",
     "comments": True,
