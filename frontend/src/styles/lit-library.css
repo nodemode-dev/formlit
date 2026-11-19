@@ -344,6 +344,7 @@ textarea.fl-meta-input { height: auto; min-height: 120px; padding: 4px 6px; resi
 .fl-imp-tokens { margin: 0 0 6px; color: var(--text-muted); font-family: var(--font-mono, monospace); font-size: var(--fs-10); line-height: 1.5; word-spacing: 4px; }
 .fl-imp-eject[hidden] { display: none; }
 
+.fl-seal-note { min-height: 1lh; }
 .fl-prefs-theme { display: flex; align-items: center; gap: 10px; }
 .fl-agents-seen { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 .fl-prefs-engine { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }

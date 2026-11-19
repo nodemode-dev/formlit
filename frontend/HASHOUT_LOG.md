@@ -1131,6 +1131,13 @@ Rules on `data-oled`, never on the theme id, so another OLED profile needs only 
 
 Found by measuring, in headless Chrome at 1440 by 900, the library grid, the loupe and Develop with three photos, listing every element over 500 px2 with a fill (computed colours that are not `rgb()` included, because `color-mix` reads back as `color(srgb ...)`): the title bar (a black to black gradient), the selected cell and filmstrip cell, the active module button, the selected layer row, the active tree row, accent-tinted icon buttons and the `#141414` inputs. Everything else, including the viewer surround, the filmstrip bar, the histogram box, the left and right columns and the status bar, is `#000000` with no rule. Verification result is in the commit message.
 
+### src/ui/preferences.ts · Preferences.sealNote, show; src/styles/lit-library.css · .fl-seal-note
+- refers-to: src/ui/preferences.ts :: Preferences.sealNote, Preferences.show, the agents.changed handler; src/styles/lit-library.css :: .fl-seal-note
+- kind: explainer
+- logged: unreleased · 2026-11-19
+
+When the engine reports `sealBroken` (the stored agent choice was changed outside the app and has been reset to Ask, backend log, #window-key), Preferences shows one sentence under Agent access: "The saved agent permission was changed outside formlit, so it is back to Ask." The slot is a `cv-note` paragraph that is always in the dialog, built with it, and `.fl-seal-note` reserves one line (`min-height: 1lh`), so filling it moves nothing; `show()` sets its text from `prefs.get` and the `agents.changed` handler empties it once the person has chosen (the engine re-seals on that write). The string is English in the source and in no translation table yet (the window falls back to the English text), see the build report: the tables keep each batch complete in 25 languages and that batch was not made here. Ran it with a stand-in keyring against the engine and the dev server in headless Chrome: intact seal, the slot empty; the stored file edited by hand, the engine reported `broken`, the choice `ask`, and Preferences showed the sentence; the row below the slot kept the same position (427, 795.97) with the sentence and without it, and between the first frame of the dialog and 2.5 s later; choosing a value in the dialog emptied the slot and the engine reported `ok`.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
