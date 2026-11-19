@@ -7,7 +7,7 @@ check whether the problem is still there.
 
 | Version | Supported |
 | --- | --- |
-| 0.47.x (latest release) | Yes |
+| 0.52.x (latest release) | Yes |
 | Anything older | No |
 
 ## Reporting a vulnerability
@@ -26,9 +26,14 @@ FormLit runs on your own machine, so the things that matter most are the ways
 something outside it could get in:
 
 - **The engine** listens on loopback (port 8390). Anything that makes it reachable
-  from another machine, or lets a web page on another origin drive it.
+  from another machine, or lets a web page on another origin drive it. Changes
+  through the engine need a key that only the formlit window holds (made fresh at
+  each launch); anything that makes a change without it counts.
 - **Agents and the MCP server**: an outside agent acting before the person has
-  allowed it in Preferences, AI agents, or while it is blocked.
+  allowed it in Preferences, AI agents, or while it is blocked, or an outside agent
+  or program changing that choice, which only the window can do. The command line
+  counts as an outside agent. A saved choice that was changed outside the app is
+  treated as Ask me until the person confirms it in the window.
 - **The terminal dock and Chat**: an outside agent or a web page opening, reading or
   typing into them.
 - **Publish services**: anything that leaks the FTP, WebDAV, Nextcloud or

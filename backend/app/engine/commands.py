@@ -1,3 +1,4 @@
+import contextvars
 import inspect
 import math
 import threading
@@ -23,6 +24,11 @@ class Spec:
 
 
 REGISTRY: dict[str, Spec] = {}
+FROM_WINDOW: contextvars.ContextVar[bool] = contextvars.ContextVar("formlit_from_window", default=False)
+WINDOW_GROUPS = {"terminal", "claudecode", "chat"}
+WINDOW_IDS = {"agents.respond", "editIn.addApp", "photo.editIn"}
+WINDOW_PREFS = {"outsideAgents", "claudeBin", "claudeFirstMessage", "claudeFolder", "editors"}
+WINDOW_REFUSED = "Only the formlit window can do this"
 
 
 def command(cid: str, label: str, params: dict[str, dict] | None = None, group: str = "", mutates: bool = True, description: str = "") -> Callable:
@@ -106,6 +112,11 @@ def _typed(cid: str, name: str, schema: dict, value: Any, default: Any) -> Any:
     return value
 
 
+def window_only(cid: str, params: dict) -> bool:
+    values = params.get("values")
+    return cid.split(".")[0] in WINDOW_GROUPS or cid in WINDOW_IDS or (cid == "prefs.set" and isinstance(values, dict) and bool(WINDOW_PREFS & set(values)))
+
+
 def dispatch(cid: str, params: dict | None = None) -> Any:
     spec = REGISTRY.get(cid)
     if spec is None:
@@ -113,6 +124,8 @@ def dispatch(cid: str, params: dict | None = None) -> Any:
     if params is not None and not isinstance(params, dict):
         raise CommandError(f"{cid}: parameters must be an object")
     params = dict(params or {})
+    if not FROM_WINDOW.get() and window_only(cid, params):
+        raise CommandError(WINDOW_REFUSED, 403)
     sig = inspect.signature(spec.fn)
     for name, schema in spec.params.items():
         if name in params and isinstance(schema, dict) and schema.get("type"):

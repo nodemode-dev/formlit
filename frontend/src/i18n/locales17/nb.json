@@ -47,5 +47,6 @@
  "45": "{0} er ikke lenger fil {1} i {2} på kameraet, så den ble ikke rørt",
  "46": "{0} på kameraet er ikke den importerte filen, så den ble ikke slettet",
  "47": "Kameraet beholdt {0}: den ble kopiert, ikke flyttet",
- "48": "Kameraet viser {0} mer enn én gang i {1}, så den kopieres eller slettes ikke etter nummer"
+ "48": "Kameraet viser {0} mer enn én gang i {1}, så den kopieres eller slettes ikke etter nummer",
+ "49": "Den lagrede agenttilgangen ble endret utenfor formlit, så den er tilbake til «Spør meg»."
 }

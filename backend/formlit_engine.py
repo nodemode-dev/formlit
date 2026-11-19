@@ -59,6 +59,10 @@ def main() -> int:
     if os.path.isdir(bundled):
         os.environ.setdefault("FORMLIT_DIST", bundled)
     os.environ.setdefault("FORMLIT_DESKTOP", "1")
+    from app.core import window_key
+
+    if window_key.stdout_mode():
+        print(window_key.LINE + window_key.KEY, flush=True)
     import uvicorn
 
     from app.main import app as fastapi_app

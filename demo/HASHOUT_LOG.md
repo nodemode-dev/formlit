@@ -2,7 +2,7 @@
 
 Rationale, decisions and removed or never-written comments for the offline demo. Source files stay comment-free.
 
-Current build version: v0.51.3
+Current build version: v0.52.0
 
 ## Why a TypeScript port of the pipeline
 

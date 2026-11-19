@@ -17,7 +17,7 @@ from app.services import formext_host as fx
 PRODUCT = "formlit"
 FILES_BASE = "/api/extensions/files"
 MANAGE_URL = f"formai://extensions?product={PRODUCT}"
-STAYS_WITH_PERSON = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond"}
+STAYS_WITH_PERSON = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond", "editIn.addApp", "photo.editIn"}
 WINDOW_GROUPS = {"terminal", "claudecode", "chat", "extensions"}
 MAX_PHOTOS = 500
 MAX_SAVE = 200 * 1024 * 1024

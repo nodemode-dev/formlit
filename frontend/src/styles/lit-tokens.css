@@ -4,7 +4,6 @@
   --fl-filmstrip-h: 116px;
   --fl-toolbar-h: 40px;
   --fl-dock-h: 0px;
-  --fl-dock-open-h: 280px;
   --fl-panel-head-h: 34px;
   --fl-thumb-gap: 8px;
   --fl-pick: #f5f5f5;
@@ -32,3 +31,4 @@
   --fl-map-loc-fill: rgba(60, 120, 230, 0.12);
   --fl-map-loc-label: rgba(20, 30, 60, 0.8);
 }
+:root[data-oled] { --fl-matte: #000000; }

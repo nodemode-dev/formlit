@@ -23,7 +23,7 @@ def open_(cwd: str | None = None, cols: int | None = None, rows: int | None = No
         raise CommandError(str(exc), 404) from None
 
 
-@command("terminal.list", "Terminals", mutates=False, description="Open terminals with their ids, titles, folders, kind (shell or claude) and whether the program is still running.")
+@command("terminal.list", "Terminals", mutates=False, description="Open terminals with their ids, titles, folders, kind (shell, claude, codex or cursor) and whether the program is still running, oldest first.")
 def list_() -> dict:
     items = [s.describe() for s in terminal.SESSIONS.values()]
     return {"terminals": items, "count": len(items)}

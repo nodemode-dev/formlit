@@ -4,6 +4,7 @@ import urllib.parse
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.core import window_key
 from app.engine import terminal
 
 router = APIRouter(tags=["terminal"])
@@ -17,8 +18,8 @@ def _local(origin: str | None) -> bool:
 
 
 @router.websocket("/api/terminal/{sid}")
-async def attach(ws: WebSocket, sid: str) -> None:
-    if not _local(ws.headers.get("origin")):
+async def attach(ws: WebSocket, sid: str, ticket: str = "", control: str = "") -> None:
+    if not _local(ws.headers.get("origin")) or not window_key.spend(ticket):
         await ws.close(code=4403)
         return
     await ws.accept()
@@ -29,16 +30,28 @@ async def attach(ws: WebSocket, sid: str) -> None:
         return
     q: asyncio.Queue = asyncio.Queue()
     session.subscribers.add(q)
+    typed = control == "binary"
+
+    async def notice(kind: str) -> None:
+        if typed:
+            await ws.send_bytes(json.dumps({"type": kind}).encode("utf-8"))
+        else:
+            await ws.send_text(json.dumps({"type": kind}))
 
     async def outbound() -> None:
         backlog = session.scrollback()
+        if typed:
+            await notice("hello")
         if backlog:
             await ws.send_text(backlog)
         if not session.alive:
-            await ws.send_text(json.dumps({"type": "exit"}))
+            await notice("exit")
         while True:
             text = await q.get()
-            await ws.send_text(json.dumps({"type": "exit"}) if text is None else text)
+            if text is None:
+                await notice("exit")
+            else:
+                await ws.send_text(text)
 
     sender = asyncio.create_task(outbound())
     try:

@@ -47,5 +47,6 @@
  "45": "{0} không còn là tệp số {1} trong {2} trên máy ảnh, nên được giữ nguyên",
  "46": "{0} trên máy ảnh không phải tệp đã nhập, nên không bị xóa",
  "47": "Máy ảnh vẫn giữ {0}: tệp được sao chép, không được di chuyển",
- "48": "Máy ảnh liệt kê {0} nhiều lần trong {1}, nên không sao chép hay xóa theo số"
+ "48": "Máy ảnh liệt kê {0} nhiều lần trong {1}, nên không sao chép hay xóa theo số",
+ "49": "Quyền truy cập của tác nhân đã lưu bị thay đổi bên ngoài formlit nên đã trở lại “Hỏi tôi”."
 }

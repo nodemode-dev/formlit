@@ -80,7 +80,7 @@
       "files": [],
       "expected_behavior": [
         "Recognises layered compositing and text layers as formvis work, not formlit's develop or output tools",
-        "Offers formlit's Edit In (photo.editIn) to hand the photo to formvis rather than faking compositing with masks",
+        "Tells the person to use Edit In in formlit's window (Photo menu) to hand the photo to formvis, and does not call photo.editIn itself, rather than faking compositing with masks",
         "Does not run develop_set or export_photos as a substitute for compositing"
       ]
     },

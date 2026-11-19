@@ -3,7 +3,7 @@
 - [ ] Every change is committed; `git status` is clean
 - [ ] The version reads the same in all six files and in both zip names, written `vX.Y.Z` with dots
 - [ ] The bump commit is the last commit of the series
-- [ ] `origin` is `git@github.com:nodemode-ai/formlit.git`
+- [ ] `origin` is `git@github.com:nodemode-dev/formlit.git`
 - [ ] `npx tsc --noEmit` clean, the backend compiles, `./formlit agents sync --check` in step
 - [ ] The formlit-harness pack validates with zero FAIL (the god-tier-skill-creator validator)
 - [ ] README, CHANGELOG, `docs/PARITY.md`, both HASHOUT logs and the wiki reflect the change

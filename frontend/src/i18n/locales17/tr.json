@@ -47,5 +47,6 @@
  "45": "{0} artık kameradaki {2} içinde {1} numaralı dosya değil; bu yüzden ona dokunulmadı",
  "46": "Kameradaki {0} içe aktarılan dosya değil; bu yüzden silinmedi",
  "47": "Kamera {0} dosyasını tuttu: dosya taşınmadı, kopyalandı",
- "48": "Kamera {1} içinde {0} dosyasını birden çok kez listeliyor; bu yüzden numarayla kopyalanmıyor veya silinmiyor"
+ "48": "Kamera {1} içinde {0} dosyasını birden çok kez listeliyor; bu yüzden numarayla kopyalanmıyor veya silinmiyor",
+ "49": "Kayıtlı ajan erişimi formlit dışında değiştirildi, bu yüzden yeniden \"Bana sor\" olarak ayarlandı."
 }

@@ -27,10 +27,12 @@ On Windows use `formlit.bat` with the same commands.
 | `freeze` | Freeze the engine into the Tauri sidecar binary |
 | `desktop dev`, `desktop build` | Run or bundle the desktop app |
 | `mcp` | The MCP server over stdio (starts the engine if needed) |
-| `agents install`, `agents sync` | Register formlit with Claude Code, Codex and Cursor, or refresh the skill's tool reference |
-| `cli <command> key=value ...` | Run any engine command from the terminal; `./formlit cli list` lists them |
+| `claude [args]` | Claude Code in this terminal with formlit's MCP tools attached; it is an outside agent and goes through the access prompt |
+| `agents install` | Register formlit with Claude Code, Codex and Cursor |
+| `agents sync [--check]` | Regenerate the driving skill's tool, preset and template references, write `agents/manifest.json` (the tools, which are read-only, the skills and the dock) and mirror the skill into `.agents/skills`; `--check` exits 1 when any of them has drifted |
+| `cli <command> key=value ...` | Run any engine command from the terminal; `./formlit cli list` lists them. Running one goes through MCP as an outside agent, so it follows Agent access in Preferences (with Ask me it waits for Allow in the window) |
 | `doctor` | Check the toolchain, the installs and the ports |
-| `counts [--check]` | Print the code sizes the README states, or check them |
+| `counts [--check]` | Print the product code sizes (tests excluded); `--check` compares them with a sentence in the README, which the README does not carry now, so it exits 1 |
 | `preflight FILE.pdf ...` | Check book PDFs against PDF/X-1a with the open-source `preflight` Ruby gem, installed on first use into `backend/build` (needs Ruby) |
 | `i18n export LANG FILE.csv`, `i18n import LANG FILE.csv` | Hand a language's strings to a native reviewer as CSV (english, current, corrected, note) and load their corrections; they go to `keys9.json` and `locales9`, which load last |
 | `clean [--all]` | Remove build output (`--all` also the venv and node_modules) |

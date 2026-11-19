@@ -15,6 +15,7 @@ class Preferences extends Dialog {
   private readonly engine = el('<div class="fl-prefs-engine"></div>');
   private readonly agents = el('<pre class="fl-code"></pre>');
   private readonly access = el<HTMLSelectElement>('<select class="cv-select"><option value="ask">Ask me</option><option value="allowed">Allowed</option><option value="blocked">Blocked</option></select>');
+  private readonly sealNote = el('<p class="cv-note fl-seal-note"></p>');
   private readonly seen = el('<div class="fl-meta-row"><span class="fl-meta-key">Seen</span><span class="fl-meta-val fl-agents-seen">none yet</span></div>');
   private readonly claude: Record<'claudeFolder' | 'claudeBin' | 'claudeFirstMessage', HTMLInputElement> = {
     claudeFolder: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="Agent folder in your formlit folder">'),
@@ -61,6 +62,7 @@ class Preferences extends Dialog {
     this.body.appendChild(el('<div class="fl-sub">AI agents</div>'));
     this.body.appendChild(el('<p class="cv-note">Claude and other AI agents can work in formlit through its plugin: add the formlit plugin from the Form marketplace in Claude (Customize, Plugins), keep formlit open, and ask in plain words. Agents use the same commands as this window and every change can be undone. Deleting files and switching catalogs always stay with you.</p>'));
     this.field('Agent access', this.access);
+    this.body.appendChild(this.sealNote);
     this.body.appendChild(this.seen);
     this.body.appendChild(el('<div class="fl-sub">Claude Code in formlit</div>'));
     this.body.appendChild(this.claudeState);
@@ -90,7 +92,7 @@ class Preferences extends Dialog {
     this.accent.addEventListener('input', () => { setAccent(this.accent.value); this.sync(); });
     this.intensity.addEventListener('input', () => setIntensity(Number(this.intensity.value)));
     this.access.addEventListener('change', () => void this.ctx.api.cmd('prefs.set', { values: { outsideAgents: this.access.value } }).catch((err) => this.ctx.fail(err)));
-    events.on('agents.changed', (e) => setValue(this.access, String(e.outsideAgents ?? 'ask')));
+    events.on('agents.changed', (e) => { setValue(this.access, String(e.outsideAgents ?? 'ask')); setText(this.sealNote, ''); });
   }
 
   private sync(): void {
@@ -120,6 +122,7 @@ class Preferences extends Dialog {
       q<HTMLInputElement>(this.autoXmp, 'input').checked = !!p.autoWriteXmp;
       q<HTMLInputElement>(this.intoFiles, 'input').checked = p.xmpIntoFiles !== false;
       setValue(this.access, typeof p.outsideAgents === 'string' ? p.outsideAgents : 'ask');
+      setText(this.sealNote, p.sealBroken === true ? 'The saved agent permission was changed outside formlit, so it is back to "Ask me".' : '');
       const id = (p.identity ?? {}) as Record<string, unknown>;
       for (const [k, input] of Object.entries(this.identity)) if (document.activeElement !== input) setValue(input, String(id[k] ?? ''));
       for (const [k, input] of Object.entries(this.claude)) if (document.activeElement !== input) setValue(input, String(p[k] ?? ''));

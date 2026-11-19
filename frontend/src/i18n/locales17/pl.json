@@ -47,5 +47,6 @@
  "45": "{0} nie jest już plikiem {1} w {2} w aparacie, więc go nie ruszono",
  "46": "{0} w aparacie to nie ten plik, który zaimportowano, więc nie został usunięty",
  "47": "Aparat zachował {0}: plik został skopiowany, nie przeniesiony",
- "48": "Aparat pokazuje {0} więcej niż raz w {1}, więc nie jest kopiowany ani usuwany według numeru"
+ "48": "Aparat pokazuje {0} więcej niż raz w {1}, więc nie jest kopiowany ani usuwany według numeru",
+ "49": "Zapisany dostęp agentów został zmieniony poza formlit, więc wrócił do ustawienia „Pytaj mnie”."
 }

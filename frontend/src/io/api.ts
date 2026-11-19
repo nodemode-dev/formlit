@@ -1,3 +1,5 @@
+import { keyHeaders } from './window-key';
+
 export class EngineError extends Error {
   constructor(message: string, readonly status: number, readonly detail: unknown = null) {
     super(message);
@@ -34,13 +36,13 @@ export class Api {
   }
 
   async post<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-    const r = await fetch(this.url(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
+    const r = await fetch(this.url(path), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: body === undefined ? undefined : JSON.stringify(body), signal });
     if (!r.ok) throw await failure(r);
     return (await r.json()) as T;
   }
 
   async upload<T>(path: string, form: FormData): Promise<T> {
-    const r = await fetch(this.url(path), { method: 'POST', body: form });
+    const r = await fetch(this.url(path), { method: 'POST', headers: keyHeaders(), body: form });
     if (!r.ok) throw await failure(r);
     return (await r.json()) as T;
   }
@@ -57,7 +59,7 @@ export class Api {
   }
 
   async blob(path: string, body: unknown): Promise<Blob> {
-    const r = await fetch(this.url(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await fetch(this.url(path), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: JSON.stringify(body) });
     if (!r.ok) throw await failure(r);
     return r.blob();
   }

@@ -22,7 +22,6 @@ import { registerSessionCommands } from './modules/library/session-panel';
 import { registerProofing } from './modules/shared/proofing';
 import { registerTether } from './modules/shared/tether';
 import { registerPluginManager } from './modules/shared/plugin-manager';
-import { registerAgentConsent } from './modules/shared/agent-consent';
 import { registerTerminal } from './modules/shared/terminal';
 import { extensionMenuItems, registerExtensions } from './modules/shared/extensions';
 import { openPreferences } from './ui/preferences';
@@ -87,7 +86,6 @@ export class App implements Ctx {
     registerProofing(this);
     registerTether(this);
     registerPluginManager(this);
-    registerAgentConsent(this);
     registerTerminal(this);
     registerExtensions(this);
     registerWorkspace(this);

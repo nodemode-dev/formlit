@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """./formlit agents: formlit for Claude Code, Codex and Cursor.
 
-  sync [--check]            regenerate the driving skill's tool, preset and template references from the engine and mirror the
-                            skill from .claude/skills to .agents/skills; --check exits 1 when either has drifted
+  sync [--check]            regenerate the driving skill's tool, preset and template references from the engine, write
+                            agents/manifest.json (what formlit offers agents) and mirror the skill from .claude/skills to
+                            .agents/skills; --check exits 1 when any of them has drifted
   install [--dry-run] [claude|codex|cursor ...]
                             register the MCP server (./formlit mcp at this folder's absolute path) and the driving skill
                             for this user account (all three by default); files are backed up before they change.
@@ -24,6 +25,11 @@ LEGACY = "formlit-editing"
 SKILL = ROOT / ".claude" / "skills" / NAME
 MIRROR = ROOT / ".agents" / "skills" / NAME
 LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
+APP = "formlit"
+MANIFEST = ROOT / "agents" / "manifest.json"
+SKILLS = ROOT / ".claude" / "skills"
+DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
+DOCK_MODULE = ROOT / "frontend" / "src" / "dock"
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
@@ -118,14 +124,46 @@ def templates_reference() -> str:
     return "\n".join(out)
 
 
+def manifest_reference() -> str:
+    sys.path.insert(0, str(ROOT / "backend"))
+    from app.routers import mcp
+    from app.services import formext_host
+    tools = [t for t, _ in mcp.TOOLS]
+    names = [t["name"] for t in tools]
+    transports = [t for t, on in (("stdio", (ROOT / "setup" / "mcp_stdio.py").is_file()), ("http", any(getattr(r, "path", "") == "/mcp" for r in mcp.router.routes))) if on]
+    skills = [{"name": s.name, "sub_skills": sorted(p.parent.name for p in (s / "sub-skills").glob("*/SUB-SKILL.md"))}
+              for s in sorted(SKILLS.iterdir()) if (s / "SKILL.md").is_file()]
+    data = {"format": "form-agent-manifest", "version": 1, "app": APP,
+            "mcp": {"tools": names, "read_only": [t["name"] for t in tools if t["annotations"]["readOnlyHint"]], "approval_gated": names, "transports": transports},
+            "skills": skills, "dock": DOCK, "extensions": {"host_api": formext_host.API}}
+    return json.dumps(data, indent=2) + "\n"
+
+
 def _files(folder: Path) -> dict:
     return {str(p.relative_to(folder)): p.read_bytes() for p in sorted(folder.rglob("*")) if p.is_file()}
 
 
+def dock_module_drift() -> list[str]:
+    import hashlib
+    held = DOCK_MODULE / "MANIFEST.json"
+    if not held.is_file():
+        return [str(held.relative_to(ROOT))]
+    want = json.loads(held.read_text(encoding="utf-8"))["files"]
+    have = {p.name for p in DOCK_MODULE.iterdir() if p.is_file()} - {"MANIFEST.json"}
+    bad = sorted(set(want) ^ have) + sorted(n for n in set(want) & have if hashlib.sha256((DOCK_MODULE / n).read_bytes()).hexdigest() != want[n])
+    for name in sorted(have):
+        if name.endswith(".ts") and any(not (m.startswith("./") or m.startswith("@xterm/")) for m in re.findall(r"""(?:from|import)\s*\(?\s*['"]([^'"]+)['"]""", (DOCK_MODULE / name).read_text(encoding="utf-8"))):
+            bad.append(name)
+    return [str((DOCK_MODULE / n).relative_to(ROOT)) for n in dict.fromkeys(bad)]
+
+
 def sync(check: bool) -> int:
-    drift = []
+    drift = dock_module_drift()
+    if drift and not check:
+        print("agents: the shared dock folder does not match its MANIFEST.json and is never written here: " + ", ".join(drift))
+        return 1
     for ref, want in ((SKILL / "references" / "tools.md", tools_reference()), (SKILL / "references" / "presets.md", presets_reference()),
-                      (SKILL / "references" / "templates.md", templates_reference())):
+                      (SKILL / "references" / "templates.md", templates_reference()), (MANIFEST, manifest_reference())):
         if not ref.exists() or ref.read_text(encoding="utf-8") != want:
             drift.append(str(ref.relative_to(ROOT)))
             if not check:

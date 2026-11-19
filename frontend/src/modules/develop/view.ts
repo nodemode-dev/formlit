@@ -1,4 +1,5 @@
 import { api } from '../../io/api';
+import { keyHeaders } from '../../io/window-key';
 import { develop } from '../../state/develop';
 import { library, type Photo } from '../../state/library';
 import { el, pendingClass, q, setClass, setHidden, setStyleVar, setText, type Disposer } from '../../ui/dom';
@@ -310,7 +311,7 @@ export class DevelopView {
     this.pending?.();
     this.pending = pendingClass(this.spin, 400);
     try {
-      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.body({ long: this.renderLong() })) });
+      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: JSON.stringify(this.body({ long: this.renderLong() })) });
       if (!r.ok) throw new Error(`render ${r.status}`);
       const geo = JSON.parse(r.headers.get('X-Geometry') || 'null') as Geo | null;
       const hh = r.headers.get('X-HDR-Hist');
@@ -346,7 +347,7 @@ export class DevelopView {
   private async renderBefore(p: Photo): Promise<void> {
     this.beforeFor = `${p.id}:${p.rev}`;
     try {
-      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ before: true, long: this.renderLong(), view: 'before', crop: true }) });
+      const r = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: JSON.stringify({ before: true, long: this.renderLong(), view: 'before', crop: true }) });
       if (r.ok && await this.before.swap(await r.blob()) && this.compare !== 'ref') setClass(this.beforeBox, 'is-empty', false);
     } catch { this.beforeFor = ''; }
   }
@@ -360,7 +361,7 @@ export class DevelopView {
     const long = Math.round(Math.max(320, Math.min(Math.max(rr.w, rr.h) * Math.min(2, devicePixelRatio || 1), MAX_LONG)));
     void (async () => {
       try {
-        const r = await fetch(api.url(`/api/photos/${ref.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ long, view: 'develop', crop: true }) });
+        const r = await fetch(api.url(`/api/photos/${ref.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: JSON.stringify({ long, view: 'develop', crop: true }) });
         if (!r.ok || this.refFor !== key || this.compare !== 'ref') return;
         const geo = JSON.parse(r.headers.get('X-Geometry') || 'null') as Geo | null;
         const blob = await r.blob();
@@ -414,7 +415,7 @@ export class DevelopView {
     const outLong = Math.round(Math.max(n.w, n.h) * Math.min(this.scale() * (devicePixelRatio || 1), 1));
     const seq = ++this.regionSeq;
     try {
-      const res = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.body({ long: outLong, region: uv, quality: 92 })) });
+      const res = await fetch(api.url(`/api/photos/${p.id}/render`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...keyHeaders() }, body: JSON.stringify(this.body({ long: outLong, region: uv, quality: 92 })) });
       if (!res.ok || seq !== this.regionSeq) return;
       const rect = (res.headers.get('X-Region') || '').split(',').map(Number);
       const full = (res.headers.get('X-Full') || '').split(',').map(Number);

@@ -47,5 +47,6 @@
  "45": "{0} bukan lagi file {1} di {2} pada kamera, jadi dibiarkan",
  "46": "{0} di kamera bukan file yang diimpor, jadi tidak dihapus",
  "47": "Kamera menyimpan {0}: file disalin, bukan dipindahkan",
- "48": "Kamera mencantumkan {0} lebih dari sekali di {1}, jadi tidak disalin atau dihapus berdasarkan nomor"
+ "48": "Kamera mencantumkan {0} lebih dari sekali di {1}, jadi tidak disalin atau dihapus berdasarkan nomor",
+ "49": "Akses agen yang tersimpan diubah di luar formlit, jadi kembali ke “Tanya saya”."
 }

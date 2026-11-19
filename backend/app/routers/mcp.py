@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, Response
 
 from app import __version__
 from app.core import config
-from app.engine import agents
+from app.engine import agents, claude_code
 from app.engine import catalog as catalog_mod
 from app.engine import events
 from app.engine.commands import REGISTRY, CommandError, catalogue, dispatch
@@ -532,7 +532,7 @@ def _open_session(client: str) -> str:
 
 
 def _caller(request: Request, params: dict) -> tuple[str, str]:
-    if request.headers.get("x-formlit-inapp", "") == agents.INAPP_TOKEN:
+    if claude_code.is_inapp(request.headers.get("x-formlit-inapp", "")):
         return agents.INAPP_CLIENT, "inapp"
     header = request.headers.get("x-formlit-agent", "").strip()
     if header:
@@ -563,10 +563,17 @@ def _result(value: Any) -> dict:
     return {"content": [{"type": "text", "text": text}], "structuredContent": data}
 
 
-async def call_tool(name: str, args: dict, client: str = "", channel: str = "http") -> dict:
+def _asked(name: str, args: dict) -> dict:
+    cid = str(args.get("command") or args.get("id") or "")[:80] if name == "run_command" else ""
+    spec = REGISTRY.get(cid)
+    what = f"run the command {spec.label if spec else cid}" if cid else f"use the tool {name}"
+    return {"tool": name, "command": cid, "what": what, "label": SPECS[name][0]["description"].split(".")[0][:80]}
+
+
+async def call_tool(name: str, args: dict, client: str = "", channel: str = "http", gone=None) -> dict:
     tool, fn = SPECS[name]
     try:
-        await agents.require(client, channel)
+        await agents.require(client, channel, _asked(name, args), gone)
     except CommandError as exc:
         return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
     events.publish("agent.activity", tool=name, label=tool["description"].split(".")[0][:80])
@@ -629,7 +636,7 @@ async def mcp(request: Request) -> Response:
             out = _err(req_id, -32602, "tools/call needs a tool name and an arguments object")
         else:
             client, channel = _caller(request, params)
-            out = _ok(req_id, await call_tool(name, args, client, channel), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
+            out = _ok(req_id, await call_tool(name, args, client, channel, request.is_disconnected), modern) if name in SPECS else _err(req_id, -32602, f"No tool named {name}")
     else:
         out = _err(req_id, -32601, f"Method not found: {method}")
     return Response(content=json.dumps(out, default=str), media_type="application/json", headers=headers)

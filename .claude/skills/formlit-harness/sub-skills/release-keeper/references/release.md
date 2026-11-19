@@ -12,7 +12,7 @@ Every commit has one author and committer, `nodemode-ai <mackin@nodemode.ai>`, a
 
 Types: feat, fix, perf, refactor, docs, build, ci, chore. Scopes: engine, library, develop, ai, output, map, book, slideshow, print, web, mcp, agents, desktop, ui, docs, release. The version bump is its own last commit: `chore(release): v0.2.0 (0.2.0)`.
 
-A turn on an attached `.git` lands as real commits on the checked-out branch. The zip ships the `.git` connected: `origin` is `git@github.com:nodemode-ai/formlit.git`, the branch tracks `origin/main`, and `origin/main` points at the commit the turn started from, so `git status -sb` shows the branch ahead by the turn's commits. On the repository's first turn there is no remote commit yet; set the remote only.
+A turn on an attached `.git` lands as real commits on the checked-out branch. The zip ships the `.git` connected: `origin` is `git@github.com:nodemode-dev/formlit.git`, the branch tracks `origin/main`, and `origin/main` points at the commit the turn started from, so `git status -sb` shows the branch ahead by the turn's commits. On the repository's first turn there is no remote commit yet; set the remote only.
 
 ## Versions
 

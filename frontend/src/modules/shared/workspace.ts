@@ -6,6 +6,7 @@ import { applyPanelState, arrange, isPanelHidden, isSolo, PANELS, panelState, se
 import type { ShellLayout } from '../../ui/shell';
 import { toast } from '../../ui/toast';
 import { modules } from '../registry';
+import { dockOpen } from './terminal';
 
 interface Workspace { name: string; layout: Partial<ShellLayout>; dock: boolean; panels?: Partial<PanelState> }
 interface Builtin extends Workspace { id: string }
@@ -31,14 +32,14 @@ export function registerWorkspace(ctx: Ctx): void {
   const apply = async (id: string, w: Workspace): Promise<void> => {
     ctx.shell.applyLayout(w.layout);
     if (w.panels) applyPanelState(w.panels);
-    if (w.dock !== ctx.shell.dockOpen()) {
+    if (w.dock !== dockOpen()) {
       if (w.dock) ctx.run('agent.chat'); else ctx.run('view.terminal');
     }
     setCurrent(id);
     toast(`Workspace: ${w.name}`);
   };
 
-  const snapshot = (name: string): Workspace => ({ name, layout: ctx.shell.layout(), dock: ctx.shell.dockOpen(), panels: panelState() });
+  const snapshot = (name: string): Workspace => ({ name, layout: ctx.shell.layout(), dock: dockOpen(), panels: panelState() });
 
   const persist = async (next: Record<string, Workspace>): Promise<void> => {
     await ctx.api.cmd('prefs.set', { values: { workspaces: next } });

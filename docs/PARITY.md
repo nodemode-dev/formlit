@@ -1,6 +1,6 @@
 # formlit parity with Lightroom Classic 15
 
-How close formlit v0.3.0 comes to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
+How close formlit came, at its last audit (v0.3.0), to Adobe Lightroom Classic 15, row by row. The method follows the formvis comparison page: every cell is traced in code (the setting or data model, the engine command, the interface that reaches it, and the render or export path that makes it real). README claims are not counted.
 
 - **Full** (1): the Lightroom capability is implemented and wired from the interface through to rendering or export.
 - **Partial** (0.5): it exists, but a meaningful part of Lightroom's version is missing or it cannot be reached from the interface.
@@ -117,7 +117,7 @@ Each audit was made by a separate agent that had not seen the work being produce
 | 54 | Slideshow | Full | B/output/slideshow.py `tracks`, `gains`, `still_seconds`, `clips`, `write_video`; `slideshow.layout`, `slideshow.musicIn`; F/modules/output/slideshow.ts `Player` (music, clips, fit) | |
 | 55 | Web | Full | B/output/web.py `write_site`, `upload` (FTP, FTPS); F/modules/output/web.ts | |
 | 56 | Publish services | Full | B/output/publish.py `run`, `status`, `mark`, `comments`; B/output/publish_sdk.py (plug-ins); B/output/services/webdav.py, s3.py; F/modules/library/publish.ts, comments.ts; F/modules/shared/plugin-manager.ts | |
-| 57 | Edit in another app | Full | `photo.editIn` (copy with edits, copy, original, layered PSD), `editIn.addApp`; B/output/encode.py `psd_layers` | |
+| 57 | Edit in another app | Full | `photo.editIn` (copy with edits, copy, original, layered PSD), `editIn.addApp` (both only from the formlit window, not for agents); B/output/encode.py `psd_layers` | |
 | 58 | HDR and video output | Full | B/output/gainmap.py; encode.py `encode_hdr` (AVIF, JPEG XL, TIFF); F/modules/develop/hdr.ts; export.py `_video_graded` | |
 
 ## Platform (not scored)

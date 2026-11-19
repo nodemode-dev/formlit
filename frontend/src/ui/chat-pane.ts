@@ -35,6 +35,8 @@ export class ChatPane {
   private readonly chips = new Map<string, HTMLElement>();
   private busy = false;
   private loaded = false;
+  private away = true;
+  private atEnd = true;
 
   constructor(private readonly api: Api) {
     this.root = el(`<div class="fl-chat" hidden>
@@ -48,6 +50,7 @@ export class ChatPane {
     this.log = q(this.root, '.fl-chat-log');
     this.empty = q(this.root, '.fl-chat-empty');
     this.meter = q(this.root, '.fl-chat-usage');
+    this.log.addEventListener('scroll', () => { if (!this.away) this.atEnd = this.nearEnd(); }, { passive: true });
     q(this.root, '.fl-chat-stop').addEventListener('click', () => void this.api.cmd('chat.cancel').catch((e) => this.onFail(e)));
     q(this.root, '.fl-chat-new').addEventListener('click', () => void this.api.cmd('chat.reset').catch((e) => this.onFail(e)));
     q(this.root, '.fl-chat-handoff').addEventListener('click', () => void this.handoff());
@@ -93,11 +96,21 @@ export class ChatPane {
     } catch (err) { this.onFail(err); }
   }
 
-  async send(text: string, context = '', note = ''): Promise<void> {
-    try { await this.api.cmd('chat.send', { text, context, note }); } catch (err) { this.onFail(err); }
+  async send(text: string, context = '', note = ''): Promise<boolean> {
+    try { await this.api.cmd('chat.send', { text, context, note }); return true; } catch (err) { this.onFail(err); return false; }
   }
 
   isBusy(): boolean { return this.busy; }
+
+  shown(): void {
+    this.away = false;
+    void this.load();
+    if (this.atEnd) this.log.scrollTop = this.log.scrollHeight;
+  }
+
+  hidden(): void { this.away = true; }
+
+  closed(): void { this.away = true; this.atEnd = true; }
 
   private setBusy(on: boolean): void {
     this.busy = on;
@@ -106,9 +119,15 @@ export class ChatPane {
     this.onBusy(on);
   }
 
-  private scroll(): void {
+  private nearEnd(): boolean {
     const l = this.log;
-    if (l.scrollHeight - l.scrollTop - l.clientHeight < 80) l.scrollTop = l.scrollHeight;
+    return l.scrollHeight - l.scrollTop - l.clientHeight < 80;
+  }
+
+  private scroll(): void {
+    if (this.away) return;
+    this.atEnd = this.nearEnd();
+    if (this.atEnd) this.log.scrollTop = this.log.scrollHeight;
   }
 
   private user(text: string, note = ''): void {

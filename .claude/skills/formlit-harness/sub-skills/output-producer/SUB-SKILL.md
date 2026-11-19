@@ -1,6 +1,6 @@
 ---
 name: output-producer
-description: "Owns everything formlit writes out over MCP: exports with presets and settings, print layouts and contact sheets to PDF, JPEG or a printer, photo books, slideshow video or PDF, web galleries with FTP upload, publish services, and Edit In. Load for any request to export, deliver, print, make a book, slideshow or gallery, or publish photos."
+description: "Owns everything formlit writes out over MCP: exports with presets and settings, print layouts and contact sheets to PDF, JPEG or a printer, photo books, slideshow video or PDF, web galleries with FTP upload, and publish services. Load for any request to export, deliver, print, make a book, slideshow or gallery, or publish photos."
 ---
 
 # Output Producer
@@ -24,7 +24,7 @@ The photo ids, developed and checked by develop-artist when looks matter.
    - slideshows: `export_slideshow` as `mp4` (needs ffmpeg) or `pdf`
    - galleries: `export_web_gallery`; uploading uses `run_command` with `web.export` and `upload: true` once FTP settings exist
 5. Publish services keep a destination in step: `run_command` with `publish.services` to find the collection, then `publish`. New and changed photos go out, photos removed from the collection are deleted at the destination; say so before publishing. Service kinds are `folder`, `ftp`, the built-in plug-ins `webdav` (Nextcloud, ownCloud, any WebDAV folder) and `s3` (S3, R2, B2, Wasabi, MinIO), and any plug-in listed by `publish.plugins`. Comments on published photos are read with `publish.comments` and posted with `publish.addComment` when the service takes them. Exports drop GPS for photos inside a private saved location.
-6. Edit In: `run_command` with `photo.editIn` writes a 16-bit TIFF copy stacked with the original and opens the person's chosen editor.
+6. Edit In belongs to the person in the window: `photo.editIn` and `editIn.addApp` are refused for agents whatever Agent access says, so do not call them. When a photo should go to another program, say so and point to Photo, Edit In... (Mod+E) in formlit's window.
 7. Confirm: the result lists the written paths. Open one image with `get_preview` only for catalog photos; for files, report the path, size and format.
 
 ## Gate

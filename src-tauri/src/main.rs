@@ -57,6 +57,29 @@ fn check_for_updates(handle: tauri::AppHandle) {
     });
 }
 
+const KEY_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+async fn next_event(
+    rx: &mut tauri::async_runtime::Receiver<CommandEvent>,
+    key_deadline: Option<std::time::Instant>,
+) -> Option<CommandEvent> {
+    let Some(deadline) = key_deadline else {
+        return rx.recv().await;
+    };
+    loop {
+        if let Ok(event) = rx.try_recv() {
+            return Some(event);
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        let _ = tauri::async_runtime::spawn_blocking(|| {
+            std::thread::sleep(std::time::Duration::from_millis(20))
+        })
+        .await;
+    }
+}
+
 fn main() {
     reveal::mark_launch();
     let app = tauri::Builder::default()
@@ -73,27 +96,44 @@ fn main() {
                 .sidecar("formlit-engine")
                 .expect("sidecar binary is bundled")
                 .env("FORMLIT_PORT", ENGINE_PORT)
+                .env("FORMLIT_WINDOW_KEY_STDOUT", "1")
                 .spawn()
                 .expect("the formlit engine failed to spawn");
             app.state::<Backend>().0.lock().unwrap().replace(child);
 
             tauri::async_runtime::spawn(async move {
                 let pattern = regex::Regex::new(r"http://127\.0\.0\.1:(\d+)").unwrap();
+                let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
                 let mut port: Option<u16> = None;
-                while let Some(event) = rx.recv().await {
+                let mut key: Option<String> = None;
+                let mut address_at: Option<std::time::Instant> = None;
+                while let Some(event) = next_event(&mut rx, address_at.map(|at| at + KEY_WAIT)).await {
                     let line = match event {
-                        CommandEvent::Stdout(bytes) | CommandEvent::Stderr(bytes) => {
-                            String::from_utf8_lossy(&bytes).into_owned()
+                        CommandEvent::Stdout(bytes) => {
+                            let text = String::from_utf8_lossy(&bytes).into_owned();
+                            if key.is_none() {
+                                key = key_pattern.captures(&text).map(|found| found[1].to_string());
+                            }
+                            text
                         }
+                        CommandEvent::Stderr(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
                         CommandEvent::Terminated(_) => break,
                         _ => continue,
                     };
-                    if let Some(captures) = pattern.captures(&line) {
-                        port = captures[1].parse().ok();
-                        if port.is_some() {
-                            break;
+                    if port.is_none() {
+                        if let Some(captures) = pattern.captures(&line) {
+                            port = captures[1].parse().ok();
+                            if port.is_some() {
+                                address_at = Some(std::time::Instant::now());
+                            }
                         }
                     }
+                    if port.is_some() && key.is_some() {
+                        break;
+                    }
+                }
+                if key.is_none() {
+                    port = None;
                 }
                 match port {
                     Some(found) => {
@@ -113,14 +153,21 @@ fn main() {
                                 )
                             })
                             .unwrap_or(FALLBACK_LOGICAL);
-                        let built = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
+                        let builder = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
                             .title("FormLit")
                             .visible(reveal::BUILD_VISIBLE)
                             .background_color(reveal::BACKGROUND)
                             .inner_size(width, height)
                             .min_inner_size(MIN_LOGICAL.0, MIN_LOGICAL.1)
-                            .center()
-                            .build();
+                            .center();
+                        let origin = format!("http://127.0.0.1:{found}");
+                        let builder = match &key {
+                            Some(value) => builder.initialization_script(format!(
+                                "if (window.location.origin === {origin:?}) {{ window.__FORMLIT_WINDOW_KEY = {value:?}; }}"
+                            )),
+                            None => builder,
+                        };
+                        let built = builder.build();
                         match built {
                             Ok(window) => reveal::conceal(&window),
                             Err(_) => close_splash(&handle),
