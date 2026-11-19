@@ -1,9 +1,10 @@
 import json
 import subprocess
+import sys
 
 import pytest
 
-from conftest import MCP_PATH, READ_TOOL, STDIO_CMD, set_policy, tool_catalogue
+from conftest import MCP_PATH, READ_TOOL, REPO, STDIO_CMD, set_policy, tool_catalogue
 
 
 def initialize(client, headers=None):
@@ -81,3 +82,12 @@ def test_stdio_relay_reaches_the_engine_and_lists_the_same_tools(engine):
     replies = {m.get("id"): m for m in (json.loads(l) for l in proc.stdout.splitlines() if l.strip().startswith("{"))}
     assert 2 in replies, f"relay gave no tools/list reply: {proc.stdout[-2000:]} {proc.stderr[-2000:]}"
     assert len(replies[2]["result"]["tools"]) == len(tool_catalogue())
+
+
+def test_agent_manifest_is_current_and_lists_the_servers_tools():
+    proc = subprocess.run([sys.executable, "-B", str(REPO / "setup" / "agents.py"), "sync", "--check"], capture_output=True, text=True, timeout=120, cwd=REPO)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    manifest = json.loads((REPO / "agents" / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["app"] == "formlit"
+    assert manifest["mcp"]["tools"] == [t["name"] for t in tool_catalogue()]
+    assert set(manifest["mcp"]["read_only"]) <= set(manifest["mcp"]["tools"])
