@@ -1250,6 +1250,15 @@ The engine has stored, sealed and handed to the finder a path for Codex, Cursor 
 
 The three labels are appended to the newest batch (keys17 and locales17, entries 50 to 52), so `test_every_new_string_has_a_translation_in_each_catalog` covers them: 1 passed. Each follows the language's own form of "Claude Code program" (keys.json 420); Hungarian writes "Codex-program" with a hyphen, as Hungarian joins a foreign name to a noun, which also keeps it from equalling the English. No native speaker has read them. Seen translated in the window in German and Japanese.
 
+### src/styles/tokens.css · the FormVis names formlit lacked {#design-v}
+- refers-to: src/styles/tokens.css :: --z-under, --z-local-2, --z-local-4, --z-local-5, --cv-tabs-h, --cv-action-blue, --cv-action-violet, --z-split, --z-flyout-col, --z-col-handle
+- kind: feat
+- logged: unreleased · 2026-11-20
+
+The family's design alignment (decisions 1, 2, 4 and 5 of the design pass; formlit's rows in the design fact base: 147 FormVis names shared, none with another value, 7 missing). The token file now defines the 7 FormVis names it lacked, with FormVis's values: `--z-under` -1, `--z-local-2` 2, `--z-local-4` 4, `--z-local-5` 5 in the stacking scale, `--cv-tabs-h` 34px, `--cv-action-blue` #3b82f6 and `--cv-action-violet` #8b5cf6 in the app block. formlit's own `--z-split`, `--z-flyout-col` and `--z-col-handle` are the same three local layers FormVis names `--z-local-2`, `-4` and `-5` (a split, an open column over its neighbours, its resize edge), so each is now defined once as an alias of that name, with the value it had. No rule, literal or layout was touched; no value of a shared name changed, so the accent, the base font size and the z-index values are as they were.
+
+Checked in headless Chromium at 1440 by 900, before and after, the seven modules in Studio Dark and Light: the resolved values of every custom property on `:root` (241 before, 248 after) differ only by the 7 added names; the screenshots are identical pixel for pixel, except one 256 px map tile that had not loaded yet in one Light capture of Map. A cold load under 4x CPU throttle, with the browser's blank page painted magenta so that an unpainted frame can be told apart: the first painted frame is the theme's ground (#111111 dark, #ecebe6 light), before and after; no white frame in dark and none in the old colours.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
