@@ -48,5 +48,8 @@
  "46": "{0} på kameraet er ikke den importerede fil, så den blev ikke slettet",
  "47": "Kameraet beholdt {0}: den blev kopieret, ikke flyttet",
  "48": "Kameraet viser {0} mere end én gang i {1}, så den kopieres eller slettes ikke efter nummer",
- "49": "Den gemte agentadgang blev ændret uden for formlit, så den er tilbage på \"Spørg mig\"."
+ "49": "Den gemte agentadgang blev ændret uden for formlit, så den er tilbage på \"Spørg mig\".",
+ "50": "Codex-program",
+ "51": "Cursor-program",
+ "52": "Antigravity-program"
 }

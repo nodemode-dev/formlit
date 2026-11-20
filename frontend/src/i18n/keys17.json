@@ -48,5 +48,8 @@
 "{0} on the camera is not the file that was imported, so it was not deleted",
 "The camera kept {0}: it was copied, not moved",
 "The camera lists {0} more than once in {1}, so it is not copied or deleted by number",
-"The saved agent permission was changed outside formlit, so it is back to \"Ask me\"."
+"The saved agent permission was changed outside formlit, so it is back to \"Ask me\".",
+"Codex program",
+"Cursor program",
+"Antigravity program"
 ]

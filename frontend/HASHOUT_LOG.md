@@ -1239,6 +1239,17 @@ The adapter is `DockAdapter<'antigravity'>`: `tabs().builtin` lists `antigravity
 
 Checked: `npx tsc --noEmit` passes. Not seen in a window or a browser: the fourth button, its row and the tab were not looked at; the engine side was seen through the routes (backend log, #four-agent-programs).
 
+### src/ui/preferences.ts · Preferences.claude; src/styles/lit-library.css · .fl-claude-state; src/i18n/keys17.json · locales17 {#prefs-four-programs}
+- refers-to: src/ui/preferences.ts :: Preferences.claude (codexBin, cursorBin, antigravityBin), the constructor's field rows; src/styles/lit-library.css :: .fl-claude-state; src/i18n/keys17.json :: entries 50 to 52; src/i18n/locales17/*.json :: "50" to "52"
+- kind: feat
+- logged: unreleased · 2026-11-20
+
+The engine has stored, sealed and handed to the finder a path for Codex, Cursor and Antigravity since 0.55.0 (backend log, #window-key); Preferences now has a field for each, right under "Claude Code program": "Codex program", "Cursor program", "Antigravity program". They are three more entries of the same `claude` record, so they are the same row (`Dialog.field`), the same control (`cv-input`, no spellcheck, placeholder "found automatically"), are saved by the same `change` handler through `prefs.set` and filled by the same loop in `show()` from `prefs.get`. An empty field is an empty setting and the finder looks on its own, as for Claude Code.
+
+`.fl-claude-state` reserves three lines (`min-height: 3lh`). Measured before this change under 4x CPU throttle in headless Chromium at 1440 by 900: saving an unusable Claude Code path made the status paragraph above the fields grow from one line to two ("... is not a program formlit can run, so it uses the one found on this computer"), and every row under it moved down 14.9 px. In German the "Checking for Claude Code..." line is replaced on open by a status that needs more lines. With the reservation, measured again (frame by frame for 5 s after opening and 4 s after each save, every row of the dialog's body, plus the layout-shift observer): no row moved and no shift on opening in English, German and Japanese, none on saving each of the four paths in English; the only movement was the dialog body scrolling to the next field that Tab focused. A status of four lines or more (a very long path) would still push the rows down.
+
+The three labels are appended to the newest batch (keys17 and locales17, entries 50 to 52), so `test_every_new_string_has_a_translation_in_each_catalog` covers them: 1 passed. Each follows the language's own form of "Claude Code program" (keys.json 420); Hungarian writes "Codex-program" with a hyphen, as Hungarian joins a foreign name to a noun, which also keeps it from equalling the English. No native speaker has read them. Seen translated in the window in German and Japanese.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

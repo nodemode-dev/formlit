@@ -2287,6 +2287,13 @@ A Windows program built without a console starts with `sys.stdin`, `sys.stdout` 
 
 Seen on Linux, where closing the streams (`python formlit_engine.py >&- 2>&-`) also leaves the three as `None`: the entry as it was before this change stopped with exit code 1 and never answered `/api/health`; with the change it answers. Started normally it still prints uvicorn's log, before and after. Not run on Windows and not as a frozen engine. No test added: the suite's engine fixture starts uvicorn directly and not this entry.
 
+### app/engine/claude_code.py · otherwise
+- refers-to: app/engine/claude_code.py :: otherwise; tests/test_dock_contract.py :: test_a_missing_program_comes_with_its_install_line
+- kind: feat
+- logged: unreleased · 2026-11-20
+
+Preferences now has a field for the Codex, Cursor and Antigravity programs beside the Claude Code one (frontend log, #prefs-four-programs), so the sentence for a program that is not found or does not start ends with "give its path in Preferences" for all four, not only for Claude Code. `otherwise` returns the clause for every kind the finder knows (`agent_lookup.PROGRAMS`) and nothing for any other. The test asserts the ending for Codex, Cursor and Antigravity as it did for Claude Code; `test_dock_contract.py` and `test_window_key.py` 43 passed.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

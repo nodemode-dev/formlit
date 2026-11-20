@@ -48,5 +48,8 @@
  "46": "{0} op de camera is niet het geïmporteerde bestand en is niet verwijderd",
  "47": "De camera heeft {0} gehouden: het is gekopieerd, niet verplaatst",
  "48": "De camera toont {0} meer dan eens in {1}, dus het wordt niet op nummer gekopieerd of verwijderd",
- "49": "De opgeslagen agenttoegang is buiten formlit gewijzigd en staat daarom weer op \"Mij vragen\"."
+ "49": "De opgeslagen agenttoegang is buiten formlit gewijzigd en staat daarom weer op \"Mij vragen\".",
+ "50": "Codex-programma",
+ "51": "Cursor-programma",
+ "52": "Antigravity-programma"
 }

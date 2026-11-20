@@ -17,9 +17,12 @@ class Preferences extends Dialog {
   private readonly access = el<HTMLSelectElement>('<select class="cv-select"><option value="ask">Ask me</option><option value="allowed">Allowed</option><option value="blocked">Blocked</option></select>');
   private readonly sealNote = el('<p class="cv-note fl-seal-note"></p>');
   private readonly seen = el('<div class="fl-meta-row"><span class="fl-meta-key">Seen</span><span class="fl-meta-val fl-agents-seen">none yet</span></div>');
-  private readonly claude: Record<'claudeFolder' | 'claudeBin' | 'claudeFirstMessage', HTMLInputElement> = {
+  private readonly claude: Record<'claudeFolder' | 'claudeBin' | 'codexBin' | 'cursorBin' | 'antigravityBin' | 'claudeFirstMessage', HTMLInputElement> = {
     claudeFolder: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="Agent folder in your formlit folder">'),
     claudeBin: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="found automatically">'),
+    codexBin: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="found automatically">'),
+    cursorBin: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="found automatically">'),
+    antigravityBin: el<HTMLInputElement>('<input class="cv-input" type="text" spellcheck="false" placeholder="found automatically">'),
     claudeFirstMessage: el<HTMLInputElement>('<input class="cv-input" type="text" placeholder="nothing; Claude Code waits for you">'),
   };
   private readonly claudeState = el('<p class="cv-note fl-claude-state">Checking for Claude Code...</p>');
@@ -68,6 +71,9 @@ class Preferences extends Dialog {
     this.body.appendChild(this.claudeState);
     this.field('Starts in folder', this.claude.claudeFolder);
     this.field('Claude Code program', this.claude.claudeBin);
+    this.field('Codex program', this.claude.codexBin);
+    this.field('Cursor program', this.claude.cursorBin);
+    this.field('Antigravity program', this.claude.antigravityBin);
     this.field('Start with message', this.claude.claudeFirstMessage);
     for (const [key, input] of Object.entries(this.claude)) {
       input.addEventListener('change', () => void this.ctx.api.cmd('prefs.set', { values: { [key]: input.value.trim() } }).then(() => this.claudeStatus(), (err) => this.ctx.fail(err)));

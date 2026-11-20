@@ -48,5 +48,8 @@
  "46": "{0} kamerassa ei ole tuotu tiedosto, joten sitä ei poistettu",
  "47": "Kamera säilytti tiedoston {0}: se kopioitiin, ei siirretty",
  "48": "Kamera näyttää tiedoston {0} useammin kuin kerran kansiossa {1}, joten sitä ei kopioida eikä poisteta numeron perusteella",
- "49": "Tallennettu agenttien käyttöoikeus muutettiin formlitin ulkopuolella, joten se on palautettu asetukseen \"Kysy minulta\"."
+ "49": "Tallennettu agenttien käyttöoikeus muutettiin formlitin ulkopuolella, joten se on palautettu asetukseen \"Kysy minulta\".",
+ "50": "Codex-ohjelma",
+ "51": "Cursor-ohjelma",
+ "52": "Antigravity-ohjelma"
 }

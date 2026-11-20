@@ -48,5 +48,8 @@
  "46": "A fényképezőgépen lévő {0} nem az importált fájl, ezért nem lett törölve",
  "47": "A fényképezőgép megtartotta: {0}; másolás történt, nem áthelyezés",
  "48": "A fényképezőgép többször listázza ezt: {0} itt: {1}, ezért nem lesz szám szerint másolva vagy törölve",
- "49": "A mentett ügynökhozzáférés a formlit-on kívül módosult, ezért visszaállt a „Kérdezzen meg” beállításra."
+ "49": "A mentett ügynökhozzáférés a formlit-on kívül módosult, ezért visszaállt a „Kérdezzen meg” beállításra.",
+ "50": "Codex-program",
+ "51": "Cursor-program",
+ "52": "Antigravity-program"
 }

@@ -48,5 +48,8 @@
  "46": "{0} di kamera bukan file yang diimpor, jadi tidak dihapus",
  "47": "Kamera menyimpan {0}: file disalin, bukan dipindahkan",
  "48": "Kamera mencantumkan {0} lebih dari sekali di {1}, jadi tidak disalin atau dihapus berdasarkan nomor",
- "49": "Akses agen yang tersimpan diubah di luar formlit, jadi kembali ke “Tanya saya”."
+ "49": "Akses agen yang tersimpan diubah di luar formlit, jadi kembali ke “Tanya saya”.",
+ "50": "Program Codex",
+ "51": "Program Cursor",
+ "52": "Program Antigravity"
 }
