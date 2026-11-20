@@ -123,12 +123,15 @@ def test_a_caller_that_hangs_up_takes_its_question_with_it(client, monkeypatch):
 
 @pytest.mark.skipif(os.name == "nt", reason="the stand-in is a shell script")
 def test_a_claude_code_tab_has_its_own_entry_and_its_token_ends_with_the_tab(client, tmp_path, monkeypatch):
-    from app.engine import agents, claude_code, terminal
+    from app.engine import agent_lookup, agents, claude_code, terminal
 
     script = tmp_path / "claude"
     script.write_text(STAND_IN)
     script.chmod(0o755)
     monkeypatch.setenv("FORMLIT_CLAUDE_BIN", str(script))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setitem(claude_code._cache, "value", None)
+    agent_lookup.forget()
     monkeypatch.setattr(agents, "WAIT_SECONDS", 1)
     monkeypatch.setattr(agents, "POLL_SECONDS", 0.05)
     set_policy("ask")

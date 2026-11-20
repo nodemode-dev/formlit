@@ -72,7 +72,35 @@ os.environ["USERPROFILE"] = str(_SANDBOX / "home")
 os.environ["FORMLIT_LIBRARY_DIR"] = str(_SANDBOX / "library")
 for _key in [k for k in os.environ if k.startswith(f"{ENV_PREFIX}_") and k not in (DATA_ENV, PORT_ENV, "FORMLIT_LIBRARY_DIR")]:
     os.environ.pop(_key)
+STAND_IN_SHELL = """#!/bin/sh
+login=0; inter=0; script=""
+while [ $# -gt 0 ]; do
+  case "$1" in -l) login=1 ;; -i) inter=1 ;; -c) shift; script="$1" ;; esac
+  shift
+done
+if [ "$login" = 1 ] && [ -f "$HOME/.zprofile-path" ]; then PATH="$(cat "$HOME/.zprofile-path"):$PATH"; fi
+if [ "$inter" = 1 ] && [ -f "$HOME/.zshrc-path" ]; then PATH="$(cat "$HOME/.zshrc-path"):$PATH"; fi
+export PATH
+if [ -n "$script" ]; then exec /bin/sh -c "$script"; fi
+exec /bin/sh
+"""
+if os.name != "nt":
+    (_SANDBOX / "zsh").write_text(STAND_IN_SHELL)
+    (_SANDBOX / "zsh").chmod(0o755)
+    os.environ["SHELL"] = str(_SANDBOX / "zsh")
 sys.path.insert(0, str(BACKEND))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def no_agent_programs_of_this_computer():
+    from app.engine import agent_lookup
+
+    kept = agent_lookup.system_folders
+    agent_lookup.system_folders = lambda platform=None: []
+    agent_lookup.forget()
+    yield
+    agent_lookup.system_folders = kept
+    agent_lookup.forget()
 
 
 def pytest_sessionfinish(session, exitstatus):
