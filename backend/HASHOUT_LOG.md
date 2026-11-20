@@ -255,6 +255,31 @@ The first local Linux build (v0.3.0 work) produced an engine that exited at star
 
 When 8390 is taken the sidecar used to pass port 0 to uvicorn, so only the shell (reading the startup line) ever learned the real port. The terminal's `FORMLIT_ENGINE_URL` and the Claude Code MCP config need it inside the engine, so `free_port` binds port 0 once, reads the number, and the engine starts on that concrete port and writes it back to `FORMLIT_PORT`. The startup line still carries it, so the shell is unchanged.
 
+### formlit_engine.py · serve, watch_shell; app/core/startup.py; app/core/runtime.py
+- refers-to: formlit_engine.py :: serve, watch_shell, main; app/core/startup.py (new, the family's file); app/core/runtime.py (new); tests/test_startup.py (new)
+- kind: explainer
+- logged: unreleased, after v0.53.0 · 2026-11-19
+
+The family's pattern for starting and stopping cleanly beside the app, on Windows too, as FormTools 0.10.0 has it. Nothing here ran on Windows or macOS, and no frozen engine was built: "frozen" in the proofs is this entry with `sys.frozen` set.
+
+`app/core/startup.py` is FormTools's file, copied unchanged except five names at its top (`APP`, `NAMES`, `SHELL_ENV` = `FORMLIT_SHELL_PID`, `ALONE_ENV` = `FORMLIT_NO_SHELL`, `ERRORS_NAME`). `PLACES` is as it came: formlit's engine sits beside the app's program in all three install layouts (Windows install folder, `FormLit.app/Contents/MacOS`, `/usr/bin`), which `.` covers.
+
+formlit had no engine lock and no engine log file before this. Both are new and both belong to this entry only: `python -m uvicorn app.main:app` (development, the tests' `engine` fixture, the CI probe) takes no lock, starts no log file and watches nothing, as before.
+
+What `serve` does, in order: the bundled-frontend variables as before; the data folder and `Logs/formlit-engine.log` in it (`runtime.start_logging`, rotating, 1 MB, 3 kept), where a folder that cannot be made is one sentence on standard error and exit code 5; `startup.keep_errors` (an absent standard error goes to `Logs/formlit-engine-errors.log`); a frozen engine started with no `FORMLIT_SHELL_PID` opens the app beside it and returns 0, or says "formlit-engine is a part of FormLit and serves nothing on its own" and returns 4, with no lock and no port (`FORMLIT_NO_SHELL=1` lets a build check serve); `engine.lock` in the data folder, where a live engine whose shell lives refuses the new one with "formlit is already running on [folder] (engine process N)." and exit code 2, and an engine whose shell is gone is ended and replaced; the watch on the shell's process, which gives up the lock and leaves with code 0 within about two seconds of the shell ending; then the window key line and the server as before.
+
+`from app.core import config` is inside the `try`: `config` makes `Cache/kernels` under the data folder when it is imported (NUMBA_CACHE_DIR), so the folder error is raised by the import, not by `data_dir()`. Seen: with the import outside, a data folder under a plain file ended in a traceback and exit code 1.
+
+`uvicorn.run` became `uvicorn.Server(uvicorn.Config(...))` so the second `runtime.start_logging` can sit between the two: `Config` applies uvicorn's log setup, which removes every handler from the `uvicorn` loggers, and the second call puts the file handler back. Without it the log held one line. The startup line the shell reads ("Uvicorn running on http://127.0.0.1:PORT", standard error) is unchanged. The entry returns 3 when the server never started. SIGTERM gives up the lock and leaves with code 0.
+
+Only the process named in `FORMLIT_SHELL_PID` is watched. formlit watched nothing before, so an engine started without the variable (a development run of this file, or a frozen one with `FORMLIT_NO_SHELL=1`) is not tied to its parent.
+
+A lock from a released formlit does not exist (no release wrote one), so the "released engine" row of the pattern never applies: an engine left behind by 0.53.0 or older holds no lock and is not ended by the new one. It keeps port 8390, and the new engine takes a free port (`usable_port`). FormPortal's cleanup or a restart removes it.
+
+Two development runs of this file on one data folder used to both serve; the second is now refused with the sentence.
+
+Seen on Linux, with `sleep` as the stand-in shell and the real entry: second engine exit 2 with the sentence while the first kept answering `/api/health`; engine exit 0 and no lock 0.5 s after its shell was ended; a stopped (`kill -STOP`) engine whose shell was gone replaced after the five seconds, its exit 137; locks holding `not json at all`, `[1, 2]`, `{"pid": "x"}` and nothing replaced; a lock naming an unrelated `sleep` replaced and the `sleep` left running; started alone with a stand-in app in each of the three layouts exit 0, the app's mark written, no lock; with no app near exit 4 and the sentence; with the three streams closed `/api/health` answered and descriptors 0, 1 and 2 were the null device. `tests/test_startup.py` (15 tests, POSIX stand-ins) holds these.
+
 ---
 
 ## app/core/config.py {#core-config}
