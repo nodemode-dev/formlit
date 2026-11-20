@@ -48,5 +48,8 @@
  "46": "{0} na câmera não é o arquivo importado, então não foi excluído",
  "47": "A câmera manteve {0}: ele foi copiado, não movido",
  "48": "A câmera lista {0} mais de uma vez em {1}, então ele não é copiado nem excluído por número",
- "49": "O acesso de agentes salvo foi alterado fora do formlit, então voltou para “Perguntar”."
+ "49": "O acesso de agentes salvo foi alterado fora do formlit, então voltou para “Perguntar”.",
+ "50": "Programa do Codex",
+ "51": "Programa do Cursor",
+ "52": "Programa do Antigravity"
 }

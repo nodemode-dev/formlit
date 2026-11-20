@@ -48,5 +48,8 @@
  "46": "{0} trên máy ảnh không phải tệp đã nhập, nên không bị xóa",
  "47": "Máy ảnh vẫn giữ {0}: tệp được sao chép, không được di chuyển",
  "48": "Máy ảnh liệt kê {0} nhiều lần trong {1}, nên không sao chép hay xóa theo số",
- "49": "Quyền truy cập của tác nhân đã lưu bị thay đổi bên ngoài formlit nên đã trở lại “Hỏi tôi”."
+ "49": "Quyền truy cập của tác nhân đã lưu bị thay đổi bên ngoài formlit nên đã trở lại “Hỏi tôi”.",
+ "50": "Chương trình Codex",
+ "51": "Chương trình Cursor",
+ "52": "Chương trình Antigravity"
 }

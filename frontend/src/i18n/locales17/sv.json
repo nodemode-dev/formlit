@@ -48,5 +48,8 @@
  "46": "{0} på kameran är inte den importerade filen, så den togs inte bort",
  "47": "Kameran behöll {0}: den kopierades, flyttades inte",
  "48": "Kameran visar {0} mer än en gång i {1}, så den kopieras eller tas inte bort efter nummer",
- "49": "Den sparade agentåtkomsten ändrades utanför formlit, så den är tillbaka på \"Fråga mig\"."
+ "49": "Den sparade agentåtkomsten ändrades utanför formlit, så den är tillbaka på \"Fråga mig\".",
+ "50": "Codex-program",
+ "51": "Cursor-program",
+ "52": "Antigravity-program"
 }

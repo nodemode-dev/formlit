@@ -217,6 +217,7 @@ def test_a_missing_program_comes_with_its_install_line(client, none_found):
         assert found[kind] == found[kind] | {"installed": False, "path": None, "version": None, "signedIn": None, "finding": "missing"}
         assert found[kind]["install"] and found[kind]["install"] in found[kind]["said"]
         assert found[kind]["looked"][:2] == ["your setting (empty)", "PATH (/usr/bin:/bin)"] and "~/.local/bin" in found[kind]["looked"][2]
+        assert found[kind]["said"].endswith(", or give its path in Preferences.")
     assert found["claude"]["looked"][0] == "your setting (empty)" and found["claude"]["said"].endswith(", or give its path in Preferences.")
     reply = run(client, "terminal.openAgent", {"kind": "codex"})
     assert reply.status_code == 400 and reply.json()["error"] == found["codex"]["said"]

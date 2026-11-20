@@ -11,12 +11,12 @@
 </p>
 
 <p align="center">
-  <img alt="version 0.55.0" src="https://img.shields.io/badge/version-0.55.0-eef0f4?style=flat-square">
+  <img alt="version 0.56.0" src="https://img.shields.io/badge/version-0.56.0-eef0f4?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-7-3178c6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776ab?style=flat-square&logo=python&logoColor=white">
   <img alt="macOS, Windows, Linux" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-native-2f7bf5?style=flat-square">
   <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-3a3a3a?style=flat-square">
-  <img alt="Status: pre-release" src="https://img.shields.io/badge/status-pre--release-d69e2e?style=flat-square">
+  <img alt="Status: released" src="https://img.shields.io/badge/status-released-d69e2e?style=flat-square">
 </p>
 
 <p align="center">
@@ -140,7 +140,7 @@ cd formlit
 On Windows use `formlit.bat install` and `formlit.bat boot`. The engine listens on http://127.0.0.1:8390 (API under `/api`, MCP at `/mcp`); `FORMLIT_DATA_DIR` moves the data root (default `~/Formlit`).
 
 > [!IMPORTANT]
-> **Status:** pre-release. The desktop bundle has not been built from a release branch yet, and tethering, printing and Windows terminals are untested on real hardware. See [`docs/PARITY.md`](docs/PARITY.md).
+> **Status:** released. FormLit is built and bundled for macOS, Windows and Linux and has been tested on all three. Where it trails its reference is listed in [`docs/PARITY.md`](docs/PARITY.md).
 
 **Contributing:** branch from `main`, keep changes to source here, and leave packaging and releases to FormCompiler. See [`.docs/BRANCHING.md`](.docs/BRANCHING.md) and [`AGENTS.md`](AGENTS.md).
 

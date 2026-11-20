@@ -2,6 +2,15 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.56.0 · 2026-11-20
+
+- Added: Preferences has a field each for the Codex, Cursor and Antigravity programs, right under the Claude Code one. Leave a field empty and formlit finds the program by itself; type a path and formlit looks there first. The places are protected the same way as your agent access choice, as since 0.55.0. The labels are in every language formlit carries; no native speaker has read them yet.
+- Changed: when Codex, Cursor or Antigravity is not found, the message now also says you can give its path in Preferences, as it already did for Claude Code.
+- Fixed: in Preferences, saving a Claude Code path that formlit cannot run no longer pushes the fields below it down; nothing in the window moves when Preferences opens or when a value is saved.
+- Changed: formlit's colour and layout settings now carry every name the rest of the Form family uses. Nothing looks different.
+- Known: the two sentences of the terminal panel's guide that name Codex, Cursor and Antigravity are in English in every language, like the rest of that guide.
+- Checked here, on Linux only, with stand-in programs in place of the agent programs. Nothing was run on Windows or macOS, and the desktop app itself was not built on the machine this was written on.
+
 ## v0.55.0 · 2026-11-20
 
 - Fixed: on macOS, an engine that has just ended is now seen as gone at once, so a quit or a restart of formlit no longer waits on an engine that is already stopped.

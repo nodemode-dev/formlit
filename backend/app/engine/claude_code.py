@@ -48,7 +48,7 @@ def setting(kind: str) -> str | None:
 
 
 def otherwise(kind: str) -> str:
-    return "give its path in Preferences" if kind == "claude" else ""
+    return "give its path in Preferences" if kind in agent_lookup.PROGRAMS else ""
 
 
 def located(kind: str, fresh: bool = False) -> agent_lookup.Found:

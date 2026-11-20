@@ -48,5 +48,8 @@
  "46": "{0} sur l’appareil photo n’est pas le fichier importé ; il n’a pas été supprimé",
  "47": "L’appareil photo a gardé {0} : il a été copié, pas déplacé",
  "48": "L’appareil photo liste {0} plusieurs fois dans {1} ; il n’est ni copié ni supprimé par numéro",
- "49": "L’accès des agents enregistré a été modifié en dehors de formlit ; il est donc revenu à « Me demander »."
+ "49": "L’accès des agents enregistré a été modifié en dehors de formlit ; il est donc revenu à « Me demander ».",
+ "50": "Programme Codex",
+ "51": "Programme Cursor",
+ "52": "Programme Antigravity"
 }

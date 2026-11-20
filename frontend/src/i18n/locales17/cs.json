@@ -48,5 +48,8 @@
  "46": "{0} ve fotoaparátu není importovaný soubor, proto nebyl smazán",
  "47": "Fotoaparát si ponechal {0}: soubor se zkopíroval, nepřesunul",
  "48": "Fotoaparát uvádí {0} v {1} víckrát, proto se nekopíruje ani nemaže podle čísla",
- "49": "Uložený přístup agentů byl změněn mimo formlit, proto je opět nastaven na „Zeptat se mě“."
+ "49": "Uložený přístup agentů byl změněn mimo formlit, proto je opět nastaven na „Zeptat se mě“.",
+ "50": "Program Codex",
+ "51": "Program Cursor",
+ "52": "Program Antigravity"
 }
