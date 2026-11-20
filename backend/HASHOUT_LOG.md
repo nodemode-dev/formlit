@@ -299,6 +299,17 @@ Not done, on purpose: the single-instance plugin (a new crate). A second start i
 
 Proved here: a scratch crate that takes `engine_start.rs` and `win_job.rs` by path passed `cargo check --target x86_64-pc-windows-msvc` with no error (rustc on this machine, windows-sys 0.61.2); `cargo test` on Linux ran the module's unit tests and FormTools's loop tests over `read_port` and `engine_exit_code` cut from this `main.rs` with `awk`, behind a stand-in `tauri` module. The `Cargo.lock` line was added by hand and proved with `cargo update --workspace --offline` on a scratch copy of `Cargo.toml` and the old lock: the result is the same file. `main.rs` as a whole was read against FormTools's, not compiled: `engine_program`, `start_engine`, `open_main`, `engine_failed` and the start in `setup` have never been built.
 
+### app/core/startup.py · finished, gone_by
+- refers-to: app/core/startup.py :: finished (new), gone_by; tests/test_startup.py :: test_a_holder_that_has_ended_but_was_not_collected_counts_as_gone_where_there_is_no_proc
+- kind: warning-context
+- logged: v0.55.0 · 2026-11-20
+
+FormCut's macOS check found this in the family's file, and formlit carries the same file. Ending a leftover engine waits until it is gone (`end`, `gone_by`). `_alive_posix` asks `kill(pid, 0)`, which still answers for a process that has ended and that its parent has not collected, and it tells such a process apart only by reading `/proc`, which macOS does not have. So on macOS the wait ran out and the start was refused with "formlit could not stop an engine that was left running". It happens when the leftover engine's own parent is alive and slow to collect it; in a test the holder is the test's child, so it always happens.
+
+`finished(pid)` asks `ps -o stat= -p <pid>` only where there is no `/proc` (never on Windows, never on Linux) and answers true for a state that starts with `Z`. `gone_by` stops waiting when the process is not alive or is finished. `alive` is unchanged, so the watch on the app (every two seconds) starts no program.
+
+Seen on Linux with `PROC` pointed at a folder that does not exist: with `finished` in the file and not yet used by `gone_by`, the new test failed with that sentence after ten seconds; with the change it passes, and the whole file is 16 passed. Not run on macOS.
+
 ---
 
 ## app/core/config.py {#core-config}
