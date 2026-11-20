@@ -2,14 +2,12 @@ import hmac
 import json
 import os
 import secrets
-import shlex
-import shutil
-import subprocess
+import sys
 import time
 from pathlib import Path
 
 from app.core import config
-from app.engine import terminal
+from app.engine import agent_lookup, terminal
 from app.engine.commands import CommandError, command
 
 TOKENS: dict[str, Path | None] = {}
@@ -17,10 +15,10 @@ INAPP_HEADER = "x-formlit-inapp"
 INAPP_VAR = "FORMLIT_INAPP_TOKEN"
 INSTALL_LINE = "irm https://claude.ai/install.ps1 | iex" if os.name == "nt" else "curl -fsSL https://claude.ai/install.sh | bash"
 
-KEEP_ENV = {"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CONFIG_DIR"}
-CANDIDATES = (".claude/local/claude", ".local/bin/claude", ".npm-global/bin/claude", ".bun/bin/claude", ".volta/bin/claude")
-SYSTEM_PATHS = ("/opt/homebrew/bin/claude", "/usr/local/bin/claude", "/usr/bin/claude")
-INSTALL = "Claude Code is not installed: install it from https://claude.com/claude-code, run claude once in a terminal to sign in, then open it here again"
+KEEP_ENV = agent_lookup.KEEP_ENV
+OVERRIDES = {"claude": ("FORMLIT_CLAUDE_BIN",), "codex": ("FORMLIT_CODEX_BIN",), "cursor": ("FORMLIT_CURSOR_BIN",), "antigravity": ("FORMLIT_ANTIGRAVITY_BIN",)}
+SHELL_WAIT = 10.0
+CHECK_WAIT = 15.0
 NOTE = ("You are Claude Code running in the terminal dock inside formlit, the photo library and raw developer open on this computer. "
         "Work on photos with the formlit MCP server's tools: start with get_catalog, then find_photos for ids, and look with get_preview before and after a change. "
         "They act on the catalog open in the window, the person sees every change happen, and each change is one undo step. "
@@ -28,20 +26,9 @@ NOTE = ("You are Claude Code running in the terminal dock inside formlit, the ph
 _cache: dict = {"at": 0.0, "value": None}
 
 
-def child_env() -> dict:
-    return {k: v for k, v in terminal.base_env().items() if not k.startswith("CLAUDE") or k in KEEP_ENV}
-
-
-def _from_login_shell() -> str | None:
-    if os.name == "nt":
-        return None
-    shell = terminal.login_shell()
-    try:
-        out = subprocess.run(shell + ["-c", "command -v claude"], capture_output=True, text=True, timeout=10, env=child_env())
-    except (OSError, subprocess.SubprocessError):
-        return None
-    found = out.stdout.strip().splitlines()[-1:] if out.returncode == 0 else []
-    return found[0] if found and os.path.isabs(found[0]) else None
+def child_env(path: str | None = None) -> dict:
+    front = [] if os.name == "nt" or getattr(sys, "frozen", False) else [config.REPO_DIR]
+    return agent_lookup.child_env(path, base=terminal.base_env(), front=front, shell_timeout=SHELL_WAIT)
 
 
 def _pref(key: str) -> str:
@@ -55,31 +42,36 @@ def _runnable(path: str) -> bool:
     return p.is_file() and os.access(p, os.X_OK)
 
 
+def setting(kind: str) -> str | None:
+    return _pref("claudeBin") if kind == "claude" else None
+
+
+def otherwise(kind: str) -> str:
+    return "give its path in Preferences" if kind == "claude" else ""
+
+
+def located(kind: str, fresh: bool = False) -> agent_lookup.Found:
+    found = agent_lookup.find(kind, setting=setting(kind), override_vars=OVERRIDES.get(kind, ()), shell_timeout=SHELL_WAIT, fresh=fresh)
+    return agent_lookup.check(found, child_env(found.path), CHECK_WAIT, fresh)
+
+
+def usable(kind: str) -> agent_lookup.Found:
+    found = located(kind)
+    return found if found.state == "runs" else located(kind, fresh=True)
+
+
+def said(found: agent_lookup.Found) -> str:
+    return agent_lookup.sentence(found, agent_lookup.install(found.program), otherwise(found.program))
+
+
 def cli() -> str | None:
-    chosen = _pref("claudeBin")
-    if chosen and _runnable(chosen):
-        return str(Path(chosen).expanduser())
-    found = os.environ.get("FORMLIT_CLAUDE_BIN") or shutil.which("claude")
-    if found:
-        return found
-    home = Path.home()
-    for p in [home / c for c in CANDIDATES] + [Path(s) for s in SYSTEM_PATHS]:
-        if p.is_file() and os.access(p, os.X_OK):
-            return str(p)
-    return _from_login_shell()
+    return located("claude").path
 
 
 def info(fresh: bool = False) -> dict:
     if not fresh and _cache["value"] is not None and time.time() - _cache["at"] < 60:
         return _cache["value"]
-    path, version = cli(), None
-    if path:
-        try:
-            out = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=15, env=child_env())
-            version = (out.stdout.strip().split() or [None])[0]
-        except (OSError, subprocess.SubprocessError):
-            path = None
-    _cache["value"], _cache["at"] = {"installed": bool(path), "path": path, "version": version}, time.time()
+    _cache["value"], _cache["at"] = agent_lookup.answer(located("claude", fresh), INSTALL_LINE, otherwise("claude")), time.time()
     return _cache["value"]
 
 
@@ -133,9 +125,7 @@ def argv(path: str, prompt: str | None, resume: str | None, mcp_file: str) -> li
         cmd += ["--resume", resume]
     if prompt:
         cmd += ["--", prompt]
-    if os.name == "nt":
-        return cmd
-    return terminal.login_shell() + ["-c", "exec " + shlex.join(cmd)]
+    return agent_lookup.start_argv(cmd)
 
 
 @command("claudecode.status", "Claude Code", mutates=False,
@@ -159,11 +149,11 @@ def open_(prompt: str | None = None, cols: int | None = None, rows: int | None =
         return running.describe()
     found = info(fresh=True)
     if not found["installed"]:
-        raise CommandError(INSTALL, 400)
+        raise CommandError(found["said"], 400)
     prompt = prompt or _pref("claudeFirstMessage") or None
     token, mcp_file = issue()
     try:
-        session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code (from Chat)" if resume else "Claude Code", argv(found["path"], prompt, resume, mcp_file), child_env(), "claude")
+        session = terminal.open_session(str(workdir()), cols or 100, rows or 30, "Claude Code (from Chat)" if resume else "Claude Code", argv(found["path"], prompt, resume, mcp_file), child_env(found["path"]), "claude")
     except BaseException:
         revoke(token)
         raise

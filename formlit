@@ -19,7 +19,7 @@ usage: ./formlit [command] [options]
   desktop dev|build   run the desktop app, or build it start to finish (same as ./build_app)
   claude [args]       Claude Code in this terminal with formlit's MCP tools attached
   mcp                 the MCP server over stdio for agents (starts the engine if needed)
-  agents install|sync register formlit with Claude Code, Codex and Cursor, or refresh the skill
+  agents install|sync register formlit with Claude Code, Codex, Cursor and Antigravity, or refresh the skill
   cli <command> ...   run any engine command from the terminal (./formlit cli list)
   doctor              check the toolchain, installs and ports
   counts [--check]    the README's code sizes (--check: exit 1 if README.md has drifted)

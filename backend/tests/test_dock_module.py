@@ -1,6 +1,8 @@
+import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import stat
 
@@ -38,7 +40,7 @@ def test_the_shared_dock_folder_is_the_one_its_manifest_describes():
     sync = sync_script()
     assert sync.dock_module_drift() == []
     held = json.loads((sync.DOCK_MODULE / "MANIFEST.json").read_text(encoding="utf-8"))
-    assert held["module"] == "dock" and held["version"] == "2.1.0"
+    assert held["module"] == "dock" and held["version"] == "2.2.0"
 
 
 def test_a_changed_or_foreign_file_in_the_dock_folder_is_named(tmp_path, monkeypatch):
@@ -59,9 +61,46 @@ def test_a_changed_or_foreign_file_in_the_dock_folder_is_named(tmp_path, monkeyp
     assert sync.dock_module_drift() == ["frontend/src/dock/tour.ts"]
 
 
+LOOKUP = "backend/app/engine/agent_lookup.py"
+
+
+def test_the_shared_finder_matches_the_hash_recorded_for_its_version():
+    sync = sync_script()
+    version = re.search(r'^VERSION = "([^"]+)"$', (REPO / LOOKUP).read_text(encoding="utf-8"), re.M).group(1)
+    assert sync.LOOKUP == REPO / LOOKUP
+    assert sync.LOOKUP_HASHES[version] == hashlib.sha256((REPO / LOOKUP).read_bytes()).hexdigest()
+    assert sync.lookup_problems() == []
+
+
+def test_the_check_names_the_shared_finder_edited_in_place_or_missing(tmp_path, monkeypatch, capsys):
+    sync = sync_script()
+    copy = tmp_path / LOOKUP
+    copy.parent.mkdir(parents=True)
+    shutil.copyfile(REPO / LOOKUP, copy)
+    monkeypatch.setattr(sync, "ROOT", tmp_path)
+    monkeypatch.setattr(sync, "LOOKUP", copy)
+    assert sync.lookup_problems() == []
+    with open(copy, "a", encoding="utf-8") as f:
+        f.write("\n")
+    version = re.search(r'^VERSION = "([^"]+)"$', (REPO / LOOKUP).read_text(encoding="utf-8"), re.M).group(1)
+    changed = f"{LOOKUP}: does not match the hash recorded for version {version} (the shared finder changes only as a whole new version)"
+    assert sync.lookup_problems() == [changed]
+    assert sync.sync(False) == 1 and capsys.readouterr().out == f"agents: {changed}\n"
+    assert sync.sync(True) == 1 and capsys.readouterr().out == f"agents: {changed}\n"
+    copy.unlink()
+    missing = f"{LOOKUP}: missing (the shared finder for the agent programs)"
+    assert sync.lookup_problems() == [missing]
+    assert sync.sync(True) == 1 and capsys.readouterr().out == f"agents: {missing}\n"
+
+
+def test_the_shared_finder_imports_nothing_from_the_app():
+    imports = set(re.findall(r"^\s*(?:from|import)\s+([\w.]+)", (REPO / LOOKUP).read_text(encoding="utf-8"), re.M))
+    assert imports == {"__future__", "dataclasses", "os", "pathlib", "re", "shutil", "signal", "subprocess", "sys", "threading", "time", "winreg"}
+
+
 def test_the_manifest_says_where_the_dock_sits_and_what_it_offers():
     dock = json.loads((REPO / "agents" / "manifest.json").read_text(encoding="utf-8"))["dock"]
-    assert dock == {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
+    assert dock == {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor", "antigravity"]}
 
 
 def test_a_caller_that_hangs_up_takes_its_question_with_it(client, monkeypatch):
@@ -85,12 +124,15 @@ def test_a_caller_that_hangs_up_takes_its_question_with_it(client, monkeypatch):
 
 @pytest.mark.skipif(os.name == "nt", reason="the stand-in is a shell script")
 def test_a_claude_code_tab_has_its_own_entry_and_its_token_ends_with_the_tab(client, tmp_path, monkeypatch):
-    from app.engine import agents, claude_code, terminal
+    from app.engine import agent_lookup, agents, claude_code, terminal
 
     script = tmp_path / "claude"
     script.write_text(STAND_IN)
     script.chmod(0o755)
     monkeypatch.setenv("FORMLIT_CLAUDE_BIN", str(script))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setitem(claude_code._cache, "value", None)
+    agent_lookup.forget()
     monkeypatch.setattr(agents, "WAIT_SECONDS", 1)
     monkeypatch.setattr(agents, "POLL_SECONDS", 0.05)
     set_policy("ask")

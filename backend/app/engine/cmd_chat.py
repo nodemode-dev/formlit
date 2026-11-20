@@ -1,7 +1,6 @@
 import base64
 import json
 import os
-import shlex
 import subprocess
 import threading
 import time
@@ -10,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core import config
-from app.engine import claude_code, events, terminal
+from app.engine import agent_lookup, claude_code, events
 from app.engine.commands import CommandError, command
 
 NOTE = (claude_code.NOTE + " You are answering in formlit's Chat tab, which shows Markdown to people who may never have used a terminal: "
@@ -78,7 +77,7 @@ def _argv(path: str, text: str, session: str | None, mcp_file: str) -> list[str]
     if session:
         cmd += ["--resume", session]
     cmd += ["--", text]
-    return cmd if os.name == "nt" else terminal.login_shell() + ["-c", "exec " + shlex.join(cmd)]
+    return agent_lookup.start_argv(cmd)
 
 
 def _run(text: str, path: str, folder: str) -> None:
@@ -92,7 +91,7 @@ def _run(text: str, path: str, folder: str) -> None:
     token = ""
     try:
         token, mcp_file = claude_code.issue()
-        proc = subprocess.Popen(_argv(path, text, STATE["session"], mcp_file), cwd=folder, env=claude_code.child_env(), stdin=subprocess.DEVNULL,
+        proc = subprocess.Popen(_argv(path, text, STATE["session"], mcp_file), cwd=folder, env=claude_code.child_env(path), stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, encoding="utf-8", errors="replace")
         STATE["proc"] = proc
 
@@ -198,7 +197,7 @@ def send(text: str, context: str = "", note: str = "") -> dict:
     text = f"{shown} ({context.strip()})" if context.strip() else shown
     found = claude_code.info(fresh=True)
     if not found["installed"]:
-        raise CommandError(claude_code.INSTALL, 400)
+        raise CommandError(found["said"], 400)
     folder = str(claude_code.workdir())
     with _lock:
         if STATE["busy"]:

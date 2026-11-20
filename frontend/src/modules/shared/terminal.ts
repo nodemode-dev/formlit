@@ -2,12 +2,12 @@ import type { Ctx } from '../../app';
 import { Dock } from '../../dock/dock';
 import { formlitDock } from '../../dock-adapter';
 
-let mounted: Dock | null = null;
+let mounted: Dock<'antigravity'> | null = null;
 
 export const dockOpen = (): boolean => mounted?.isOpen() === true;
 
 export function registerTerminal(ctx: Ctx): void {
-  const dock: Dock = new Dock(formlitDock(ctx, () => dock));
+  const dock: Dock<'antigravity'> = new Dock(formlitDock(ctx, () => dock));
   mounted = dock;
   dock.mount(ctx.shell.app, ctx.shell.status);
   ctx.commands.add(
