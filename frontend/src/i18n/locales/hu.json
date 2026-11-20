@@ -2619,7 +2619,7 @@
 "2617": "h:Favorites",
 "2618": "óra az UTC-től",
 "2619": "az ids legalább egy, a referenciától eltérő fotót nevezzen meg",
-"2620": "a formlit tárolóban, hogy regisztrálja a Claude Code, a Codex és a Cursor számára.",
+"2620": "a formlit tárolóban, hogy regisztrálja a Claude Code, a Codex, a Cursor és az Antigravity számára.",
 "2621": "input, select, .cv-btn-primary:not(:disabled)",
 "2622": "input, select, textarea",
 "2623": "input, textarea, select, [contenteditable=\"true\"]",
