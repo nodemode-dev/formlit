@@ -2,6 +2,16 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.53.0 · 2026-11-19
+
+- Added: Antigravity (Google's `agy` program) can run in a tab of the terminal panel beside Claude Code, Codex and Cursor, connected to formlit's tools the same way. The panel offers it when it is found on this computer; when it is not, its line in the panel's menu says where formlit looked and how to install it.
+- Fixed: formlit finds Claude Code, Codex, Cursor and Antigravity however it was started. Opened from the Dock, the Finder or the Start menu, it used to report a program installed by Homebrew, npm or a version manager as not installed, and its tab and Chat did not start. formlit now also looks in the usual install folders and in the program path of your own shell, and it starts each program so that what the program needs beside it is found.
+- Changed: `./formlit agents install` also registers formlit with Antigravity, in `~/.gemini/config/mcp_config.json`, and keeps everything else in that file. `./formlit agents install antigravity` does only that. `formlit.bat claude` finds Claude Code the same way the app does.
+- Fixed: the engine starts when it is given no output streams, as a Windows desktop build without a console does. Before, an engine built that way could stop as it started.
+- Changed: the terminal panel is the newer one the Form family shares. It looks and works as before.
+- Known: the developer note under Preferences, AI agents still names three programs for `./formlit agents install`; the command registers four.
+- Checked here, on Linux: the engine tests, the type check, the agents sync check, and, against an engine of its own with stand-in programs in place of the real ones, the status of the four programs, an Antigravity tab from start to close with its settings file, the install command in a made-up home, and the engine started with its output streams closed. Not verified yet: the fourth button and its tab were not looked at in a window or a browser; nothing was run on Windows or macOS; the desktop shell was not compiled; the real Claude Code, Codex, Cursor and Antigravity were not run, and nobody here has seen a real Antigravity install.
+
 ## v0.52.0 · 2026-11-19
 
 - Changed: the terminal panel is the one the whole Form family now shares. It can sit at the bottom of the window or at the right, it remembers whether it is open, which side it is on and its size, and the first time it is opened a short guide shows what it is for.
