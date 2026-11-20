@@ -280,6 +280,25 @@ Two development runs of this file on one data folder used to both serve; the sec
 
 Seen on Linux, with `sleep` as the stand-in shell and the real entry: second engine exit 2 with the sentence while the first kept answering `/api/health`; engine exit 0 and no lock 0.5 s after its shell was ended; a stopped (`kill -STOP`) engine whose shell was gone replaced after the five seconds, its exit 137; locks holding `not json at all`, `[1, 2]`, `{"pid": "x"}` and nothing replaced; a lock naming an unrelated `sleep` replaced and the `sleep` left running; started alone with a stand-in app in each of the three layouts exit 0, the app's mark written, no lock; with no app near exit 4 and the sentence; with the three streams closed `/api/health` answered and descriptors 0, 1 and 2 were the null device. `tests/test_startup.py` (15 tests, POSIX stand-ins) holds these.
 
+### src-tauri/src/main.rs, engine_start.rs, win_job.rs · the shell's side of the same pattern
+- refers-to: src-tauri/src/main.rs :: engine_program, forward_lines, start_engine, read_port, open_main, engine_exit_code, engine_failed, kill_backend, setup; src-tauri/src/engine_start.rs (new); src-tauri/src/win_job.rs (new, the family's file); src-tauri/Cargo.toml, Cargo.lock (windows-sys 0.61.2 under the Windows target)
+- kind: explainer
+- logged: unreleased, after v0.53.0 · 2026-11-19
+
+Logged here because `src-tauri` has no log of its own. The shell was not compiled, on any system: this machine has no WebKit libraries. What was proved is listed at the end.
+
+`win_job.rs` is FormTools's file, unchanged: `hold(&child)` puts the engine into a job object with kill-on-close, `end()` ends everything in the job. Windows closes the job when the shell ends, however it ends, and that ends the engine and what it started. `engine_start.rs` is FormTools's file with formlit's names, a two minute limit on the wait for the address (FormTools has one minute; formlit's one-file engine unpacks itself and loads more at a first start, and it had no limit at all before), and `data_folder` rewritten to mirror `app/core/config.py :: data_dir`: `FORMLIT_DATA_DIR` when it is set (a leading `~` is the home folder), else `Formlit` in the home folder, on every system. The two are kept the same by hand; the unit test `the_log_is_where_the_engine_writes_it` is where a mismatch shows.
+
+The way taken for the plugin: formlit started its engine through tauri-plugin-shell's `sidecar`, which gives no `std::process::Child`, and `win_job::hold` takes one. The one start moved to `std::process::Command` (`start_engine`, `forward_lines`, as FormTools has them), so `win_job.rs` stays unchanged. `engine_program` finds the engine where the plugin did: `formlit-engine` (`.exe` on Windows) beside the app's own program, through `tauri::utils::platform::current_exe`. The start keeps the plugin's no-console flag on Windows. Standard input is the null device now (the plugin gave a pipe that nothing wrote to). The plugin itself stays registered; nothing else used it for the engine.
+
+What changed in the start: `FORMLIT_SHELL_PID` is set to the shell's process id; every line of the engine's output goes into a `Tail`; `read_port` is FormTools's loop (the key and the address from either stream, the address wait limited, ten seconds for the key after the address, output read for as long as the engine lives); a missing engine program, a start that fails, an engine that stops, a wait that runs out and a window that does not build all end in `engine_failed`, which shows the sentence, the engine's last lines and the log's path in a dialog and only after the dialog closes the loading window, stops the engine and exits with code 1. Before, a missing or unstartable engine was a panic, a window that failed to build closed the loading window and left the app running with no window, and the one failure dialog came after the loading window was closed.
+
+`kill_backend` ends the job on Windows before the kill, and waits for the engine.
+
+Not done, on purpose: the single-instance plugin (a new crate). A second start is a second shell whose engine meets the lock and exits 2, and the person reads "FormLit could not start: another copy of its engine holds its data folder." with the first engine's own line under it.
+
+Proved here: a scratch crate that takes `engine_start.rs` and `win_job.rs` by path passed `cargo check --target x86_64-pc-windows-msvc` with no error (rustc on this machine, windows-sys 0.61.2); `cargo test` on Linux ran the module's unit tests and FormTools's loop tests over `read_port` and `engine_exit_code` cut from this `main.rs` with `awk`, behind a stand-in `tauri` module. The `Cargo.lock` line was added by hand and proved with `cargo update --workspace --offline` on a scratch copy of `Cargo.toml` and the old lock: the result is the same file. `main.rs` as a whole was read against FormTools's, not compiled: `engine_program`, `start_engine`, `open_main`, `engine_failed` and the start in `setup` have never been built.
+
 ---
 
 ## app/core/config.py {#core-config}
