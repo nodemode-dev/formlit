@@ -2190,6 +2190,17 @@ Tests changed, and why: the dock folder test expected module 2.1.0 and now 2.2.0
 
 Seen in a made-up home: the dry run; a write beside another server and another key, with a backup; "already in" on the second run; a foreign `formlit` entry left alone; the older file named; an unknown client refused with the four names and exit 2. `DOCK.tabs` gained `antigravity` and `sync` rewrote `agents/manifest.json`; `sync --check` answers "in step". No test was added for the install: the script's other install steps have none.
 
+Correction to the body of commit dfe248e: it says 25 passed for `test_dock_contract.py` and `test_dock_module.py`; the run showed 24 passed.
+
+### formlit_engine.py · the engine starts without output streams
+- refers-to: formlit_engine.py :: the three lines after the imports
+- kind: fix
+- logged: unreleased · 2026-11-19
+
+A Windows program built without a console starts with `sys.stdin`, `sys.stdout` and `sys.stderr` set to `None`. A tester's engine in another app of the family stopped at start for that reason, so every engine's entry now replaces a missing stream with the null device before anything of the app is imported, the way FormWeb's entry does. `formlit_engine.py` is the script the packaging freezes as the engine.
+
+Seen on Linux, where closing the streams (`python formlit_engine.py >&- 2>&-`) also leaves the three as `None`: the entry as it was before this change stopped with exit code 1 and never answered `/api/health`; with the change it answers. Started normally it still prints uvicorn's log, before and after. Not run on Windows and not as a frozen engine. No test added: the suite's engine fixture starts uvicorn directly and not this entry.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.
