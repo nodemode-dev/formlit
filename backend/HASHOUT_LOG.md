@@ -2021,6 +2021,13 @@ Held: the three fields are not in the Preferences window yet; each would need it
 
 This entry came one commit after the code (4a2f257): the edit that wrote it failed and the commit went ahead without it.
 
+### tests/test_window_key.py · test_a_choice_sealed_by_0_54_0_stays_whole_and_keeps_the_claude_code_path
+- refers-to: tests/test_window_key.py :: test_a_choice_sealed_by_0_54_0_stays_whole_and_keeps_the_claude_code_path; app/core/seal.py :: digest, LATER
+- kind: test
+- logged: v0.55.0 · 2026-11-20
+
+The update from 0.54.0 was proved before the release with real files: origin/main's backend (0.54.0) wrote `preferences.json` with agents allowed and a Claude Code path, its seal made with a key kept in a file-backed stand-in keyring; the tip's backend then read the same folder with the same key. It read `seal` `ok`, `sealBroken` false, `outsideAgents` `allowed`, the Claude Code path kept and given to the finder, the three new paths empty; setting a Codex path afterwards signed again with all of it kept. So no migration is needed. The test writes a file of 0.54.0's shape (no new fields, the seal over `outsideAgents` and `claudeBin` only, by 0.54.0's own formula) and checks the same, then that a later write of an unsealed field and of a new path keep the choice and the path, so a change to `digest` that would put people back to "Ask me" on update fails here.
+
 ### setup/cli.py · rpc, run_command, main
 - refers-to: ../setup/cli.py :: rpc, run_command, main
 - kind: fix

@@ -173,6 +173,31 @@ def test_the_other_programs_paths_are_sealed_and_given_to_the_finder_first(clien
     assert prefs.load()["seal"] == "ok"
 
 
+def test_a_choice_sealed_by_0_54_0_stays_whole_and_keeps_the_claude_code_path(client, stand_in_keyring, tmp_path):
+    import hashlib
+    import hmac
+
+    from app.core import config, prefs, seal
+    from app.engine import claude_code
+
+    program = tmp_path / "claude"
+    program.write_text("#!/bin/sh\n")
+    program.chmod(0o755)
+    key = seal._load(True)
+    old = {"editors": [], "slideshowMusic": "", "outsideAgents": "allowed", "claudeFolder": "", "claudeBin": str(program), "claudeFirstMessage": ""}
+    body = json.dumps({k: old[k] for k in ("outsideAgents", "claudeBin")}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    path = config.data_dir() / "preferences.json"
+    path.write_text(json.dumps({**old, "seal": hmac.new(key, body.encode("utf-8"), hashlib.sha256).hexdigest()}))
+    seen = prefs.load()
+    assert seen["seal"] == "ok" and seen["sealBroken"] is False
+    assert seen["outsideAgents"] == "allowed" and seen["claudeBin"] == str(program) and claude_code.setting("claude") == str(program)
+    assert [seen[k] for k in ("codexBin", "cursorBin", "antigravityBin")] == ["", "", ""]
+    prefs.update({"claudeFirstMessage": "hello"})
+    prefs.update({"codexBin": str(program)})
+    seen = prefs.load()
+    assert seen["seal"] == "ok" and seen["outsideAgents"] == "allowed" and seen["claudeBin"] == str(program) and seen["codexBin"] == str(program)
+
+
 def test_without_a_keychain_the_stored_choice_stands(client, monkeypatch):
     import sys
 
