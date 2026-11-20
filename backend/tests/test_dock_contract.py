@@ -19,6 +19,18 @@ esac
 echo "stand-in started"
 read line
 """
+STAND_IN_SHELL = """#!/bin/sh
+login=0; inter=0; script=""
+while [ $# -gt 0 ]; do
+  case "$1" in -l) login=1 ;; -i) inter=1 ;; -c) shift; script="$1" ;; esac
+  shift
+done
+if [ "$login" = 1 ] && [ -f "$HOME/.zprofile-path" ]; then PATH="$(cat "$HOME/.zprofile-path"):$PATH"; fi
+if [ "$inter" = 1 ] && [ -f "$HOME/.zshrc-path" ]; then PATH="$(cat "$HOME/.zshrc-path"):$PATH"; fi
+export PATH
+if [ -n "$script" ]; then exec /bin/sh -c "$script"; fi
+exec /bin/sh
+"""
 
 
 def agents():
@@ -80,19 +92,43 @@ def stand_ins(tmp_path, monkeypatch):
         script = folder / name
         script.write_text(STAND_IN)
         script.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{folder}{os.pathsep}{os.environ.get('PATH', '')}")
-    monkeypatch.delenv("FORMLIT_CLAUDE_BIN", raising=False)
+    monkeypatch.setenv("PATH", f"{folder}{os.pathsep}/usr/bin{os.pathsep}/bin")
+    own_shell_and_home(tmp_path, monkeypatch)
     for key in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_API_KEY", "CURSOR_API_KEY"):
         monkeypatch.delenv(key, raising=False)
-    return folder
+    yield folder
+    forget_lookups()
+
+
+def forget_lookups():
+    from app.engine import agent_lookup
+
+    agent_lookup.forget()
+
+
+def own_shell_and_home(tmp_path, monkeypatch):
+    from app.engine import agent_lookup, agent_programs, claude_code
+
+    shell = tmp_path / "zsh"
+    shell.write_text(STAND_IN_SHELL)
+    shell.chmod(0o755)
+    (tmp_path / "home").mkdir(exist_ok=True)
+    monkeypatch.setenv("SHELL", str(shell))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    for name in ("FORMLIT_CLAUDE_BIN", "FORMLIT_CODEX_BIN", "FORMLIT_CURSOR_BIN", "FORMLIT_ANTIGRAVITY_BIN"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(agent_lookup, "system_folders", lambda platform=None: [])
+    monkeypatch.setitem(claude_code._cache, "value", None)
+    monkeypatch.setitem(agent_programs._cache, "value", None)
+    agent_lookup.forget()
 
 
 @pytest.fixture
-def none_found(monkeypatch):
-    from app.engine import agent_programs
-
+def none_found(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
-    monkeypatch.setattr(agent_programs.terminal, "login_shell", lambda: ["/bin/sh", "-c", "exit 1", "--"])
+    own_shell_and_home(tmp_path, monkeypatch)
+    yield
+    forget_lookups()
 
 
 def test_the_question_says_who_asks_for_what_and_which_answers_it_takes(client):
@@ -165,22 +201,74 @@ def test_every_window_is_told_when_a_question_ends(client, monkeypatch):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the stand-ins are shell scripts")
-def test_one_call_reports_the_three_agent_programs(client, stand_ins):
+def test_one_call_reports_the_four_agent_programs(client, stand_ins):
     found = run(client, "terminal.agents", {"fresh": True}).json()["result"]
-    assert set(found) == {"claude", "codex", "cursor"}
+    assert set(found) == {"claude", "codex", "cursor", "antigravity"}
     for kind, binary, signed in (("claude", "claude", True), ("codex", "codex", True), ("cursor", "cursor-agent", False)):
-        assert found[kind] == found[kind] | {"installed": True, "path": str(stand_ins / binary), "version": "9.9.9", "signedIn": signed}
+        assert found[kind] == found[kind] | {"installed": True, "path": str(stand_ins / binary), "version": "9.9.9", "signedIn": signed, "finding": "runs", "how": "path"}
         assert found[kind]["install"] and found[kind]["title"]
+    assert found["antigravity"] == found["antigravity"] | {"installed": False, "path": None, "finding": "missing", "signedIn": None, "title": "Antigravity"}
+    assert found["antigravity"]["said"].startswith("Antigravity was not found. Looked in: PATH (")
 
 
 def test_a_missing_program_comes_with_its_install_line(client, none_found):
     found = run(client, "terminal.agents", {"fresh": True}).json()["result"]
-    for kind in ("codex", "cursor"):
-        assert found[kind] == found[kind] | {"installed": False, "path": None, "version": None, "signedIn": None}
-        assert found[kind]["install"]
+    for kind in ("codex", "cursor", "antigravity"):
+        assert found[kind] == found[kind] | {"installed": False, "path": None, "version": None, "signedIn": None, "finding": "missing"}
+        assert found[kind]["install"] and found[kind]["install"] in found[kind]["said"]
+        assert found[kind]["looked"][0] == "PATH (/usr/bin:/bin)" and "~/.local/bin" in found[kind]["looked"][1]
+    assert found["claude"]["looked"][0] == "your setting (empty)" and found["claude"]["said"].endswith(", or give its path in Preferences.")
     reply = run(client, "terminal.openAgent", {"kind": "codex"})
-    assert reply.status_code == 400 and "not installed" in reply.json()["error"]
+    assert reply.status_code == 400 and reply.json()["error"] == found["codex"]["said"]
+    assert reply.json()["error"].startswith("Codex was not found. Looked in: ")
     assert run(client, "terminal.openAgent", {"kind": "vim"}).status_code == 400
+    assert run(client, "terminal.openAgent", {"kind": "antigravity"}).status_code == 400
+    assert run(client, "claudecode.open", {}).json()["error"] == found["claude"]["said"]
+
+
+NODE_STYLE = STAND_IN.replace("#!/bin/sh", "#!/usr/bin/env node", 1)
+STAND_IN_NODE = """#!/bin/sh
+script="$1"; shift; exec /bin/sh "$script" "$@"
+"""
+
+
+def put(folder, name, text):
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / name
+    path.write_text(text)
+    path.chmod(0o755)
+    return path
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-ins are shell scripts")
+def test_a_program_outside_the_engines_path_is_found_in_a_known_folder_or_on_the_shells_path(client, none_found, tmp_path):
+    known = tmp_path / "home" / ".local" / "bin"
+    put(known, "claude", STAND_IN)
+    put(known, "agy", STAND_IN)
+    other = tmp_path / "elsewhere"
+    put(other, "codex", STAND_IN)
+    (tmp_path / "home" / ".zshrc-path").write_text(str(other))
+    found = run(client, "terminal.agents", {"fresh": True}).json()["result"]
+    assert found["claude"] == found["claude"] | {"installed": True, "path": str(known / "claude"), "how": "folder", "version": "9.9.9", "signedIn": True}
+    assert found["antigravity"] == found["antigravity"] | {"installed": True, "path": str(known / "agy"), "how": "folder", "version": "9.9.9", "signedIn": None}
+    assert found["codex"] == found["codex"] | {"installed": True, "path": str(other / "codex"), "how": "shell", "finding": "runs"}
+    assert found["cursor"]["finding"] == "missing"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-ins are shell scripts")
+def test_a_tab_starts_a_program_whose_interpreter_sits_beside_it(client, none_found, tmp_path):
+    from app.engine import terminal
+
+    folder = tmp_path / "home" / ".nvm" / "versions" / "node" / "v22.3.0" / "bin"
+    put(folder, "codex", NODE_STYLE)
+    put(folder, "node", STAND_IN_NODE)
+    found = run(client, "terminal.agents", {"fresh": True}).json()["result"]["codex"]
+    assert found == found | {"installed": True, "path": str(folder / "codex"), "how": "folder", "version": "9.9.9"}
+    reply = run(client, "terminal.openAgent", {"kind": "codex", "cols": 80, "rows": 20})
+    assert reply.status_code == 200 and reply.json()["result"]["alive"]
+    session = terminal.SESSIONS[reply.json()["result"]["id"]]
+    assert session.env["PATH"].split(os.pathsep)[0] == str(folder)
+    assert run(client, "terminal.close", {"id": session.id}).status_code == 200
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the stand-ins are shell scripts")

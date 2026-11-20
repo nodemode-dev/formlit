@@ -1206,6 +1206,19 @@ Removed code, for the record. From `src/styles/lit-dock.css`: `.fl-app > .ft-doc
 
 Measured at 1440 by 900 against captures taken on 2.0.1 before the change (dock closed, open on a terminal with its text hidden, open on Chat): 0 differing pixels in the terminal and Chat captures in both runs; the closed capture 0 in one run and 164 in the other, all inside the welcome page's demo thumbnails (rows 402 to 410 and 543 to 550), three levels in a channel at most, nowhere near the dock. Under 4x CPU, one layout in every frame across four tab switches (ask line 0, 832, 1440 by 40 on a terminal tab and on Chat). Still not served by 2.1.0 for formlit: a public way to read or set the dock's size, and the grip inside the top edge.
 
+## The family's agent finder (unreleased, after v0.52.0) {#agent-finder}
+
+### src/dock-adapter.ts · errorKind
+- refers-to: src/dock-adapter.ts :: errorKind
+- kind: change
+- logged: unreleased · 2026-11-19
+
+The engine now refuses to open a tab or to send in Chat with the finder's own sentence (backend log, #agent-finder): "Codex was not found. Looked in: ..." or "... was found at ... but does not start: ...". Neither holds the words "not installed", so `errorKind` answers `notInstalled` for those two shapes as well, and the dock does what it did before: it reads the programs again and opens its menu with the install line. Removed, for the record: `if (/not installed/i.test(err.message)) return 'notInstalled';`.
+
+Left as it was, on purpose: the sentences the panel itself shows in that menu and in Chat's first line (`notInstalled`, `programMissing`) are the dock module's own, and nothing in `src/dock/` is edited here. Showing the finder's sentence there takes the adapter's `t` answering per program, as FormVis's adapter does (`tell`, `ownWords`), which is more than one change. `agentStatus` passes on `installed`, `version`, `install` and `signedIn` only, for `claude`, `codex` and `cursor`; the engine's fourth program, `antigravity`, is not read, so no tab or label appears for it. `src/ui/preferences.ts` still writes its own "Claude Code is not installed" line when `claudecode.status` says `installed: false`; the status now also carries `said`, which that line could show.
+
+Checked: `npx tsc --noEmit` passes. Not seen in a window or a browser.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.
