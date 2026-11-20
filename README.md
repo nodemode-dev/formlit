@@ -49,7 +49,7 @@
     <td width="25%" valign="top"><h3>Non-destructive</h3>One catalog with undo for every change, and edits kept in settings and sidecars, never in your originals.</td>
     <td width="25%" valign="top"><h3>Raw to print</h3>Library, Develop, Map, Book, Slideshow, Print and Web modules take a shoot from import to delivery.</td>
     <td width="25%" valign="top"><h3>Local AI</h3>Masks, denoise, culling and search by description run on your machine with ONNX Runtime and pinned models.</td>
-    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 291 commands from the window, the terminal and an MCP server for Claude Code, Codex and Cursor.</td>
+    <td width="25%" valign="top"><h3>Agent-ready</h3>The same 291 commands from the window, the terminal and an MCP server for Claude Code, Codex, Cursor and Antigravity.</td>
   </tr>
 </table>
 
@@ -93,7 +93,7 @@ The window, the terminal and the MCP server call the same registry of 291 engine
 ./formlit cli list                                  # every engine command
 ./formlit cli library.import 'paths=["/path/to/photos"]' mode=add   # import a folder
 ./formlit cli photo.rate ids=[1,2] rating=5         # rate photos
-./formlit mcp                                       # MCP server on stdio for Claude Code, Codex and Cursor
+./formlit mcp                                       # MCP server on stdio for Claude Code, Codex, Cursor and Antigravity
 ```
 
 The command line counts as an outside agent: with Agent access on Ask me (the default, in Preferences, AI agents), formlit's window asks you to Allow the first command you run with `./formlit cli <id>` or the first tool call, and Blocked refuses it. Only the window can change formlit's settings or that choice.

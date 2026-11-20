@@ -28,7 +28,7 @@ On Windows use `formlit.bat` with the same commands.
 | `desktop dev`, `desktop build` | Run or bundle the desktop app |
 | `mcp` | The MCP server over stdio (starts the engine if needed) |
 | `claude [args]` | Claude Code in this terminal with formlit's MCP tools attached; it is an outside agent and goes through the access prompt |
-| `agents install` | Register formlit with Claude Code, Codex and Cursor |
+| `agents install` | Register formlit with Claude Code, Codex, Cursor and Antigravity |
 | `agents sync [--check]` | Regenerate the driving skill's tool, preset and template references, write `agents/manifest.json` (the tools, which are read-only, the skills and the dock) and mirror the skill into `.agents/skills`; `--check` exits 1 when any of them has drifted |
 | `cli <command> key=value ...` | Run any engine command from the terminal; `./formlit cli list` lists them. Running one goes through MCP as an outside agent, so it follows Agent access in Preferences (with Ask me it waits for Allow in the window) |
 | `doctor` | Check the toolchain, the installs and the ports |
