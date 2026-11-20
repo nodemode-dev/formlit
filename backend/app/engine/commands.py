@@ -27,7 +27,7 @@ REGISTRY: dict[str, Spec] = {}
 FROM_WINDOW: contextvars.ContextVar[bool] = contextvars.ContextVar("formlit_from_window", default=False)
 WINDOW_GROUPS = {"terminal", "claudecode", "chat"}
 WINDOW_IDS = {"agents.respond", "editIn.addApp", "photo.editIn"}
-WINDOW_PREFS = {"outsideAgents", "claudeBin", "claudeFirstMessage", "claudeFolder", "editors"}
+WINDOW_PREFS = {"outsideAgents", "claudeBin", "codexBin", "cursorBin", "antigravityBin", "claudeFirstMessage", "claudeFolder", "editors"}
 WINDOW_REFUSED = "Only the formlit window can do this"
 
 

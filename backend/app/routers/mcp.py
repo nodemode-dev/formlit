@@ -55,7 +55,7 @@ PROMPTS = [
 ] + [{"name": k, "title": v["title"], "description": v["description"], "arguments": []} for k, v in WORKFLOWS.items()]
 ALLOW_DELETE = os.environ.get("FORMLIT_MCP_ALLOW_DELETE") == "1"
 BLOCKED = {"photo.delete", "folder.remove", "catalog.open", "catalog.create", "agents.respond", "demo.open"}
-PERSON_PREFS = {"outsideAgents", "claudeBin", "claudeFirstMessage", "claudeFolder", "editors"}
+PERSON_PREFS = {"outsideAgents", "claudeBin", "codexBin", "cursorBin", "antigravityBin", "claudeFirstMessage", "claudeFolder", "editors"}
 WINDOW_ONLY = {"terminal", "claudecode", "chat", "extensions"}
 LIST_CACHE = {"ttlMs": 60_000, "cacheScope": "private"}
 SESSIONS: dict[str, str] = {}
