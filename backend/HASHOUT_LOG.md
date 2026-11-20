@@ -2008,6 +2008,19 @@ The in-app token was one value for the whole engine run (`agents.INAPP_TOKEN`), 
 
 `preferences.json` carries `seal`, HMAC-SHA256 over the canonical JSON of `outsideAgents` and `claudeBin`, with a random 32-byte key kept by `keyring` (service `formlit`, account `settings-seal`, made on first use). `prefs.update` signs only when the patch names a sealed field; the window-only `prefs.set` and `agents.respond` are the only callers that do. `prefs.load` reports `seal` (`ok`, `unsealed`, `broken` or `unavailable`) and `sealBroken`. When the seal is missing or wrong while either field is looser than the default (`outsideAgents` allowed, or a `claudeBin`), the engine acts as `ask` with no custom program until the window writes them again; that includes the first launch after this change for a person who had allowed agents. `keyring` is imported inside a try in `_load`, so a missing package, no backend (the Linux sandbox has only the fail backend) or a locked keychain gives `unavailable` and the stored values stand.
 
+### app/core/seal.py · PATHS, LATER, SEALED, digest, loosened, effective; app/core/prefs.py · DEFAULTS; app/engine/claude_code.py · setting; app/engine/commands.py · WINDOW_PREFS; app/routers/mcp.py · PERSON_PREFS
+- refers-to: the names above; tests/test_window_key.py :: test_the_other_programs_paths_are_sealed_and_given_to_the_finder_first; tests/test_dock_contract.py :: the two "looked" assertions
+- kind: decision
+- logged: v0.55.0 · 2026-11-20
+
+The stored path for Claude Code (`claudeBin`) now has three siblings, `codexBin`, `cursorBin` and `antigravityBin`, the setting names the family's finder (`agent_lookup.PROGRAMS`) already reads. They are stored the same way: in `preferences.json`, under the same seal, window-only (`WINDOW_PREFS`), and refused to an agent's `prefs.set` (`PERSON_PREFS`). A hand edit of any of the four reads as empty with `sealBroken`, as `claudeBin` did. `claude_code.setting(kind)` gives the finder the stored path for every program, so the finder looks there first ("your setting (empty)" is now the first place it names for Codex, Cursor and Antigravity too; the two dock contract tests that named PATH first now name the setting first).
+
+`digest` leaves a `LATER` field out of the sealed text while it is empty. So a `preferences.json` sealed by 0.54.0 or older still reads as `ok` (the test checks the stored seal against a digest of the two old fields); without that, a person who had allowed agents would have been put back to "Ask me" by the update. A non-empty `LATER` field is in the sealed text, so writing one by hand breaks the seal.
+
+Held: the three fields are not in the Preferences window yet; each would need its label in all 25 language tables. `otherwise` still offers "give its path in Preferences" for Claude Code only, so no sentence points to a field that is not there.
+
+This entry came one commit after the code (4a2f257): the edit that wrote it failed and the commit went ahead without it.
+
 ### setup/cli.py · rpc, run_command, main
 - refers-to: ../setup/cli.py :: rpc, run_command, main
 - kind: fix
