@@ -2,6 +2,19 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.54.0 · 2026-11-19
+
+- Fixed: when formlit cannot start, it says why before it closes. The message gives the reason in a sentence (its engine program is missing, could not be started, stopped, or did not answer in time), the engine's last lines, and where the engine's log is. Before, a failed start showed one fixed sentence or closed with nothing at all.
+- Fixed: quitting formlit on Windows ends its engine and everything the engine started, also when formlit is ended from Task Manager. On every system the engine now stops by itself within a few seconds once the app that started it is gone.
+- Fixed: an engine left running without its app no longer blocks the next start. The new start ends it and takes over.
+- Changed: a second formlit on the same data folder is refused with a sentence that names the folder and the running engine, instead of two engines writing to one catalog.
+- Changed: opening the engine program by itself opens formlit instead of starting an engine nobody can see. If formlit is not beside it, it says so and stops.
+- Added: the engine keeps a log, `Logs/formlit-engine.log` in the data folder (`~/Formlit` unless you chose another), with a second file for errors when it has no console to write them to.
+- Changed: formlit waits up to two minutes for its engine to start, then says so. Before, it waited without end.
+- Known: an engine left behind by 0.53.0 or older is not ended by the first start after the update, because older engines kept no record of themselves. It is gone after a restart of the computer, or when you end `formlit-engine` yourself.
+- Known: a second start of formlit while it is open does not bring the open window forward yet. The second one closes with the sentence above.
+- Checked here, on Linux only: the engine's start and stop with stand-in programs in place of the app, and the desktop app's start-up code as far as it can be checked without building the app. Nothing was run on Windows or macOS, and the desktop app itself was not built on the machine this was written on.
+
 ## v0.53.0 · 2026-11-19
 
 - Added: Antigravity (Google's `agy` program) can run in a tab of the terminal panel beside Claude Code, Codex and Cursor, connected to formlit's tools the same way. The panel offers it when it is found on this computer; when it is not, its line in the panel's menu says where formlit looked and how to install it.
