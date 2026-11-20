@@ -1221,6 +1221,13 @@ Checked: `npx tsc --noEmit` passes. Not seen in a window or a browser.
 
 ## Four agent programs (unreleased, after v0.52.0) {#four-agent-programs}
 
+### src/dock/ at module 2.2.1
+- refers-to: src/dock/ (every file); ../backend/tests/test_dock_module.py :: test_the_shared_dock_folder_is_the_one_its_manifest_describes
+- kind: explainer
+- logged: v0.55.0 · 2026-11-20
+
+`src/dock/` is FormVis's folder at formvis commit 23b01889, module 2.2.1, each of its 16 files written out with `git show` and none edited here. Only the guide changed: its two sentences for a computer that has Claude Code end with "Codex, Cursor and Antigravity each get a button of their own here when they are on this computer." formlit's language tables carry no translation of the panel's sentences, so nothing else changed. The adapter is unchanged. `./formlit agents sync --check` says in step; `tests/test_dock_module.py` 8 passed.
+
 ### src/dock/ at module 2.2.0 · src/dock-adapter.ts · src/modules/shared/terminal.ts
 - refers-to: src/dock/ (16 entries with MANIFEST.json, copied unchanged); src/dock-adapter.ts :: EngineProgram, record, formlitDock (its type, tabs, agentStatus); src/modules/shared/terminal.ts :: mounted, registerTerminal
 - kind: feat
