@@ -11,6 +11,9 @@ DEFAULTS: dict = {
     "outsideAgents": "ask",
     "claudeFolder": "",
     "claudeBin": "",
+    "codexBin": "",
+    "cursorBin": "",
+    "antigravityBin": "",
     "claudeFirstMessage": "",
 }
 CHOICES: dict[str, tuple] = {"outsideAgents": ("ask", "allowed", "blocked")}

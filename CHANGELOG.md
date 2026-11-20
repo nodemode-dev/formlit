@@ -2,6 +2,17 @@
 
 All notable changes to formlit. Versions are `v*.*.*`; each release lists what it added, what it fixed and what is not verified yet.
 
+## v0.55.0 · 2026-11-20
+
+- Fixed: on macOS, an engine that has just ended is now seen as gone at once, so a quit or a restart of formlit no longer waits on an engine that is already stopped.
+- Changed: formlit waits 90 seconds for its engine to start, then says why it could not start. Before, it waited two minutes.
+- Changed: on Windows the engine runs without a console window of its own. Its output still goes to its log in the data folder.
+- Added: formlit can keep where Codex, Cursor and Antigravity are installed, as it already did for Claude Code, and looks there first. These places are protected the same way as your agent access choice: changed from outside formlit's window, they are ignored and the choice goes back to asking you.
+- Changed: the terminal panel's guide says that Codex, Cursor and Antigravity each get a button when they are installed, and the note in Preferences on registering formlit names all four programs, in every language formlit carries.
+- Unchanged on update: your agent access choice and the Claude Code path you set stay as they were.
+- Known: the places for Codex, Cursor and Antigravity have no field in Preferences yet.
+- Checked here, on Linux only, with stand-in programs in place of the agent programs. Nothing was run on Windows or macOS, and the desktop app itself was not built on the machine this was written on.
+
 ## v0.54.0 · 2026-11-19
 
 - Fixed: when formlit cannot start, it says why before it closes. The message gives the reason in a sentence (its engine program is missing, could not be started, stopped, or did not answer in time), the engine's last lines, and where the engine's log is. Before, a failed start showed one fixed sentence or closed with nothing at all.

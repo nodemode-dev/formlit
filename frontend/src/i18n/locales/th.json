@@ -2619,7 +2619,7 @@
 "2617": "h:Favorites",
 "2618": "ชั่วโมงจาก UTC",
 "2619": "ids ต้องระบุรูปภาพอย่างน้อยหนึ่งรูปที่ไม่ใช่รูปอ้างอิง",
-"2620": "ในรีโพซิทอรี formlit เพื่อลงทะเบียนกับ Claude Code, Codex และ Cursor",
+"2620": "ในรีโพซิทอรี formlit เพื่อลงทะเบียนกับ Claude Code, Codex, Cursor และ Antigravity",
 "2621": "input, select, .cv-btn-primary:not(:disabled)",
 "2622": "input, select, textarea",
 "2623": "input, textarea, select, [contenteditable=\"true\"]",

@@ -43,7 +43,8 @@ def _runnable(path: str) -> bool:
 
 
 def setting(kind: str) -> str | None:
-    return _pref("claudeBin") if kind == "claude" else None
+    key = agent_lookup.PROGRAMS.get(kind, {}).get("setting")
+    return _pref(key) if key else None
 
 
 def otherwise(kind: str) -> str:

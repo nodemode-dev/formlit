@@ -208,7 +208,7 @@ def test_one_call_reports_the_four_agent_programs(client, stand_ins):
         assert found[kind] == found[kind] | {"installed": True, "path": str(stand_ins / binary), "version": "9.9.9", "signedIn": signed, "finding": "runs", "how": "path"}
         assert found[kind]["install"] and found[kind]["title"]
     assert found["antigravity"] == found["antigravity"] | {"installed": False, "path": None, "finding": "missing", "signedIn": None, "title": "Antigravity"}
-    assert found["antigravity"]["said"].startswith("Antigravity was not found. Looked in: PATH (")
+    assert found["antigravity"]["said"].startswith("Antigravity was not found. Looked in: your setting (empty); PATH (")
 
 
 def test_a_missing_program_comes_with_its_install_line(client, none_found):
@@ -216,7 +216,7 @@ def test_a_missing_program_comes_with_its_install_line(client, none_found):
     for kind in ("codex", "cursor", "antigravity"):
         assert found[kind] == found[kind] | {"installed": False, "path": None, "version": None, "signedIn": None, "finding": "missing"}
         assert found[kind]["install"] and found[kind]["install"] in found[kind]["said"]
-        assert found[kind]["looked"][0] == "PATH (/usr/bin:/bin)" and "~/.local/bin" in found[kind]["looked"][1]
+        assert found[kind]["looked"][:2] == ["your setting (empty)", "PATH (/usr/bin:/bin)"] and "~/.local/bin" in found[kind]["looked"][2]
     assert found["claude"]["looked"][0] == "your setting (empty)" and found["claude"]["said"].endswith(", or give its path in Preferences.")
     reply = run(client, "terminal.openAgent", {"kind": "codex"})
     assert reply.status_code == 400 and reply.json()["error"] == found["codex"]["said"]

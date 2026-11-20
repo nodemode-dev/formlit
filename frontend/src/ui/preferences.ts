@@ -72,7 +72,7 @@ class Preferences extends Dialog {
     for (const [key, input] of Object.entries(this.claude)) {
       input.addEventListener('change', () => void this.ctx.api.cmd('prefs.set', { values: { [key]: input.value.trim() } }).then(() => this.claudeStatus(), (err) => this.ctx.fail(err)));
     }
-    this.body.appendChild(el('<p class="cv-note">For developers: point an MCP client at this endpoint, or run <code>./formlit agents install</code> in the formlit repository to register it with Claude Code, Codex and Cursor.</p>'));
+    this.body.appendChild(el('<p class="cv-note">For developers: point an MCP client at this endpoint, or run <code>./formlit agents install</code> in the formlit repository to register it with Claude Code, Codex, Cursor and Antigravity.</p>'));
     this.body.appendChild(this.agents);
     this.body.appendChild(el('<div class="fl-sub">Engine</div>'));
     this.body.appendChild(this.engine);

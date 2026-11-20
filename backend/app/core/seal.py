@@ -7,7 +7,9 @@ SERVICE = "formlit"
 ACCOUNT = "settings-seal"
 FIELD = "seal"
 REPORTS = ("seal", "sealBroken")
-SEALED = ("outsideAgents", "claudeBin")
+PATHS = ("claudeBin", "codexBin", "cursorBin", "antigravityBin")
+LATER = ("codexBin", "cursorBin", "antigravityBin")
+SEALED = ("outsideAgents",) + PATHS
 _CACHE: dict = {"tried": False, "available": False, "key": None}
 
 
@@ -35,12 +37,12 @@ def _load(create: bool) -> bytes | None:
 
 
 def digest(values: dict, key: bytes) -> str:
-    body = json.dumps({k: values.get(k) for k in SEALED}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    body = json.dumps({k: values.get(k) for k in SEALED if k not in LATER or values.get(k)}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hmac.new(key, body.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def loosened(values: dict) -> bool:
-    return values.get("outsideAgents") == "allowed" or bool(str(values.get("claudeBin") or "").strip())
+    return values.get("outsideAgents") == "allowed" or any(str(values.get(k) or "").strip() for k in PATHS)
 
 
 def effective(stored: dict) -> dict:
@@ -53,7 +55,7 @@ def effective(stored: dict) -> dict:
         return {**out, "seal": "ok", "sealBroken": False}
     if not loosened(stored):
         return {**out, "seal": "unsealed", "sealBroken": False}
-    out.update(outsideAgents="blocked" if stored.get("outsideAgents") == "blocked" else "ask", claudeBin="")
+    out.update(outsideAgents="blocked" if stored.get("outsideAgents") == "blocked" else "ask", **{k: "" for k in PATHS})
     return {**out, "seal": "broken", "sealBroken": True}
 
 
