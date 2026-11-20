@@ -14,7 +14,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -30,6 +29,8 @@ MANIFEST = ROOT / "agents" / "manifest.json"
 SKILLS = ROOT / ".claude" / "skills"
 DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
 DOCK_MODULE = ROOT / "frontend" / "src" / "dock"
+LOOKUP = ROOT / "backend" / "app" / "engine" / "agent_lookup.py"
+LOOKUP_HASHES = {"1.0.0": "252ea9bb9419d4990f174f91914f09800497bc69e98f849f5643bbf4217cc3f3"}
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),
@@ -157,7 +158,34 @@ def dock_module_drift() -> list[str]:
     return [str((DOCK_MODULE / n).relative_to(ROOT)) for n in dict.fromkeys(bad)]
 
 
+def lookup_problems() -> list[str]:
+    import hashlib
+    rel = LOOKUP.relative_to(ROOT).as_posix()
+    try:
+        raw = LOOKUP.read_bytes()
+    except OSError:
+        return [f"{rel}: missing (the shared finder for the agent programs)"]
+    said = re.search(rb'^VERSION = "([^"\r\n]+)"\r?$', raw, re.M)
+    version = said.group(1).decode("ascii", "replace") if said else "unknown"
+    if LOOKUP_HASHES.get(version) != hashlib.sha256(raw).hexdigest():
+        return [f"{rel}: does not match the hash recorded for version {version} (the shared finder changes only as a whole new version)"]
+    return []
+
+
+def lookup():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("formlit_agent_lookup", LOOKUP)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def sync(check: bool) -> int:
+    held = lookup_problems()
+    if held:
+        print("agents: " + "; ".join(held))
+        return 1
     drift = dock_module_drift()
     if drift and not check:
         print("agents: the shared dock folder does not match its MANIFEST.json and is never written here: " + ", ".join(drift))
@@ -209,19 +237,22 @@ def _copy_skill(to: Path, dry: bool, said: list) -> None:
 
 def install_claude(home: Path, dry: bool, said: list) -> None:
     said.append("Claude Code:")
-    claude = shutil.which("claude")
+    finder = lookup()
+    found = finder.check(finder.find("claude", override_vars=("FORMLIT_CLAUDE_BIN",), home=home))
+    claude = found.path if found.state == "runs" else None
     if claude:
-        have = subprocess.run([claude, "mcp", "get", "formlit"], capture_output=True, text=True)
+        env = finder.child_env(claude, home=home)
+        have = finder.run([claude, "mcp", "get", "formlit"], env, 60)
         if have.returncode == 0 and LAUNCH in have.stdout:
             said.append("  MCP server formlit already set (user scope)")
         else:
             said.append(f"  claude mcp add --scope user formlit -- {LAUNCH} mcp")
             if not dry:
                 if have.returncode == 0:
-                    subprocess.run([claude, "mcp", "remove", "formlit", "--scope", "user"], capture_output=True)
-                subprocess.run([claude, "mcp", "add", "--scope", "user", "formlit", "--", LAUNCH, "mcp"], check=True, capture_output=True)
+                    finder.run([claude, "mcp", "remove", "formlit", "--scope", "user"], env, 60)
+                finder.run([claude, "mcp", "add", "--scope", "user", "formlit", "--", LAUNCH, "mcp"], env, 60).check_returncode()
     else:
-        said.append(f"  the claude command is not installed here; once it is, run: claude mcp add --scope user formlit -- {LAUNCH} mcp")
+        said.append(f"  {finder.sentence(found, finder.install('claude'))} Once it runs: claude mcp add --scope user formlit -- {LAUNCH} mcp")
     _copy_skill(home / ".claude" / "skills" / NAME, dry, said)
 
 

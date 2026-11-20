@@ -1,6 +1,8 @@
+import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import stat
 
@@ -57,6 +59,42 @@ def test_a_changed_or_foreign_file_in_the_dock_folder_is_named(tmp_path, monkeyp
     (copy / "extra.ts").unlink()
     (copy / "tour.ts").unlink()
     assert sync.dock_module_drift() == ["frontend/src/dock/tour.ts"]
+
+
+LOOKUP = "backend/app/engine/agent_lookup.py"
+
+
+def test_the_shared_finder_matches_the_hash_recorded_for_its_version():
+    sync = sync_script()
+    version = re.search(r'^VERSION = "([^"]+)"$', (REPO / LOOKUP).read_text(encoding="utf-8"), re.M).group(1)
+    assert sync.LOOKUP == REPO / LOOKUP
+    assert sync.LOOKUP_HASHES[version] == hashlib.sha256((REPO / LOOKUP).read_bytes()).hexdigest()
+    assert sync.lookup_problems() == []
+
+
+def test_the_check_names_the_shared_finder_edited_in_place_or_missing(tmp_path, monkeypatch, capsys):
+    sync = sync_script()
+    copy = tmp_path / LOOKUP
+    copy.parent.mkdir(parents=True)
+    shutil.copyfile(REPO / LOOKUP, copy)
+    monkeypatch.setattr(sync, "ROOT", tmp_path)
+    monkeypatch.setattr(sync, "LOOKUP", copy)
+    assert sync.lookup_problems() == []
+    with open(copy, "a", encoding="utf-8") as f:
+        f.write("\n")
+    changed = f"{LOOKUP}: does not match the hash recorded for version 1.0.0 (the shared finder changes only as a whole new version)"
+    assert sync.lookup_problems() == [changed]
+    assert sync.sync(False) == 1 and capsys.readouterr().out == f"agents: {changed}\n"
+    assert sync.sync(True) == 1 and capsys.readouterr().out == f"agents: {changed}\n"
+    copy.unlink()
+    missing = f"{LOOKUP}: missing (the shared finder for the agent programs)"
+    assert sync.lookup_problems() == [missing]
+    assert sync.sync(True) == 1 and capsys.readouterr().out == f"agents: {missing}\n"
+
+
+def test_the_shared_finder_imports_nothing_from_the_app():
+    imports = set(re.findall(r"^\s*(?:from|import)\s+([\w.]+)", (REPO / LOOKUP).read_text(encoding="utf-8"), re.M))
+    assert imports == {"__future__", "dataclasses", "os", "pathlib", "re", "shutil", "signal", "subprocess", "sys", "threading", "time", "winreg"}
 
 
 def test_the_manifest_says_where_the_dock_sits_and_what_it_offers():
