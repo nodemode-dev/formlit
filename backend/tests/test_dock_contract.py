@@ -115,7 +115,7 @@ def own_shell_and_home(tmp_path, monkeypatch):
     (tmp_path / "home").mkdir(exist_ok=True)
     monkeypatch.setenv("SHELL", str(shell))
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    for name in ("FORMLIT_CLAUDE_BIN", "FORMLIT_CODEX_BIN", "FORMLIT_CURSOR_BIN", "FORMLIT_ANTIGRAVITY_BIN"):
+    for name in ("FORMLIT_CLAUDE_BIN", "FORMLIT_CODEX_BIN", "FORMLIT_CURSOR_BIN", "FORMLIT_ANTIGRAVITY_BIN", "NPM_CONFIG_PREFIX", "npm_config_prefix", "PNPM_HOME", "VOLTA_HOME", "BUN_INSTALL", "NVM_SYMLINK"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(agent_lookup, "system_folders", lambda platform=None: [])
     monkeypatch.setitem(claude_code._cache, "value", None)

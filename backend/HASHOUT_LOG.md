@@ -2151,6 +2151,21 @@ Now that the engine asks the finder, a test that reaches a lookup could read the
 
 Seen: the whole suite run with logging decoys named `claude`, `codex`, `cursor-agent` and `agy` first on the starting PATH, on the PATH of the starting shell and under the starting home's `~/.local/bin`: 390 passed and 1 failed as before, and the decoys' log had no line (one line in a control call made by hand). Every run of the suite and of the engine after the engine first called the finder was made with a made-up home, a stand-in shell and PATH `/usr/bin:/bin:/usr/sbin:/sbin`.
 
+## Four agent programs (unreleased, after v0.52.0) {#four-agent-programs}
+
+### app/engine/agent_lookup.py at 1.0.1 · setup/agents.py · LOOKUP_HASHES
+- refers-to: app/engine/agent_lookup.py (copied unchanged, VERSION 1.0.1); setup/agents.py :: LOOKUP_HASHES; tests/test_dock_module.py :: test_the_check_names_the_shared_finder_edited_in_place_or_missing; tests/conftest.py :: the sandbox block; tests/test_dock_contract.py :: own_shell_and_home
+- kind: change
+- logged: unreleased · 2026-11-19
+
+`agent_lookup.py` is now FormVis's file at formvis commit ddc893ae, VERSION 1.0.1, SHA-256 `62667f9b68b7d101e1896ce617240424e33b7e498c560bc79d45f0ab26c77d51`, written out with `git show` and never edited here. Against 1.0.0 two lines differ: the VERSION line, and `_last_line`, which leaves out a line holding "use -[v]S to pass options" when it picks the sentence a program that does not start said. `LOOKUP_HASHES` keeps the family's whole record, 1.0.0 and 1.0.1, so `lookup_problems` accepts either file as a whole and refuses anything else.
+
+The test of the changed-in-place sentence named the version in its sentence; it reads `VERSION` from the file now, as the hash test beside it does, so the next version of the file changes no test.
+
+The finder also reads `NPM_CONFIG_PREFIX`, `npm_config_prefix`, `PNPM_HOME`, `VOLTA_HOME`, `BUN_INSTALL` and `NVM_SYMLINK` as places where a program may be installed. A test that gives the finder a made-up home must not carry these in from the computer that runs the suite (the build machine sets `BUN_INSTALL`), so `conftest.py` drops them for the whole run beside the `FORMLIT_` variables, and `own_shell_and_home` drops them per test.
+
+Seen: `setup/agents.py sync --check` answers "in step"; `test_dock_contract.py`, `test_dock_module.py` and `test_window_key.py`: 45 passed, run with logging decoys first on PATH.
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for: `app/__init__.py`, `app/main.py`, `app/engine/events.py`, `app/engine/tasks.py`, `app/engine/query.py`, `app/engine/records.py`, `app/develop/settings.py`, `app/develop/geometry.py`, `app/develop/planes.py`, `app/develop/retouch.py`, `app/develop/colorops.py`, `app/develop/colour.py`, `app/develop/curves.py`, `app/develop/auto.py`, `app/develop/camera_look.py`, `app/develop/lensprofile.py`, `app/develop/fringe.py`, `app/develop/output.py`, `app/ai/models.py`, `app/ai/nets.py`, `app/ai/parts.py`, `app/ai/cull.py`, `app/ai/upright.py`, `app/ai/dng.py`, `app/output/icc.py`, `app/output/web.py`, `app/services/importer.py`, `app/services/metadata.py`, `app/services/xmp_presets.py`, `app/services/xmpwrite.py`, `app/services/xmpembed.py`, `app/services/rename.py`, `app/services/lensdb.py`, `app/services/watch.py`, `app/services/catalog_io.py`, and the remaining routers.

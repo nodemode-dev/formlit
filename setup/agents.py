@@ -30,7 +30,10 @@ SKILLS = ROOT / ".claude" / "skills"
 DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
 DOCK_MODULE = ROOT / "frontend" / "src" / "dock"
 LOOKUP = ROOT / "backend" / "app" / "engine" / "agent_lookup.py"
-LOOKUP_HASHES = {"1.0.0": "252ea9bb9419d4990f174f91914f09800497bc69e98f849f5643bbf4217cc3f3"}
+LOOKUP_HASHES = {
+    "1.0.0": "252ea9bb9419d4990f174f91914f09800497bc69e98f849f5643bbf4217cc3f3",
+    "1.0.1": "62667f9b68b7d101e1896ce617240424e33b7e498c560bc79d45f0ab26c77d51",
+}
 GROUPS = [
     ("Look", ["get_catalog", "find_photos", "get_photo", "get_preview", "analyze_photo", "get_develop", "get_develop_controls", "list_presets", "list_people", "list_export_presets"]),
     ("Import and organize", ["import_photos", "set_rating", "set_flag", "set_label", "add_keywords", "set_metadata", "set_location", "create_collection", "add_to_collection", "stack_photos"]),

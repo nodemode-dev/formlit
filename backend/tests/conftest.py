@@ -72,6 +72,8 @@ os.environ["USERPROFILE"] = str(_SANDBOX / "home")
 os.environ["FORMLIT_LIBRARY_DIR"] = str(_SANDBOX / "library")
 for _key in [k for k in os.environ if k.startswith(f"{ENV_PREFIX}_") and k not in (DATA_ENV, PORT_ENV, "FORMLIT_LIBRARY_DIR")]:
     os.environ.pop(_key)
+for _key in ("NPM_CONFIG_PREFIX", "npm_config_prefix", "PNPM_HOME", "VOLTA_HOME", "BUN_INSTALL", "NVM_SYMLINK"):
+    os.environ.pop(_key, None)
 STAND_IN_SHELL = """#!/bin/sh
 login=0; inter=0; script=""
 while [ $# -gt 0 ]; do
