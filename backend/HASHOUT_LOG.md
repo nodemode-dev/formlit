@@ -310,6 +310,17 @@ FormCut's macOS check found this in the family's file, and formlit carries the s
 
 Seen on Linux with `PROC` pointed at a folder that does not exist: with `finished` in the file and not yet used by `gone_by`, the new test failed with that sentence after ten seconds; with the change it passes, and the whole file is 16 passed. Not run on macOS.
 
+### src-tauri/src/engine_start.rs · ADDRESS_WAIT; setup/freeze_backend, setup/freeze_backend.bat · the engine without a console
+- refers-to: src-tauri/src/engine_start.rs :: ADDRESS_WAIT, tests::a_wait_that_runs_out_says_how_long_and_for_what; setup/freeze_backend :: windowed; setup/freeze_backend.bat :: WINDOWED
+- kind: decision
+- logged: v0.55.0 · 2026-11-20
+
+Logged here because `src-tauri` and `setup` have no log of their own. The owner's decision for the whole family: the shell waits 90 seconds for the engine's address, in every app. formlit had 120 s, chosen in 0.54.0 for a slow first start of its one-file engine; it is 90 s now, and the dialog's sentence says "waited 90 seconds".
+
+The owner's decision for the whole family: a Windows engine is packaged with no console window, as FormWeb's is. Both freeze scripts give PyInstaller `--noconsole` on Windows unless `FORMLIT_ENGINE_WINDOWED=0`; macOS and Linux builds are unchanged. `formlit_engine.py` already replaces a missing `sys.stdin`, `sys.stdout` or `sys.stderr` with the null device before anything else (see the entry "the engine starts without output streams"), so `--selfcheck`, which the scripts run on the built engine, does not stop on a stream that is `None`.
+
+Proved here: `bash -n setup/freeze_backend`; the `.bat` was read, not run. The scratch crate's loop test for a silent engine ran out after 90 s. No Windows build has shown the windowed engine.
+
 ---
 
 ## app/core/config.py {#core-config}
