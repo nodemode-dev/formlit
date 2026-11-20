@@ -1,6 +1,6 @@
 [package]
 name = "formlit"
-version = "0.53.0"
+version = "0.54.0"
 description = "formlit desktop shell"
 authors = ["NodeAgentc, Inc."]
 license = "Apache-2.0"
@@ -22,6 +22,9 @@ serde = { version = "1", features = ["derive"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWindow", "NSView", "NSResponder", "objc2-core-foundation", "NSColor"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [profile.release]
 codegen-units = 1

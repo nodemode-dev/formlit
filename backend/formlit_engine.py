@@ -1,6 +1,8 @@
 import json
+import logging
 import os
 import sys
+from pathlib import Path
 
 if sys.stdin is None:
     sys.stdin = open(os.devnull, encoding="utf-8")
@@ -59,25 +61,86 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
-def main() -> int:
-    if "--selfcheck" in sys.argv:
-        return selfcheck()
+def watch_shell(data) -> None:
+    from app.core import runtime, startup
+
+    shell = startup.shell_pid()
+    if shell <= 1:
+        return
+
+    def leave() -> None:
+        logging.getLogger("formlit").info("the app that started this engine is gone (process %s), stopping", shell)
+        runtime.release(data)
+        os._exit(0)
+
+    startup.watch(shell, leave)
+
+
+def serve() -> int:
     bundled = os.path.join(resource_dir(), "frontend_dist")
     if os.path.isdir(bundled):
         os.environ.setdefault("FORMLIT_DIST", bundled)
     os.environ.setdefault("FORMLIT_DESKTOP", "1")
-    from app.core import window_key
+    from app.core import runtime, startup, window_key
 
+    try:
+        from app.core import config
+
+        data = config.data_dir()
+        logs = runtime.start_logging(data).parent
+    except OSError as err:
+        print(f"formlit cannot use its data folder: {err}", file=sys.stderr)
+        return 5
+    startup.keep_errors(logs)
+    log = logging.getLogger("formlit")
+    if startup.alone():
+        beside = startup.app_beside(Path(sys.executable))
+        if beside is not None and startup.open_app(beside):
+            log.info("started without its app, so it opened %s and stopped", beside)
+            return 0
+        log.error("started without its app, and no app program was found near %s", sys.executable)
+        print("formlit-engine is a part of FormLit and serves nothing on its own. Open FormLit instead.", file=sys.stderr)
+        return 4
+    try:
+        runtime.claim(data)
+    except runtime.AlreadyRunning as err:
+        log.error("%s", err)
+        print(err, file=sys.stderr)
+        return 2
+    watch_shell(data)
     if window_key.stdout_mode():
         print(window_key.LINE + window_key.KEY, flush=True)
+    import signal
+
     import uvicorn
 
     from app.main import app as fastapi_app
 
+    def leave(_signum, _frame) -> None:
+        runtime.release(data)
+        os._exit(0)
+
+    signal.signal(signal.SIGTERM, leave)
+
     port = usable_port(int(os.environ.get("FORMLIT_PORT", "0") or 0)) or free_port()
     os.environ["FORMLIT_PORT"] = str(port)
-    uvicorn.run(fastapi_app, host="127.0.0.1", port=port, log_level="info")
-    return 0
+    server = uvicorn.Server(uvicorn.Config(fastapi_app, host="127.0.0.1", port=port, log_level="info"))
+    runtime.start_logging(data)
+    try:
+        server.run()
+    finally:
+        runtime.release(data)
+    return 0 if server.started else 3
+
+
+def main() -> int:
+    if "--selfcheck" in sys.argv:
+        return selfcheck()
+    try:
+        return serve()
+    except Exception:
+        logging.getLogger("formlit").exception("the engine stopped on an error")
+        raise
 
 
 if __name__ == "__main__":

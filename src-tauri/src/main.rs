@@ -1,16 +1,31 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod engine_start;
 mod reveal;
+#[cfg(windows)]
+mod win_job;
 
+use std::io::{BufRead, BufReader};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::UpdaterExt;
 
-struct Backend(Mutex<Option<CommandChild>>);
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+#[cfg(windows)]
+const ENGINE_PROGRAM: &str = "formlit-engine.exe";
+
+#[cfg(not(windows))]
+const ENGINE_PROGRAM: &str = "formlit-engine";
+
+struct Backend(Mutex<Option<Child>>);
 
 const ENGINE_PORT: &str = "8390";
 const FALLBACK_LOGICAL: (f64, f64) = (1440.0, 900.0);
@@ -18,8 +33,13 @@ const MIN_LOGICAL: (f64, f64) = (1080.0, 680.0);
 const SCREEN_FRACTION: f64 = 0.9;
 
 fn kill_backend(handle: &tauri::AppHandle) {
-    if let Some(child) = handle.state::<Backend>().0.lock().unwrap().take() {
+    let state = handle.state::<Backend>();
+    let child = state.0.lock().ok().and_then(|mut slot| slot.take());
+    if let Some(mut child) = child {
+        #[cfg(windows)]
+        win_job::end();
         let _ = child.kill();
+        let _ = child.wait();
     }
 }
 
@@ -57,27 +77,164 @@ fn check_for_updates(handle: tauri::AppHandle) {
     });
 }
 
-const KEY_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+fn engine_program() -> Option<std::path::PathBuf> {
+    let exe = tauri::utils::platform::current_exe().ok()?;
+    let program = exe.parent()?.join(ENGINE_PROGRAM);
+    program.is_file().then_some(program)
+}
 
-async fn next_event(
-    rx: &mut tauri::async_runtime::Receiver<CommandEvent>,
-    key_deadline: Option<std::time::Instant>,
-) -> Option<CommandEvent> {
-    let Some(deadline) = key_deadline else {
-        return rx.recv().await;
-    };
+fn forward_lines<R: std::io::Read + Send + 'static>(stream: R, tx: tauri::async_runtime::Sender<String>) {
+    std::thread::spawn(move || {
+        for line in BufReader::new(stream).split(b'\n') {
+            let Ok(bytes) = line else { break };
+            let _ = tx.blocking_send(String::from_utf8_lossy(&bytes).into_owned());
+        }
+    });
+}
+
+fn start_engine(program: &std::path::Path) -> std::io::Result<(Child, tauri::async_runtime::Receiver<String>)> {
+    let mut command = Command::new(program);
+    command
+        .env("FORMLIT_PORT", ENGINE_PORT)
+        .env("FORMLIT_WINDOW_KEY_STDOUT", "1")
+        .env(engine_start::SHELL_ENV, std::process::id().to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    let mut child = command.spawn()?;
+    #[cfg(windows)]
+    win_job::hold(&child);
+    let (tx, rx) = tauri::async_runtime::channel::<String>(64);
+    if let Some(stdout) = child.stdout.take() {
+        forward_lines(stdout, tx.clone());
+    }
+    if let Some(stderr) = child.stderr.take() {
+        forward_lines(stderr, tx);
+    }
+    Ok((child, rx))
+}
+
+async fn read_port(
+    mut rx: tauri::async_runtime::Receiver<String>,
+    tail: &mut engine_start::Tail,
+) -> Result<(u16, Option<String>), engine_start::Failure> {
+    let pattern = regex::Regex::new(r"http://127\.0\.0\.1:(\d+)").unwrap();
+    let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
+    let mut key: Option<String> = None;
+    let mut port: Option<u16> = None;
+    let mut waiting = engine_start::Wait::Address;
+    let (tick, mut timer) = tauri::async_runtime::channel::<()>(1);
+    std::thread::spawn(move || {
+        std::thread::sleep(engine_start::Wait::Address.limit());
+        let _ = tick.blocking_send(());
+    });
     loop {
-        if let Ok(event) = rx.try_recv() {
-            return Some(event);
-        }
-        if std::time::Instant::now() >= deadline {
-            return None;
-        }
-        let _ = tauri::async_runtime::spawn_blocking(|| {
-            std::thread::sleep(std::time::Duration::from_millis(20))
+        let next: Result<Option<String>, ()> = std::future::poll_fn(|cx| match timer.poll_recv(cx) {
+            std::task::Poll::Ready(_) => std::task::Poll::Ready(Err(())),
+            std::task::Poll::Pending => rx.poll_recv(cx).map(Ok),
         })
         .await;
+        let text = match next {
+            Err(()) => return Err(engine_start::Failure::TimedOut(waiting)),
+            Ok(None) => return Err(engine_start::Failure::Stopped(None)),
+            Ok(Some(text)) => text,
+        };
+        tail.push(&text);
+        if key.is_none() {
+            key = key_pattern.captures(&text).map(|found| found[1].to_string());
+        }
+        if port.is_none() {
+            port = pattern.captures(&text).and_then(|found| found[1].parse::<u16>().ok());
+            if port.is_some() && key.is_none() {
+                let (key_tick, key_timer) = tauri::async_runtime::channel::<()>(1);
+                std::thread::spawn(move || {
+                    std::thread::sleep(engine_start::Wait::Key.limit());
+                    let _ = key_tick.blocking_send(());
+                });
+                timer = key_timer;
+                waiting = engine_start::Wait::Key;
+            }
+        }
+        if let (Some(found), true) = (port, key.is_some()) {
+            tauri::async_runtime::spawn(async move { while rx.recv().await.is_some() {} });
+            return Ok((found, key));
+        }
     }
+}
+
+fn open_main(handle: &tauri::AppHandle, port: u16, key: Option<&str>) -> bool {
+    let origin = format!("http://127.0.0.1:{port}");
+    let Ok(url) = origin.parse::<tauri::Url>() else { return false };
+    let (width, height) = handle
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| {
+            let size = monitor.size();
+            let scale = monitor.scale_factor();
+            (
+                (size.width as f64 / scale) * SCREEN_FRACTION,
+                (size.height as f64 / scale) * SCREEN_FRACTION,
+            )
+        })
+        .unwrap_or(FALLBACK_LOGICAL);
+    let builder = WebviewWindowBuilder::new(handle, "main", WebviewUrl::External(url))
+        .title("FormLit")
+        .visible(reveal::BUILD_VISIBLE)
+        .background_color(reveal::BACKGROUND)
+        .inner_size(width, height)
+        .min_inner_size(MIN_LOGICAL.0, MIN_LOGICAL.1)
+        .center();
+    let builder = match key {
+        Some(value) => builder.initialization_script(format!(
+            "if (window.location.origin === {origin:?}) {{ window.__FORMLIT_WINDOW_KEY = {value:?}; }}"
+        )),
+        None => builder,
+    };
+    match builder.build() {
+        Ok(window) => {
+            reveal::conceal(&window);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+fn engine_exit_code(handle: &tauri::AppHandle) -> Option<i32> {
+    let state = handle.state::<Backend>();
+    let mut waited = std::time::Duration::ZERO;
+    while waited < engine_start::EXIT_WAIT {
+        if let Ok(mut slot) = state.0.lock() {
+            let seen = slot.as_mut().map(|child| child.try_wait());
+            match seen {
+                Some(Ok(Some(status))) => return status.code(),
+                Some(Ok(None)) => {}
+                _ => return None,
+            };
+        }
+        std::thread::sleep(engine_start::EXIT_STEP);
+        waited += engine_start::EXIT_STEP;
+    }
+    None
+}
+
+fn engine_failed(handle: &tauri::AppHandle, failure: engine_start::Failure, tail: &engine_start::Tail) {
+    let failure = match failure {
+        engine_start::Failure::Stopped(None) => engine_start::Failure::Stopped(engine_exit_code(handle)),
+        other => other,
+    };
+    let text = engine_start::message(&failure, &tail.lines(), engine_start::engine_log().as_deref());
+    let _ = handle
+        .dialog()
+        .message(text)
+        .title(engine_start::APP)
+        .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+        .blocking_show();
+    close_splash(handle);
+    kill_backend(handle);
+    handle.exit(1);
 }
 
 fn main() {
@@ -91,99 +248,30 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
             reveal::round_splash(&handle);
-            let (mut rx, child) = app
-                .shell()
-                .sidecar("formlit-engine")
-                .expect("sidecar binary is bundled")
-                .env("FORMLIT_PORT", ENGINE_PORT)
-                .env("FORMLIT_WINDOW_KEY_STDOUT", "1")
-                .spawn()
-                .expect("the formlit engine failed to spawn");
-            app.state::<Backend>().0.lock().unwrap().replace(child);
-
+            let spawned = match engine_program() {
+                Some(program) => start_engine(&program).map_err(|err| engine_start::Failure::NotStarted(err.to_string())),
+                None => Err(engine_start::Failure::Missing),
+            };
             tauri::async_runtime::spawn(async move {
-                let pattern = regex::Regex::new(r"http://127\.0\.0\.1:(\d+)").unwrap();
-                let key_pattern = regex::Regex::new(r"formlit-window-key: ([A-Za-z0-9_-]{32,})").unwrap();
-                let mut port: Option<u16> = None;
-                let mut key: Option<String> = None;
-                let mut address_at: Option<std::time::Instant> = None;
-                while let Some(event) = next_event(&mut rx, address_at.map(|at| at + KEY_WAIT)).await {
-                    let line = match event {
-                        CommandEvent::Stdout(bytes) => {
-                            let text = String::from_utf8_lossy(&bytes).into_owned();
-                            if key.is_none() {
-                                key = key_pattern.captures(&text).map(|found| found[1].to_string());
-                            }
-                            text
+                let mut tail = engine_start::Tail::default();
+                let found = match spawned {
+                    Ok((child, rx)) => {
+                        if let Ok(mut slot) = handle.state::<Backend>().0.lock() {
+                            *slot = Some(child);
                         }
-                        CommandEvent::Stderr(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
-                        CommandEvent::Terminated(_) => break,
-                        _ => continue,
-                    };
-                    if port.is_none() {
-                        if let Some(captures) = pattern.captures(&line) {
-                            port = captures[1].parse().ok();
-                            if port.is_some() {
-                                address_at = Some(std::time::Instant::now());
-                            }
-                        }
+                        read_port(rx, &mut tail).await
                     }
-                    if port.is_some() && key.is_some() {
-                        break;
-                    }
-                }
-                if key.is_none() {
-                    port = None;
-                }
-                match port {
-                    Some(found) => {
-                        let url: tauri::Url = format!("http://127.0.0.1:{found}")
-                            .parse()
-                            .expect("loopback url");
-                        let (width, height) = handle
-                            .primary_monitor()
-                            .ok()
-                            .flatten()
-                            .map(|monitor| {
-                                let size = monitor.size();
-                                let scale = monitor.scale_factor();
-                                (
-                                    (size.width as f64 / scale) * SCREEN_FRACTION,
-                                    (size.height as f64 / scale) * SCREEN_FRACTION,
-                                )
-                            })
-                            .unwrap_or(FALLBACK_LOGICAL);
-                        let builder = WebviewWindowBuilder::new(&handle, "main", WebviewUrl::External(url))
-                            .title("FormLit")
-                            .visible(reveal::BUILD_VISIBLE)
-                            .background_color(reveal::BACKGROUND)
-                            .inner_size(width, height)
-                            .min_inner_size(MIN_LOGICAL.0, MIN_LOGICAL.1)
-                            .center();
-                        let origin = format!("http://127.0.0.1:{found}");
-                        let builder = match &key {
-                            Some(value) => builder.initialization_script(format!(
-                                "if (window.location.origin === {origin:?}) {{ window.__FORMLIT_WINDOW_KEY = {value:?}; }}"
-                            )),
-                            None => builder,
-                        };
-                        let built = builder.build();
-                        match built {
-                            Ok(window) => reveal::conceal(&window),
-                            Err(_) => close_splash(&handle),
-                        }
+                    Err(failure) => Err(failure),
+                };
+                let failure = match found {
+                    Ok((port, key)) if open_main(&handle, port, key.as_deref()) => {
                         check_for_updates(handle.clone());
+                        return;
                     }
-                    None => {
-                        close_splash(&handle);
-                        handle
-                            .dialog()
-                            .message("The formlit engine failed to start. Please relaunch the app.")
-                            .blocking_show();
-                        kill_backend(&handle);
-                        std::process::exit(1);
-                    }
-                }
+                    Ok(_) => engine_start::Failure::Window,
+                    Err(failure) => failure,
+                };
+                engine_failed(&handle, failure, &tail);
             });
             Ok(())
         })

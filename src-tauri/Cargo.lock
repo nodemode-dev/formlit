@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "formlit"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "objc2",
  "objc2-app-kit",
@@ -905,6 +905,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
