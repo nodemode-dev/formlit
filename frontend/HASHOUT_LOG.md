@@ -1219,6 +1219,19 @@ Left as it was, on purpose: the sentences the panel itself shows in that menu an
 
 Checked: `npx tsc --noEmit` passes. Not seen in a window or a browser.
 
+## Four agent programs (unreleased, after v0.52.0) {#four-agent-programs}
+
+### src/dock/ at module 2.2.0 · src/dock-adapter.ts · src/modules/shared/terminal.ts
+- refers-to: src/dock/ (16 entries with MANIFEST.json, copied unchanged); src/dock-adapter.ts :: EngineProgram, record, formlitDock (its type, tabs, agentStatus); src/modules/shared/terminal.ts :: mounted, registerTerminal
+- kind: feat
+- logged: unreleased · 2026-11-19
+
+`src/dock/` is FormVis's folder at formvis commit ddc893ae, module 2.2.0, each file written out with `git show` and none edited here; `agents.ts` is new in it. In 2.2.0 the panel takes its agent kinds from the adapter, so a fourth program needs no change inside the folder. Known difference in the DOM against 2.1.0, not in the look: every control carries `data-dock-part`, agent tabs carry `is-program`.
+
+The adapter is `DockAdapter<'antigravity'>`: `tabs().builtin` lists `antigravity` after `cursor`; `record` passes the engine's kind `antigravity` through; `agentStatus` reads the fourth key of `terminal.agents` and, when Antigravity is not found or does not start, gives the engine's own sentence as the row's `note` (where it looked and how to install it). `terminal.open('antigravity', ...)` goes to `terminal.openAgent`, as Codex and Cursor do. The dock is held as `Dock<'antigravity'>`. The rows of Claude Code, Codex and Cursor are as they were: no `note` for them, which would be steps 2 to 5 of the move and more than one change.
+
+Checked: `npx tsc --noEmit` passes. Not seen in a window or a browser: the fourth button, its row and the tab were not looked at; the engine side was seen through the routes (backend log, #four-agent-programs).
+
 ## Files with no entries {#no-entries}
 
 No logged content at v0.1.0 for the remaining files in the map, including `app.ts`, `main.ts`, `second.ts`, `second-modes.ts`, `io/*`, `state/*`, the rest of `modules/library`, `modules/develop`, `modules/output` and `modules/shared`, the rest of `ui/`, and the remaining `lit-*.css` sheets.

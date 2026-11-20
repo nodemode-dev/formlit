@@ -14,7 +14,7 @@ PROGRAMS = {
     "cursor": {"bin": "cursor-agent", "title": "Cursor", "install": "curl https://cursor.com/install -fsS | bash", "keys": ("CURSOR_API_KEY",), "ask": ("status",)},
     "antigravity": {"bin": "agy", "title": "Antigravity", "install": agent_lookup.install("antigravity"), "keys": (), "ask": ()},
 }
-TABS = ("codex", "cursor")
+TABS = ("codex", "cursor", "antigravity")
 CLAUDE_KEYS = ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
 TAB_SERVER = "formlit_tab"
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
@@ -91,14 +91,59 @@ def cursor_config(folder: str) -> None:
         return
 
 
+def tab_folder(kind: str) -> Path:
+    folder = config.data_dir() / "agent-tabs" / kind
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _tab_file(folder: Path) -> Path:
+    return folder / ".agents" / "mcp_config.json"
+
+
+def _tab_servers(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8") or "{}") if path.exists() else {}
+    if not isinstance(data, dict) or not isinstance(data.get("mcpServers", {}), dict):
+        raise OSError(f"{path} is not an MCP servers file formlit can read, so it was left alone")
+    return data
+
+
+def _tab_replace(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    part = path.with_name(path.name + f".part-{os.getpid()}")
+    with os.fdopen(os.open(part, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, indent=2) + "\n")
+    os.replace(part, path)
+
+
+def write_tab_entry(folder: Path, token: str) -> None:
+    path = _tab_file(folder)
+    data = _tab_servers(path)
+    data.setdefault("mcpServers", {})[TAB_SERVER] = {"serverUrl": config.engine_url() + "/mcp", "headers": {claude_code.INAPP_HEADER: token}}
+    _tab_replace(path, data)
+
+
+def remove_tab_entry(folder: Path, token: str) -> None:
+    path = _tab_file(folder)
+    try:
+        data = _tab_servers(path)
+        entry = data.get("mcpServers", {}).get(TAB_SERVER)
+        if not isinstance(entry, dict) or (entry.get("headers") or {}).get(claude_code.INAPP_HEADER) != token:
+            return
+        del data["mcpServers"][TAB_SERVER]
+        _tab_replace(path, data)
+    except (OSError, ValueError):
+        return
+
+
 @command("terminal.agents", "Agent Programs", {"fresh": {"type": "boolean", "description": "look again instead of using the answer from the last minute"}}, mutates=False,
-         description="Which agent programs formlit's dock can start (claude, codex, cursor): installed or not, the path, the version, signed in or not (null when formlit cannot tell) and the install line to paste. The window only.")
+         description="Which agent programs formlit's dock can start (claude, codex, cursor, antigravity): installed or not, the path, the version, signed in or not (null when formlit cannot tell) and the install line to paste. The window only.")
 def agents_(fresh: bool | None = None) -> dict:
     return report(bool(fresh))
 
 
-@command("terminal.openAgent", "Open an Agent Program", {"kind": {"type": "string", "enum": ["codex", "cursor"]}, "cols": {"type": "integer"}, "rows": {"type": "integer"}}, mutates=False,
-         description="Starts Codex or Cursor's agent in a terminal tab of formlit's dock, connected to formlit's MCP tools without the outside-agent prompt through a token of its own that ends when the tab closes. The window only.")
+@command("terminal.openAgent", "Open an Agent Program", {"kind": {"type": "string", "enum": ["codex", "cursor", "antigravity"]}, "cols": {"type": "integer"}, "rows": {"type": "integer"}}, mutates=False,
+         description="Starts Codex, Cursor's agent or Antigravity in a terminal tab of formlit's dock, connected to formlit's MCP tools without the outside-agent prompt through a token of its own that ends when the tab closes. The window only.")
 def open_agent(kind: str, cols: int | None = None, rows: int | None = None) -> dict:
     if kind not in TABS:
         raise CommandError(f"No agent program called {kind}", 400)
@@ -107,15 +152,22 @@ def open_agent(kind: str, cols: int | None = None, rows: int | None = None) -> d
     if found.state != "runs":
         raise CommandError(claude_code.said(found), 400)
     path = found.path
-    folder = str(claude_code.workdir())
+    own = tab_folder(kind) if kind == "antigravity" else None
+    folder = str(own or claude_code.workdir())
     argv = agent_lookup.start_argv(tab_command(kind, path))
     if kind == "cursor":
         cursor_config(folder)
     token = claude_code.issue_env()
     try:
+        if own:
+            write_tab_entry(own, token)
         session = terminal.open_session(folder, cols or 100, rows or 30, p["title"], argv, claude_code.child_env(path) | {claude_code.INAPP_VAR: token}, kind)
     except BaseException:
         claude_code.revoke(token)
+        if own:
+            remove_tab_entry(own, token)
         raise
     session.on_close.append(lambda: claude_code.revoke(token))
+    if own:
+        session.on_close.append(lambda: remove_tab_entry(own, token))
     return session.describe()

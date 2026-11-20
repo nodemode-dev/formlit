@@ -299,6 +299,46 @@ def test_a_program_tab_has_a_token_of_its_own_that_ends_with_the_tab(client, sta
     assert not claude_code.is_inapp(token)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the stand-ins are shell scripts")
+def test_an_antigravity_tab_gets_its_entry_in_its_own_folder_and_loses_it_when_it_closes(client, stand_ins):
+    from app.engine import agent_programs, claude_code, terminal
+
+    put(stand_ins, "agy", STAND_IN)
+    status = run(client, "terminal.agents", {"fresh": True}).json()["result"]["antigravity"]
+    assert status["installed"] and status["version"] == "9.9.9" and status["signedIn"] is None
+    folder = agent_programs.tab_folder("antigravity")
+    path = folder / ".agents" / "mcp_config.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    seed = {"mcpServers": {"other": {"command": "other"}}, "theme": "kept"}
+    path.write_text(json.dumps(seed), encoding="utf-8")
+    reply = run(client, "terminal.openAgent", {"kind": "antigravity", "cols": 80, "rows": 20})
+    assert reply.status_code == 200 and reply.json()["result"]["kind"] == "antigravity" and reply.json()["result"]["title"] == "Antigravity"
+    session = terminal.SESSIONS[reply.json()["result"]["id"]]
+    token = session.env[claude_code.INAPP_VAR]
+    held = json.loads(path.read_text(encoding="utf-8"))
+    assert held["theme"] == "kept" and held["mcpServers"]["other"] == {"command": "other"}
+    entry = held["mcpServers"][agent_programs.TAB_SERVER]
+    assert entry["headers"] == {INAPP_HEADER: token} and entry["serverUrl"].endswith("/mcp")
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600 and session.cwd == str(folder)
+    assert claude_code.is_inapp(token) and all(token not in part for part in session.argv)
+    assert not call(client, READ_TOOL, headers={INAPP_HEADER: token}).get("isError")
+    assert run(client, "terminal.close", {"id": session.id}).status_code == 200
+    assert json.loads(path.read_text(encoding="utf-8")) == seed
+    assert not claude_code.is_inapp(token)
+
+
+def test_a_tab_entry_that_is_not_this_tabs_is_left_alone(tmp_path):
+    from app.engine import agent_programs
+
+    agent_programs.write_tab_entry(tmp_path, "first")
+    agent_programs.write_tab_entry(tmp_path, "second")
+    agent_programs.remove_tab_entry(tmp_path, "first")
+    path = tmp_path / ".agents" / "mcp_config.json"
+    assert json.loads(path.read_text(encoding="utf-8"))["mcpServers"][agent_programs.TAB_SERVER]["headers"] == {INAPP_HEADER: "second"}
+    agent_programs.remove_tab_entry(tmp_path, "second")
+    assert json.loads(path.read_text(encoding="utf-8")) == {"mcpServers": {}}
+
+
 @pytest.mark.parametrize("cid,params", [("terminal.agents", {}), ("terminal.openAgent", {"kind": "codex"})])
 def test_the_agent_program_commands_are_the_windows(client, bare, cid, params):
     assert bare.post(f"/api/commands/{cid}", json=params).status_code == 403

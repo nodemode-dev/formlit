@@ -20,7 +20,7 @@ const CHOICES: ConsentChoice[] = ['deny', 'once', 'always'];
 
 interface Pending { request?: unknown; agent?: unknown; client?: unknown; what?: unknown; answers?: unknown; alwaysCovers?: unknown; expiresAt?: unknown }
 interface AgentsStatus { outsideAgents: string; pending: Pending[] }
-interface EngineProgram { installed?: boolean; version?: string | null; install?: string; signedIn?: boolean | null }
+interface EngineProgram { installed?: boolean; version?: string | null; install?: string; signedIn?: boolean | null; finding?: string; said?: string }
 interface EngineTerminal { id: string; title: string; alive?: boolean; kind?: string; cwd?: string }
 
 export function windowContext(ctx: Ctx): string {
@@ -46,8 +46,8 @@ function toRequest(p: Pending): ConsentRequest | null {
   };
 }
 
-function record(x: EngineTerminal): DockTerminal {
-  const kind = x.kind === 'claude' || x.kind === 'codex' || x.kind === 'cursor' ? x.kind : 'shell';
+function record(x: EngineTerminal): DockTerminal<'antigravity'> {
+  const kind = x.kind === 'claude' || x.kind === 'codex' || x.kind === 'cursor' || x.kind === 'antigravity' ? x.kind : 'shell';
   return { id: x.id, title: x.title, alive: x.alive !== false, kind, ...(x.cwd ? { tip: x.cwd } : {}) };
 }
 
@@ -88,7 +88,7 @@ function errorKind(err: unknown): DockErrorKind | null {
   return err.status === 502 || err.status === 503 || err.status === 504 ? 'unreachable' : null;
 }
 
-export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
+export function formlitDock(ctx: Ctx, dock: () => Dock<'antigravity'>): DockAdapter<'antigravity'> {
   const api = ctx.api;
   const open = new Set<string>();
   const chord = (e: KeyboardEvent): boolean => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && e.code === 'KeyJ';
@@ -144,7 +144,7 @@ export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
     isDockChord: (e) => chord(e) && !e.shiftKey && !e.altKey && !(anyDialogOpen() && !(e.target instanceof Element && e.target.closest('.ft-dock'))),
     chordLabel: () => `${isMac ? 'Cmd' : 'Ctrl'}+J`,
     passKey: (e) => chord(e) && e.shiftKey !== e.altKey,
-    tabs: () => ({ builtin: ['chat', 'shell', 'claude', 'codex', 'cursor'] }),
+    tabs: () => ({ builtin: ['chat', 'shell', 'claude', 'codex', 'cursor', 'antigravity'] }),
     classes: { iconButton: 'cv-tt-btn', button: 'cv-btn', primaryButton: 'cv-btn-primary', input: 'cv-input', select: 'cv-select', note: 'cv-note' },
     t: (_key, english) => t(english.replace(/\{(app|noun|start)\}/g, (_m, name: keyof typeof WORDS) => WORDS[name])),
     onTheme: (handler) => { document.addEventListener('nm:ui-settings-changed', handler); },
@@ -172,11 +172,11 @@ export function formlitDock(ctx: Ctx, dock: () => Dock): DockAdapter {
       scrollback: 5000,
     },
     agentStatus: async () => {
-      const now = await api.cmd<Partial<Record<DockProgram, EngineProgram>>>('terminal.agents');
-      const out: DockAgentStatus = {};
-      for (const kind of ['claude', 'codex', 'cursor'] as const) {
+      const now = await api.cmd<Partial<Record<DockProgram | 'antigravity', EngineProgram>>>('terminal.agents');
+      const out: DockAgentStatus<'antigravity'> = {};
+      for (const kind of ['claude', 'codex', 'cursor', 'antigravity'] as const) {
         const p = now[kind];
-        if (p) out[kind] = { installed: p.installed === true, version: p.version ?? null, install: p.install ?? '', signedIn: p.signedIn ?? null };
+        if (p) out[kind] = { installed: p.installed === true, version: p.version ?? null, install: p.install ?? '', signedIn: p.signedIn ?? null, ...(kind === 'antigravity' && p.finding !== 'runs' && typeof p.said === 'string' ? { note: p.said } : {}) };
       }
       return out;
     },

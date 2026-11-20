@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""./formlit agents: formlit for Claude Code, Codex and Cursor.
+"""./formlit agents: formlit for Claude Code, Codex, Cursor and Antigravity.
 
   sync [--check]            regenerate the driving skill's tool, preset and template references from the engine, write
                             agents/manifest.json (what formlit offers agents) and mirror the skill from .claude/skills to
                             .agents/skills; --check exits 1 when any of them has drifted
-  install [--dry-run] [claude|codex|cursor ...]
+  install [--dry-run] [claude|codex|cursor|antigravity ...]
                             register the MCP server (./formlit mcp at this folder's absolute path) and the driving skill
-                            for this user account (all three by default); files are backed up before they change.
+                            for this user account (all four by default); files are backed up before they change.
+                            Antigravity gets the MCP server only, in ~/.gemini/config/mcp_config.json; a server named
+                            formlit that formlit did not write is left alone.
                             This is the developer path; everyone else adds the formlit plugin from the Form marketplace.
 """
 
@@ -27,7 +29,7 @@ LAUNCH = str(ROOT / ("formlit.bat" if os.name == "nt" else "formlit"))
 APP = "formlit"
 MANIFEST = ROOT / "agents" / "manifest.json"
 SKILLS = ROOT / ".claude" / "skills"
-DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor"]}
+DOCK = {"present": True, "positions": ["bottom", "right"], "tabs": ["chat", "terminal", "claude-code", "codex", "cursor", "antigravity"]}
 DOCK_MODULE = ROOT / "frontend" / "src" / "dock"
 LOOKUP = ROOT / "backend" / "app" / "engine" / "agent_lookup.py"
 LOOKUP_HASHES = {
@@ -294,6 +296,40 @@ def install_cursor(home: Path, dry: bool, said: list) -> None:
     _copy_skill(home / ".agents" / "skills" / NAME, dry, said)
 
 
+def _ours(entry: object) -> bool:
+    return isinstance(entry, dict) and entry.get("args") == ["mcp"] and Path(str(entry.get("command", ""))).name == Path(LAUNCH).name
+
+
+def install_antigravity(home: Path, dry: bool, said: list) -> None:
+    said.append("Antigravity:")
+    cfg = home / ".gemini" / "config" / "mcp_config.json"
+    older = home / ".gemini" / "antigravity-cli" / "mcp_config.json"
+    if older.exists() and not cfg.exists():
+        said.append(f"  an older file was seen at {older} and left alone; the documented file is {cfg}")
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8") or "{}") if cfg.exists() else {}
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get("mcpServers", {}), dict):
+        said.append(f"  {cfg} is not an MCP servers file formlit can read; left alone")
+        return
+    entry = {"command": LAUNCH, "args": ["mcp"]}
+    have = data.get("mcpServers", {}).get("formlit")
+    if have == entry:
+        said.append(f"  MCP server formlit already in {cfg}")
+    elif have is not None and not _ours(have):
+        said.append(f"  {cfg} has a server named formlit that formlit did not write; left alone")
+    else:
+        said.append(f"  MCP server formlit -> {cfg}")
+        if not dry:
+            _backup(cfg, dry)
+            data.setdefault("mcpServers", {})["formlit"] = entry
+            cfg.parent.mkdir(parents=True, exist_ok=True)
+            part = cfg.with_name(cfg.name + f".part-{os.getpid()}")
+            part.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            os.replace(part, cfg)
+
+
 def main(argv: list[str]) -> int:
     cmd = argv[0] if argv else "install"
     rest = argv[1:]
@@ -301,14 +337,14 @@ def main(argv: list[str]) -> int:
         return sync("--check" in rest)
     if cmd == "install":
         dry = "--dry-run" in rest
-        which = [a for a in rest if not a.startswith("--")] or ["claude", "codex", "cursor"]
-        bad = [w for w in which if w not in ("claude", "codex", "cursor")]
+        which = [a for a in rest if not a.startswith("--")] or ["claude", "codex", "cursor", "antigravity"]
+        bad = [w for w in which if w not in ("claude", "codex", "cursor", "antigravity")]
         if bad:
-            print(f"agents: unknown client {', '.join(bad)} (claude, codex or cursor)", file=sys.stderr)
+            print(f"agents: unknown client {', '.join(bad)} (claude, codex, cursor or antigravity)", file=sys.stderr)
             return 2
         home, said = Path(os.environ.get("HOME", str(Path.home()))), []
         for w in which:
-            {"claude": install_claude, "codex": install_codex, "cursor": install_cursor}[w](home, dry, said)
+            {"claude": install_claude, "codex": install_codex, "cursor": install_cursor, "antigravity": install_antigravity}[w](home, dry, said)
         print(("Would do (dry run):\n" if dry else "") + "\n".join(said))
         if not dry:
             print("\nRestart the clients, then ask one to cull or develop your photos. The engine starts on the first call, and formlit asks in its window whether to allow outside agents (change it later in Preferences, AI agents).")
